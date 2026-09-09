@@ -201,6 +201,16 @@ table thead th {
   left: 88px;
 }
 
+/* Responsive header positioning — only shift on lg+ */
+@media (min-width: 1024px) {
+  .lg\:header-open {
+    left: 220px;
+  }
+  .lg\:header-collapsed {
+    left: 88px;
+  }
+}
+
 .nav-item {
   color: inherit;
 }

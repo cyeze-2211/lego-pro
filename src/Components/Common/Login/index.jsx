@@ -98,11 +98,22 @@ export default function Login() {
                 code: pin,
             }).unwrap();
 
+            const userRole = response.data.role?.toLowerCase?.() || response.data.roleName?.toLowerCase?.() || null;
             dispatch(setAuth({
                 token: response.data.accessToken,
                 userId: response.data.id,
+                role: userRole,
             }));
-            navigate("/");
+            // Ombor rollari /staff ga, raw material /raw-staff ga
+            const warehouseRoles = ['product_storekeeper'];
+            const rawRoles       = ['raw_material_storekeeper'];
+            if (userRole && warehouseRoles.includes(userRole)) {
+                navigate("/staff");
+            } else if (userRole && rawRoles.includes(userRole)) {
+                navigate("/raw-staff");
+            } else {
+                navigate("/");
+            }
         } catch (err) {
             console.error("Login failed:", err);
         }

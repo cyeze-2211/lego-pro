@@ -38,7 +38,7 @@ export default function AdminHeader({
     }, []);
 
     return (
-        <header className={`header fixed top-0 right-0 z-30 h-[72px] transition-all duration-300 ${sidebarOpen ? "header-open" : "header-collapsed"} ${isDark ? "theme-dark" : "theme-light"}`}>
+        <header className={`header fixed top-0 right-0 z-30 h-[72px] transition-all duration-300 left-0 ${sidebarOpen ? "lg:header-open" : "lg:header-collapsed"} ${isDark ? "theme-dark" : "theme-light"}`}>
             <div className="flex h-full items-center justify-between gap-4 px-5">
                 <div className="flex items-center gap-3">
                     <button

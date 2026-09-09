@@ -3,15 +3,24 @@ import { User, ShieldCheck, Mail, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAppTheme } from "../../../theme/tokens";
 import { useGetUserByIdQuery } from "../../../store/services/user.api";
+import { useAppSelector } from "../../../store/hooks";
+import { PRODUCT_WAREHOUSE_ROLES, RAW_WAREHOUSE_ROLES } from "../../../app/permissions/roles";
 
 export default function Profile() {
     const navigate = useNavigate();
     const { isDark } = useAppTheme();
     const userId = Cookies.get("user_id");
+    const role = useAppSelector((state) => state.auth.role);
     const { data: user, isLoading } = useGetUserByIdQuery(userId, { skip: !userId });
 
     const username = isLoading ? "Yuklanmoqda..." : user?.username || "Guest";
-    const role = user?.roleName || user?.role || "No role";
+    const roleName = user?.roleName || user?.role || role || "No role";
+
+    const goBack = () => {
+        if (PRODUCT_WAREHOUSE_ROLES.includes(role)) return navigate("/staff");
+        if (RAW_WAREHOUSE_ROLES.includes(role))     return navigate("/raw-staff");
+        navigate("/");
+    };
 
     return (
         <section className="w-full py-2">
@@ -22,7 +31,7 @@ export default function Profile() {
                 </div>
                 <button
                     type="button"
-                    onClick={() => navigate(-1)}
+                    onClick={goBack}
                     className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
                         isDark
                             ? "border-slate-700 text-slate-300 hover:bg-slate-800"
@@ -61,7 +70,7 @@ export default function Profile() {
                             </span>
                             <div>
                                 <p className="text-xs text-slate-500 dark:text-slate-400">Role</p>
-                                <p className={`mt-0.5 text-sm font-semibold ${isDark ? "text-slate-100" : "text-slate-800"}`}>{role}</p>
+                                <p className={`mt-0.5 text-sm font-semibold ${isDark ? "text-slate-100" : "text-slate-800"}`}>{roleName}</p>
                             </div>
                         </div>
                         <div className={`flex items-center gap-3 rounded-xl border p-4 ${isDark ? "border-white/10 bg-slate-900/50" : "border-slate-200 bg-slate-50"}`}>
