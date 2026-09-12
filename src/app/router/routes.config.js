@@ -1,6 +1,8 @@
 import { lazy } from 'react';
 import { ROLES, PRODUCT_WAREHOUSE_ROLES, RAW_WAREHOUSE_ROLES, WAREHOUSE_ROLES, ZAYAVKACHI_ROLES } from '../permissions/roles';
 
+export const STANOKCHI_ROLES = [ROLES.STANOKCHI];
+
 
 export const ROUTES = [
     // ── Manager routes ───────────────────────────────────────────────────
@@ -135,6 +137,18 @@ export const ROUTES = [
         path: '/staff/history',
         component: lazy(() => import('../../Components/Staff/History')),
         roles: PRODUCT_WAREHOUSE_ROLES,
+    },
+
+    // ── Stanokchi routes ─────────────────────────────────────────────────
+    {
+        path: '/stanokchi',
+        component: lazy(() => import('../../Components/Stanokchi/Machines')),
+        roles: STANOKCHI_ROLES,
+    },
+    {
+        path: '/stanokchi/machines/:id',
+        component: lazy(() => import('../../Components/Stanokchi/MachineDetail')),
+        roles: STANOKCHI_ROLES,
     },
 
     // ── Raw Staff (Raw Material Storekeeper) routes ──────────────────────
