@@ -121,8 +121,8 @@ export default function StaffHistory() {
                             <div className={`flex rounded-xl border overflow-hidden ${isDark ? 'border-slate-700' : 'border-slate-200'}`}>
                                 {[
                                     { value: '',    label: 'Barchasi', cls: isDark ? 'bg-amber-400/10 text-amber-300' : 'bg-amber-50 text-amber-700' },
-                                    { value: 'IN',  label: 'Kirim',    cls: 'bg-emerald-500/10 text-emerald-500' },
-                                    { value: 'OUT', label: 'Chiqim',   cls: 'bg-rose-500/10 text-rose-500' },
+                                    { value: 'IN',  label: 'Kirim',    cls: isDark ? 'bg-amber-400/10 text-amber-300' : 'bg-amber-50 text-amber-700' },
+                                    { value: 'OUT', label: 'Chiqim',   cls: isDark ? 'bg-amber-400/10 text-amber-300' : 'bg-amber-50 text-amber-700' }
                                 ].map(({ value, label, cls }) => (
                                     <button
                                         key={value}
@@ -141,15 +141,7 @@ export default function StaffHistory() {
                                 ))}
                             </div>
                         </div>
-                        {hasFilters && (
-                            <button
-                                type="button"
-                                onClick={resetFilters}
-                                className={`flex h-[42px] items-center gap-1.5 rounded-xl border px-3 text-sm font-medium transition-colors ${isDark ? 'border-slate-700 bg-slate-800/80 text-slate-400 hover:text-rose-400' : 'border-slate-200 text-slate-500 hover:text-rose-500 hover:bg-rose-50'}`}
-                            >
-                                <LuX size={13} /> Tozalash
-                            </button>
-                        )}
+
                     </div>
                 </div>
             </div>
@@ -196,7 +188,7 @@ export default function StaffHistory() {
                                             <td className={`px-5 py-3.5 text-xs ${muted}`}>{page * PAGE_SIZE + idx + 1}</td>
                                             <td className="px-5 py-3.5"><ActionBadge action={t.action} /></td>
                                             <td className={`px-5 py-3.5 font-semibold ${head}`}>{t.productName}</td>
-                                            <td className={`px-5 py-3.5 font-mono text-xs ${muted}`}>
+                                            <td className={`px-5 py-3.5 font-mono text-x ${muted}`}>
                                                 <span className="flex items-center gap-1.5">
                                                     <LuBarcode size={12} />{t.productBarcode}
                                                 </span>
@@ -206,7 +198,7 @@ export default function StaffHistory() {
                                                     {t.action === 'IN' ? '+' : '-'}{t.quantity} dona
                                                 </span>
                                             </td>
-                                            <td className={`px-5 py-3.5 text-xs ${muted}`}>
+                                            <td className={`px-5 py-3.5 text-x ${muted}`}>
                                                 {t.createdAt ? new Date(t.createdAt).toLocaleString('uz-UZ') : '—'}
                                             </td>
                                         </tr>

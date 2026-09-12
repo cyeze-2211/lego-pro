@@ -150,8 +150,8 @@ export default function RawStaffStockWarehouse() {
                                         <tr key={`${s.rawMaterialId}-${s.warehouseId}`} className={`transition-colors ${rowHov}`}>
                                             <td className={`px-5 py-3.5 text-xs ${muted}`}>{page * PAGE_SIZE + idx + 1}</td>
                                             <td className={`px-5 py-3.5 font-semibold ${head}`}>{s.rawMaterialName}</td>
-                                            <td className={`px-5 py-3.5 text-xs hidden lg:table-cell ${muted}`}>{s.rawMaterialSummary || '—'}</td>
-                                            <td className={`px-5 py-3.5 text-xs ${muted}`}>
+                                            <td className={`px-5 py-3.5 text-x hidden lg:table-cell ${muted}`}>{s.rawMaterialSummary || '—'}</td>
+                                            <td className={`px-5 py-3.5 text-x ${muted}`}>
                                                 {s.lastModifiedAt ? new Date(s.lastModifiedAt).toLocaleString('uz-UZ') : '—'}
                                             </td>
                                             <td className="px-5 py-3.5 text-right">

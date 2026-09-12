@@ -145,12 +145,12 @@ export default function StaffStockWarehouse() {
                                         <tr key={`${s.productId}-${s.warehouseId}`} className={`transition-colors ${rowHov}`}>
                                             <td className={`px-5 py-3.5 text-xs ${muted}`}>{page * PAGE_SIZE + idx + 1}</td>
                                             <td className={`px-5 py-3.5 font-semibold ${head}`}>{s.productName}</td>
-                                            <td className={`px-5 py-3.5 font-mono text-xs ${muted}`}>
+                                            <td className={`px-5 py-3.5 font-mono text-x ${muted}`}>
                                                 <span className="flex items-center gap-1.5">
                                                     <LuBarcode size={12} />{s.productBarcode}
                                                 </span>
                                             </td>
-                                            <td className={`px-5 py-3.5 text-xs ${muted}`}>
+                                            <td className={`px-5 py-3.5 text-x ${muted}`}>
                                                 {s.lastModifiedAt ? new Date(s.lastModifiedAt).toLocaleString('uz-UZ') : '—'}
                                             </td>
                                             <td className="px-5 py-3.5 text-right">
