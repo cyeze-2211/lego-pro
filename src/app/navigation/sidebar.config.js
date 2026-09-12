@@ -1,7 +1,7 @@
 // navigation/sidebar.config.js
-import { ROLES, PRODUCT_WAREHOUSE_ROLES, RAW_WAREHOUSE_ROLES } from '../permissions/roles';
+import { ROLES, PRODUCT_WAREHOUSE_ROLES, RAW_WAREHOUSE_ROLES, ZAYAVKACHI_ROLES } from '../permissions/roles';
 import {
-    Boxes, Cog, History, LayoutDashboard, LogIn, LogOut,
+    Boxes, ClipboardList, Cog, History, LayoutDashboard, LogIn, LogOut,
     MonitorCog, Package, ReceiptText, UserRound, Users, Wallet, Warehouse,
 } from 'lucide-react';
 
@@ -53,4 +53,15 @@ export const RAW_STAFF_SIDEBAR_CONFIG = [
 export const RAW_STAFF_SIDEBAR_GROUPS = [
     { label: 'Asosiy',    items: RAW_STAFF_SIDEBAR_CONFIG.filter((i) => i.path === '/raw-staff') },
     { label: 'Xom ashyo', items: RAW_STAFF_SIDEBAR_CONFIG.filter((i) => ['/raw-staff/income', '/raw-staff/outcome', '/raw-staff/warehouse', '/raw-staff/history'].includes(i.path)) },
+];
+
+// ── Zayavkachi ─────────────────────────────────────────────────────────────
+export const ZAYAVKACHI_SIDEBAR_CONFIG = [
+    { label: 'Dashboard',   path: '/zayavkachi',        icon: LayoutDashboard, roles: ZAYAVKACHI_ROLES },
+    { label: 'Buyurtmalar', path: '/zayavkachi/orders', icon: ClipboardList,   roles: ZAYAVKACHI_ROLES },
+];
+
+export const ZAYAVKACHI_SIDEBAR_GROUPS = [
+    { label: 'Asosiy', items: ZAYAVKACHI_SIDEBAR_CONFIG.filter((i) => i.path === '/zayavkachi') },
+    { label: 'Savdo',  items: ZAYAVKACHI_SIDEBAR_CONFIG.filter((i) => ['/zayavkachi/orders'].includes(i.path)) },
 ];

@@ -109,8 +109,8 @@ export default function RawStaffHistory() {
                             <div className={`inline-flex rounded-xl border overflow-hidden ${isDark ? 'border-slate-700' : 'border-slate-200'}`}>
                                 {[
                                     { value: '',    label: 'Barchasi', activeCls: isDark ? 'bg-amber-400/10 text-amber-300' : 'bg-amber-50 text-amber-700' },
-                                    { value: 'IN',  label: 'Kirim',    activeCls: 'bg-emerald-500/10 text-emerald-500' },
-                                    { value: 'OUT', label: 'Chiqim',   activeCls: 'bg-rose-500/10 text-rose-500' },
+                                    { value: 'IN',  label: 'Kirim',    activeCls: isDark ? 'bg-amber-400/10 text-amber-300' : 'bg-amber-50 text-amber-700' },
+                                    { value: 'OUT', label: 'Chiqim',   activeCls: isDark ? 'bg-amber-400/10 text-amber-300' : 'bg-amber-50 text-amber-700' },
                                 ].map(({ value, label, activeCls }) => (
                                     <button key={value} type="button"
                                         onClick={() => { setActionFilter(value); setPage(0); }}
@@ -198,13 +198,13 @@ export default function RawStaffHistory() {
                                                 </span>
                                             </td>
                                             <td className={`px-5 py-3.5 font-semibold ${head}`}>{t.rawMaterialName}</td>
-                                            <td className={`px-5 py-3.5 text-xs hidden lg:table-cell ${muted}`}>{t.rawMaterialSummary || '—'}</td>
+                                            <td className={`px-5 py-3.5 text-x hidden lg:table-cell ${muted}`}>{t.rawMaterialSummary || '—'}</td>
                                             <td className="px-5 py-3.5 text-right">
                                                 <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${t.action === 'IN' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
                                                     {t.action === 'IN' ? '+' : '-'}{typeof t.quantity === 'number' ? t.quantity.toLocaleString('uz-UZ', { maximumFractionDigits: 3 }) : t.quantity} {t.unit || unit}
                                                 </span>
                                             </td>
-                                            <td className={`px-5 py-3.5 text-xs ${muted}`}>
+                                            <td className={`px-5 py-3.5 text-x ${muted}`}>
                                                 {t.createdAt ? new Date(t.createdAt).toLocaleString('uz-UZ') : '—'}
                                             </td>
                                         </tr>

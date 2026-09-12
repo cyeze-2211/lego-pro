@@ -104,13 +104,16 @@ export default function Login() {
                 userId: response.data.id,
                 role: userRole,
             }));
-            // Ombor rollari /staff ga, raw material /raw-staff ga
-            const warehouseRoles = ['product_storekeeper'];
-            const rawRoles       = ['raw_material_storekeeper'];
+            // Ombor rollari /staff ga, raw material /raw-staff ga, zayavkachi /zayavkachi ga
+            const warehouseRoles  = ['product_storekeeper'];
+            const rawRoles        = ['raw_material_storekeeper'];
+            const zayavkachiRoles = ['zayavkachi'];
             if (userRole && warehouseRoles.includes(userRole)) {
                 navigate("/staff");
             } else if (userRole && rawRoles.includes(userRole)) {
                 navigate("/raw-staff");
+            } else if (userRole && zayavkachiRoles.includes(userRole)) {
+                navigate("/zayavkachi");
             } else if (userRole === 'stanokchi') {
                 navigate("/stanokchi");
             } else {

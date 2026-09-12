@@ -21,6 +21,11 @@ export const RAW_WAREHOUSE_ROLES = [
     ROLES.RAW_MATERIAL_STOREKEEPER,
 ];
 
+/** Zayavkachi rollari */
+export const ZAYAVKACHI_ROLES = [
+    ROLES.ZAYAVKACHI,
+];
+
 /** Barcha ombor rollari (ikkalasi) */
 export const WAREHOUSE_ROLES = [
     ...PRODUCT_WAREHOUSE_ROLES,
