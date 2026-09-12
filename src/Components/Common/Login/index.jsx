@@ -111,6 +111,8 @@ export default function Login() {
                 navigate("/staff");
             } else if (userRole && rawRoles.includes(userRole)) {
                 navigate("/raw-staff");
+            } else if (userRole === 'stanokchi') {
+                navigate("/stanokchi");
             } else {
                 navigate("/");
             }
