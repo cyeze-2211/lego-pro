@@ -1,5 +1,5 @@
 import { lazy } from 'react';
-import { ROLES, PRODUCT_WAREHOUSE_ROLES, RAW_WAREHOUSE_ROLES, WAREHOUSE_ROLES } from '../permissions/roles';
+import { ROLES, PRODUCT_WAREHOUSE_ROLES, RAW_WAREHOUSE_ROLES, WAREHOUSE_ROLES, ZAYAVKACHI_ROLES } from '../permissions/roles';
 
 
 export const ROUTES = [
@@ -12,7 +12,7 @@ export const ROUTES = [
     {
         path: '/profile',
         component: lazy(() => import('../../Components/Common/Profile')),
-        roles: [ROLES.MANAGER, ...PRODUCT_WAREHOUSE_ROLES, ...RAW_WAREHOUSE_ROLES],
+        roles: [ROLES.MANAGER, ...PRODUCT_WAREHOUSE_ROLES, ...RAW_WAREHOUSE_ROLES, ...ZAYAVKACHI_ROLES],
     },
     {
         path: '/warehouses',
@@ -162,5 +162,32 @@ export const ROUTES = [
         path: '/raw-staff/history',
         component: lazy(() => import('../../Components/RawStaff/History')),
         roles: RAW_WAREHOUSE_ROLES,
+    },
+
+    // ── Zayavkachi routes ────────────────────────────────────────────────
+    {
+        path: '/zayavkachi',
+        component: lazy(() => import('../../Components/Zayavkachi/Dashboard')),
+        roles: ZAYAVKACHI_ROLES,
+    },
+    {
+        path: '/zayavkachi/orders',
+        component: lazy(() => import('../../Components/Zayavkachi/Orders')),
+        roles: ZAYAVKACHI_ROLES,
+    },
+    {
+        path: '/zayavkachi/orders/new',
+        component: lazy(() => import('../../Components/Zayavkachi/OrderCreate')),
+        roles: ZAYAVKACHI_ROLES,
+    },
+    {
+        path: '/zayavkachi/orders/:id',
+        component: lazy(() => import('../../Components/Zayavkachi/OrderDetail')),
+        roles: ZAYAVKACHI_ROLES,
+    },
+    {
+        path: '/zayavkachi/orders/:id/edit',
+        component: lazy(() => import('../../Components/Zayavkachi/OrderEdit')),
+        roles: ZAYAVKACHI_ROLES,
     },
 ];
