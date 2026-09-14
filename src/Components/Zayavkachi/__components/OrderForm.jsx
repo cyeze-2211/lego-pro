@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import {
     LuPlus, LuSearch, LuTrash2, LuPackage, LuSend, LuCheck,
     LuX, LuBarcode, LuArrowLeft,
-    LuWarehouse, LuMinus, LuUser, LuStickyNote,
+    LuWarehouse, LuMinus, LuUser, LuStickyNote, LuLock,
 } from 'react-icons/lu';
 import { useAppTheme } from '../../../theme/tokens';
 import { Alert } from '../../Other/UI/Alert/Alert';
@@ -12,11 +12,14 @@ import { useGetProductsQuery } from '../../../store/services/product.api';
 import { useGetCustomersQuery } from '../../../store/services/customer.api';
 import { useCreateSalesOrderMutation, useUpdateSalesOrderMutation } from '../../../store/services/salesOrder.api';
 
-export default function OrderForm({ order, onCancel, onSaved }) {
+export default function OrderForm({ order, customer, onCancel, onSaved }) {
     const { isDark } = useAppTheme();
     const isEdit = Boolean(order);
+    const isCustomerLocked = Boolean(customer);
 
-    const [customerId, setCustomerId]   = useState(order?.customerId ?? '');
+    const [customerId, setCustomerId]         = useState(customer?.id ?? order?.customerId ?? '');
+    const [customerSearch, setCustomerSearch] = useState(customer?.name ?? order?.customerName ?? '');
+    const [customerOpen, setCustomerOpen]     = useState(false);
     const [summary, setSummary]         = useState(order?.summary ?? '');
     const [warehouseId, setWarehouseId] = useState(order?.items?.[0]?.warehouseId ?? '');
     const [search, setSearch]           = useState('');
@@ -31,10 +34,14 @@ export default function OrderForm({ order, onCancel, onSaved }) {
             unitPrice:      i.unitPrice,
         }))
     );
-    const searchRef = useRef(null);
+    const customerRef = useRef(null);
+    const searchRef   = useRef(null);
 
     const { data: warehouses = [] }          = useGetWarehousesQuery('PRODUCT');
-    const { data: customersResp }            = useGetCustomersQuery({ size: 100 });
+    const { data: customersResp, isFetching: isCustomerFetching } = useGetCustomersQuery(
+        { name: customerSearch || undefined, size: 50 },
+        { skip: isCustomerLocked }
+    );
     const { data: productsResp, isFetching } = useGetProductsQuery(
         { name: search || undefined, size: 50 },
         { skip: !warehouseId }
@@ -53,6 +60,9 @@ export default function OrderForm({ order, onCancel, onSaved }) {
 
     useEffect(() => {
         const handleClickOutside = (event) => {
+            if (customerRef.current && !customerRef.current.contains(event.target)) {
+                setCustomerOpen(false);
+            }
             if (searchRef.current && !searchRef.current.contains(event.target)) {
                 setOpen(false);
             }
@@ -74,11 +84,16 @@ export default function OrderForm({ order, onCancel, onSaved }) {
     const ghostBtn = isDark
         ? 'border-[#334155] text-[#94a3b8] hover:bg-[#1e293b]'
         : 'border-[#e2e8f0] text-[#64748b] hover:bg-[#f1f5f9]';
+    const fieldCx = isDark
+        ? 'border-[#334155] bg-[#1e293b]/80 text-white placeholder:text-[#64748b] focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20'
+        : 'border-[#e2e8f0] bg-white text-[#0f172a] placeholder:text-[#94a3b8] focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20';
     const inputCx = [
         'w-full rounded-xl border px-4 text-sm outline-none transition-all duration-200 h-12',
-        isDark
-            ? 'border-[#334155] bg-[#1e293b]/80 text-white placeholder:text-[#64748b] focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20'
-            : 'border-[#e2e8f0] bg-white text-[#0f172a] placeholder:text-[#94a3b8] focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20',
+        fieldCx,
+    ].join(' ');
+    const textareaCx = [
+        'w-full rounded-xl border px-4 py-3 text-sm outline-none transition-all duration-200 min-h-[100px] resize-y',
+        fieldCx,
     ].join(' ');
     const stepCx = 'flex h-5 w-5 items-center justify-center rounded-full bg-amber-400 text-[10px] font-bold text-[#0f172a]';
 
@@ -97,6 +112,12 @@ export default function OrderForm({ order, onCancel, onSaved }) {
         });
         setSearch('');
     }, []);
+
+    const selectCustomer = (customer) => {
+        setCustomerId(customer.id);
+        setCustomerSearch(customer.name);
+        setCustomerOpen(false);
+    };
 
     const removeItem = (id) => setItems((p) => p.filter((i) => i.productId !== id));
 
@@ -173,41 +194,85 @@ export default function OrderForm({ order, onCancel, onSaved }) {
             <form onSubmit={handleSubmit}>
                 <div className={`rounded-2xl border shadow-md ${panel}`}>
 
-                    {/* ── Mijoz + Izoh ────────────────────────────────── */}
+                    {/* ── Mijoz + Ombor ───────────────────────────────── */}
                     <div className="flex flex-col gap-3 px-5 pt-5 sm:flex-row sm:items-end">
-                        <div className="sm:w-72 shrink-0">
+                        <div className="relative flex-1" ref={customerRef}>
                             <label className={`mb-1.5 flex items-center gap-2 text-xs font-semibold ${muted}`}>
                                 <span className={stepCx}>1</span> <LuUser size={12} /> Mijoz
                             </label>
-                            <select
-                                value={customerId}
-                                onChange={(e) => setCustomerId(e.target.value)}
-                                required
-                                className={inputCx}
-                            >
-                                <option value="">Mijoz tanlang</option>
-                                {customers.map((c) => (
-                                    <option key={c.id} value={c.id}>{c.name}</option>
-                                ))}
-                            </select>
+                            {isCustomerLocked ? (
+                                <div className={`flex h-12 items-center gap-3 rounded-xl border px-4 ${isDark ? 'border-[#334155] bg-[#1e293b]/50' : 'border-[#e2e8f0] bg-[#f8fafc]'}`}>
+                                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-400/10 text-amber-500">
+                                        <LuUser size={14} />
+                                    </span>
+                                    <span className={`truncate text-sm font-bold ${head}`}>{customer.name}</span>
+                                    {customer.phone && <span className={`shrink-0 text-xs ${muted}`}>{customer.phone}</span>}
+                                    <LuLock size={13} className={`ml-auto shrink-0 ${muted}`} />
+                                </div>
+                            ) : (
+                            <div className="relative">
+                                <LuSearch className={`pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 ${muted}`} />
+                                <input
+                                    type="text"
+                                    placeholder="Mijoz nomini yozing yoki ro'yxatdan tanlang"
+                                    value={customerSearch}
+                                    onChange={(e) => { setCustomerSearch(e.target.value); setCustomerId(''); setCustomerOpen(true); }}
+                                    onFocus={() => setCustomerOpen(true)}
+                                    className={`${inputCx} pl-11 pr-10`}
+                                />
+                                {customerSearch && (
+                                    <button type="button" onClick={() => { setCustomerSearch(''); setCustomerId(''); }}
+                                        className={`absolute right-3 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-lg ${muted} hover:text-[#f43f5e]`}>
+                                        <LuX size={15} />
+                                    </button>
+                                )}
+                            </div>
+
+                            )}
+
+                            {/* Mijozlar ro'yxati — sahifani cho'zmaydi, ustidan ochiladi */}
+                            {!isCustomerLocked && customerOpen && (
+                                <div className={`absolute left-0 right-0 top-full z-30 mt-2 overflow-hidden rounded-xl border shadow-xl ${isDark ? 'border-[#334155] bg-[#0f172a]' : 'border-[#e2e8f0] bg-white'}`}>
+                                    {isCustomerFetching ? (
+                                        <div className={`flex items-center justify-center gap-2 py-6 text-sm ${muted}`}>
+                                            <svg className="h-4 w-4 animate-spin text-amber-400" viewBox="0 0 24 24" fill="none">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                                            </svg>
+                                            Qidirilmoqda...
+                                        </div>
+                                    ) : customers.length === 0 ? (
+                                        <div className={`py-6 text-center text-sm ${muted}`}>Mijoz topilmadi</div>
+                                    ) : (
+                                        <div className={`max-h-72 overflow-y-auto divide-y ${divider}`}>
+                                            {customers.map((c) => {
+                                                const picked = c.id === customerId;
+                                                return (
+                                                    <button key={c.id} type="button"
+                                                        onClick={() => selectCustomer(c)}
+                                                        className={`flex w-full items-center gap-3 px-4 py-3 text-left text-sm transition-colors ${isDark ? 'hover:bg-[#1e293b]' : 'hover:bg-amber-50'}`}
+                                                    >
+                                                        <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${isDark ? 'bg-[#334155]' : 'bg-[#f1f5f9]'}`}>
+                                                            <LuUser size={15} className={muted} />
+                                                        </span>
+                                                        <div className="min-w-0 flex-1">
+                                                            <p className={`truncate font-semibold text-sm ${head}`}>{c.name}</p>
+                                                            {c.phone && <p className={`truncate text-xs ${muted}`}>{c.phone}</p>}
+                                                        </div>
+                                                        {picked && (
+                                                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber-400/10 text-amber-500">
+                                                                <LuCheck size={14} />
+                                                            </span>
+                                                        )}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
-                        <div className="flex-1">
-                            <label className={`mb-1.5 flex items-center gap-2 text-xs font-semibold ${muted}`}>
-                                <LuStickyNote size={12} /> Izoh <span className="font-normal">(ixtiyoriy)</span>
-                            </label>
-                            <input
-                                type="text"
-                                placeholder="Buyurtma haqida qisqacha izoh"
-                                value={summary}
-                                onChange={(e) => setSummary(e.target.value)}
-                                className={inputCx}
-                            />
-                        </div>
-                    </div>
-
-                    {/* ── Ombor + Qidiruv ─────────────────────────────── */}
-                    <div className="flex flex-col gap-3 p-5 sm:flex-row sm:items-end">
                         <div className="sm:w-72 shrink-0">
                             <label className={`mb-1.5 flex items-center gap-2 text-xs font-semibold ${muted}`}>
                                 <span className={stepCx}>2</span> <LuWarehouse size={12} /> Ombor
@@ -224,8 +289,11 @@ export default function OrderForm({ order, onCancel, onSaved }) {
                                 ))}
                             </select>
                         </div>
+                    </div>
 
-                        <div className="relative flex-1" ref={searchRef}>
+                    {/* ── Mahsulot qo'shish ───────────────────────────── */}
+                    <div className="px-5 pt-4">
+                        <div className="relative" ref={searchRef}>
                             <label className={`mb-1.5 flex items-center gap-2 text-xs font-semibold ${muted}`}>
                                 <span className={stepCx}>3</span> Mahsulot qo&apos;shish
                             </label>
@@ -301,6 +369,20 @@ export default function OrderForm({ order, onCancel, onSaved }) {
                                 </div>
                             )}
                         </div>
+                    </div>
+
+                    {/* ── Izoh ────────────────────────────────────────── */}
+                    <div className="px-5 pb-5 pt-4">
+                        <label className={`mb-1.5 flex items-center gap-2 text-xs font-semibold ${muted}`}>
+                            <LuStickyNote size={12} /> Izoh <span className="font-normal">(ixtiyoriy)</span>
+                        </label>
+                        <textarea
+                            rows={3}
+                            placeholder="Buyurtma haqida qo'shimcha ma'lumot yozing"
+                            value={summary}
+                            onChange={(e) => setSummary(e.target.value)}
+                            className={textareaCx}
+                        />
                     </div>
 
                     {/* ── Tanlanganlar ────────────────────────────────── */}
@@ -445,6 +527,7 @@ OrderForm.propTypes = {
     order: PropTypes.shape({
         id: PropTypes.string.isRequired,
         customerId: PropTypes.string.isRequired,
+        customerName: PropTypes.string,
         summary: PropTypes.string,
         items: PropTypes.arrayOf(PropTypes.shape({
             productId: PropTypes.string.isRequired,
@@ -454,6 +537,11 @@ OrderForm.propTypes = {
             quantity: PropTypes.number.isRequired,
             unitPrice: PropTypes.number,
         })),
+    }),
+    customer: PropTypes.shape({
+        id: PropTypes.string.isRequired,
+        name: PropTypes.string.isRequired,
+        phone: PropTypes.string,
     }),
     onCancel: PropTypes.func.isRequired,
     onSaved: PropTypes.func.isRequired,

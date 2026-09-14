@@ -204,4 +204,29 @@ export const ROUTES = [
         component: lazy(() => import('../../Components/Zayavkachi/OrderEdit')),
         roles: ZAYAVKACHI_ROLES,
     },
+    {
+        path: '/zayavkachi/customers',
+        component: lazy(() => import('../../Components/Zayavkachi/Customers')),
+        roles: ZAYAVKACHI_ROLES,
+    },
+    {
+        path: '/zayavkachi/customers/new',
+        component: lazy(() => import('../../Components/Zayavkachi/CustomerCreate')),
+        roles: ZAYAVKACHI_ROLES,
+    },
+    {
+        path: '/zayavkachi/customers/:id',
+        component: lazy(() => import('../../Components/Zayavkachi/CustomerDetail')),
+        roles: ZAYAVKACHI_ROLES,
+    },
+    {
+        path: '/zayavkachi/customers/:id/edit',
+        component: lazy(() => import('../../Components/Zayavkachi/CustomerEdit')),
+        roles: ZAYAVKACHI_ROLES,
+    },
+    {
+        path: '/zayavkachi/customers/:id/orders/new',
+        component: lazy(() => import('../../Components/Zayavkachi/CustomerOrderCreate')),
+        roles: ZAYAVKACHI_ROLES,
+    },
 ];
