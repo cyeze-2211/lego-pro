@@ -3,25 +3,32 @@ import { LogOut, User, ChevronDown, Moon, Sun, Menu } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAppTheme } from "../../../theme/tokens";
 import { useAppDispatch } from "../../../store/hooks";
-import { logout } from "../../../store/slices/auth.slice";
+import { logoutUser } from "../../../store/slices/auth.slice";
+import { useLogoutMutation } from "../../../store/services/auth.api";
 
 export default function AdminHeader({ 
     active, 
     sidebarOpen, 
-    user,        // данные пользователя из API
-    isLoading,   // флаг загрузки
+    user,
+    isLoading,
     ...props 
 }) {
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
     const { isDark, toggleColorMode } = useAppTheme();
+    const [logoutApi] = useLogoutMutation();
 
     const [isHovered, setIsHovered] = useState(false);
     const [openMenu, setOpenMenu] = useState(false);
     const menuRef = useRef(null);
 
-    const handleLogout = () => {
-        dispatch(logout());
+    const handleLogout = async () => {
+        try {
+            await logoutApi().unwrap();
+        } catch {
+            // token allaqachon yaroqsiz bo'lsa ham davom etamiz
+        }
+        dispatch(logoutUser());
         localStorage.clear();
         navigate("/login");
     };
