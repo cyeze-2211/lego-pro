@@ -4,17 +4,14 @@ import { Badge, HStack } from '@chakra-ui/react';
 import { LuBarcode, LuCalendar, LuPackage, LuWarehouse } from 'react-icons/lu';
 import { useGetProductByIdQuery } from '../../../store/services/product.api';
 import { useGetWarehousesQuery } from '../../../store/services/warehouse.api';
-import { useAppTheme } from '../../../theme/tokens';
 import { Alert } from '../../Other/UI/Alert/Alert';
 import EntityDetail, { DetailRow, DetailSection, formatDetailDate } from '../EntityDetail';
-import Loading from '../../Other/UI/Loadings/Loading';
 import { formatNumber } from '../../ui/number-format';
 
 export default function ProductDetail() {
     const { id } = useParams();
     const { data: product, isLoading, isError, error } = useGetProductByIdQuery(id, { skip: !id });
     const { data: warehouses = [] } = useGetWarehousesQuery('PRODUCT');
-    const { isDark, cardBg, cardBorder, textColor, subtitleColor, accentColor } = useAppTheme();
     const warehouse = warehouses.find((item) => item.id === product?.warehouseId);
 
     useEffect(() => {

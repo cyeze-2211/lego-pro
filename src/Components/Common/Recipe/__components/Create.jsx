@@ -12,7 +12,7 @@ import {
     VStack,
     useDisclosure,
 } from '@chakra-ui/react';
-import { Check, Package, X } from 'lucide-react';
+import { Check, X } from 'lucide-react';
 import { LuPlus, LuUtensils } from 'react-icons/lu';
 import { useCreateRecipeMutation } from '../../../../store/services/productRecept.api';
 import { Alert } from '../../../Other/UI/Alert/Alert';

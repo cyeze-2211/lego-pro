@@ -1,13 +1,12 @@
 import { useParams } from 'react-router-dom';
-import { Badge, Box, HStack, Table, Text } from '@chakra-ui/react';
-import { LuCalendar, LuUtensils } from 'react-icons/lu';
+import { Badge, Box, HStack, Table } from '@chakra-ui/react';
+import { LuUtensils } from 'react-icons/lu';
 import { useGetRecipeByIdQuery } from '../../../store/services/productRecept.api';
 import { useGetRawMaterialsQuery } from '../../../store/services/raw.api';
 import { useAppTheme } from '../../../theme/tokens';
 import Edit from '../Recipe/__components/Edit';
 import Delete from '../Recipe/__components/Delete';
 import EntityDetail, { DetailRow, DetailSection, formatDetailDate } from '../EntityDetail';
-import Loading from '../../Other/UI/Loadings/Loading';
 import { formatNumber } from '../../ui/number-format';
 
 const UNIT_LABELS = { GRAM: 'g', KG: 'kg', TON: 't' };
