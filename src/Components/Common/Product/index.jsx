@@ -11,13 +11,11 @@ import {
 import { LuChevronLeft, LuChevronRight, LuPackage, LuSearch, LuX } from 'react-icons/lu';
 import { useGetProductsQuery } from '../../../store/services/product.api';
 import { useGetWarehousesQuery } from '../../../store/services/warehouse.api';
-import { useGetRawMaterialsQuery } from '../../../store/services/raw.api';
 import { BRAND_COLORS, useAppTheme } from '../../../theme/tokens';
 import { Alert } from '../../Other/UI/Alert/Alert';
 import Create from './__components/Create';
 import Edit from './__components/Edit';
 import Delete from './__components/Delete';
-import RecipeCreate from '../Recipe/__components/RecipeCreate';
 import Loading from '../../Other/UI/Loadings/Loading';
 import EmptyData from '../../Other/UI/NoData/EmptyData';
 import FormControl from '../../ui/FormControl';
@@ -32,9 +30,7 @@ export default function Product() {
     const [page, setPage] = useState(0);
     const { data: productResult, isLoading, error } = useGetProductsQuery({ name: query || undefined, page, size: PAGE_SIZE });
     const { data: warehouses = [] } = useGetWarehousesQuery('PRODUCT');
-    const { data: rawResult } = useGetRawMaterialsQuery({ page: 0, size: 100 });
     const { isDark, pageBg, cardBg, cardBorder, textColor, subtitleColor, accentColor } = useAppTheme();
-    const rawMaterials = rawResult?.items || [];
     const products = productResult?.items || [];
     const pagination = productResult?.pagination;
     const totalPages = pagination?.totalPages || 0;
@@ -166,7 +162,7 @@ export default function Product() {
                                         <Table.Cell borderWidth="0.5px" borderColor={tableBorder}><HStack gap={3}><Box p={2} borderRadius="lg" bg={isDark ? 'rgba(250, 204, 21, 0.12)' : '#FEF3C7'} color={accentColor}><LuPackage size={18} /></Box><Text fontWeight="semibold" color={textColor}>{product.name}</Text></HStack></Table.Cell>
                                         <Table.Cell borderWidth="0.5px" borderColor={tableBorder} color={textColor} fontWeight="bold" whiteSpace="nowrap">{formatNumber(product.price)} so‘m</Table.Cell>
                                         <Table.Cell borderWidth="0.5px" borderColor={tableBorder} color={subtitleColor} fontFamily="mono" whiteSpace="nowrap">{product.barcode || '—'}</Table.Cell>
-                                        <Table.Cell borderWidth="0.5px" borderColor={tableBorder} onClick={(event) => event.stopPropagation()}><HStack justify="center" gap={1}><RecipeCreate mode="icon" productId={product.id} productName={product.name} rawMaterials={rawMaterials} /><Edit product={product} /><Delete product={product} /></HStack></Table.Cell>
+                                        <Table.Cell borderWidth="0.5px" borderColor={tableBorder} onClick={(event) => event.stopPropagation()}><HStack justify="center" gap={1}><Edit product={product} /><Delete product={product} /></HStack></Table.Cell>
                                     </Table.Row>
                                 ))}
                             </Table.Body>

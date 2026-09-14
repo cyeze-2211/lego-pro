@@ -11,7 +11,6 @@ import {
 } from '@chakra-ui/react';
 import { LuChevronLeft, LuChevronRight, LuListOrdered, LuUtensils } from 'react-icons/lu';
 import { useGetAllRecipesQuery } from '../../../store/services/productRecept.api';
-import { useGetProductsQuery } from '../../../store/services/product.api';
 import { useGetRawMaterialsQuery } from '../../../store/services/raw.api';
 import { BRAND_COLORS, useAppTheme } from '../../../theme/tokens';
 import { Alert } from '../../Other/UI/Alert/Alert';
@@ -27,13 +26,11 @@ const UNIT_LABELS = { GRAM: 'g', KG: 'kg', TON: 't' };
 export default function Recipe() {
     const [page, setPage] = useState(0);
     const { data: recipeResult, isLoading, error } = useGetAllRecipesQuery({ page, size: PAGE_SIZE });
-    const { data: productResult } = useGetProductsQuery({ page: 0, size: 100 });
     const { data: rawResult } = useGetRawMaterialsQuery({ page: 0, size: 100 });
     const { isDark, pageBg, cardBg, cardBorder, textColor, subtitleColor, accentColor } = useAppTheme();
     const recipes = recipeResult?.items || [];
     const pagination = recipeResult?.pagination;
     const totalPages = pagination?.totalPages || 0;
-    const products = productResult?.items || [];
     const rawMaterials = rawResult?.items || [];
     const tableBg = isDark ? BRAND_COLORS.darkCardBg : cardBg;
     const tableHeaderBg = isDark ? tableBg : '#F8FAFC';
@@ -69,7 +66,7 @@ export default function Recipe() {
                 <Box>
                     <Heading className="text-[35px] font-semibold" color={textColor}>Retseptlar</Heading>
                 </Box>
-                <Create products={products} rawMaterials={rawMaterials} />
+                <Create rawMaterials={rawMaterials} />
             </HStack>
 
             {isLoading ? (
@@ -79,8 +76,8 @@ export default function Recipe() {
             ) : recipes.length === 0 ? (
                 <EmptyData
                     text="Hozircha retseptlar yo‘q"
-                    description="Yangi retsept qo‘shib mahsulotlar tarkibini belgilang."
-                    action={<Create products={products} rawMaterials={rawMaterials} />}
+                    description="Yangi retsept qo‘shib uning tarkibini belgilang."
+                    action={<Create rawMaterials={rawMaterials} />}
                 />
             ) : (
                 <>
@@ -89,7 +86,7 @@ export default function Recipe() {
                             <Table.Header bg={tableHeaderBg}>
                                 <Table.Row bg={tableHeaderBg}>
                                     <Table.ColumnHeader textAlign="center" bg={tableHeaderBg} borderWidth="0.5px" borderColor={tableBorder} color={subtitleColor} w="60px">№</Table.ColumnHeader>
-                                    <Table.ColumnHeader bg={tableHeaderBg} borderWidth="0.5px" borderColor={tableBorder} color={subtitleColor}>Mahsulot</Table.ColumnHeader>
+                                    <Table.ColumnHeader bg={tableHeaderBg} borderWidth="0.5px" borderColor={tableBorder} color={subtitleColor}>Retsept nomi</Table.ColumnHeader>
                                     <Table.ColumnHeader bg={tableHeaderBg} borderWidth="0.5px" borderColor={tableBorder} color={subtitleColor}>Tarkibi (xom ashyo)</Table.ColumnHeader>
                                     <Table.ColumnHeader textAlign="center" bg={tableHeaderBg} borderWidth="0.5px" borderColor={tableBorder} color={subtitleColor} w="120px">Qatorlar</Table.ColumnHeader>
                                     <Table.ColumnHeader textAlign="center" bg={tableHeaderBg} borderWidth="0.5px" borderColor={tableBorder} color={subtitleColor}>Amallar</Table.ColumnHeader>
@@ -106,7 +103,7 @@ export default function Recipe() {
                                         <Table.Cell borderWidth="0.5px" borderColor={tableBorder}>
                                             <HStack gap={3}>
                                                 <Box p={2} borderRadius="lg" bg={isDark ? 'rgba(250, 204, 21, 0.12)' : '#FEF3C7'} color={accentColor}><LuUtensils size={18} /></Box>
-                                                <Text as={Link} to={`/recipes/${recipe.productId}`} fontWeight="semibold" color={textColor} _hover={{ color: accentColor }}>{recipe.productName}</Text>
+                                                <Text as={Link} to={`/recipes/${recipe.recipeId}`} fontWeight="semibold" color={textColor} _hover={{ color: accentColor }}>{recipe.name}</Text>
                                             </HStack>
                                         </Table.Cell>
                                         <Table.Cell borderWidth="0.5px" borderColor={tableBorder} maxW="480px">{renderItemsSummary(recipe)}</Table.Cell>

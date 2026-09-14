@@ -13,20 +13,23 @@ import {
 } from '@chakra-ui/react';
 import { Check, X } from 'lucide-react';
 import { LuPen, LuUtensils } from 'react-icons/lu';
-import { useUpdateProductRecipeMutation } from '../../../../store/services/productRecept.api';
+import { useUpdateRecipeMutation } from '../../../../store/services/productRecept.api';
 import { Alert } from '../../../Other/UI/Alert/Alert';
 import { useAppTheme } from '../../../../theme/tokens';
 import RecipeItemsForm from './RecipeItemsForm';
+import FormControl from '../../../ui/FormControl';
 
 export default function Edit({ recipe, rawMaterials }) {
     const { open, onOpen, onClose } = useDisclosure();
     const [items, setItems] = useState([]);
-    const [updateRecipe, { isLoading }] = useUpdateProductRecipeMutation();
+    const [name, setName] = useState('');
+    const [updateRecipe, { isLoading }] = useUpdateRecipeMutation();
     const { isDark, accentColor, cardBg, cardBorder, textColor, subtitleColor } = useAppTheme();
     const modalBorder = isDark ? cardBorder : '#94A3B8';
 
     useEffect(() => {
         if (open && recipe) {
+            setName(recipe.name || '');
             setItems((recipe.items || []).map((item) => ({
                 rawMaterialId: item.rawMaterialId,
                 quantity: String(item.quantity),
@@ -54,8 +57,13 @@ export default function Edit({ recipe, rawMaterials }) {
         }
 
         try {
+            if (!name.trim()) {
+                Alert('Retsept nomini kiriting', 'error');
+                return;
+            }
             await updateRecipe({
-                productId: recipe.productId,
+                recipeId: recipe.recipeId,
+                name: name.trim(),
                 items: items.map((item) => ({
                     rawMaterialId: item.rawMaterialId,
                     quantity: Number(item.quantity),
@@ -98,7 +106,7 @@ export default function Edit({ recipe, rawMaterials }) {
                                     </Box>
                                     <Box>
                                         <span>Retseptni tahrirlash</span>
-                                        {recipe?.productName && <Text fontSize="sm" fontWeight="normal" color={subtitleColor} mt={1}>{recipe.productName}</Text>}
+                                        <Text fontSize="sm" fontWeight="normal" color={subtitleColor} mt={1}>Retsept nomi va tarkibi</Text>
                                     </Box>
                                 </HStack>
                             </Dialog.Header>
@@ -108,6 +116,7 @@ export default function Edit({ recipe, rawMaterials }) {
 
                             <Dialog.Body py={6}>
                                 <VStack gap={6} align="stretch">
+                                    <FormControl value={name} onChange={(event) => setName(event.target.value)} placeholder="Retsept nomi" minH="46px" />
                                     <RecipeItemsForm items={items} setItems={setItems} rawMaterials={rawMaterials} />
                                     <Text fontSize="sm" color={subtitleColor}>Saqlashda qatorlar to‘liq almashtiriladi (eski qatorlar o‘chadi).</Text>
                                 </VStack>
@@ -129,8 +138,8 @@ export default function Edit({ recipe, rawMaterials }) {
 
 Edit.propTypes = {
     recipe: PropTypes.shape({
-        productId: PropTypes.string.isRequired,
-        productName: PropTypes.string,
+        recipeId: PropTypes.string.isRequired,
+        name: PropTypes.string,
         items: PropTypes.arrayOf(PropTypes.shape({
             rawMaterialId: PropTypes.string.isRequired,
             quantity: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,

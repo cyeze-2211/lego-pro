@@ -14,29 +14,29 @@ import {
 } from '@chakra-ui/react';
 import { Check, Package, X } from 'lucide-react';
 import { LuPlus, LuUtensils } from 'react-icons/lu';
-import { useCreateProductRecipeMutation } from '../../../../store/services/productRecept.api';
+import { useCreateRecipeMutation } from '../../../../store/services/productRecept.api';
 import { Alert } from '../../../Other/UI/Alert/Alert';
 import { useAppTheme } from '../../../../theme/tokens';
 import FormControl from '../../../ui/FormControl';
 import RecipeItemsForm from './RecipeItemsForm';
 
-export default function Create({ products, rawMaterials }) {
+export default function Create({ rawMaterials }) {
     const { open, onOpen, onClose } = useDisclosure();
-    const [productId, setProductId] = useState('');
+    const [name, setName] = useState('');
     const [items, setItems] = useState([{ rawMaterialId: '', quantity: '', unit: 'KG', stepOrder: 1 }]);
-    const [createRecipe, { isLoading }] = useCreateProductRecipeMutation();
+    const [createRecipe, { isLoading }] = useCreateRecipeMutation();
     const { isDark, accentColor, cardBg, cardBorder, textColor, subtitleColor } = useAppTheme();
     const modalBorder = isDark ? cardBorder : '#94A3B8';
 
     const reset = () => {
-        setProductId('');
+        setName('');
         setItems([{ rawMaterialId: '', quantity: '', unit: 'KG', stepOrder: 1 }]);
     };
 
     const handleSubmit = async () => {
         if (isLoading) return;
-        if (!productId) {
-            Alert('Mahsulotni tanlang', 'error');
+        if (!name.trim()) {
+            Alert('Retsept nomini kiriting', 'error');
             return;
         }
         if (items.length === 0) {
@@ -56,7 +56,7 @@ export default function Create({ products, rawMaterials }) {
 
         try {
             await createRecipe({
-                productId,
+                name: name.trim(),
                 items: items.map((item) => ({
                     rawMaterialId: item.rawMaterialId,
                     quantity: Number(item.quantity),
@@ -110,14 +110,11 @@ export default function Create({ products, rawMaterials }) {
                             <Dialog.Body py={6}>
                                 <VStack gap={6} align="stretch">
                                     <Field.Root required>
-                                        <Field.Label color={textColor} fontWeight="medium"><HStack gap={2}><Package size={16} /><span>Mahsulot</span></HStack><Field.RequiredIndicator /></Field.Label>
-                                        <FormControl as="select" value={productId} onChange={(event) => setProductId(event.target.value)} w="100%" minH="52px">
-                                            <option value="">Mahsulotni tanlang</option>
-                                            {products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}
-                                        </FormControl>
+                                        <Field.Label color={textColor} fontWeight="medium"><HStack gap={2}><LuUtensils size={16} /><span>Retsept nomi</span></HStack><Field.RequiredIndicator /></Field.Label>
+                                        <FormControl value={name} onChange={(event) => setName(event.target.value)} placeholder="Masalan, Non retsepti" w="100%" minH="52px" />
                                     </Field.Root>
                                     <RecipeItemsForm items={items} setItems={setItems} rawMaterials={rawMaterials} />
-                                    <Text fontSize="sm" color={subtitleColor}>Har bir mahsulot uchun faqat bitta retsept bo‘lishi mumkin.</Text>
+                                    <Text fontSize="sm" color={subtitleColor}>Retsept nomi faol retseptlar orasida takrorlanmasligi kerak.</Text>
                                 </VStack>
                             </Dialog.Body>
 
@@ -136,6 +133,5 @@ export default function Create({ products, rawMaterials }) {
 }
 
 Create.propTypes = {
-    products: PropTypes.arrayOf(PropTypes.shape({ id: PropTypes.string, name: PropTypes.string })).isRequired,
     rawMaterials: PropTypes.arrayOf(PropTypes.shape({ id: PropTypes.string, name: PropTypes.string })).isRequired,
 };
