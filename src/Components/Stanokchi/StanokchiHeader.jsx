@@ -6,7 +6,7 @@ import { useAppDispatch } from "../../store/hooks";
 import { logoutUser } from "../../store/slices/auth.slice";
 import { useLogoutMutation } from "../../store/services/auth.api";
 
-export default function StanokchiHeader({ user }) {
+export default function StanokchiHeader({ user, title = "Stanokchi Panel" }) {
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
     const { isDark, toggleColorMode } = useAppTheme();
@@ -77,7 +77,7 @@ export default function StanokchiHeader({ user }) {
                         className="text-base font-bold tracking-wide"
                         style={{ color: isDark ? "#F8FAFC" : "#0F172A" }}
                     >
-                        Stanokchi Panel
+                        {title}
                     </span>
                 </div>
 

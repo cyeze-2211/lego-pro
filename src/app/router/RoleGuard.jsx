@@ -20,6 +20,7 @@ export default function RoleGuard({ allow }) {
         if (ZAYAVKACHI_ROLES.includes(role))        return <Navigate to="/zayavkachi" replace />;
 
         if (role === ROLES.STANOKCHI)               return <Navigate to="/stanokchi" replace />;
+        if (role === ROLES.MIKSERCHI)               return <Navigate to="/mixer" replace />;
         return <Navigate to="/" replace />;
     }
 

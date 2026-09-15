@@ -2,6 +2,7 @@ import { lazy } from 'react';
 import { ROLES, PRODUCT_WAREHOUSE_ROLES, RAW_WAREHOUSE_ROLES, WAREHOUSE_ROLES, ZAYAVKACHI_ROLES } from '../permissions/roles';
 
 export const STANOKCHI_ROLES = [ROLES.STANOKCHI];
+export const MIKSERCHI_ROLES = [ROLES.MIKSERCHI];
 
 
 export const ROUTES = [
@@ -149,6 +150,18 @@ export const ROUTES = [
         path: '/stanokchi/machines/:id',
         component: lazy(() => import('../../Components/Stanokchi/MachineDetail')),
         roles: STANOKCHI_ROLES,
+    },
+
+    // ── Mixer routes ─────────────────────────────────────────────────────
+    {
+        path: '/mixer',
+        component: lazy(() => import('../../Components/Mixer/Dashboard')),
+        roles: MIKSERCHI_ROLES,
+    },
+    {
+        path: '/mixer/recipes/:id',
+        component: lazy(() => import('../../Components/Mixer/RecipeDetail')),
+        roles: MIKSERCHI_ROLES,
     },
 
     // ── Raw Staff (Raw Material Storekeeper) routes ──────────────────────

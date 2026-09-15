@@ -120,6 +120,8 @@ export default function Login() {
                 navigate("/zayavkachi");
             } else if (userRole === 'stanokchi') {
                 navigate("/stanokchi");
+            } else if (userRole === 'mikserchi') {
+                navigate("/mixer");
             } else {
                 navigate("/");
             }

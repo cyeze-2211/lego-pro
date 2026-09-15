@@ -9,6 +9,7 @@ export const ROLES = {
     ZAYAVKACHI: 'zayavkachi',
     BUXGALTER: 'buxgalter',
     STANOKCHI: 'stanokchi',
+    MIKSERCHI: 'mikserchi',
 };
 
 /** Mahsulot ombori rollari */
