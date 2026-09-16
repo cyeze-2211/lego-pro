@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect } from "react";
-import { LogOut, User, ChevronDown, Moon, Sun, Menu } from "lucide-react";
+import { LogOut, User, ChevronDown, Moon, Sun, Menu, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAppTheme } from "../../../theme/tokens";
 import { useAppDispatch } from "../../../store/hooks";
 import { logoutUser } from "../../../store/slices/auth.slice";
 import { useLogoutMutation } from "../../../store/services/auth.api";
+import { useHeaderContext } from "../../../context/HeaderContext";
 
 export default function AdminHeader({ 
     active, 
@@ -17,6 +18,7 @@ export default function AdminHeader({
     const dispatch = useAppDispatch();
     const { isDark, toggleColorMode } = useAppTheme();
     const [logoutApi] = useLogoutMutation();
+    const { pageHeader } = useHeaderContext();
 
     const [isHovered, setIsHovered] = useState(false);
     const [openMenu, setOpenMenu] = useState(false);
@@ -39,18 +41,23 @@ export default function AdminHeader({
                 setOpenMenu(false);
             }
         };
-
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
     return (
-        <header className={`header fixed top-0 right-0 z-30 h-[72px] transition-all duration-300 left-0 ${sidebarOpen ? "lg:header-open" : "lg:header-collapsed"} ${isDark ? "theme-dark" : "theme-light"}`}>
+        <header
+            className={`header fixed top-0 right-0 z-30 h-[72px] transition-all duration-300 left-0 ${
+                sidebarOpen ? "lg:header-open" : "lg:header-collapsed"
+            } ${isDark ? "theme-dark" : "theme-light"}`}
+        >
             <div className="flex h-full items-center justify-between gap-4 px-5">
-                <div className="flex items-center gap-3">
+                {/* ── Chap tomon ── */}
+                <div className="flex items-center gap-3 min-w-0">
+                    {/* Sidebar toggle */}
                     <button
                         onClick={active}
-                        className={`flex h-9 w-9 items-center justify-center rounded-lg border transition-all duration-200 ${
+                        className={`flex-shrink-0 flex h-9 w-9 items-center justify-center rounded-lg border transition-all duration-200 ${
                             isDark
                                 ? "border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800"
                                 : "border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
@@ -59,9 +66,61 @@ export default function AdminHeader({
                     >
                         <Menu className="h-4 w-4" />
                     </button>
+
+                    {/* Sahifa sarlavhasi (pageHeader bo'lsa) */}
+                    {pageHeader && (
+                        <div className="flex items-center gap-2.5 min-w-0">
+                            {/* Back button */}
+                            {pageHeader.backTo && (
+                                <button
+                                    onClick={() => navigate(pageHeader.backTo)}
+                                    className={`flex-shrink-0 flex h-8 w-8 items-center justify-center rounded-lg border transition-all duration-200 hover:scale-105 ${
+                                        isDark
+                                            ? "border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800"
+                                            : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                                    }`}
+                                    aria-label="Orqaga"
+                                >
+                                    <ArrowLeft className="h-4 w-4" />
+                                </button>
+                            )}
+
+                            {/* Separator */}
+                            {pageHeader.backTo && (
+                                <span
+                                    className="flex-shrink-0 w-px h-5"
+                                    style={{
+                                        background: isDark
+                                            ? 'rgba(255,255,255,0.1)'
+                                            : 'rgba(0,0,0,0.1)',
+                                    }}
+                                />
+                            )}
+
+                            {/* Title */}
+                            <div className="min-w-0">
+                                <span
+                                    className="block text-sm font-bold truncate"
+                                    style={{ color: isDark ? '#F1F5F9' : '#0F172A' }}
+                                >
+                                    {pageHeader.title}
+                                </span>
+                                {pageHeader.subtitle && (
+                                    <span
+                                        className="block text-xs truncate"
+                                        style={{ color: isDark ? '#94A3B8' : '#64748B' }}
+                                    >
+                                        {pageHeader.subtitle}
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+                    )}
                 </div>
 
-                <div className="flex items-center gap-3">
+                {/* ── O'ng tomon ── */}
+                <div className="flex items-center gap-3 flex-shrink-0">
+                    {/* Dark / Light toggle */}
                     <button
                         onClick={toggleColorMode}
                         onMouseEnter={() => setIsHovered(true)}
@@ -76,6 +135,7 @@ export default function AdminHeader({
                         {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
                     </button>
 
+                    {/* Profile dropdown */}
                     <div className="relative" ref={menuRef}>
                         <button
                             onClick={() => setOpenMenu((isOpen) => !isOpen)}
@@ -90,9 +150,14 @@ export default function AdminHeader({
                             <div className="profile-badge flex h-8 w-8 items-center justify-center rounded-lg transition-transform duration-200 group-hover:scale-105">
                                 <User className="h-4 w-4" />
                             </div>
-                            <span>Profile</span>
-                            <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${openMenu ? "rotate-180" : ""}`} />
+                            <span className="hidden sm:block">Profile</span>
+                            <ChevronDown
+                                className={`h-4 w-4 transition-transform duration-200 ${
+                                    openMenu ? "rotate-180" : ""
+                                }`}
+                            />
                         </button>
+
                         {openMenu && (
                             <div
                                 role="menu"

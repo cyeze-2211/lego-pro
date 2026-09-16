@@ -27,6 +27,11 @@ export const ZAYAVKACHI_ROLES = [
     ROLES.ZAYAVKACHI,
 ];
 
+/** Buxgalter rollari */
+export const BUXGALTER_ROLES = [
+    ROLES.BUXGALTER,
+];
+
 /** Barcha ombor rollari (ikkalasi) */
 export const WAREHOUSE_ROLES = [
     ...PRODUCT_WAREHOUSE_ROLES,
