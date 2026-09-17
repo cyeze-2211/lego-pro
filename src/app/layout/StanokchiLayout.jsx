@@ -1,8 +1,10 @@
+import { Suspense } from "react";
 import { Outlet } from "react-router-dom";
 import Cookies from "js-cookie";
 import StanokchiHeader from "../../Components/Stanokchi/StanokchiHeader";
 import { useAppTheme } from "../../theme/tokens";
 import { useGetUserByIdQuery } from "../../store/services/user.api";
+import Loading from "../../Components/Other/UI/Loadings/Loading";
 
 export default function StanokchiLayout() {
     const { isDark } = useAppTheme();
@@ -21,7 +23,9 @@ export default function StanokchiLayout() {
             <StanokchiHeader user={user} />
 
             <main className="px-3 pb-8 pt-[88px] sm:px-4 md:px-6 max-w-7xl mx-auto">
-                <Outlet />
+                <Suspense fallback={<Loading />}>
+                    <Outlet />
+                </Suspense>
             </main>
         </div>
     );
