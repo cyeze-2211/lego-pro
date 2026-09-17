@@ -151,7 +151,6 @@ export const ROUTES = [
         component: lazy(() => import('../../Components/Stanokchi/MachineDetail')),
         roles: STANOKCHI_ROLES,
     },
-
     // ── Mixer routes ─────────────────────────────────────────────────────
     {
         path: '/mixer',
@@ -240,6 +239,16 @@ export const ROUTES = [
     {
         path: '/zayavkachi/customers/:id/orders/new',
         component: lazy(() => import('../../Components/Zayavkachi/CustomerOrderCreate')),
+        roles: [...ZAYAVKACHI_ROLES, ...BUXGALTER_ROLES],
+    },
+    {
+        path: '/zayavkachi/machines',
+        component: lazy(() => import('../../Components/Zayavkachi/Machines')),
+        roles: [...ZAYAVKACHI_ROLES, ...BUXGALTER_ROLES],
+    },
+    {
+        path: '/zayavkachi/machines/:id',
+        component: lazy(() => import('../../Components/Zayavkachi/MachineDetail')),
         roles: [...ZAYAVKACHI_ROLES, ...BUXGALTER_ROLES],
     },
 ];

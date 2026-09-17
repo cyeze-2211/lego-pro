@@ -9,16 +9,21 @@ export const productStockApi = createApi({
 
         // GET /api/v1/product-stocks — joriy qoldiqlar
         getProductStocks: builder.query({
-            query: ({ productId, warehouseId, page = 0, size = 20, sort } = {}) => ({
+            query: ({ productId, warehouseId, pending, page = 0, size = 20, sort } = {}) => ({
                 url: '/product-stocks',
                 method: 'GET',
                 params: {
-                    ...(productId ? { productId } : {}),
+                    ...(productId   ? { productId }   : {}),
                     ...(warehouseId ? { warehouseId } : {}),
+                    ...(pending === true ? { pending: true } : {}),
                     page,
                     size,
                     ...(sort ? { sort } : {}),
                 },
+            }),
+            transformResponse: (response) => ({
+                items:      response.data       ?? [],
+                pagination: response.pagination ?? null,
             }),
             providesTags: [{ type: 'ProductStock', id: 'LIST' }],
         }),
