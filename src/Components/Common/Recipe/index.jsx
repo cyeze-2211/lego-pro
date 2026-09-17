@@ -76,7 +76,7 @@ export default function Recipe() {
             ) : recipes.length === 0 ? (
                 <EmptyData
                     text="Hozircha retseptlar yo‘q"
-                    description="Yangi retsept qo‘shib uning tarkibini belgilang."
+                    description="Yangi retsept qo‘shib mahsulotlar tarkibini belgilang."
                     action={<Create rawMaterials={rawMaterials} />}
                 />
             ) : (
@@ -86,7 +86,7 @@ export default function Recipe() {
                             <Table.Header bg={tableHeaderBg}>
                                 <Table.Row bg={tableHeaderBg}>
                                     <Table.ColumnHeader textAlign="center" bg={tableHeaderBg} borderWidth="0.5px" borderColor={tableBorder} color={subtitleColor} w="60px">№</Table.ColumnHeader>
-                                    <Table.ColumnHeader bg={tableHeaderBg} borderWidth="0.5px" borderColor={tableBorder} color={subtitleColor}>Retsept nomi</Table.ColumnHeader>
+                                    <Table.ColumnHeader bg={tableHeaderBg} borderWidth="0.5px" borderColor={tableBorder} color={subtitleColor}>Retsept</Table.ColumnHeader>
                                     <Table.ColumnHeader bg={tableHeaderBg} borderWidth="0.5px" borderColor={tableBorder} color={subtitleColor}>Tarkibi (xom ashyo)</Table.ColumnHeader>
                                     <Table.ColumnHeader textAlign="center" bg={tableHeaderBg} borderWidth="0.5px" borderColor={tableBorder} color={subtitleColor} w="120px">Qatorlar</Table.ColumnHeader>
                                     <Table.ColumnHeader textAlign="center" bg={tableHeaderBg} borderWidth="0.5px" borderColor={tableBorder} color={subtitleColor}>Amallar</Table.ColumnHeader>

@@ -17,7 +17,7 @@ export const recipeApi = createApi({
       providesTags: [{ type: 'Recipe', id: 'LIST' }],
     }),
 
-    // GET /api/v1/recipes/{recipeId}
+    // GET /api/v1/recipes/{recipeId} — bitta retsept qatorlari bilan
     getRecipeById: builder.query({
       query: (recipeId) => ({
         url: `/recipes/${recipeId}`,
@@ -27,7 +27,7 @@ export const recipeApi = createApi({
       providesTags: (result, error, recipeId) => [{ type: 'Recipe', id: recipeId }],
     }),
 
-    // POST /api/v1/recipes
+    // POST /api/v1/recipes — yangi retsept
     createRecipe: builder.mutation({
       query: ({ name, items }) => ({
         url: '/recipes',
@@ -38,7 +38,7 @@ export const recipeApi = createApi({
       invalidatesTags: [{ type: 'Recipe', id: 'LIST' }],
     }),
 
-    // PUT /api/v1/recipes/{recipeId}
+    // PUT /api/v1/recipes/{recipeId} — to'liq almashtirish (upsert)
     updateRecipe: builder.mutation({
       query: ({ recipeId, name, items }) => ({
         url: `/recipes/${recipeId}`,
@@ -49,14 +49,14 @@ export const recipeApi = createApi({
       invalidatesTags: (result, error, { recipeId }) => [{ type: 'Recipe', id: recipeId }, { type: 'Recipe', id: 'LIST' }],
     }),
 
-    // DELETE /api/v1/recipes/{recipeId}
+    // DELETE /api/v1/recipes/{recipeId} — soft-delete
     deleteRecipe: builder.mutation({
       query: (recipeId) => ({
         url: `/recipes/${recipeId}`,
         method: 'DELETE',
       }),
       transformResponse: (response) => response.data, // всегда null
-      invalidatesTags: [{ type: 'Recipe', id: 'LIST' }],
+      invalidatesTags: (result, error, recipeId) => [{ type: 'Recipe', id: recipeId }, { type: 'Recipe', id: 'LIST' }],
     }),
   }),
 });

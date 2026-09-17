@@ -112,6 +112,7 @@ export default function StockTransactionForm({ action }) {
 
     const totalQty = items.reduce((s, i) => s + i.quantity, 0);
     const selectedWarehouse = warehouses.find((w) => w.id === warehouseId);
+    const formId = `stock-tx-${action}`;
 
     return (
         <div className="flex w-full flex-col gap-4 py-2">
@@ -141,7 +142,7 @@ export default function StockTransactionForm({ action }) {
                             <LuPackage size={14} /> {items.length} ta tanlandi · {totalQty} dona
                         </span>
                     )}
-                      <button type="submit"
+                      <button type="submit" form={formId}
                                     disabled={isSending || items.length === 0 || !warehouseId}
                                     className={`flex h-12 items-center gap-2 rounded-xl px-7 text-sm font-bold shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-xl hover:-translate-y-px ${submitBtn}`}>
                                     {isSending ? (
@@ -164,7 +165,7 @@ export default function StockTransactionForm({ action }) {
                 </div>
             </div>
 
-            <form onSubmit={handleSubmit}>
+            <form id={formId} onSubmit={handleSubmit}>
                 <div className={`rounded-2xl border shadow-md ${panel}`}>
 
                     {/* ── Ombor + Qidiruv ─────────────────────────────── */}

@@ -36,7 +36,7 @@ export default function Create({ rawMaterials }) {
     const handleSubmit = async () => {
         if (isLoading) return;
         if (!name.trim()) {
-            Alert('Retsept nomini kiriting', 'error');
+            Alert('Retsept nomi majburiy', 'error');
             return;
         }
         if (items.length === 0) {
@@ -111,10 +111,10 @@ export default function Create({ rawMaterials }) {
                                 <VStack gap={6} align="stretch">
                                     <Field.Root required>
                                         <Field.Label color={textColor} fontWeight="medium"><HStack gap={2}><LuUtensils size={16} /><span>Retsept nomi</span></HStack><Field.RequiredIndicator /></Field.Label>
-                                        <FormControl value={name} onChange={(event) => setName(event.target.value)} placeholder="Masalan, Non retsepti" w="100%" minH="52px" />
+                                        <FormControl value={name} onChange={(event) => setName(event.target.value)} placeholder="Masalan, Plastik quti retsepti" w="100%" minH="52px" />
                                     </Field.Root>
                                     <RecipeItemsForm items={items} setItems={setItems} rawMaterials={rawMaterials} />
-                                    <Text fontSize="sm" color={subtitleColor}>Retsept nomi faol retseptlar orasida takrorlanmasligi kerak.</Text>
+                                    <Text fontSize="sm" color={subtitleColor}>Shu nomdagi retsept allaqachon mavjud bo‘lsa, yangisi yaratilmaydi.</Text>
                                 </VStack>
                             </Dialog.Body>
 

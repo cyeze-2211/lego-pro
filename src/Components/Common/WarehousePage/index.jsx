@@ -19,6 +19,7 @@ import { useAppTheme } from '../../../theme/tokens';
 import Create from './Components/Create';
 import Delete from './Components/Delete';
 import Edit from './Components/Edit';
+import StockCount from './Components/StockCount';
 import Loading from '../../Other/UI/Loadings/Loading';
 import EmptyData from '../../Other/UI/NoData/EmptyData';
 
@@ -242,6 +243,7 @@ export default function WarehousePage() {
                 </Badge>
 
                 <VStack align="start" spacing={1} fontSize="xs" color={subtitleColor}>
+                  <StockCount warehouseId={wh.id} category={wh.category} />
                   <HStack>
                     <Calendar size={14} />
                     <Text>Yaratilgan: {new Date(wh.createdAt).toLocaleString()}</Text>
