@@ -242,4 +242,14 @@ export const ROUTES = [
         component: lazy(() => import('../../Components/Zayavkachi/CustomerOrderCreate')),
         roles: [...ZAYAVKACHI_ROLES, ...BUXGALTER_ROLES],
     },
+    {
+        path: '/zayavkachi/machines',
+        component: lazy(() => import('../../Components/Zayavkachi/Machines')),
+        roles: ZAYAVKACHI_ROLES,
+    },
+    {
+        path: '/zayavkachi/machines/:id',
+        component: lazy(() => import('../../Components/Zayavkachi/MachineDetail')),
+        roles: ZAYAVKACHI_ROLES,
+    },
 ];

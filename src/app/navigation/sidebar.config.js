@@ -60,11 +60,13 @@ export const ZAYAVKACHI_SIDEBAR_CONFIG = [
     { label: 'Dashboard',   path: '/zayavkachi',           icon: LayoutDashboard, roles: ZAYAVKACHI_ROLES },
     { label: 'Buyurtmalar', path: '/zayavkachi/orders',    icon: ClipboardList,   roles: ZAYAVKACHI_ROLES },
     { label: 'Mijozlar',    path: '/zayavkachi/customers', icon: Users,           roles: ZAYAVKACHI_ROLES },
+    { label: 'Stanoklar',   path: '/zayavkachi/machines',  icon: Cog,             roles: ZAYAVKACHI_ROLES },
 ];
 
 export const ZAYAVKACHI_SIDEBAR_GROUPS = [
     { label: 'Asosiy', items: ZAYAVKACHI_SIDEBAR_CONFIG.filter((i) => i.path === '/zayavkachi') },
     { label: 'Savdo',  items: ZAYAVKACHI_SIDEBAR_CONFIG.filter((i) => ['/zayavkachi/orders', '/zayavkachi/customers'].includes(i.path)) },
+    { label: 'Ishlab chiqarish', items: ZAYAVKACHI_SIDEBAR_CONFIG.filter((i) => ['/zayavkachi/machines'].includes(i.path)) },
 ];
 
 // ── Buxgalter ──────────────────────────────────────────────────────────────
