@@ -12,20 +12,20 @@ import {
 } from '@chakra-ui/react';
 import { LuTrash2, LuTriangleAlert } from 'react-icons/lu';
 import { Trash, X } from 'lucide-react';
-import { useDeleteProductRecipeMutation } from '../../../../store/services/productRecept.api';
+import { useDeleteRecipeMutation } from '../../../../store/services/productRecept.api';
 import { Alert } from '../../../Other/UI/Alert/Alert';
 import { useAppTheme } from '../../../../theme/tokens';
 
 export default function Delete({ recipe }) {
     const { open, onOpen, onClose } = useDisclosure();
-    const [deleteRecipe, { isLoading }] = useDeleteProductRecipeMutation();
+    const [deleteRecipe, { isLoading }] = useDeleteRecipeMutation();
     const { isDark, cardBg, cardBorder, textColor, subtitleColor } = useAppTheme();
     const modalBorder = isDark ? cardBorder : '#94A3B8';
 
     const handleDelete = async () => {
         if (isLoading) return;
         try {
-            await deleteRecipe(recipe.productId).unwrap();
+            await deleteRecipe(recipe.recipeId).unwrap();
             Alert('Retsept o‘chirildi', 'success');
             onClose();
         } catch (error) {
@@ -72,7 +72,7 @@ export default function Delete({ recipe }) {
                                         <HStack gap={3} align="start">
                                             <LuTriangleAlert size={20} color={isDark ? '#f87171' : '#dc2626'} />
                                             <Text fontSize="sm" color={isDark ? 'red.300' : 'red.700'}>
-                                                Siz <strong>“{recipe.productName}”</strong> mahsulotining retseptini o‘chirmoqchisiz. Bu amalni qaytarib bo‘lmaydi.
+                                                Siz <strong>“{recipe.name}”</strong> retseptini o‘chirmoqchisiz. Bu amalni qaytarib bo‘lmaydi.
                                             </Text>
                                         </HStack>
                                     </Box>
@@ -98,7 +98,7 @@ export default function Delete({ recipe }) {
 
 Delete.propTypes = {
     recipe: PropTypes.shape({
-        productId: PropTypes.string.isRequired,
-        productName: PropTypes.string,
+        recipeId: PropTypes.string.isRequired,
+        name: PropTypes.string,
     }).isRequired,
 };

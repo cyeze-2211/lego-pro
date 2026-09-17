@@ -106,6 +106,7 @@ export default function RawTransactionForm({ action }) {
     };
 
     const selectedWarehouse = warehouses.find((w) => w.id === warehouseId);
+    const formId = `raw-tx-${action}`;
     const totalItems = items.length;
 
     return (
@@ -136,7 +137,7 @@ export default function RawTransactionForm({ action }) {
                             <LuPackage size={14} /> {totalItems} ta tanlandi
                         </span>
                     )}
-                     <button type="submit"
+                     <button type="submit" form={formId}
                                     disabled={isSending || items.length === 0 || !warehouseId}
                                     className={`flex h-12 items-center gap-2 rounded-xl px-7 text-sm font-bold shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-xl hover:-translate-y-px ${submitBtn}`}>
                                     {isSending ? (
@@ -159,7 +160,7 @@ export default function RawTransactionForm({ action }) {
                 </div>
             </div>
 
-            <form onSubmit={handleSubmit}>
+            <form id={formId} onSubmit={handleSubmit}>
                 <div className={`rounded-2xl border shadow-md ${panel}`}>
 
                     {/* ── Ombor + Qidiruv ─────────────────────────────── */}
