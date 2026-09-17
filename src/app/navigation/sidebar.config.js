@@ -1,5 +1,5 @@
 // navigation/sidebar.config.js
-import { ROLES, PRODUCT_WAREHOUSE_ROLES, RAW_WAREHOUSE_ROLES, ZAYAVKACHI_ROLES } from '../permissions/roles';
+import { ROLES, PRODUCT_WAREHOUSE_ROLES, RAW_WAREHOUSE_ROLES, ZAYAVKACHI_ROLES, BUXGALTER_ROLES } from '../permissions/roles';
 import {
     Boxes, ClipboardList, Cog, History, LayoutDashboard, LogIn, LogOut,
     MonitorCog, Package, ReceiptText, UserRound, Users, Wallet, Warehouse,
@@ -65,4 +65,16 @@ export const ZAYAVKACHI_SIDEBAR_CONFIG = [
 export const ZAYAVKACHI_SIDEBAR_GROUPS = [
     { label: 'Asosiy', items: ZAYAVKACHI_SIDEBAR_CONFIG.filter((i) => i.path === '/zayavkachi') },
     { label: 'Savdo',  items: ZAYAVKACHI_SIDEBAR_CONFIG.filter((i) => ['/zayavkachi/orders', '/zayavkachi/customers'].includes(i.path)) },
+];
+
+// ── Buxgalter ──────────────────────────────────────────────────────────────
+export const BUXGALTER_SIDEBAR_CONFIG = [
+    { label: 'Dashboard',   path: '/zayavkachi',           icon: LayoutDashboard, roles: BUXGALTER_ROLES },
+    { label: 'Buyurtmalar', path: '/zayavkachi/orders',    icon: ClipboardList,   roles: BUXGALTER_ROLES },
+    { label: 'Mijozlar',    path: '/zayavkachi/customers', icon: Users,           roles: BUXGALTER_ROLES },
+];
+
+export const BUXGALTER_SIDEBAR_GROUPS = [
+    { label: 'Asosiy', items: BUXGALTER_SIDEBAR_CONFIG.filter((i) => i.path === '/zayavkachi') },
+    { label: 'Savdo',  items: BUXGALTER_SIDEBAR_CONFIG.filter((i) => ['/zayavkachi/orders', '/zayavkachi/customers'].includes(i.path)) },
 ];

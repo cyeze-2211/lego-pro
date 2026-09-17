@@ -7,8 +7,9 @@ import { useGetProductStocksQuery } from '../../../store/services/productStock.a
 import { useGetRawMaterialStocksQuery } from '../../../store/services/rawMaterialStock.api';
 import { formatNumber } from '../../ui/number-format';
 import EntityDetail, { DetailRow, DetailSection, formatDetailDate } from '../EntityDetail';
+import { useAppTheme } from '../../../theme/tokens';
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 20;
 const RAW_UNITS = ['GRAM', 'KG', 'TON'];
 
 const CATEGORY_MAP = {
@@ -61,6 +62,7 @@ export default function WarehouseDetail() {
                 <DetailRow label="Turi" value={<span style={{ color: accentColor, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 7 }}><CategoryIcon size={16} />{category.label}</span>} />
                 <DetailRow label={isRaw ? 'Xom ashyo turlari' : 'Mahsulot turlari'} value={formatNumber(totalItems)} emphasize />
             </DetailSection>
+
             <DetailSection title="Tizim ma’lumotlari" icon={LuCalendar} accentColor={accentColor}>
                 <DetailRow label="Yaratilgan" value={formatDetailDate(warehouse.createdAt)} />
                 <DetailRow label="Yangilangan" value={formatDetailDate(warehouse.lastModifiedAt)} />

@@ -44,8 +44,20 @@ const authSlice = createSlice({
             Cookies.remove('user_id');
             Cookies.remove('role');
         },
+        // Faqat user tokenini tozalaydi, device token saqlanib qoladi
+        logoutUser(state) {
+            state.token = null;
+            state.userId = null;
+            state.role = null;
+            state.isAuthenticated = false;
+
+            Cookies.remove('token');
+            Cookies.remove('user_id');
+            Cookies.remove('role');
+            // Device token saqlanadi — login da ikkinchi stepdan boshlash uchun
+        },
     },
 });
 
-export const { setDeviceAuth, setAuth, logout } = authSlice.actions;
+export const { setDeviceAuth, setAuth, logout, logoutUser } = authSlice.actions;
 export default authSlice.reducer;

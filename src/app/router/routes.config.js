@@ -1,7 +1,8 @@
 import { lazy } from 'react';
-import { ROLES, PRODUCT_WAREHOUSE_ROLES, RAW_WAREHOUSE_ROLES, WAREHOUSE_ROLES, ZAYAVKACHI_ROLES } from '../permissions/roles';
+import { ROLES, PRODUCT_WAREHOUSE_ROLES, RAW_WAREHOUSE_ROLES, WAREHOUSE_ROLES, ZAYAVKACHI_ROLES, BUXGALTER_ROLES } from '../permissions/roles';
 
 export const STANOKCHI_ROLES = [ROLES.STANOKCHI];
+export const MIKSERCHI_ROLES = [ROLES.MIKSERCHI];
 
 
 export const ROUTES = [
@@ -14,7 +15,7 @@ export const ROUTES = [
     {
         path: '/profile',
         component: lazy(() => import('../../Components/Common/Profile')),
-        roles: [ROLES.MANAGER, ...PRODUCT_WAREHOUSE_ROLES, ...RAW_WAREHOUSE_ROLES, ...ZAYAVKACHI_ROLES],
+        roles: [ROLES.MANAGER, ...PRODUCT_WAREHOUSE_ROLES, ...RAW_WAREHOUSE_ROLES, ...ZAYAVKACHI_ROLES, ...BUXGALTER_ROLES],
     },
     {
         path: '/warehouses',
@@ -151,6 +152,18 @@ export const ROUTES = [
         roles: STANOKCHI_ROLES,
     },
 
+    // ── Mixer routes ─────────────────────────────────────────────────────
+    {
+        path: '/mixer',
+        component: lazy(() => import('../../Components/Mixer/Dashboard')),
+        roles: MIKSERCHI_ROLES,
+    },
+    {
+        path: '/mixer/recipes/:id',
+        component: lazy(() => import('../../Components/Mixer/RecipeDetail')),
+        roles: MIKSERCHI_ROLES,
+    },
+
     // ── Raw Staff (Raw Material Storekeeper) routes ──────────────────────
     {
         path: '/raw-staff',
@@ -182,51 +195,51 @@ export const ROUTES = [
     {
         path: '/zayavkachi',
         component: lazy(() => import('../../Components/Zayavkachi/Dashboard')),
-        roles: ZAYAVKACHI_ROLES,
+        roles: [...ZAYAVKACHI_ROLES, ...BUXGALTER_ROLES],
     },
     {
         path: '/zayavkachi/orders',
         component: lazy(() => import('../../Components/Zayavkachi/Orders')),
-        roles: ZAYAVKACHI_ROLES,
+        roles: [...ZAYAVKACHI_ROLES, ...BUXGALTER_ROLES],
     },
     {
         path: '/zayavkachi/orders/new',
         component: lazy(() => import('../../Components/Zayavkachi/OrderCreate')),
-        roles: ZAYAVKACHI_ROLES,
+        roles: [...ZAYAVKACHI_ROLES, ...BUXGALTER_ROLES],
     },
     {
         path: '/zayavkachi/orders/:id',
         component: lazy(() => import('../../Components/Zayavkachi/OrderDetail')),
-        roles: ZAYAVKACHI_ROLES,
+        roles: [...ZAYAVKACHI_ROLES, ...BUXGALTER_ROLES],
     },
     {
         path: '/zayavkachi/orders/:id/edit',
         component: lazy(() => import('../../Components/Zayavkachi/OrderEdit')),
-        roles: ZAYAVKACHI_ROLES,
+        roles: [...ZAYAVKACHI_ROLES, ...BUXGALTER_ROLES],
     },
     {
         path: '/zayavkachi/customers',
         component: lazy(() => import('../../Components/Zayavkachi/Customers')),
-        roles: ZAYAVKACHI_ROLES,
+        roles: [...ZAYAVKACHI_ROLES, ...BUXGALTER_ROLES],
     },
     {
         path: '/zayavkachi/customers/new',
         component: lazy(() => import('../../Components/Zayavkachi/CustomerCreate')),
-        roles: ZAYAVKACHI_ROLES,
+        roles: [...ZAYAVKACHI_ROLES, ...BUXGALTER_ROLES],
     },
     {
         path: '/zayavkachi/customers/:id',
         component: lazy(() => import('../../Components/Zayavkachi/CustomerDetail')),
-        roles: ZAYAVKACHI_ROLES,
+        roles: [...ZAYAVKACHI_ROLES, ...BUXGALTER_ROLES],
     },
     {
         path: '/zayavkachi/customers/:id/edit',
         component: lazy(() => import('../../Components/Zayavkachi/CustomerEdit')),
-        roles: ZAYAVKACHI_ROLES,
+        roles: [...ZAYAVKACHI_ROLES, ...BUXGALTER_ROLES],
     },
     {
         path: '/zayavkachi/customers/:id/orders/new',
         component: lazy(() => import('../../Components/Zayavkachi/CustomerOrderCreate')),
-        roles: ZAYAVKACHI_ROLES,
+        roles: [...ZAYAVKACHI_ROLES, ...BUXGALTER_ROLES],
     },
 ];

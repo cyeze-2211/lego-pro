@@ -27,9 +27,9 @@ const processQueue = (error, token = null) => {
     failedQueue = [];
 };
 
-// 🔴 Вынесли logout отдельно
+// 🔴 Вынесли logout отдельно — device token saqlab qoladi
 const forceLogout = () => {
-    ["token", "role", "user_id", "device_token", "device_name", "refresh_token", "us_nesw", "nesw"].forEach((key) => Cookies.remove(key));
+    ["token", "user_id", "role", "refresh_token", "us_nesw", "nesw"].forEach((key) => Cookies.remove(key));
     window.location.href = "/login";
 };
 
