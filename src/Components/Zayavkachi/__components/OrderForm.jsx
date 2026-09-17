@@ -11,11 +11,16 @@ import { useGetWarehousesQuery } from '../../../store/services/warehouse.api';
 import { useGetProductsQuery } from '../../../store/services/product.api';
 import { useGetCustomersQuery } from '../../../store/services/customer.api';
 import { useCreateSalesOrderMutation, useUpdateSalesOrderMutation } from '../../../store/services/salesOrder.api';
+import { useAppSelector } from '../../../store/hooks';
+import { ROLES } from '../../../app/permissions/roles';
 
 export default function OrderForm({ order, customer, onCancel, onSaved }) {
     const { isDark } = useAppTheme();
     const isEdit = Boolean(order);
     const isCustomerLocked = Boolean(customer);
+
+    const role = useAppSelector((state) => state.auth.role);
+    const canEditPrice = role === ROLES.BUXGALTER;
 
     const [customerId, setCustomerId]         = useState(customer?.id ?? order?.customerId ?? '');
     const [customerSearch, setCustomerSearch] = useState(customer?.name ?? order?.customerName ?? '');
@@ -125,6 +130,12 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
         const qty = parseInt(val, 10);
         if (isNaN(qty) || qty < 1) return;
         setItems((p) => p.map((i) => i.productId === id ? { ...i, quantity: qty } : i));
+    };
+
+    const updatePrice = (id, val) => {
+        const price = parseFloat(val);
+        if (isNaN(price) || price < 0) return;
+        setItems((p) => p.map((i) => i.productId === id ? { ...i, unitPrice: price } : i));
     };
 
     const stepQty = (id, delta) => {
@@ -434,7 +445,19 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                                 <span className="flex items-center gap-1.5"><LuBarcode size={13} />{item.productBarcode}</span>
                                             </td>
                                             <td className={`px-5 py-3 text-right text-xs font-semibold ${muted}`}>
-                                                {(item.unitPrice ?? 0).toLocaleString('uz-UZ')} so&apos;m
+                                                {canEditPrice ? (
+                                                    <input
+                                                        type="number"
+                                                        min={0}
+                                                        step="any"
+                                                        value={item.unitPrice ?? 0}
+                                                        onChange={(e) => updatePrice(item.productId, e.target.value)}
+                                                        aria-label="Narxni tahrirlash"
+                                                        className={`w-32 rounded-xl border px-3 h-9 text-right text-xs font-semibold outline-none transition-all duration-200 ${fieldCx}`}
+                                                    />
+                                                ) : (
+                                                    <>{(item.unitPrice ?? 0).toLocaleString('uz-UZ')} so&apos;m</>
+                                                )}
                                             </td>
                                             <td className="px-5 py-3">
                                                 <div className="flex items-center gap-2">

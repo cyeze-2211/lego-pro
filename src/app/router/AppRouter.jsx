@@ -3,8 +3,9 @@ import { Routes, Route } from 'react-router-dom';
 import { Suspense } from 'react';
 import MainLayout from '../layout/MainLayout';
 import StanokchiLayout from '../layout/StanokchiLayout';
+import MixerLayout from '../layout/MixerLayout';
 import RoleGuard from './RoleGuard';
-import { ROUTES, STANOKCHI_ROLES } from './routes.config';
+import { ROUTES, STANOKCHI_ROLES, MIKSERCHI_ROLES } from './routes.config';
 import { ROLES } from '../permissions/roles';
 import Loading from '../../Components/Other/UI/Loadings/Loading';
 import Login from '../../Components/Common/Login';
@@ -16,11 +17,20 @@ const stanokchiRoutes = ROUTES.filter(r =>
         : r.roles === ROLES.STANOKCHI
 );
 
+const mixerRoutes = ROUTES.filter(r =>
+    Array.isArray(r.roles)
+        ? r.roles.includes(ROLES.MIKSERCHI)
+        : r.roles === ROLES.MIKSERCHI
+);
+
 // Qolgan barcha routelar (MainLayout uchun)
 const mainRoutes = ROUTES.filter(r =>
     !(Array.isArray(r.roles)
         ? r.roles.includes(ROLES.STANOKCHI)
-        : r.roles === ROLES.STANOKCHI)
+        : r.roles === ROLES.STANOKCHI) &&
+    !(Array.isArray(r.roles)
+        ? r.roles.includes(ROLES.MIKSERCHI)
+        : r.roles === ROLES.MIKSERCHI)
 );
 
 export default function AppRouter() {
@@ -40,6 +50,15 @@ export default function AppRouter() {
                 <Route element={<RoleGuard allow={STANOKCHI_ROLES} />}>
                     <Route element={<StanokchiLayout />}>
                         {stanokchiRoutes.map(r => (
+                            <Route key={r.path} path={r.path} element={<r.component />} />
+                        ))}
+                    </Route>
+                </Route>
+
+                {/* ── Mixer layout (sidebar yo'q) ── */}
+                <Route element={<RoleGuard allow={MIKSERCHI_ROLES} />}>
+                    <Route element={<MixerLayout />}>
+                        {mixerRoutes.map(r => (
                             <Route key={r.path} path={r.path} element={<r.component />} />
                         ))}
                     </Route>

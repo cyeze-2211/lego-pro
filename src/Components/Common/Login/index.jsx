@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import Cookies from "js-cookie";
 
 import {
     Box,
@@ -36,7 +37,10 @@ import { useAppTheme } from "../../../theme/tokens";
 import YellowLogo from "../../../Images/Yellow Unified Lego Outlined.svg";
 
 export default function Login() {
-    const [step, setStep] = useState("device");
+    // Device token cookie da bo'lsa user stepidan boshlash
+    const [step, setStep] = useState(() =>
+        Cookies.get("device_token") ? "user" : "device"
+    );
     const [deviceName, setDeviceName] = useState("");
     const [devicePassword, setDevicePassword] = useState("ChangeMe123!");
     const [userId, setUserId] = useState("");
@@ -116,6 +120,8 @@ export default function Login() {
                 navigate("/zayavkachi");
             } else if (userRole === 'stanokchi') {
                 navigate("/stanokchi");
+            } else if (userRole === 'mikserchi') {
+                navigate("/mixer");
             } else {
                 navigate("/");
             }

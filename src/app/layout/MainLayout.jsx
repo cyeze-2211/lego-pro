@@ -6,6 +6,7 @@ import AdminHeader from "../../Components/Other/Header/AdminHeader";
 import { useAppTheme } from "../../theme/tokens";
 import { useGetUserByIdQuery } from "../../store/services/user.api";
 import Loading from "../../Components/Other/UI/Loadings/Loading";
+import { HeaderProvider } from "../../context/HeaderContext";
 
 export default function MainLayout() {
     const { isDark } = useAppTheme();
@@ -53,31 +54,33 @@ export default function MainLayout() {
                 />
             )}
 
-            <Sidebar
-                open={effectiveSidebarOpen}
-                mobileOpen={mobileOpen}
-                onToggle={toggleSidebar}
-                onMobileClose={() => setMobileOpen(false)}
-            />
-
-            <div
-                className={`relative min-h-screen transition-all duration-300 ${
-                    effectiveSidebarOpen ? "lg:pl-[220px]" : "lg:pl-[88px]"
-                }`}
-            >
-                <AdminHeader
-                    sidebarOpen={effectiveSidebarOpen}
-                    active={toggleSidebar}
-                    user={user}
-                    isLoading={isLoading}
+            <HeaderProvider>
+                <Sidebar
+                    open={effectiveSidebarOpen}
+                    mobileOpen={mobileOpen}
+                    onToggle={toggleSidebar}
+                    onMobileClose={() => setMobileOpen(false)}
                 />
 
-                <main className="px-3 pb-8 pt-[80px] sm:px-4 md:px-6">
-                    <Suspense fallback={<Loading />}>
-                        <Outlet />
-                    </Suspense>
-                </main>
-            </div>
+                <div
+                    className={`relative min-h-screen transition-all duration-300 ${
+                        effectiveSidebarOpen ? "lg:pl-[220px]" : "lg:pl-[88px]"
+                    }`}
+                >
+                    <AdminHeader
+                        sidebarOpen={effectiveSidebarOpen}
+                        active={toggleSidebar}
+                        user={user}
+                        isLoading={isLoading}
+                    />
+
+                    <main className="px-3 pb-8 pt-[80px] sm:px-4 md:px-6">
+                        <Suspense fallback={<Loading />}>
+                            <Outlet />
+                        </Suspense>
+                    </main>
+                </div>
+            </HeaderProvider>
         </div>
     );
 }
