@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { Outlet } from "react-router-dom";
 import Cookies from "js-cookie";
 import Sidebar from "../../Components/Other/Sidebar/Sidebar";
 import AdminHeader from "../../Components/Other/Header/AdminHeader";
 import { useAppTheme } from "../../theme/tokens";
 import { useGetUserByIdQuery } from "../../store/services/user.api";
+import Loading from "../../Components/Other/UI/Loadings/Loading";
 import { HeaderProvider } from "../../context/HeaderContext";
 
 export default function MainLayout() {
@@ -74,7 +75,9 @@ export default function MainLayout() {
                     />
 
                     <main className="px-3 pb-8 pt-[80px] sm:px-4 md:px-6">
-                        <Outlet />
+                        <Suspense fallback={<Loading />}>
+                            <Outlet />
+                        </Suspense>
                     </main>
                 </div>
             </HeaderProvider>
