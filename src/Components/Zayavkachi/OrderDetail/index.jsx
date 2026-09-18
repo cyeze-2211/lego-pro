@@ -1,10 +1,15 @@
+import { useState, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
     LuArrowLeft, LuPackage, LuBarcode, LuUser, LuWarehouse,
     LuStickyNote, LuClock3, LuCircleAlert, LuPencil,
+    LuChevronDown, LuTriangleAlert, LuCircleCheck, LuCircleX,
+    LuBoxes,
 } from 'react-icons/lu';
 import { useAppTheme } from '../../../theme/tokens';
 import { useGetSalesOrderByIdQuery } from '../../../store/services/salesOrder.api';
+import { useGetProductStocksQuery } from '../../../store/services/productStock.api';
+import { useGetWarehousesQuery } from '../../../store/services/warehouse.api';
 import Loading from '../../Other/UI/Loadings/Loading';
 import DeleteOrder from '../__components/DeleteOrder';
 import { STATUS_LABEL, statusCx } from '../__components/statusBadge';
@@ -15,6 +20,62 @@ export default function ZayavkachiOrderDetail() {
     const { isDark } = useAppTheme();
     const { data: order, isLoading, isError } = useGetSalesOrderByIdQuery(id, { skip: !id });
 
+    // ── Omborlar ──────────────────────────────────────────────────────────
+    const { data: warehouses = [] } = useGetWarehousesQuery('PRODUCT');
+
+    // Orderdan foydalaniladigan omborlar (unique)
+    const orderWarehouseIds = useMemo(() => {
+        if (!order?.items) return [];
+        return [...new Set(order.items.map((i) => i.warehouseId).filter(Boolean))];
+    }, [order]);
+
+    // Agar bitta ombor bo'lsa — avtomatik tanlanadi, ko'p bo'lsa — select
+    const [selectedWarehouseId, setSelectedWarehouseId] = useState('');
+    const activeWarehouseId = useMemo(() => {
+        if (orderWarehouseIds.length === 1) return orderWarehouseIds[0];
+        return selectedWarehouseId || orderWarehouseIds[0] || '';
+    }, [orderWarehouseIds, selectedWarehouseId]);
+
+    // Orderdan unique productIdlar (tanlangan ombor bo'yicha)
+    const orderProductIds = useMemo(() => {
+        if (!order?.items) return [];
+        return [...new Set(order.items.map((i) => i.productId).filter(Boolean))];
+    }, [order]);
+
+    // ── Stock ma'lumotlari — har bir mahsulot uchun alohida so'rov ──────
+    // API da productId filtri bor, lekin biz hamma mahsulotlar uchun bir so'rovda olamiz
+    // warehouseId + page=0, size=50 bilan barcha mahsulot qoldiqlari
+    const { data: stockData, isFetching: stockFetching } = useGetProductStocksQuery(
+        {
+            warehouseId: activeWarehouseId || undefined,
+            page: 0,
+            size: 100,
+        },
+        { skip: !activeWarehouseId || !order }
+    );
+    const stockItems = stockData?.items ?? [];
+
+    // ── Solishtirish: orderItem + stockItem juftlash ─────────────────────
+    const comparison = useMemo(() => {
+        if (!order?.items) return [];
+        return order.items.map((item) => {
+            const stock = stockItems.find(
+                (s) =>
+                    s.productId === item.productId &&
+                    (activeWarehouseId ? s.warehouseId === activeWarehouseId : true)
+            );
+            const stockQty = stock?.quantity ?? 0;
+            const orderQty = item.quantity;
+            const enough = stockQty >= orderQty;
+            const diff = stockQty - orderQty;
+            return { ...item, stockQty, enough, diff };
+        });
+    }, [order, stockItems, activeWarehouseId]);
+
+    const allEnough = comparison.length > 0 && comparison.every((c) => c.enough);
+    const someShort = comparison.some((c) => !c.enough);
+
+    /* ── theme ─────────────────────────────────────────────────────────── */
     const panel   = isDark ? 'border-white/10 bg-[#141C2B]' : 'border-[#e2e8f0] bg-white';
     const muted   = isDark ? 'text-[#94a3b8]' : 'text-[#64748b]';
     const head    = isDark ? 'text-white' : 'text-[#0f172a]';
@@ -24,6 +85,16 @@ export default function ZayavkachiOrderDetail() {
     const ghostBtn = isDark
         ? 'border-[#334155] text-[#94a3b8] hover:bg-[#1e293b]'
         : 'border-[#e2e8f0] text-[#64748b] hover:bg-[#f1f5f9]';
+    const inputCx = [
+        'rounded-xl border px-3 py-2 text-sm outline-none transition-all duration-200',
+        isDark
+            ? 'border-[#334155] bg-[#1e293b]/80 text-white focus:border-amber-400'
+            : 'border-[#e2e8f0] bg-white text-[#0f172a] focus:border-amber-400',
+    ].join(' ');
+    const selectCx = [
+        inputCx,
+        'pr-8 appearance-none cursor-pointer',
+    ].join(' ');
 
     const backToList = () => navigate('/zayavkachi/orders');
 
@@ -71,7 +142,7 @@ export default function ZayavkachiOrderDetail() {
                         </span>
                         <button type="button" onClick={() => navigate(`/zayavkachi/orders/${order.id}/edit`)}
                             disabled={!editable}
-                            title={editable ? 'Tahrirlash' : 'Faqat “Kutilmoqda” holatidagi buyurtma tahrirlanadi'}
+                            title={editable ? 'Tahrirlash' : 'Faqat "Kutilmoqda" holatidagi buyurtma tahrirlanadi'}
                             className={`flex h-12 items-center gap-2 rounded-xl border px-5 text-sm font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${ghostBtn}`}>
                             <LuPencil size={16} /> Tahrirlash
                         </button>
@@ -91,7 +162,7 @@ export default function ZayavkachiOrderDetail() {
                         { label: 'Mijoz',      value: order.customerName, icon: LuUser },
                         { label: 'Yaratgan',   value: order.createdBy,    icon: LuUser },
                         { label: 'Jami summa', value: `${(order.totalAmount ?? 0).toLocaleString('uz-UZ')} so'm`, icon: LuPackage },
-                        { label: 'Oxirgi o‘zgarish', value: order.lastModifiedAt ? new Date(order.lastModifiedAt).toLocaleString('uz-UZ') : '—', icon: LuClock3 },
+                        { label: "Oxirgi o'zgarish", value: order.lastModifiedAt ? new Date(order.lastModifiedAt).toLocaleString('uz-UZ') : '—', icon: LuClock3 },
                     ].map(({ label, value, icon: Icon }) => (
                         <div key={label}>
                             <p className={`mb-1 flex items-center gap-1.5 text-xs font-semibold ${muted}`}>
@@ -175,6 +246,189 @@ export default function ZayavkachiOrderDetail() {
                         Umumiy summa: <span className={`text-base font-bold ${head}`}>{(order.totalAmount ?? 0).toLocaleString('uz-UZ')} so&apos;m</span>
                     </span>
                 </div>
+            </div>
+
+            {/* ── Ombor qoldiqlari taqqoslov ───────────────────────────── */}
+            <div className={`rounded-2xl border shadow-md ${panel}`}>
+
+                {/* Section header */}
+                <div className={`flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4 ${line}`}>
+                    <div className="flex items-center gap-2">
+                        <LuBoxes size={18} className="text-amber-500" />
+                        <h2 className={`text-sm font-bold ${head}`}>Ombor qoldiqlari taqqoslov</h2>
+                        {/* Summary badge */}
+                        {!stockFetching && comparison.length > 0 && (
+                            <span className={`rounded-full border px-2.5 py-0.5 text-xs font-bold ${
+                                allEnough
+                                    ? isDark ? 'border-green-500/30 bg-green-500/10 text-green-400' : 'border-green-500/30 bg-green-50 text-green-700'
+                                    : someShort
+                                    ? isDark ? 'border-red-500/30 bg-red-500/10 text-red-400' : 'border-red-500/30 bg-red-50 text-red-600'
+                                    : 'border-amber-400/30 bg-amber-400/10 text-amber-500'
+                            }`}>
+                                {allEnough
+                                    ? 'Barchasi yetarli'
+                                    : `${comparison.filter((c) => !c.enough).length} ta yetishmaydi`}
+                            </span>
+                        )}
+                    </div>
+
+                    {/* Warehouse selector — ko'p ombor bo'lsa chiqadi */}
+                    {orderWarehouseIds.length > 1 && (
+                        <div className="relative flex items-center gap-2">
+                            <LuWarehouse size={14} className={muted} />
+                            <label className={`text-xs font-semibold shrink-0 ${muted}`}>Ombor:</label>
+                            <div className="relative">
+                                <select
+                                    value={activeWarehouseId}
+                                    onChange={(e) => setSelectedWarehouseId(e.target.value)}
+                                    className={selectCx}
+                                >
+                                    {orderWarehouseIds.map((wid) => {
+                                        const wh = warehouses.find((w) => w.id === wid);
+                                        return (
+                                            <option key={wid} value={wid}>
+                                                {wh?.name ?? wid}
+                                            </option>
+                                        );
+                                    })}
+                                </select>
+                                <LuChevronDown size={13} className={`pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 ${muted}`} />
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Bitta ombor — label sifatida ko'rsat */}
+                {orderWarehouseIds.length === 1 && (
+                    <div className={`flex items-center gap-2 px-5 pt-4 pb-0`}>
+                        <LuWarehouse size={14} className={muted} />
+                        <span className={`text-xs font-semibold ${muted}`}>Ombor:</span>
+                        <span className={`text-xs font-bold ${head}`}>
+                            {warehouses.find((w) => w.id === activeWarehouseId)?.name ?? activeWarehouseId}
+                        </span>
+                    </div>
+                )}
+
+                {/* Loading */}
+                {stockFetching && (
+                    <div className={`flex items-center justify-center gap-2 py-10 text-sm ${muted}`}>
+                        <svg className="h-4 w-4 animate-spin text-amber-400" viewBox="0 0 24 24" fill="none">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                        </svg>
+                        Qoldiqlar yuklanmoqda...
+                    </div>
+                )}
+
+                {/* No warehouse selected */}
+                {!stockFetching && !activeWarehouseId && (
+                    <div className={`flex flex-col items-center gap-2 py-10 ${muted}`}>
+                        <LuWarehouse size={30} strokeWidth={1.5} />
+                        <p className="text-sm">Orderda ombor ma&apos;lumoti yo&apos;q</p>
+                    </div>
+                )}
+
+                {/* Table */}
+                {!stockFetching && activeWarehouseId && comparison.length > 0 && (
+                    <div className="overflow-x-auto px-0 pb-2">
+                        <table className="w-full text-sm">
+                            <thead>
+                                <tr className={`text-left text-xs font-semibold uppercase tracking-wide ${muted} ${isDark ? 'bg-[#0f172a]/30' : 'bg-[#f8fafc]/80'}`}>
+                                    <th className="px-5 py-3">Mahsulot</th>
+                                    <th className="px-5 py-3 w-36 text-right">Omborда qoldiq</th>
+                                    <th className="px-5 py-3 w-32 text-right">Buyurtmada</th>
+                                    <th className="px-5 py-3 w-32 text-right">Farq</th>
+                                    <th className="px-5 py-3 w-32 text-center">Holat</th>
+                                </tr>
+                            </thead>
+                            <tbody className={`divide-y ${divider}`}>
+                                {comparison.map((row) => {
+                                    const enough = row.enough;
+                                    const diff   = row.diff;
+
+                                    const statusIcon = enough
+                                        ? <LuCircleCheck size={15} className={isDark ? 'text-green-400' : 'text-green-600'} />
+                                        : <LuCircleX     size={15} className={isDark ? 'text-red-400'   : 'text-red-600'} />;
+
+                                    const statusLabel = enough ? 'Yetarli' : 'Yetishmaydi';
+
+                                    const statusCls = enough
+                                        ? isDark ? 'text-green-400' : 'text-green-700'
+                                        : isDark ? 'text-red-400'   : 'text-red-600';
+
+                                    const diffCls = diff === 0
+                                        ? muted
+                                        : diff > 0
+                                        ? isDark ? 'text-green-400' : 'text-green-700'
+                                        : isDark ? 'text-red-400'   : 'text-red-600';
+
+                                    const rowAccent = !enough
+                                        ? isDark ? 'bg-red-500/5' : 'bg-red-50/60'
+                                        : '';
+
+                                    return (
+                                        <tr key={row.productId} className={`transition-colors ${rowAccent} ${rowBg}`}>
+                                            <td className="px-5 py-3">
+                                                <div className="flex flex-col gap-0.5">
+                                                    <span className={`font-semibold ${head}`}>{row.productName}</span>
+                                                    {row.productBarcode && (
+                                                        <span className={`font-mono text-xs ${muted}`}>{row.productBarcode}</span>
+                                                    )}
+                                                </div>
+                                            </td>
+                                            <td className={`px-5 py-3 text-right font-bold tabular-nums ${head}`}>
+                                                {row.stockQty.toLocaleString('uz-UZ')}
+                                            </td>
+                                            <td className={`px-5 py-3 text-right font-bold tabular-nums ${head}`}>
+                                                {row.quantity.toLocaleString('uz-UZ')}
+                                            </td>
+                                            <td className={`px-5 py-3 text-right font-bold tabular-nums ${diffCls}`}>
+                                                {diff > 0 ? `+${diff.toLocaleString('uz-UZ')}` : diff.toLocaleString('uz-UZ')}
+                                            </td>
+                                            <td className="px-5 py-3">
+                                                <div className={`flex items-center justify-center gap-1.5 ${statusCls}`}>
+                                                    {statusIcon}
+                                                    <span className="text-xs font-bold">{statusLabel}</span>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+
+                {/* Overall warning banner */}
+                {!stockFetching && someShort && (
+                    <div className={`mx-5 mb-4 mt-2 flex items-start gap-3 rounded-xl border px-4 py-3 ${
+                        isDark
+                            ? 'border-red-500/30 bg-red-500/10 text-red-400'
+                            : 'border-red-300 bg-red-50 text-red-700'
+                    }`}>
+                        <LuTriangleAlert size={16} className="mt-0.5 shrink-0" />
+                        <p className="text-xs font-semibold leading-relaxed">
+                            Buyurtmani to&apos;liq bajarish uchun{' '}
+                            <span className="font-bold">
+                                {comparison.filter((c) => !c.enough).map((c) => c.productName).join(', ')}
+                            </span>{' '}
+                            mahsulot(lar)dan omborда yetarli qoldiq mavjud emas.
+                        </p>
+                    </div>
+                )}
+
+                {!stockFetching && activeWarehouseId && allEnough && comparison.length > 0 && (
+                    <div className={`mx-5 mb-4 mt-2 flex items-center gap-3 rounded-xl border px-4 py-3 ${
+                        isDark
+                            ? 'border-green-500/30 bg-green-500/10 text-green-400'
+                            : 'border-green-300 bg-green-50 text-green-700'
+                    }`}>
+                        <LuCircleCheck size={16} className="shrink-0" />
+                        <p className="text-xs font-semibold">
+                            Barcha mahsulotlar uchun omborда yetarli qoldiq mavjud.
+                        </p>
+                    </div>
+                )}
             </div>
         </div>
     );

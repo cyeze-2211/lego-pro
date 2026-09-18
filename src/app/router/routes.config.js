@@ -151,7 +151,6 @@ export const ROUTES = [
         component: lazy(() => import('../../Components/Stanokchi/MachineDetail')),
         roles: STANOKCHI_ROLES,
     },
-
     // ── Mixer routes ─────────────────────────────────────────────────────
     {
         path: '/mixer',
