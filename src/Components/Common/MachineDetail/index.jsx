@@ -7,7 +7,6 @@ import EntityDetail, { DetailRow, DetailSection, formatDetailDate } from '../Ent
 import { formatNumber } from '../../ui/number-format';
 
 const PAGE_SIZE = 10;
-const POLL_MS = 10000;
 
 // 02:14:37 — davom etayotgan seans uchun
 function formatClock(ms) {
@@ -36,11 +35,11 @@ export default function MachineDetail() {
     const [page, setPage] = useState(0);
     const [now, setNow] = useState(() => Date.now());
 
-    // real vaqt: stanok holati va joriy seans doimiy yangilanib turadi
-    const { data: machine, isLoading, isError } = useGetMachineByIdQuery(id, { skip: !id, pollingInterval: POLL_MS });
+    // real-time keyinchalik socket orqali ulanadi — hozircha so'rov faqat sahifa ochilganda
+    const { data: machine, isLoading, isError } = useGetMachineByIdQuery(id, { skip: !id });
     const { data: runResult, isFetching: runsFetching } = useGetMachineRunsQuery(
         { id, page, size: PAGE_SIZE },
-        { skip: !id, pollingInterval: POLL_MS }
+        { skip: !id }
     );
 
     const run = machine?.currentRun;
