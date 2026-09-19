@@ -1,7 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Box, Button, Dialog, Field, HStack, Heading, Portal, Table, Text, VStack, useDisclosure } from '@chakra-ui/react';
-import { LuPlus, LuSearch, LuTrash2, LuUserRound, LuX } from 'react-icons/lu';
+import {
+    Box, Button, Dialog, Field, HStack, Heading,
+    Portal, Table, Text, VStack, useDisclosure,
+} from '@chakra-ui/react';
+import {
+    LuPlus, LuSearch, LuTrash2, LuUserRound, LuX,
+} from 'react-icons/lu';
 import { useGetUsersQuery, useRegisterUserMutation, useDeleteUserMutation } from '../../../store/services/user.api';
 import { useGetDevicesQuery } from '../../../store/services/device.api';
 import { useGetRolesQuery } from '../../../store/services/role.api';
@@ -11,15 +16,15 @@ import Loading from '../../Other/UI/Loadings/Loading';
 import FormControl from '../../ui/FormControl';
 import DeleteConfirmDialog from '../DeleteConfirmDialog';
 
+/* ─── Create user dialog ───────────────────────────────────── */
 function CreateUser({ devices, onDone }) {
     const { open, onOpen, onClose } = useDisclosure();
     const [form, setForm] = useState({ username: '', code: '', roleId: '', deviceId: '' });
     const [register, { isLoading }] = useRegisterUserMutation();
     const { data: roles = [], isLoading: rolesLoading } = useGetRolesQuery();
     const { isDark, cardBg, cardBorder, textColor, subtitleColor, accentColor } = useAppTheme();
-    const update = (key) => (event) => setForm({ ...form, [key]: event.target.value });
+    const update = (key) => (e) => setForm({ ...form, [key]: e.target.value });
 
-    // Set default roleId once roles are loaded
     useEffect(() => {
         if (roles.length > 0 && !form.roleId) {
             setForm((prev) => ({ ...prev, roleId: String(roles[0].id) }));
@@ -98,15 +103,12 @@ function CreateUser({ devices, onDone }) {
                                     <Field.Root required>
                                         <Field.Label color={textColor}>Rol</Field.Label>
                                         <FormControl as="select" value={form.roleId} onChange={update('roleId')}>
-                                            {rolesLoading ? (
-                                                <option value="">Yuklanmoqda...</option>
-                                            ) : (
-                                                roles.map((role) => (
-                                                    <option key={role.id} value={role.id}>
-                                                        {role.roleName}
-                                                    </option>
+                                            {rolesLoading
+                                                ? <option value="">Yuklanmoqda...</option>
+                                                : roles.map((r) => (
+                                                    <option key={r.id} value={r.id}>{r.roleName}</option>
                                                 ))
-                                            )}
+                                            }
                                         </FormControl>
                                     </Field.Root>
 
@@ -114,8 +116,8 @@ function CreateUser({ devices, onDone }) {
                                         <Field.Label color={textColor}>Qurilma</Field.Label>
                                         <FormControl as="select" value={form.deviceId} onChange={update('deviceId')}>
                                             <option value="">Qurilmani tanlang</option>
-                                            {devices.map((device) => (
-                                                <option key={device.id} value={device.id}>{device.deviceName}</option>
+                                            {devices.map((d) => (
+                                                <option key={d.id} value={d.id}>{d.deviceName}</option>
                                             ))}
                                         </FormControl>
                                     </Field.Root>
@@ -124,7 +126,8 @@ function CreateUser({ devices, onDone }) {
 
                             <Dialog.Footer gap={3} pt={5} pb={6} borderTopWidth="1px" borderColor={cardBorder}>
                                 <Button variant="ghost" onClick={onClose} color={subtitleColor}>Bekor qilish</Button>
-                                <Button onClick={submit} disabled={isLoading} bg={accentColor} color="black" borderRadius="xl" px={8}>
+                                <Button onClick={submit} disabled={isLoading}
+                                    bg={accentColor} color="black" borderRadius="xl" px={8}>
                                     Saqlash
                                 </Button>
                             </Dialog.Footer>
@@ -136,16 +139,19 @@ function CreateUser({ devices, onDone }) {
     );
 }
 
+/* ─── Users page ───────────────────────────────────────────── */
 export default function User() {
-    const [search, setSearch] = useState('');
-    const [query, setQuery] = useState('');
+    const [search, setSearch]             = useState('');
+    const [query, setQuery]               = useState('');
     const [selectedUser, setSelectedUser] = useState(null);
+
     const { data: result, isLoading, error, refetch } = useGetUsersQuery({ username: query || undefined, page: 0, size: 100 });
-    const { data: devicesResult } = useGetDevicesQuery({ page: 0, size: 100 });
+    const { data: devicesResult }  = useGetDevicesQuery({ page: 0, size: 100 });
     const [deleteUser, { isLoading: isDeleting }] = useDeleteUserMutation();
+
     const { isDark, pageBg, cardBg, cardBorder, textColor, subtitleColor, accentColor } = useAppTheme();
-    const users = result?.items || [];
-    const devices = devicesResult?.items || [];
+    const users   = result?.items        ?? [];
+    const devices = devicesResult?.items ?? [];
     const tableBg = isDark ? BRAND_COLORS.darkCardBg : cardBg;
 
     useEffect(() => {
@@ -155,11 +161,11 @@ export default function User() {
     const remove = async () => {
         try {
             await deleteUser(selectedUser.id).unwrap();
-            Alert('Foydalanuvchi o\u2018chirildi', 'success');
+            Alert("Foydalanuvchi o'chirildi", 'success');
             setSelectedUser(null);
             refetch();
         } catch (err) {
-            Alert(err?.data?.message || 'Foydalanuvchini o\u2018chirishda xatolik', 'error');
+            Alert(err?.data?.message || "Foydalanuvchini o'chirishda xatolik", 'error');
         }
     };
 

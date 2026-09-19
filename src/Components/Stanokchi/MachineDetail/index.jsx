@@ -15,6 +15,9 @@ import {
     LuPackage,
     LuCirclePlus,
     LuHash,
+    LuClipboardList,
+    LuCircleCheck,
+    LuRefreshCw,
 } from 'react-icons/lu';
 import {
     useGetMachineByIdQuery,
@@ -26,6 +29,10 @@ import {
     useGetStockTransactionsQuery,
     useCreateStockTransactionMutation,
 } from '../../../store/services/productStock.api';
+import {
+    useGetProductionTasksQuery,
+    useAcceptProductionTaskMutation,
+} from '../../../store/services/productionTask.api';
 import { useAppTheme, BRAND_COLORS } from '../../../theme/tokens';
 
 const HISTORY_PAGE_SIZE = 10;
@@ -160,6 +167,40 @@ export default function StanokchiMachineDetail() {
             refetchMachine();
         } catch (err) {
             showToast(err?.data?.message || "To'xtatishda xatolik", 'error');
+        }
+    };
+
+    /* ── Production tasks (SENT) ── */
+    const { data: tasksResult, isFetching: tasksFetching, refetch: refetchTasks } =
+        useGetProductionTasksQuery(
+            { machineId: id, status: 'SENT', page: 0, size: 20 },
+            { skip: !id, pollingInterval: 15000 }
+        );
+    const pendingTasks = tasksResult?.items ?? [];
+    const nextTask = pendingTasks[0] ?? null;
+
+    const [acceptTask, { isLoading: accepting }] = useAcceptProductionTaskMutation();
+    const [acceptingId, setAcceptingId] = useState(null);
+
+    const handleAcceptTask = async (task) => {
+        if (accepting) return;
+        setAcceptingId(task.id);
+        try {
+            // 1. Joriy ishlab chiqarish bo'lsa — to'xtatamiz
+            if (isWorking) {
+                await stopProduction(id).unwrap();
+            }
+            // 2. Topshiriqni qabul qilamiz
+            await acceptTask(task.id).unwrap();
+            // 3. Yangi mahsulot bilan ishlab chiqarishni boshlaymiz
+            await startProduction({ id, productId: task.productId }).unwrap();
+            showToast(`${task.productName} ishlab chiqarish boshlandi`);
+            refetchMachine();
+            refetchTasks();
+        } catch (err) {
+            showToast(err?.data?.message || 'Xatolik yuz berdi', 'error');
+        } finally {
+            setAcceptingId(null);
         }
     };
 
@@ -343,35 +384,116 @@ export default function StanokchiMachineDetail() {
                     }}>
 
                     {/* Header */}
-                    <div className="flex items-center gap-2 px-5 py-4 border-b" style={{ borderColor: cardBorder }}>
-                        <LuHistory size={18} style={{ color: accentColor }} />
-                        <h2 className="font-bold text-base" style={{ color: textColor }}>
-                            Ishlab chiqarish tarixi
-                        </h2>
-                        {historyPagination && (
-                            <span className="text-xs px-2.5 py-0.5 rounded-full font-medium"
-                                style={{ background: isDark ? 'rgba(250,204,21,0.12)' : '#FEF3C7', color: accentColor }}>
-                                {historyPagination.totalElements} ta
-                            </span>
-                        )}
-                        {/* 1 dona qayd etish — faqat stanok ishlayotganda */}
-                        {isWorking && (
-                            <button
-                                onClick={handleProduceOne}
-                                disabled={producing}
-                                className="ml-auto flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm transition-all hover:opacity-90 active:scale-95 disabled:opacity-50"
+                    <div className="flex flex-col border-b" style={{ borderColor: cardBorder }}>
+
+                        {/* ── Kelgan topshiriq (faqat 1 ta, compact) ── */}
+                        {(nextTask || tasksFetching) && (
+                            <div className="flex items-center gap-3 px-5 py-3 border-b"
                                 style={{
-                                    background: isDark ? 'rgba(250,204,21,0.18)' : '#FEF9C3',
-                                    color: isDark ? '#FACC15' : '#78350F',
-                                    border: `1px solid ${isDark ? 'rgba(250,204,21,0.35)' : '#FDE68A'}`,
-                                    cursor: producing ? 'not-allowed' : 'pointer',
-                                    whiteSpace: 'nowrap',
-                                }}
-                            >
-                                <LuCirclePlus size={15} />
-                                {producing ? 'Saqlanmoqda...' : 'Qayd etish'}
-                            </button>
+                                    borderColor: isDark ? 'rgba(250,204,21,0.18)' : '#FDE68A',
+                                    background: isDark ? 'rgba(250,204,21,0.04)' : '#FFFBEB',
+                                }}>
+                                {/* Left: icon + info */}
+                                <div className="flex items-center gap-2 flex-1 min-w-0">
+                                    <div className="flex items-center justify-center w-7 h-7 rounded-lg shrink-0"
+                                        style={{ background: isDark ? 'rgba(250,204,21,0.18)' : '#FEF3C7' }}>
+                                        <LuClipboardList size={13} style={{ color: accentColor }} />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                            <span className="text-[10px] font-semibold uppercase tracking-wide"
+                                                style={{ color: isDark ? '#FACC15' : '#92400E' }}>
+                                                Yangi topshiriq
+                                            </span>
+                                            {pendingTasks.length > 1 && (
+                                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                                                    style={{
+                                                        background: isDark ? 'rgba(250,204,21,0.2)' : '#FDE68A',
+                                                        color: isDark ? '#FACC15' : '#92400E',
+                                                    }}>
+                                                    +{pendingTasks.length - 1} ta kutmoqda
+                                                </span>
+                                            )}
+                                            {tasksFetching && (
+                                                <LuRefreshCw size={10} style={{ color: accentColor, animation: 'spin 1s linear infinite', flexShrink: 0 }} />
+                                            )}
+                                        </div>
+                                        {nextTask && (
+                                            <p className="text-xs font-bold truncate leading-tight mt-0.5" style={{ color: textColor }}>
+                                                <LuPackage size={11} style={{ display: 'inline', marginRight: 4, color: accentColor }} />
+                                                {nextTask.productName}
+                                                {nextTask.note && (
+                                                    <span className="font-normal ml-1.5" style={{ color: subtitleColor }}>
+                                                        — {nextTask.note}
+                                                    </span>
+                                                )}
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Right: accept button */}
+                                {nextTask && (
+                                    <button
+                                        onClick={() => handleAcceptTask(nextTask)}
+                                        disabled={!!acceptingId}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold text-xs transition-all hover:opacity-90 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+                                        style={{
+                                            background: acceptingId
+                                                ? (isDark ? 'rgba(34,197,94,0.15)' : '#DCFCE7')
+                                                : 'linear-gradient(135deg, #22C55E, #16A34A)',
+                                            color: acceptingId ? (isDark ? '#86EFAC' : '#166534') : '#fff',
+                                            border: 'none',
+                                            cursor: !!acceptingId ? 'not-allowed' : 'pointer',
+                                            whiteSpace: 'nowrap',
+                                        }}
+                                    >
+                                        {acceptingId ? (
+                                            <>
+                                                <LuRefreshCw size={12} style={{ animation: 'spin 1s linear infinite' }} />
+                                                Qabul...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <LuCircleCheck size={12} />
+                                                Qabul qilish
+                                            </>
+                                        )}
+                                    </button>
+                                )}
+                            </div>
                         )}
+
+                        {/* ── Row: tarix title + qayd etish ── */}
+                        <div className="flex items-center gap-2 px-5 py-3.5">
+                            <LuHistory size={18} style={{ color: accentColor }} />
+                            <h2 className="font-bold text-base" style={{ color: textColor }}>
+                                Ishlab chiqarish tarixi
+                            </h2>
+                            {historyPagination && (
+                                <span className="text-xs px-2.5 py-0.5 rounded-full font-medium"
+                                    style={{ background: isDark ? 'rgba(250,204,21,0.12)' : '#FEF3C7', color: accentColor }}>
+                                    {historyPagination.totalElements} ta
+                                </span>
+                            )}
+                            {isWorking && (
+                                <button
+                                    onClick={handleProduceOne}
+                                    disabled={producing}
+                                    className="ml-auto flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm transition-all hover:opacity-90 active:scale-95 disabled:opacity-50"
+                                    style={{
+                                        background: isDark ? 'rgba(250,204,21,0.18)' : '#FEF9C3',
+                                        color: isDark ? '#FACC15' : '#78350F',
+                                        border: `1px solid ${isDark ? 'rgba(250,204,21,0.35)' : '#FDE68A'}`,
+                                        cursor: producing ? 'not-allowed' : 'pointer',
+                                        whiteSpace: 'nowrap',
+                                    }}
+                                >
+                                    <LuCirclePlus size={15} />
+                                    {producing ? 'Saqlanmoqda...' : 'Qayd etish'}
+                                </button>
+                            )}
+                        </div>
                     </div>
 
                     {historyLoading ? (
@@ -530,6 +652,10 @@ export default function StanokchiMachineDetail() {
                 @keyframes stanokPulse {
                     0%, 100% { opacity: 1; }
                     50% { opacity: 0.35; }
+                }
+                @keyframes spin {
+                    from { transform: rotate(0deg); }
+                    to   { transform: rotate(360deg); }
                 }
             `}</style>
         </div>
