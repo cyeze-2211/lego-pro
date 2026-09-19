@@ -83,6 +83,33 @@ export const salesOrderApi = createApi({
         { type: 'SalesOrder', id: 'LIST' },
       ],
     }),
+
+    // POST /api/v1/sales-orders/{id}/approve — PENDING -> APPROVED
+    approveSalesOrder: builder.mutation({
+      query: (id) => ({
+        url: `/sales-orders/${id}/approve`,
+        method: 'POST',
+      }),
+      transformResponse: (response) => response.data,
+      invalidatesTags: (result, error, id) => [
+        { type: 'SalesOrder', id },
+        { type: 'SalesOrder', id: 'LIST' },
+      ],
+    }),
+
+    // POST /api/v1/sales-orders/{id}/reject — PENDING -> REJECTED
+    rejectSalesOrder: builder.mutation({
+      query: ({ id, reason }) => ({
+        url: `/sales-orders/${id}/reject`,
+        method: 'POST',
+        data: reason ? { reason } : undefined,
+      }),
+      transformResponse: (response) => response.data,
+      invalidatesTags: (result, error, { id }) => [
+        { type: 'SalesOrder', id },
+        { type: 'SalesOrder', id: 'LIST' },
+      ],
+    }),
   }),
 });
 
@@ -92,4 +119,6 @@ export const {
   useCreateSalesOrderMutation,
   useUpdateSalesOrderMutation,
   useDeleteSalesOrderMutation,
+  useApproveSalesOrderMutation,
+  useRejectSalesOrderMutation,
 } = salesOrderApi;

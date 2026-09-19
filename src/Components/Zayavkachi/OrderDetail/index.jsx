@@ -335,7 +335,7 @@ export default function ZayavkachiOrderDetail() {
                             <thead>
                                 <tr className={`text-left text-xs font-semibold uppercase tracking-wide ${muted} ${isDark ? 'bg-[#0f172a]/30' : 'bg-[#f8fafc]/80'}`}>
                                     <th className="px-5 py-3">Mahsulot</th>
-                                    <th className="px-5 py-3 w-36 text-right">Omborда qoldiq</th>
+                                    <th className="px-5 py-3 w-36 text-right">Ombordа qoldiq</th>
                                     <th className="px-5 py-3 w-32 text-right">Buyurtmada</th>
                                     <th className="px-5 py-3 w-32 text-right">Farq</th>
                                     <th className="px-5 py-3 w-32 text-center">Holat</th>
@@ -412,7 +412,7 @@ export default function ZayavkachiOrderDetail() {
                             <span className="font-bold">
                                 {comparison.filter((c) => !c.enough).map((c) => c.productName).join(', ')}
                             </span>{' '}
-                            mahsulot(lar)dan omborда yetarli qoldiq mavjud emas.
+                            mahsulot(lar)dan ombordа yetarli qoldiq mavjud emas.
                         </p>
                     </div>
                 )}
@@ -425,7 +425,7 @@ export default function ZayavkachiOrderDetail() {
                     }`}>
                         <LuCircleCheck size={16} className="shrink-0" />
                         <p className="text-xs font-semibold">
-                            Barcha mahsulotlar uchun omborда yetarli qoldiq mavjud.
+                            Barcha mahsulotlar uchun ombordа yetarli qoldiq mavjud.
                         </p>
                     </div>
                 )}
