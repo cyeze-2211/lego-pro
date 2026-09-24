@@ -1,5 +1,5 @@
 // navigation/sidebar.config.js
-import { ROLES, PRODUCT_WAREHOUSE_ROLES, RAW_WAREHOUSE_ROLES, ZAYAVKACHI_ROLES, BUXGALTER_ROLES } from '../permissions/roles';
+import { ROLES, PRODUCT_WAREHOUSE_ROLES, RAW_WAREHOUSE_ROLES, ZAYAVKACHI_ROLES, BUXGALTER_ROLES, KASSIR_ROLES } from '../permissions/roles';
 import {
     Boxes, ClipboardList, Cog, History, LayoutDashboard, LogIn, LogOut,
     MonitorCog, Package, ReceiptText, UserRound, Users, Wallet, Warehouse,
@@ -8,6 +8,7 @@ import {
 // ── Manager ────────────────────────────────────────────────────────────────
 export const SIDEBAR_CONFIG = [
     { label: 'Dashboard',        path: '/',          icon: LayoutDashboard, roles: [ROLES.MANAGER] },
+    { label: 'Buyurtmalar',      path: '/orders',    icon: ClipboardList,   roles: [ROLES.MANAGER] },
     { label: 'Omborlar',         path: '/warehouses',icon: Warehouse,       roles: [ROLES.MANAGER] },
     { label: 'Maxsulotlar',      path: '/products',  icon: Package,         roles: [ROLES.MANAGER] },
     { label: 'Xom ashyo',        path: '/raw',       icon: Package,         roles: [ROLES.MANAGER] },
@@ -24,7 +25,7 @@ export const SIDEBAR_GROUPS = [
     { label: 'Asosiy',           items: SIDEBAR_CONFIG.filter((i) => i.path === '/') },
     { label: 'Ishlab chiqarish', items: SIDEBAR_CONFIG.filter((i) => ['/warehouses', '/products', '/raw', '/recipes', '/machines'].includes(i.path)) },
     { label: 'Moliya',           items: SIDEBAR_CONFIG.filter((i) => ['/cashboxes', '/expenses'].includes(i.path)) },
-    { label: 'Userlar',          items: SIDEBAR_CONFIG.filter((i) => ['/customers', '/users', '/devices'].includes(i.path)) },
+    { label: 'Userlar',          items: SIDEBAR_CONFIG.filter((i) => ['/customers', '/orders', '/users', '/devices'].includes(i.path)) },
 ];
 
 // ── Product Storekeeper ────────────────────────────────────────────────────
@@ -60,13 +61,11 @@ export const ZAYAVKACHI_SIDEBAR_CONFIG = [
     { label: 'Dashboard',   path: '/zayavkachi',           icon: LayoutDashboard, roles: ZAYAVKACHI_ROLES },
     { label: 'Buyurtmalar', path: '/zayavkachi/orders',    icon: ClipboardList,   roles: ZAYAVKACHI_ROLES },
     { label: 'Mijozlar',    path: '/zayavkachi/customers', icon: Users,           roles: ZAYAVKACHI_ROLES },
-    { label: 'Stanoklar',   path: '/zayavkachi/machines',  icon: Cog,             roles: ZAYAVKACHI_ROLES },
 ];
 
 export const ZAYAVKACHI_SIDEBAR_GROUPS = [
     { label: 'Asosiy', items: ZAYAVKACHI_SIDEBAR_CONFIG.filter((i) => i.path === '/zayavkachi') },
     { label: 'Savdo',  items: ZAYAVKACHI_SIDEBAR_CONFIG.filter((i) => ['/zayavkachi/orders', '/zayavkachi/customers'].includes(i.path)) },
-    { label: 'Ishlab chiqarish', items: ZAYAVKACHI_SIDEBAR_CONFIG.filter((i) => ['/zayavkachi/machines'].includes(i.path)) },
 ];
 
 // ── Buxgalter ──────────────────────────────────────────────────────────────
@@ -79,4 +78,19 @@ export const BUXGALTER_SIDEBAR_CONFIG = [
 export const BUXGALTER_SIDEBAR_GROUPS = [
     { label: 'Asosiy', items: BUXGALTER_SIDEBAR_CONFIG.filter((i) => i.path === '/zayavkachi') },
     { label: 'Savdo',  items: BUXGALTER_SIDEBAR_CONFIG.filter((i) => ['/zayavkachi/orders', '/zayavkachi/customers'].includes(i.path)) },
+];
+
+// ── Kassir ─────────────────────────────────────────────────────────────────
+export const KASSIR_SIDEBAR_CONFIG = [
+    { label: 'Dashboard',   path: '/kassir',              icon: LayoutDashboard, roles: KASSIR_ROLES },
+    { label: 'Kassalar',    path: '/kassir/cashboxes',    icon: Wallet,          roles: KASSIR_ROLES },
+    { label: 'Mijozlar',    path: '/kassir/customers',    icon: Users,           roles: KASSIR_ROLES },
+    { label: 'Xarajatlar',  path: '/kassir/expenses',     icon: ReceiptText,     roles: KASSIR_ROLES },
+    { label: 'Buyurtmalar', path: '/kassir/orders',       icon: ClipboardList,   roles: KASSIR_ROLES },
+];
+
+export const KASSIR_SIDEBAR_GROUPS = [
+    { label: 'Asosiy', items: KASSIR_SIDEBAR_CONFIG.filter((i) => i.path === '/kassir') },
+    { label: 'Moliya', items: KASSIR_SIDEBAR_CONFIG.filter((i) => ['/kassir/cashboxes', '/kassir/expenses'].includes(i.path)) },
+    { label: 'Savdo',  items: KASSIR_SIDEBAR_CONFIG.filter((i) => ['/kassir/customers', '/kassir/orders'].includes(i.path)) },
 ];

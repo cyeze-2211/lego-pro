@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
     Box,
     Button,
@@ -22,6 +22,8 @@ const PAGE_SIZE = 12;
 
 export default function ZayavkachiCustomers() {
     const navigate = useNavigate();
+    const { pathname } = useLocation();
+    const base = pathname.startsWith('/kassir') ? '/kassir' : '/zayavkachi';
     const [search, setSearch] = useState('');
     const [query, setQuery] = useState('');
     const [page, setPage] = useState(0);
@@ -62,7 +64,7 @@ export default function ZayavkachiCustomers() {
     };
 
     const createButton = (
-        <Button onClick={() => navigate('/zayavkachi/customers/new')} bg={accentColor} color="black" borderRadius="xl" px={6} _hover={{ bg: 'yellow.500', transform: 'translateY(-1px)' }}>
+        <Button onClick={() => navigate(`${base}/customers/new`)} bg={accentColor} color="black" borderRadius="xl" px={6} _hover={{ bg: 'yellow.500', transform: 'translateY(-1px)' }}>
             <HStack gap={2}><LuPlus size={18} /><span>Yangi mijoz</span></HStack>
         </Button>
     );
@@ -162,7 +164,7 @@ export default function ZayavkachiCustomers() {
                                         <Table.Cell borderWidth="0.5px" borderColor={tableBorder}>
                                             <HStack gap={3}>
                                                 <Box p={2} borderRadius="lg" bg={isDark ? 'rgba(250, 204, 21, 0.12)' : '#FEF3C7'} color={accentColor}><LuUsers size={18} /></Box>
-                                                <Text as={Link} to={`/zayavkachi/customers/${customer.id}`} fontWeight="semibold" color={textColor} _hover={{ color: accentColor }}>{customer.name}</Text>
+                                                <Text as={Link} to={`${base}/customers/${customer.id}`} fontWeight="semibold" color={textColor} _hover={{ color: accentColor }}>{customer.name}</Text>
                                             </HStack>
                                         </Table.Cell>
                                         <Table.Cell borderWidth="0.5px" borderColor={tableBorder}>
@@ -173,7 +175,7 @@ export default function ZayavkachiCustomers() {
                                         <Table.Cell borderWidth="0.5px" borderColor={tableBorder}>
                                             <HStack justify="center" gap={1}>
                                                 <Button
-                                                    onClick={() => navigate(`/zayavkachi/customers/${customer.id}/edit`)}
+                                                    onClick={() => navigate(`${base}/customers/${customer.id}/edit`)}
                                                     variant="ghost"
                                                     size="sm"
                                                     color={accentColor}

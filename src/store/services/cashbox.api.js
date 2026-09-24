@@ -69,6 +69,28 @@ export const cashboxApi = createApi({
                 { type: 'Cashbox', id: 'LIST' },
             ],
         }),
+
+        // GET /api/v1/cashboxes/{id}/transactions – kirim-chiqimlar tarixi
+        getCashboxTransactions: builder.query({
+            query: ({ id, type, dateFrom, dateTo, page = 0, size = 20 }) => ({
+                url: `/cashboxes/${id}/transactions`,
+                method: 'GET',
+                params: {
+                    ...(type     ? { type }     : {}),
+                    ...(dateFrom ? { dateFrom } : {}),
+                    ...(dateTo   ? { dateTo }   : {}),
+                    page,
+                    size,
+                },
+            }),
+            transformResponse: (response) => ({
+                items:      response.data       ?? [],
+                pagination: response.pagination ?? null,
+            }),
+            providesTags: (result, error, { id }) => [
+                { type: 'Cashbox', id: `TXN-${id}` },
+            ],
+        }),
     }),
 });
 
@@ -78,4 +100,5 @@ export const {
     useCreateCashboxMutation,
     useUpdateCashboxMutation,
     useDeleteCashboxMutation,
+    useGetCashboxTransactionsQuery,
 } = cashboxApi;

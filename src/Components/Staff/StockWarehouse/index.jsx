@@ -22,7 +22,7 @@ export default function StaffStockWarehouse() {
         size: PAGE_SIZE,
     });
 
-    const stocks     = data?.data       ?? [];
+    const stocks     = data?.items      ?? [];
     const pagination = data?.pagination ?? {};
     const filtered   = search
         ? stocks.filter((s) =>

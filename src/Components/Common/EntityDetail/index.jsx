@@ -16,7 +16,7 @@ export function formatDetailNumber(value) {
     return Number.isFinite(number) ? new Intl.NumberFormat('uz-UZ').format(number) : '0';
 }
 
-export default function EntityDetail({ title, icon: Icon, backTo, backLabel, loading, error, children, accentColorOverride, accentSoftBackground, accentGradient, single = false }) {
+export default function EntityDetail({ title, icon: Icon, backTo, payment, onPayment, backLabel, loading, error, children, accentColorOverride, accentSoftBackground, accentGradient, single = false }) {
     const navigate = useNavigate();
     const { isDark, pageBg, cardBg, cardBorder, textColor, subtitleColor, accentColor, cardShadow } = useAppTheme();
     const detailAccent = accentColorOverride || accentColor;
@@ -44,9 +44,12 @@ export default function EntityDetail({ title, icon: Icon, backTo, backLabel, loa
                     <HStack justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={4}>
                         <HStack gap={3} minW={0}>
                             <Box p={3} borderRadius="xl" bg={detailAccentSoft} color={detailAccent} flexShrink={0}><Icon size={26} /></Box>
-                            <Box minW={0}><Heading size="lg" color={textColor} truncate>{title}</Heading><Text fontSize="sm" color={subtitleColor}>Batafsil ma&apos;lumot</Text></Box>
+                            <Box minW={0}>  <Heading size="lg" color={textColor} truncate>{title}</Heading><Text fontSize="sm" color={subtitleColor}>Batafsil ma&apos;lumot</Text></Box>
                         </HStack>
+                        <Box display={"flex"} gap={"20px"}>
+                         {payment && <Button bg={accentColor} color={"black"} borderRadius={"20px"} px={"20px"} onClick={onPayment}>{payment}</Button>}
                         <Button variant="outline" onClick={() => navigate(backTo)} flexShrink={0}><HStack gap={2}><LuArrowLeft size={16} /><span>{backLabel}</span></HStack></Button>
+                        </Box>
                     </HStack>
                 </Box>
             </Box>

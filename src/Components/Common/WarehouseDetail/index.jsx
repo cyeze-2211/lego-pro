@@ -38,7 +38,7 @@ export default function WarehouseDetail() {
 
     const stockData = isRaw ? rawStockData : productStockData;
     const stocksFetching = isRaw ? rawFetching : productFetching;
-    const stocks = stockData?.data ?? [];
+    const stocks = stockData?.items ?? [];
     const pagination = stockData?.pagination ?? {};
     const totalPages = pagination.totalPages || 0;
     const totalItems = pagination.totalElements ?? 0;

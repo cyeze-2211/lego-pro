@@ -5,9 +5,9 @@ import { ChevronDown, X } from "lucide-react";
 import { useAppTheme } from "../../../theme/tokens";
 import YellowLogo from "../../../Images/Yellow Unified Lego Outlined.svg";
 import { Box } from "@chakra-ui/react";
-import { SIDEBAR_GROUPS, STAFF_SIDEBAR_GROUPS, RAW_STAFF_SIDEBAR_GROUPS, ZAYAVKACHI_SIDEBAR_GROUPS, BUXGALTER_SIDEBAR_GROUPS } from "../../../app/navigation/sidebar.config";
+import { SIDEBAR_GROUPS, STAFF_SIDEBAR_GROUPS, RAW_STAFF_SIDEBAR_GROUPS, ZAYAVKACHI_SIDEBAR_GROUPS, BUXGALTER_SIDEBAR_GROUPS, KASSIR_SIDEBAR_GROUPS } from "../../../app/navigation/sidebar.config";
 import { useAppSelector } from "../../../store/hooks";
-import { PRODUCT_WAREHOUSE_ROLES, RAW_WAREHOUSE_ROLES, ZAYAVKACHI_ROLES, BUXGALTER_ROLES } from "../../../app/permissions/roles";
+import { PRODUCT_WAREHOUSE_ROLES, RAW_WAREHOUSE_ROLES, ZAYAVKACHI_ROLES, BUXGALTER_ROLES, KASSIR_ROLES } from "../../../app/permissions/roles";
 
 export default function Sidebar({ open, mobileOpen, onMobileClose }) {
     const { isDark } = useAppTheme();
@@ -18,6 +18,7 @@ export default function Sidebar({ open, mobileOpen, onMobileClose }) {
     const isRawStaff     = RAW_WAREHOUSE_ROLES.includes(role);
     const isZayavkachi   = ZAYAVKACHI_ROLES.includes(role);
     const isBuxgalter    = BUXGALTER_ROLES.includes(role);
+    const isKassir       = KASSIR_ROLES.includes(role);
     const groups = isProductStaff
         ? STAFF_SIDEBAR_GROUPS
         : isRawStaff
@@ -26,6 +27,8 @@ export default function Sidebar({ open, mobileOpen, onMobileClose }) {
         ? ZAYAVKACHI_SIDEBAR_GROUPS
         : isBuxgalter
         ? BUXGALTER_SIDEBAR_GROUPS
+        : isKassir
+        ? KASSIR_SIDEBAR_GROUPS
         : SIDEBAR_GROUPS;
 
     const [expandedGroups, setExpandedGroups] = useState(() =>

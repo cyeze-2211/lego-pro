@@ -20,6 +20,10 @@ export const rawMaterialStockApi = createApi({
                     size,
                 },
             }),
+            transformResponse: (response) => ({
+                items:      response.data       ?? [],
+                pagination: response.pagination ?? null,
+            }),
             providesTags: [{ type: 'RawMaterialStock', id: 'LIST' }],
         }),
 

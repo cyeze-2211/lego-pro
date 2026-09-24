@@ -1,20 +1,90 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import PropTypes from 'prop-types';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
     LuClipboardList, LuSearch, LuChevronLeft, LuChevronRight,
     LuPlus, LuX, LuEye, LuPencil, LuPackage,
 } from 'react-icons/lu';
 import { useAppTheme } from '../../../theme/tokens';
-import { useGetSalesOrdersQuery } from '../../../store/services/salesOrder.api';
+import { useGetSalesOrdersQuery, useApproveSalesOrderMutation, useRejectSalesOrderMutation } from '../../../store/services/salesOrder.api';
 import DeleteOrder from '../__components/DeleteOrder';
 import { STATUS_LABEL, statusCx } from '../__components/statusBadge';
+import { Alert } from '../../Other/UI/Alert/Alert';
 
 const PAGE_SIZE = 20;
 const STATUSES = ['PENDING', 'APPROVED', 'REJECTED'];
 
+function OrderListStatusControl({ order, isDark }) {
+    const [action, setAction] = useState(null);
+    const [approveOrder] = useApproveSalesOrderMutation();
+    const [rejectOrder] = useRejectSalesOrderMutation();
+
+    const statusStyles = {
+        PENDING: { bg: isDark ? 'rgba(250,204,21,.14)' : '#FEF3C7', color: isDark ? '#fde68a' : '#92400E', border: isDark ? '#ca8a04' : '#d97706' },
+        APPROVED: { bg: isDark ? 'rgba(34,197,94,.14)' : '#DCFCE7', color: isDark ? '#86efac' : '#15803d', border: '#16a34a' },
+        REJECTED: { bg: isDark ? 'rgba(239,68,68,.14)' : '#FEE2E2', color: isDark ? '#fca5a5' : '#b91c1c', border: '#dc2626' },
+    };
+    const style = statusStyles[order.status] || statusStyles.PENDING;
+
+    const changeStatus = async (nextStatus) => {
+        if (nextStatus === 'PENDING' || nextStatus === order.status) return;
+        setAction(nextStatus);
+        try {
+            if (nextStatus === 'APPROVED') {
+                await approveOrder(order.id).unwrap();
+                Alert('Buyurtma muvaffaqiyatli tasdiqlandi', 'success');
+            } else {
+                await rejectOrder({ id: order.id }).unwrap();
+                Alert('Buyurtma rad etildi', 'success');
+            }
+        } catch (error) {
+            Alert(error?.data?.message || "Statusni o'zgartirishda xatolik", 'error');
+        } finally {
+            setAction(null);
+        }
+    };
+
+    if (order.status !== 'PENDING') {
+        return (
+            <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${statusCx(order.status)}`}>
+                {STATUS_LABEL[order.status] ?? order.status}
+            </span>
+        );
+    }
+
+    return (
+        <select
+            value={action || 'PENDING'}
+            onChange={(event) => changeStatus(event.target.value)}
+            disabled={Boolean(action)}
+            aria-label="Buyurtma holatini o'zgartirish"
+            className="rounded-full border px-2.5 py-1 text-xs font-bold outline-none disabled:cursor-wait disabled:opacity-60"
+            style={{ backgroundColor: style.bg, color: style.color, borderColor: style.border }}
+        >
+            <option value="PENDING">{STATUS_LABEL.PENDING}</option>
+            <option value="APPROVED">Tasdiqlash</option>
+            <option value="REJECTED">Rad etish</option>
+        </select>
+    );
+}
+
+OrderListStatusControl.propTypes = {
+    order: PropTypes.shape({
+        id: PropTypes.string.isRequired,
+        status: PropTypes.string.isRequired,
+    }).isRequired,
+    isDark: PropTypes.bool.isRequired,
+};
+
 export default function ZayavkachiOrders() {
     const { isDark } = useAppTheme();
     const navigate = useNavigate();
+    const { pathname } = useLocation();
+    const ordersPath = pathname.startsWith('/orders')
+        ? '/orders'
+        : pathname.startsWith('/kassir/orders')
+        ? '/kassir/orders'
+        : '/zayavkachi/orders';
     const [page, setPage]                 = useState(0);
     const [statusFilter, setStatusFilter] = useState('');
     const [dateFrom, setDateFrom]         = useState('');
@@ -71,7 +141,7 @@ export default function ZayavkachiOrders() {
                             <p className={`text-sm mt-0.5 ${muted}`}>Mijozlardan kelgan buyurtmalar ro&apos;yxati</p>
                         </div>
                     </div>
-                    <button type="button" onClick={() => navigate('/zayavkachi/orders/new')}
+                    <button type="button" onClick={() => navigate(`${ordersPath}/new`)}
                         className="flex h-12 items-center gap-2 rounded-xl bg-[#FACC15] px-6 text-sm font-bold text-[#0F172A] shadow-lg shadow-[#FACC15]/30 transition-all duration-200 hover:-translate-y-px hover:bg-[#EAB308] hover:shadow-xl">
                         <LuPlus size={16} /> Yangi buyurtma
                     </button>
@@ -177,20 +247,18 @@ export default function ZayavkachiOrders() {
                                                 {(o.totalAmount ?? 0).toLocaleString('uz-UZ')} so&apos;m
                                             </td>
                                             <td className="px-5 py-3">
-                                                <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${statusCx(o.status)}`}>
-                                                    {STATUS_LABEL[o.status] ?? o.status}
-                                                </span>
+                                                <OrderListStatusControl order={o} isDark={isDark} />
                                             </td>
                                             <td className={`px-5 py-3 text-xs ${muted}`}>
                                                 {o.createdAt ? new Date(o.createdAt).toLocaleString('uz-UZ') : '—'}
                                             </td>
                                             <td className="px-5 py-3">
                                                 <div className="flex items-center justify-end gap-1">
-                                                    <button type="button" onClick={() => navigate(`/zayavkachi/orders/${o.id}`)}
+                                                    <button type="button" onClick={() => navigate(`${ordersPath}/${o.id}`)}
                                                         aria-label="Ko'rish" title="Ko'rish" className={iconBtn}>
                                                         <LuEye size={16} />
                                                     </button>
-                                                    <button type="button" onClick={() => navigate(`/zayavkachi/orders/${o.id}/edit`)}
+                                                    <button type="button" onClick={() => navigate(`${ordersPath}/${o.id}/edit`)}
                                                         disabled={!editable}
                                                         aria-label="Tahrirlash"
                                                         title={editable ? 'Tahrirlash' : 'Faqat “Kutilmoqda” holatidagi buyurtma tahrirlanadi'}
