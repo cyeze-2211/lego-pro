@@ -1,5 +1,5 @@
 import { lazy } from 'react';
-import { ROLES, PRODUCT_WAREHOUSE_ROLES, RAW_WAREHOUSE_ROLES, WAREHOUSE_ROLES, ZAYAVKACHI_ROLES, BUXGALTER_ROLES } from '../permissions/roles';
+import { ROLES, PRODUCT_WAREHOUSE_ROLES, RAW_WAREHOUSE_ROLES, WAREHOUSE_ROLES, ZAYAVKACHI_ROLES, BUXGALTER_ROLES, KASSIR_ROLES } from '../permissions/roles';
 
 export const STANOKCHI_ROLES = [ROLES.STANOKCHI];
 export const MIKSERCHI_ROLES = [ROLES.MIKSERCHI];
@@ -15,7 +15,7 @@ export const ROUTES = [
     {
         path: '/profile',
         component: lazy(() => import('../../Components/Common/Profile')),
-        roles: [ROLES.MANAGER, ...PRODUCT_WAREHOUSE_ROLES, ...RAW_WAREHOUSE_ROLES, ...ZAYAVKACHI_ROLES, ...BUXGALTER_ROLES],
+        roles: [ROLES.MANAGER, ...PRODUCT_WAREHOUSE_ROLES, ...RAW_WAREHOUSE_ROLES, ...ZAYAVKACHI_ROLES, ...BUXGALTER_ROLES, ...KASSIR_ROLES],
     },
     {
         path: '/warehouses',
@@ -117,6 +117,26 @@ export const ROUTES = [
         component: lazy(() => import('../../Components/Common/ProductDetail')),
         roles: ROLES.MANAGER,
     },
+    {
+        path: '/orders',
+        component: lazy(() => import('../../Components/Zayavkachi/Orders')),
+        roles: ROLES.MANAGER,
+    },
+    {
+        path: '/orders/new',
+        component: lazy(() => import('../../Components/Zayavkachi/OrderCreate')),
+        roles: ROLES.MANAGER,
+    },
+    {
+        path: '/orders/:id',
+        component: lazy(() => import('../../Components/Zayavkachi/OrderDetail')),
+        roles: ROLES.MANAGER,
+    },
+    {
+        path: '/orders/:id/edit',
+        component: lazy(() => import('../../Components/Zayavkachi/OrderEdit')),
+        roles: ROLES.MANAGER,
+    },
 
     // ── Staff (Product Storekeeper) routes ──────────────────────────────
     {
@@ -146,8 +166,15 @@ export const ROUTES = [
     },
 
     // ── Stanokchi routes ─────────────────────────────────────────────────
+    // /stanokchi — bosh sahifa (head: dashboard xulosa, worker: stanoklar ro'yxati)
     {
         path: '/stanokchi',
+        component: lazy(() => import('../../Components/Stanokchi/Dashboard')),
+        roles: STANOKCHI_ROLES,
+    },
+    // /stanokchi/machines — head mode uchun alohida stanoklar ro'yxati
+    {
+        path: '/stanokchi/machines',
         component: lazy(() => import('../../Components/Stanokchi/Machines')),
         roles: STANOKCHI_ROLES,
     },
@@ -246,14 +273,80 @@ export const ROUTES = [
         component: lazy(() => import('../../Components/Zayavkachi/CustomerOrderCreate')),
         roles: [...ZAYAVKACHI_ROLES, ...BUXGALTER_ROLES],
     },
+
+    // ── Kassir routes ────────────────────────────────────────────────────
     {
-        path: '/zayavkachi/machines',
-        component: lazy(() => import('../../Components/Zayavkachi/Machines')),
-        roles: ZAYAVKACHI_ROLES,
+        path: '/kassir',
+        component: lazy(() => import('../../Components/Kassir/Dashboard')),
+        roles: KASSIR_ROLES,
+    },
+    // Kassalar
+    {
+        path: '/kassir/cashboxes',
+        component: lazy(() => import('../../Components/Common/Cashbox')),
+        roles: KASSIR_ROLES,
     },
     {
-        path: '/zayavkachi/machines/:id',
-        component: lazy(() => import('../../Components/Zayavkachi/MachineDetail')),
-        roles: ZAYAVKACHI_ROLES,
+        path: '/kassir/cashboxes/:id',
+        component: lazy(() => import('../../Components/Common/CashboxDetail')),
+        roles: KASSIR_ROLES,
+    },
+    // Mijozlar
+    {
+        path: '/kassir/customers',
+        component: lazy(() => import('../../Components/Zayavkachi/Customers')),
+        roles: KASSIR_ROLES,
+    },
+    {
+        path: '/kassir/customers/new',
+        component: lazy(() => import('../../Components/Zayavkachi/CustomerCreate')),
+        roles: KASSIR_ROLES,
+    },
+    {
+        path: '/kassir/customers/:id',
+        component: lazy(() => import('../../Components/Zayavkachi/CustomerDetail')),
+        roles: KASSIR_ROLES,
+    },
+    {
+        path: '/kassir/customers/:id/edit',
+        component: lazy(() => import('../../Components/Zayavkachi/CustomerEdit')),
+        roles: KASSIR_ROLES,
+    },
+    {
+        path: '/kassir/customers/:id/orders/new',
+        component: lazy(() => import('../../Components/Zayavkachi/CustomerOrderCreate')),
+        roles: KASSIR_ROLES,
+    },
+    // Xarajatlar
+    {
+        path: '/kassir/expenses',
+        component: lazy(() => import('../../Components/Common/Expense')),
+        roles: KASSIR_ROLES,
+    },
+    {
+        path: '/kassir/expenses/:id',
+        component: lazy(() => import('../../Components/Common/ExpenseDetail')),
+        roles: KASSIR_ROLES,
+    },
+    // Buyurtmalar
+    {
+        path: '/kassir/orders',
+        component: lazy(() => import('../../Components/Zayavkachi/Orders')),
+        roles: KASSIR_ROLES,
+    },
+    {
+        path: '/kassir/orders/new',
+        component: lazy(() => import('../../Components/Zayavkachi/OrderCreate')),
+        roles: KASSIR_ROLES,
+    },
+    {
+        path: '/kassir/orders/:id',
+        component: lazy(() => import('../../Components/Zayavkachi/OrderDetail')),
+        roles: KASSIR_ROLES,
+    },
+    {
+        path: '/kassir/orders/:id/edit',
+        component: lazy(() => import('../../Components/Zayavkachi/OrderEdit')),
+        roles: KASSIR_ROLES,
     },
 ];

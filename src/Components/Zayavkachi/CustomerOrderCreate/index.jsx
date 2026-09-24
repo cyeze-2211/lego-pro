@@ -9,7 +9,9 @@ export default function ZayavkachiCustomerOrderCreate() {
     const navigate = useNavigate();
     const { data: customer, isLoading, isError } = useGetCustomerByIdQuery(id, { skip: !id });
 
-    const backToDetail = () => navigate(`/zayavkachi/customers/${id}`);
+    // Kassir yoki zayavkachi bo'lishi mumkin — path dan base aniqlanadi
+    const base = window.location.pathname.startsWith('/kassir') ? '/kassir' : '/zayavkachi';
+    const backToDetail = () => navigate(`${base}/customers/${id}`);
 
     if (isLoading) {
         return <div className="flex min-h-[60vh] items-center justify-center"><Loading /></div>;
@@ -20,7 +22,7 @@ export default function ZayavkachiCustomerOrderCreate() {
             <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 text-[#f43f5e]">
                 <LuCircleAlert size={34} />
                 <p className="text-lg">Mijozni yuklashda xatolik</p>
-                <button type="button" onClick={() => navigate('/zayavkachi/customers')}
+                <button type="button" onClick={() => navigate(`${base}/customers`)}
                     className="flex h-12 items-center gap-2 rounded-xl border border-[#f43f5e]/30 px-5 text-sm font-bold">
                     <LuArrowLeft size={16} /> Mijozlar ro&apos;yxatiga qaytish
                 </button>

@@ -10,7 +10,7 @@ import { Alert } from '../../Other/UI/Alert/Alert';
 import { useGetWarehousesQuery } from '../../../store/services/warehouse.api';
 import { useGetProductsQuery } from '../../../store/services/product.api';
 import { useGetCustomersQuery } from '../../../store/services/customer.api';
-import { useCreateSalesOrderMutation, useUpdateSalesOrderMutation } from '../../../store/services/salesOrder.api';
+import { useCreateSalesOrderMutation, useUpdateSalesOrderMutation, useUpdateSalesOrderPricesMutation } from '../../../store/services/salesOrder.api';
 import { useAppSelector } from '../../../store/hooks';
 import { ROLES } from '../../../app/permissions/roles';
 
@@ -31,6 +31,7 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
     const [open, setOpen]               = useState(false);
     const [items, setItems]             = useState(() =>
         (order?.items ?? []).map((i) => ({
+            id:              i.id,
             productId:      i.productId,
             productName:    i.productName,
             productBarcode: i.productBarcode,
@@ -53,7 +54,8 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
     );
     const [createOrder, { isLoading: isCreating }] = useCreateSalesOrderMutation();
     const [updateOrder, { isLoading: isUpdating }] = useUpdateSalesOrderMutation();
-    const isSending = isCreating || isUpdating;
+    const [updatePrices, { isLoading: isUpdatingPrices }] = useUpdateSalesOrderPricesMutation();
+    const isSending = isCreating || isUpdating || isUpdatingPrices;
 
     const customers = customersResp?.items ?? [];
     // product.api transformResponse returns { items, pagination }
@@ -159,8 +161,18 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
         };
         try {
             if (isEdit) {
-                await updateOrder({ id: order.id, data }).unwrap();
-                Alert('Buyurtma yangilandi', 'success');
+                if (canEditPrice) {
+                    await updatePrices({
+                        id: order.id,
+                        data: {
+                            items: items.map(({ id, unitPrice }) => ({ itemId: id, unitPrice })),
+                        },
+                    }).unwrap();
+                    Alert('Narxlar yangilandi', 'success');
+                } else {
+                    await updateOrder({ id: order.id, data }).unwrap();
+                    Alert('Buyurtma yangilandi', 'success');
+                }
             } else {
                 await createOrder(data).unwrap();
                 Alert('Buyurtma yaratildi', 'success');
@@ -553,6 +565,7 @@ OrderForm.propTypes = {
         customerName: PropTypes.string,
         summary: PropTypes.string,
         items: PropTypes.arrayOf(PropTypes.shape({
+            id: PropTypes.string,
             productId: PropTypes.string.isRequired,
             productName: PropTypes.string.isRequired,
             productBarcode: PropTypes.string,

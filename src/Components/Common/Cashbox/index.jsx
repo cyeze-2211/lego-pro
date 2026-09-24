@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import {
     Box,
     Button,
@@ -21,6 +21,8 @@ import FormControl from '../../ui/FormControl';
 import { formatNumber } from '../../ui/number-format';
 
 export default function Cashbox() {
+    const { pathname } = useLocation();
+    const base = pathname.startsWith('/kassir') ? '/kassir' : '';
     const [search, setSearch] = useState('');
     const [query, setQuery] = useState('');
     const { data: cashboxes = [], isLoading, error } = useGetCashboxesQuery();
@@ -155,7 +157,7 @@ export default function Cashbox() {
                                     <Table.Cell borderWidth="0.5px" borderColor={tableBorder}>
                                         <HStack gap={3}>
                                             <Box p={2} borderRadius="lg" bg={isDark ? 'rgba(250, 204, 21, 0.12)' : '#FEF3C7'} color={accentColor}><LuWallet size={18} /></Box>
-                                            <Text as={Link} to={`/cashboxes/${cashbox.id}`} fontWeight="semibold" color={textColor} _hover={{ color: accentColor }}>{cashbox.name}</Text>
+                                            <Text as={Link} to={`${base}/cashboxes/${cashbox.id}`} fontWeight="semibold" color={textColor} _hover={{ color: accentColor }}>{cashbox.name}</Text>
                                         </HStack>
                                     </Table.Cell>
                                     <Table.Cell borderWidth="0.5px" borderColor={tableBorder} color={subtitleColor} maxW="260px">{cashbox.summary || '—'}</Table.Cell>

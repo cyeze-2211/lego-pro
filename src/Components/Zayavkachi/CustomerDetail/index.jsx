@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import {
     LuArrowLeft, LuUser, LuPhone, LuStickyNote, LuClock3,
     LuCircleAlert, LuPencil, LuPlus, LuClipboardList, LuEye,
@@ -15,6 +15,8 @@ const ORDERS_SIZE = 20;
 export default function ZayavkachiCustomerDetail() {
     const { id } = useParams();
     const navigate = useNavigate();
+    const { pathname } = useLocation();
+    const base = pathname.startsWith('/kassir') ? '/kassir' : '/zayavkachi';
     const { isDark } = useAppTheme();
 
     const { data: customer, isLoading, isError } = useGetCustomerByIdQuery(id, { skip: !id });
@@ -36,7 +38,7 @@ export default function ZayavkachiCustomerDetail() {
         ? 'flex h-10 w-10 items-center justify-center rounded-lg transition-colors text-[#64748b] hover:bg-[#1e293b] hover:text-amber-400'
         : 'flex h-10 w-10 items-center justify-center rounded-lg transition-colors text-[#94a3b8] hover:bg-amber-50 hover:text-amber-500';
 
-    const backToList = () => navigate('/zayavkachi/customers');
+    const backToList = () => navigate(`${base}/customers`);
 
     if (isLoading) {
         return <div className="flex min-h-[60vh] items-center justify-center"><Loading /></div>;
@@ -83,11 +85,11 @@ export default function ZayavkachiCustomerDetail() {
                         </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                        <button type="button" onClick={() => navigate(`/zayavkachi/customers/${customer.id}/orders/new`)}
+                        <button type="button" onClick={() => navigate(`${base}/customers/${customer.id}/orders/new`)}
                             className="flex h-12 items-center gap-2 rounded-xl bg-[#FACC15] px-6 text-sm font-bold text-[#0F172A] shadow-lg shadow-[#FACC15]/30 transition-all duration-200 hover:-translate-y-px hover:bg-[#EAB308] hover:shadow-xl">
                             <LuPlus size={16} /> Buyurtma yaratish
                         </button>
-                        <button type="button" onClick={() => navigate(`/zayavkachi/customers/${customer.id}/edit`)}
+                        <button type="button" onClick={() => navigate(`${base}/customers/${customer.id}/edit`)}
                             className={`flex h-12 items-center gap-2 rounded-xl border px-5 text-sm font-bold transition-colors ${ghostBtn}`}>
                             <LuPencil size={16} /> Tahrirlash
                         </button>
@@ -200,7 +202,7 @@ export default function ZayavkachiCustomerDetail() {
                                             {o.createdAt ? new Date(o.createdAt).toLocaleString('uz-UZ') : '—'}
                                         </td>
                                         <td className="px-5 py-3 text-right">
-                                            <button type="button" onClick={() => navigate(`/zayavkachi/orders/${o.id}`)}
+                                            <button type="button" onClick={() => navigate(`${base}/orders/${o.id}`)}
                                                 aria-label="Ko'rish" title="Ko'rish" className={iconBtn}>
                                                 <LuEye size={16} />
                                             </button>

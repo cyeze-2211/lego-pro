@@ -1,4 +1,4 @@
-import { useParams } from 'react-router-dom';
+import { useParams, useLocation } from 'react-router-dom';
 import { HStack, Text } from '@chakra-ui/react';
 import { LuCalendar, LuReceiptText, LuWallet } from 'react-icons/lu';
 import { useGetExpenseByIdQuery } from '../../../store/services/expense.api';
@@ -7,8 +7,10 @@ import EntityDetail, { DetailRow, DetailSection, formatDetailDate } from '../Ent
 
 export default function ExpenseDetail() {
     const { id } = useParams();
+    const { pathname } = useLocation();
+    const backTo = pathname.startsWith('/kassir') ? '/kassir/expenses' : '/expenses';
     const { data: expense, isLoading, isError } = useGetExpenseByIdQuery(id, { skip: !id });
-    return <EntityDetail title={expense?.name || 'Xarajat'} icon={LuReceiptText} backTo="/expenses" backLabel="Xarajatlar" loading={isLoading} error={isError || !expense} single accentColorOverride="#FACC15" accentSoftBackground="rgba(250, 204, 21, 0.12)" accentGradient="linear(to-r, #FACC15, #FDE68A)">
+    return <EntityDetail title={expense?.name || 'Xarajat'} icon={LuReceiptText} backTo={backTo} backLabel="Xarajatlar" loading={isLoading} error={isError || !expense} single accentColorOverride="#FACC15" accentSoftBackground="rgba(250, 204, 21, 0.12)" accentGradient="linear(to-r, #FACC15, #FDE68A)">
         {({ textColor, subtitleColor, accentColor }) => <>
             <DetailSection title="Xarajat ma’lumotlari" icon={LuReceiptText}>
                 <DetailRow label="Nomi" value={expense.name} emphasize />

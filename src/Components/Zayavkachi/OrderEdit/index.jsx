@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { LuArrowLeft, LuCircleAlert } from 'react-icons/lu';
 import { useGetSalesOrderByIdQuery } from '../../../store/services/salesOrder.api';
 import Loading from '../../Other/UI/Loadings/Loading';
@@ -7,9 +7,15 @@ import OrderForm from '../__components/OrderForm';
 export default function ZayavkachiOrderEdit() {
     const { id } = useParams();
     const navigate = useNavigate();
+    const { pathname } = useLocation();
+    const ordersPath = pathname.startsWith('/orders')
+        ? '/orders'
+        : pathname.startsWith('/kassir/orders')
+        ? '/kassir/orders'
+        : '/zayavkachi/orders';
     const { data: order, isLoading, isError } = useGetSalesOrderByIdQuery(id, { skip: !id });
 
-    const backToList = () => navigate('/zayavkachi/orders');
+    const backToList = () => navigate(ordersPath);
 
     if (isLoading) {
         return <div className="flex min-h-[60vh] items-center justify-center"><Loading /></div>;

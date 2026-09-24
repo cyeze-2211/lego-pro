@@ -25,7 +25,7 @@ export default function RawStaffStockWarehouse() {
         size: PAGE_SIZE,
     });
 
-    const stocks     = data?.data       ?? [];
+    const stocks     = data?.items      ?? [];
     const pagination = data?.pagination ?? {};
     const filtered   = search
         ? stocks.filter((s) => s.rawMaterialName?.toLowerCase().includes(search.toLowerCase()))

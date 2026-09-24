@@ -10,6 +10,7 @@ export const ROLES = {
     BUXGALTER: 'buxgalter',
     STANOKCHI: 'stanokchi',
     MIKSERCHI: 'mikserchi',
+    KASSIR: 'kassir',
 };
 
 /** Mahsulot ombori rollari */
@@ -30,6 +31,11 @@ export const ZAYAVKACHI_ROLES = [
 /** Buxgalter rollari */
 export const BUXGALTER_ROLES = [
     ROLES.BUXGALTER,
+];
+
+/** Kassir rollari */
+export const KASSIR_ROLES = [
+    ROLES.KASSIR,
 ];
 
 /** Barcha ombor rollari (ikkalasi) */

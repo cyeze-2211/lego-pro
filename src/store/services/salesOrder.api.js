@@ -110,6 +110,20 @@ export const salesOrderApi = createApi({
         { type: 'SalesOrder', id: 'LIST' },
       ],
     }),
+
+    // PATCH /api/v1/sales-orders/{id}/prices — PENDING zayavka narxlarini yangilash
+    updateSalesOrderPrices: builder.mutation({
+      query: ({ id, data }) => ({
+        url: `/sales-orders/${id}/prices`,
+        method: 'PATCH',
+        data,
+      }),
+      transformResponse: (response) => response.data,
+      invalidatesTags: (result, error, { id }) => [
+        { type: 'SalesOrder', id },
+        { type: 'SalesOrder', id: 'LIST' },
+      ],
+    }),
   }),
 });
 
@@ -121,4 +135,5 @@ export const {
   useDeleteSalesOrderMutation,
   useApproveSalesOrderMutation,
   useRejectSalesOrderMutation,
+  useUpdateSalesOrderPricesMutation,
 } = salesOrderApi;

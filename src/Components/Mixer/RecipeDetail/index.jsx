@@ -5,6 +5,7 @@ import {
     LuFlaskConical,
     LuScale,
     LuTriangleAlert,
+    LuUndo2,
     LuWarehouse,
 } from 'react-icons/lu';
 import { useGetRecipeByIdQuery } from '../../../store/services/productRecept.api';
@@ -192,6 +193,7 @@ export default function MixerRecipeDetail() {
                                     subtitleColor={subtitleColor}
                                     accentColor={accentColor}
                                     onDone={() => setCompletedStep(stepNum)}
+                                    onUndo={completedStep === stepNum ? () => setCompletedStep(stepNum - 1) : null}
                                 />
                             );
                         })}
@@ -257,7 +259,7 @@ export default function MixerRecipeDetail() {
 function RawItemCard({
     item, stepNum, isDone, isActive, isLocked,
     isDark, cardBg, cardBorder, textColor, subtitleColor, accentColor,
-    onDone,
+    onDone, onUndo,
 }) {
     const unitLabel = UNIT_LABELS[item.unit] || item.unit;
 
@@ -367,16 +369,34 @@ function RawItemCard({
             {!isLocked && (
                 <div className="flex items-center pr-5 pl-2 flex-shrink-0">
                     {isDone ? (
-                        <div
-                            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold"
-                            style={{
-                                background: isDark ? 'rgba(34,197,94,0.1)' : '#DCFCE7',
-                                color: isDark ? '#86EFAC' : '#166534',
-                                border: `1px solid ${isDark ? 'rgba(34,197,94,0.28)' : '#BBF7D0'}`,
-                                whiteSpace: 'nowrap',
-                            }}
-                        >
-                            <LuCheck size={15} /> Bajarildi
+                        <div className="flex items-center gap-2">
+                            <div
+                                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold"
+                                style={{
+                                    background: isDark ? 'rgba(34,197,94,0.1)' : '#DCFCE7',
+                                    color: isDark ? '#86EFAC' : '#166534',
+                                    border: `1px solid ${isDark ? 'rgba(34,197,94,0.28)' : '#BBF7D0'}`,
+                                    whiteSpace: 'nowrap',
+                                }}
+                            >
+                                <LuCheck size={15} /> Bajarildi
+                            </div>
+                            {onUndo && (
+                                <button
+                                    type="button"
+                                    onClick={onUndo}
+                                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-bold transition-all hover:opacity-80 active:scale-[0.97]"
+                                    style={{
+                                        background: isDark ? 'rgba(255,255,255,0.06)' : '#F1F5F9',
+                                        color: subtitleColor,
+                                        border: `1px solid ${cardBorder}`,
+                                        cursor: 'pointer',
+                                        whiteSpace: 'nowrap',
+                                    }}
+                                >
+                                    <LuUndo2 size={14} /> Ortga
+                                </button>
+                            )}
                         </div>
                     ) : (
                         <button

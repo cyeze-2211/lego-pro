@@ -1,6 +1,6 @@
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAppSelector } from '../../store/hooks';
-import { ROLES, PRODUCT_WAREHOUSE_ROLES, RAW_WAREHOUSE_ROLES, ZAYAVKACHI_ROLES, BUXGALTER_ROLES } from '../permissions/roles';
+import { ROLES, PRODUCT_WAREHOUSE_ROLES, RAW_WAREHOUSE_ROLES, ZAYAVKACHI_ROLES, BUXGALTER_ROLES, KASSIR_ROLES } from '../permissions/roles';
 
 
 export default function RoleGuard({ allow }) {
@@ -19,6 +19,7 @@ export default function RoleGuard({ allow }) {
         if (RAW_WAREHOUSE_ROLES.includes(role))     return <Navigate to="/raw-staff" replace />;
         if (ZAYAVKACHI_ROLES.includes(role))        return <Navigate to="/zayavkachi" replace />;
         if (BUXGALTER_ROLES.includes(role))         return <Navigate to="/zayavkachi" replace />;
+        if (KASSIR_ROLES.includes(role))            return <Navigate to="/kassir" replace />;
 
         if (role === ROLES.STANOKCHI)               return <Navigate to="/stanokchi" replace />;
         if (role === ROLES.MIKSERCHI)               return <Navigate to="/mixer" replace />;
