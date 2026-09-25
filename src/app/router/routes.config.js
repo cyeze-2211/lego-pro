@@ -145,6 +145,16 @@ export const ROUTES = [
         roles: PRODUCT_WAREHOUSE_ROLES,
     },
     {
+        path: '/staff/orders',
+        component: lazy(() => import('../../Components/Staff/Orders')),
+        roles: PRODUCT_WAREHOUSE_ROLES,
+    },
+    {
+        path: '/staff/orders/:id',
+        component: lazy(() => import('../../Components/Staff/OrderDetail')),
+        roles: PRODUCT_WAREHOUSE_ROLES,
+    },
+    {
         path: '/staff/income',
         component: lazy(() => import('../../Components/Staff/Income')),
         roles: PRODUCT_WAREHOUSE_ROLES,

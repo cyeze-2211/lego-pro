@@ -30,16 +30,17 @@ export const SIDEBAR_GROUPS = [
 
 // ── Product Storekeeper ────────────────────────────────────────────────────
 export const STAFF_SIDEBAR_CONFIG = [
-    { label: 'Dashboard', path: '/staff',           icon: LayoutDashboard, roles: PRODUCT_WAREHOUSE_ROLES },
-    { label: 'Kirim',     path: '/staff/income',    icon: LogIn,           roles: PRODUCT_WAREHOUSE_ROLES },
-    { label: 'Chiqim',    path: '/staff/outcome',   icon: LogOut,          roles: PRODUCT_WAREHOUSE_ROLES },
-    { label: 'Ombor',     path: '/staff/warehouse', icon: Warehouse,       roles: PRODUCT_WAREHOUSE_ROLES },
-    { label: 'Tarix',     path: '/staff/history',   icon: History,         roles: PRODUCT_WAREHOUSE_ROLES },
+    { label: 'Dashboard',   path: '/staff',           icon: LayoutDashboard, roles: PRODUCT_WAREHOUSE_ROLES },
+    { label: 'Buyurtmalar', path: '/staff/orders',    icon: ClipboardList,   roles: PRODUCT_WAREHOUSE_ROLES },
+    { label: 'Kirim',       path: '/staff/income',    icon: LogIn,           roles: PRODUCT_WAREHOUSE_ROLES },
+    { label: 'Ombor',       path: '/staff/warehouse', icon: Warehouse,       roles: PRODUCT_WAREHOUSE_ROLES },
+    { label: 'Tarix',       path: '/staff/history',   icon: History,         roles: PRODUCT_WAREHOUSE_ROLES },
 ];
 
 export const STAFF_SIDEBAR_GROUPS = [
-    { label: 'Asosiy', items: STAFF_SIDEBAR_CONFIG.filter((i) => i.path === '/staff') },
-    { label: 'Ombor',  items: STAFF_SIDEBAR_CONFIG.filter((i) => ['/staff/income', '/staff/outcome', '/staff/warehouse', '/staff/history'].includes(i.path)) },
+    { label: 'Asosiy',     items: STAFF_SIDEBAR_CONFIG.filter((i) => i.path === '/staff') },
+    { label: 'Buyurtma',   items: STAFF_SIDEBAR_CONFIG.filter((i) => i.path === '/staff/orders') },
+    { label: 'Ombor',      items: STAFF_SIDEBAR_CONFIG.filter((i) => ['/staff/income', '/staff/warehouse', '/staff/history'].includes(i.path)) },
 ];
 
 // ── Raw Material Storekeeper ───────────────────────────────────────────────
