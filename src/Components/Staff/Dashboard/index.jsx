@@ -27,10 +27,10 @@ export default function StaffDashboard() {
     const totalOut   = outData?.pagination?.totalElements ?? 0;
 
     const quickLinks = [
-        { label: 'Kirim',  path: '/staff/income',    icon: LuLogIn,    badge: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' },
-        { label: 'Chiqim', path: '/staff/outcome',   icon: LuLogOut,   badge: 'bg-rose-500/10 text-rose-500 border-rose-500/20'         },
-        { label: 'Ombor',  path: '/staff/warehouse', icon: LuWarehouse,badge: 'bg-amber-400/10 text-amber-500 border-amber-400/20'       },
-        { label: 'Tarix',  path: '/staff/history',   icon: LuHistory,  badge: 'bg-sky-500/10 text-sky-500 border-sky-500/20'            },
+        { label: 'Buyurtmalar', path: '/staff/orders',    icon: LuBoxes,     badge: 'bg-amber-400/10 text-amber-500 border-amber-400/20'       },
+        { label: 'Kirim',       path: '/staff/income',    icon: LuLogIn,     badge: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' },
+        { label: 'Ombor',       path: '/staff/warehouse', icon: LuWarehouse, badge: 'bg-sky-500/10 text-sky-500 border-sky-500/20'             },
+        { label: 'Tarix',       path: '/staff/history',   icon: LuHistory,   badge: 'bg-slate-500/10 text-slate-500 border-slate-500/20'       },
     ];
 
     return (

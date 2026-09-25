@@ -40,6 +40,37 @@ export default function Recipe() {
         if (error) Alert(error?.data?.message || 'Retseptlarni yuklashda xatolik', 'error');
     }, [error]);
 
+    const calculateTotalQuantity = (items) => {
+        if (!items || items.length === 0) return '0 g';
+        
+        // Barcha miqdorlarni grammga o'tkazish
+        const totalGrams = items.reduce((sum, item) => {
+            let grams = 0;
+            switch (item.unit) {
+                case 'TON':
+                    grams = item.quantity * 1000000;
+                    break;
+                case 'KG':
+                    grams = item.quantity * 1000;
+                    break;
+                case 'GRAM':
+                default:
+                    grams = item.quantity;
+                    break;
+            }
+            return sum + grams;
+        }, 0);
+
+        // Eng mos birlikka o'tkazish
+        if (totalGrams >= 1000000) {
+            return `${(totalGrams / 1000000).toFixed(2)} t`;
+        } else if (totalGrams >= 1000) {
+            return `${(totalGrams / 1000).toFixed(2)} kg`;
+        } else {
+            return `${totalGrams.toFixed(2)} g`;
+        }
+    };
+
     const renderItemsSummary = (recipe) => (
         <HStack gap={2} flexWrap="wrap">
             {recipe.items.map((item) => (
@@ -88,7 +119,7 @@ export default function Recipe() {
                                     <Table.ColumnHeader textAlign="center" bg={tableHeaderBg} borderWidth="0.5px" borderColor={tableBorder} color={subtitleColor} w="60px">№</Table.ColumnHeader>
                                     <Table.ColumnHeader bg={tableHeaderBg} borderWidth="0.5px" borderColor={tableBorder} color={subtitleColor}>Retsept</Table.ColumnHeader>
                                     <Table.ColumnHeader bg={tableHeaderBg} borderWidth="0.5px" borderColor={tableBorder} color={subtitleColor}>Tarkibi (xom ashyo)</Table.ColumnHeader>
-                                    <Table.ColumnHeader textAlign="center" bg={tableHeaderBg} borderWidth="0.5px" borderColor={tableBorder} color={subtitleColor} w="120px">Qatorlar</Table.ColumnHeader>
+                                    <Table.ColumnHeader textAlign="center" bg={tableHeaderBg} borderWidth="0.5px" borderColor={tableBorder} color={subtitleColor} w="150px">Umumiy hajm</Table.ColumnHeader>
                                     <Table.ColumnHeader textAlign="center" bg={tableHeaderBg} borderWidth="0.5px" borderColor={tableBorder} color={subtitleColor}>Amallar</Table.ColumnHeader>
                                 </Table.Row>
                             </Table.Header>
@@ -108,7 +139,7 @@ export default function Recipe() {
                                         </Table.Cell>
                                         <Table.Cell borderWidth="0.5px" borderColor={tableBorder} maxW="480px">{renderItemsSummary(recipe)}</Table.Cell>
                                         <Table.Cell borderWidth="0.5px" borderColor={tableBorder} textAlign="center">
-                                            <HStack gap={1} justify="center" color={subtitleColor}><LuListOrdered size={14} /><span>{recipe.items.length}</span></HStack>
+                                            <Text fontWeight="bold" color={accentColor}>{calculateTotalQuantity(recipe.items)}</Text>
                                         </Table.Cell>
                                         <Table.Cell borderWidth="0.5px" borderColor={tableBorder}>
                                             <HStack justify="center" gap={1}><Edit recipe={recipe} rawMaterials={rawMaterials} /><Delete recipe={recipe} /></HStack>
