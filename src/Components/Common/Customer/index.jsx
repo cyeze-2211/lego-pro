@@ -53,11 +53,11 @@ export default function Customer() {
 
     const renderBalance = (balance) => {
         const value = Number(balance) || 0;
-        if (value > 0) {
-            return <Text fontWeight="bold" whiteSpace="nowrap" color={isDark ? 'red.300' : 'red.600'}>{formatNumber(value)} so‘m (qarzdor)</Text>;
-        }
         if (value < 0) {
-            return <Text fontWeight="bold" whiteSpace="nowrap" color={value < 0 ? "red.500" : value > 0 ? "green" : "black"}>{formatNumber(Math.abs(value))} so‘m (kredit)</Text>;
+            return <Text fontWeight="bold" whiteSpace="nowrap" color={isDark ? 'red.300' : 'red.600'}>{formatNumber(Math.abs(value))} so‘m (qarzdor)</Text>;
+        }
+        if (value > 0) {
+            return <Text fontWeight="bold" whiteSpace="nowrap" color={isDark ? 'green.300' : 'green.700'}>{formatNumber(value)} so‘m (kredit)</Text>;
         }
         return <Text color={subtitleColor} whiteSpace="nowrap">0 so‘m</Text>;
     };

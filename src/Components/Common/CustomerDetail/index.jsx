@@ -241,8 +241,8 @@ export default function CustomerDetail() {
                         <DetailRow
                             label="Qoldiq"
                             value={`${formatNumber(Math.abs(Number(customer.balance) || 0))} so'm ${
-                                (Number(customer.balance) || 0) > 0 ? '(qarzdor)'
-                                : (Number(customer.balance) || 0) < 0 ? '(kredit)' : ''
+                                (Number(customer.balance) || 0) < 0 ? '(qarzdor)'
+                                : (Number(customer.balance) || 0) > 0 ? '(kredit)' : ''
                             }`}
                             emphasize
                         />

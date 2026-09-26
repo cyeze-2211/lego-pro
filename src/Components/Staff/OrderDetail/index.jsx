@@ -5,6 +5,7 @@ import {
     LuCircleAlert, LuBoxes, LuWarehouse, LuPackage, LuTruck,
 } from 'react-icons/lu';
 import { useAppTheme } from '../../../theme/tokens';
+import { formatNumber } from '../../ui/number-format';
 import { useGetSalesOrderByIdQuery } from '../../../store/services/salesOrder.api';
 import { useGetProductStocksQuery } from '../../../store/services/productStock.api';
 import { useGetWarehousesQuery } from '../../../store/services/warehouse.api';
@@ -232,7 +233,7 @@ export default function StaffOrderDetail() {
                             <LuClock3 size={12} /> Jami summa
                         </p>
                         <p className={`text-sm font-bold ${head}`}>
-                            {(order.totalAmount ?? 0).toLocaleString('uz-UZ')} so&apos;m
+                            {formatNumber(order.totalAmount ?? 0)} so&apos;m
                         </p>
                     </div>
                     <div>

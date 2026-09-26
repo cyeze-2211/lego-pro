@@ -5,6 +5,7 @@ import {
     LuX, LuEye, LuPackage,
 } from 'react-icons/lu';
 import { useAppTheme } from '../../../theme/tokens';
+import { formatNumber } from '../../ui/number-format';
 import { useGetSalesOrdersQuery } from '../../../store/services/salesOrder.api';
 import { useGetWarehousesQuery } from '../../../store/services/warehouse.api';
 import { STATUS_LABEL, statusCx } from '../../Zayavkachi/__components/statusBadge';
@@ -253,7 +254,7 @@ export default function StaffOrders() {
                                             {o.items?.length ?? 0} ta
                                         </td>
                                         <td className={`px-5 py-3 text-right font-bold ${head}`}>
-                                            {(o.totalAmount ?? 0).toLocaleString('uz-UZ')} so&apos;m
+                                            {formatNumber(o.totalAmount ?? 0)} so&apos;m
                                         </td>
                                         <td className="px-5 py-3">
                                             <span

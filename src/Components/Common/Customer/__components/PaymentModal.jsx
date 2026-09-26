@@ -8,7 +8,7 @@ import FormControl from '../../../ui/FormControl';
 import { Alert } from '../../../Other/UI/Alert/Alert';
 import { useCreatePaymentMutation } from '../../../../store/services/payment.api';
 import { useGetCashboxesQuery } from '../../../../store/services/cashbox.api';
-import { formatNumber } from '../../../ui/number-format';
+import { formatNumber, parseNumber } from '../../../ui/number-format';
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -43,11 +43,11 @@ export default function PaymentModal({ open, onClose, customerId, order = null }
     }, [open]);
 
     const save = async () => {
-        const numericAmount = Number(String(amount).replace(',', '.'));
+        const numericAmount = Number(String(amount).replace(/\s/g, '').replace(',', '.'));
         if (!cashboxId) return Alert('Kassani tanlang', 'error');
         if (!amount || !Number.isFinite(numericAmount) || numericAmount <= 0)
             return Alert('Summa 0 dan katta bo\'lishi kerak', 'error');
-        if (!/^\d+(?:[.,]\d{1,2})?$/.test(String(amount)))
+        if (!/^\d+(?:[.,]\d{1,2})?$/.test(String(amount).replace(/\s/g, '')))
             return Alert('Summa 2 kasr xonagacha bo\'lishi kerak', 'error');
         if (!paidAt || paidAt > today())
             return Alert('Sana bugun yoki undan oldingi kun bo\'lishi kerak', 'error');
@@ -200,7 +200,23 @@ export default function PaymentModal({ open, onClose, customerId, order = null }
                                         </Field.Label>
                                         <FormControl
                                             value={amount}
-                                            onChange={(e) => setAmount(e.target.value.replace(',', '.'))}
+                                            onChange={(e) => {
+                                                // strip all spaces and non-numeric except dot/comma
+                                                const raw = e.target.value.replace(/\s/g, '').replace(',', '.');
+                                                // allow only digits and one decimal separator
+                                                if (raw === '' || /^\d*\.?\d{0,2}$/.test(raw)) {
+                                                    const num = Number(raw);
+                                                    if (raw === '' || raw.endsWith('.')) {
+                                                        // typing in progress — show raw
+                                                        setAmount(raw);
+                                                    } else if (Number.isFinite(num)) {
+                                                        // format integer part with spaces, keep decimals
+                                                        const [int, dec] = raw.split('.');
+                                                        const formatted = Number(int).toLocaleString('ru-RU').replace(/\u00A0/g, ' ');
+                                                        setAmount(dec !== undefined ? `${formatted}.${dec}` : formatted);
+                                                    }
+                                                }
+                                            }}
                                             inputMode="decimal"
                                             placeholder="0"
                                         />

@@ -4,6 +4,7 @@ import {
     LuCircleAlert, LuPencil, LuPlus, LuClipboardList, LuEye,
 } from 'react-icons/lu';
 import { useAppTheme } from '../../../theme/tokens';
+import { formatNumber } from '../../ui/number-format';
 import { useGetCustomerByIdQuery } from '../../../store/services/customer.api';
 import { useGetSalesOrdersQuery } from '../../../store/services/salesOrder.api';
 import Loading from '../../Other/UI/Loadings/Loading';
@@ -61,8 +62,8 @@ export default function ZayavkachiCustomerDetail() {
     const balance = Number(customer.balance) || 0;
 
     const renderBalance = () => {
-        if (balance > 0) return <span className="font-bold text-[#f43f5e]">{balance.toLocaleString('uz-UZ')} so&apos;m (qarzdor)</span>;
-        if (balance < 0) return <span className="font-bold text-[#10b981]">{Math.abs(balance).toLocaleString('uz-UZ')} so&apos;m (kredit)</span>;
+        if (balance < 0) return <span className="font-bold text-[#f43f5e]">{formatNumber(Math.abs(balance))} so&apos;m (qarzdor)</span>;
+        if (balance > 0) return <span className="font-bold text-[#10b981]">{formatNumber(balance)} so&apos;m (kredit)</span>;
         return <span className={`font-bold ${head}`}>0 so&apos;m</span>;
     };
 
@@ -191,7 +192,7 @@ export default function ZayavkachiCustomerDetail() {
                                             <span className="block max-w-xs truncate">{o.summary || '—'}</span>
                                         </td>
                                         <td className={`px-5 py-3 text-right font-bold ${head}`}>
-                                            {(o.totalAmount ?? 0).toLocaleString('uz-UZ')} so&apos;m
+                                            {formatNumber(o.totalAmount ?? 0)} so&apos;m
                                         </td>
                                         <td className="px-5 py-3">
                                             <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${statusCx(o.status)}`}>

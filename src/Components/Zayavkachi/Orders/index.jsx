@@ -6,6 +6,7 @@ import {
     LuPlus, LuX, LuEye, LuPencil, LuPackage,
 } from 'react-icons/lu';
 import { useAppTheme } from '../../../theme/tokens';
+import { formatNumber } from '../../ui/number-format';
 import { useGetSalesOrdersQuery, useApproveSalesOrderMutation, useRejectSalesOrderMutation } from '../../../store/services/salesOrder.api';
 import DeleteOrder from '../__components/DeleteOrder';
 import { STATUS_LABEL, statusCx } from '../__components/statusBadge';
@@ -244,7 +245,7 @@ export default function ZayavkachiOrders() {
                                             </td>
                                             <td className={`px-5 py-3 text-xs font-semibold ${muted}`}>{o.items?.length ?? 0} ta</td>
                                             <td className={`px-5 py-3 text-right font-bold ${head}`}>
-                                                {(o.totalAmount ?? 0).toLocaleString('uz-UZ')} so&apos;m
+                                                {formatNumber(o.totalAmount ?? 0)} so&apos;m
                                             </td>
                                             <td className="px-5 py-3">
                                                 <OrderListStatusControl order={o} isDark={isDark} />

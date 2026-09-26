@@ -118,6 +118,11 @@ export const ROUTES = [
         roles: ROLES.MANAGER,
     },
     {
+        path: '/reconciliation',
+        component: lazy(() => import('../../Components/Common/CustomerReconciliation')),
+        roles: ROLES.MANAGER,
+    },
+    {
         path: '/orders',
         component: lazy(() => import('../../Components/Zayavkachi/Orders')),
         roles: ROLES.MANAGER,
@@ -336,6 +341,12 @@ export const ROUTES = [
     {
         path: '/kassir/expenses/:id',
         component: lazy(() => import('../../Components/Common/ExpenseDetail')),
+        roles: KASSIR_ROLES,
+    },
+    // Sverka
+    {
+        path: '/kassir/reconciliation',
+        component: lazy(() => import('../../Components/Common/CustomerReconciliation')),
         roles: KASSIR_ROLES,
     },
     // Buyurtmalar

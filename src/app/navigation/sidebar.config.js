@@ -2,7 +2,7 @@
 import { ROLES, PRODUCT_WAREHOUSE_ROLES, RAW_WAREHOUSE_ROLES, ZAYAVKACHI_ROLES, BUXGALTER_ROLES, KASSIR_ROLES } from '../permissions/roles';
 import {
     Boxes, ClipboardList, Cog, History, LayoutDashboard, LogIn, LogOut,
-    MonitorCog, Package, ReceiptText, UserRound, Users, Wallet, Warehouse,
+    MonitorCog, Package, ReceiptText, UserRound, Users, Wallet, Warehouse, FileSpreadsheet,
 } from 'lucide-react';
 
 // ── Manager ────────────────────────────────────────────────────────────────
@@ -17,6 +17,7 @@ export const SIDEBAR_CONFIG = [
     { label: 'Mijozlar',         path: '/customers', icon: Users,           roles: [ROLES.MANAGER] },
     { label: 'Kassalar',         path: '/cashboxes', icon: Wallet,          roles: [ROLES.MANAGER] },
     { label: 'Xarajatlar',       path: '/expenses',  icon: ReceiptText,     roles: [ROLES.MANAGER] },
+    { label: 'Sverka',           path: '/reconciliation', icon: FileSpreadsheet, roles: [ROLES.MANAGER] },
     { label: 'Foydalanuvchilar', path: '/users',     icon: UserRound,       roles: [ROLES.MANAGER] },
     { label: 'Qurilmalar',       path: '/devices',   icon: MonitorCog,      roles: [ROLES.MANAGER] },
 ];
@@ -24,7 +25,7 @@ export const SIDEBAR_CONFIG = [
 export const SIDEBAR_GROUPS = [
     { label: 'Asosiy',           items: SIDEBAR_CONFIG.filter((i) => i.path === '/') },
     { label: 'Ishlab chiqarish', items: SIDEBAR_CONFIG.filter((i) => ['/warehouses', '/products', '/raw', '/recipes', '/machines'].includes(i.path)) },
-    { label: 'Moliya',           items: SIDEBAR_CONFIG.filter((i) => ['/cashboxes', '/expenses'].includes(i.path)) },
+    { label: 'Moliya',           items: SIDEBAR_CONFIG.filter((i) => ['/cashboxes', '/expenses', '/reconciliation'].includes(i.path)) },
     { label: 'Userlar',          items: SIDEBAR_CONFIG.filter((i) => ['/customers', '/orders', '/users', '/devices'].includes(i.path)) },
 ];
 
@@ -87,11 +88,12 @@ export const KASSIR_SIDEBAR_CONFIG = [
     { label: 'Kassalar',    path: '/kassir/cashboxes',    icon: Wallet,          roles: KASSIR_ROLES },
     { label: 'Mijozlar',    path: '/kassir/customers',    icon: Users,           roles: KASSIR_ROLES },
     { label: 'Xarajatlar',  path: '/kassir/expenses',     icon: ReceiptText,     roles: KASSIR_ROLES },
+    { label: 'Sverka',      path: '/kassir/reconciliation', icon: FileSpreadsheet, roles: KASSIR_ROLES },
     { label: 'Buyurtmalar', path: '/kassir/orders',       icon: ClipboardList,   roles: KASSIR_ROLES },
 ];
 
 export const KASSIR_SIDEBAR_GROUPS = [
     { label: 'Asosiy', items: KASSIR_SIDEBAR_CONFIG.filter((i) => i.path === '/kassir') },
-    { label: 'Moliya', items: KASSIR_SIDEBAR_CONFIG.filter((i) => ['/kassir/cashboxes', '/kassir/expenses'].includes(i.path)) },
+    { label: 'Moliya', items: KASSIR_SIDEBAR_CONFIG.filter((i) => ['/kassir/cashboxes', '/kassir/expenses', '/kassir/reconciliation'].includes(i.path)) },
     { label: 'Savdo',  items: KASSIR_SIDEBAR_CONFIG.filter((i) => ['/kassir/customers', '/kassir/orders'].includes(i.path)) },
 ];

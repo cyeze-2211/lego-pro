@@ -205,7 +205,7 @@ export default function ZayavkachiOrderDetail() {
 
     const fmtDate     = (v) => v ? new Date(v).toLocaleDateString('uz-UZ') : '—';
     const fmtDateTime = (v) => v ? new Date(v).toLocaleString('uz-UZ') : '—';
-    const fmtNum      = (v) => Number(v ?? 0).toLocaleString('uz-UZ');
+    const fmtNum      = (v) => { const n = Number(v ?? 0); return n.toLocaleString('ru-RU').replace(/\u00A0/g, ' '); };
 
     return (
         <>
@@ -427,9 +427,9 @@ export default function ZayavkachiOrderDetail() {
                                                         {row.productBarcode && <span className={`font-mono text-xs ${muted}`}>{row.productBarcode}</span>}
                                                     </div>
                                                 </td>
-                                                <td className={`px-5 py-3 text-right font-bold tabular-nums ${head}`}>{row.stockQty.toLocaleString('uz-UZ')}</td>
-                                                <td className={`px-5 py-3 text-right font-bold tabular-nums ${head}`}>{row.quantity.toLocaleString('uz-UZ')}</td>
-                                                <td className={`px-5 py-3 text-right font-bold tabular-nums ${diffCls}`}>{diff > 0 ? `+${diff.toLocaleString('uz-UZ')}` : diff.toLocaleString('uz-UZ')}</td>
+                                                <td className={`px-5 py-3 text-right font-bold tabular-nums ${head}`}>{fmtNum(row.stockQty)}</td>
+                                                <td className={`px-5 py-3 text-right font-bold tabular-nums ${head}`}>{fmtNum(row.quantity)}</td>
+                                                <td className={`px-5 py-3 text-right font-bold tabular-nums ${diffCls}`}>{diff > 0 ? `+${fmtNum(diff)}` : fmtNum(diff)}</td>
                                                 <td className="px-5 py-3">
                                                     <div className={`flex items-center justify-center gap-1.5 ${statusCls}`}>
                                                         {statusIcon}
