@@ -19,7 +19,7 @@ function HeadDashboard() {
     const { isDark } = useAppTheme();
     const { data: result, isLoading, error } = useGetMachinesQuery({ page: 0, size: 100 });
     const machines = result?.items || [];
-    const workingMachines = machines.filter((machine) => machine.isWorking && machine.currentRun).length;
+    const workingMachines = machines.filter((m) => !!m.currentRun && m.status !== 'IDLE').length;
     const panel = isDark
         ? 'border-white/10 bg-[#141C2B] shadow-black/20'
         : 'border-slate-200 bg-white shadow-slate-200/60';

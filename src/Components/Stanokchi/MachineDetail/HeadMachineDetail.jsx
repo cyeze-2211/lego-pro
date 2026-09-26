@@ -23,6 +23,7 @@ import {
     useGetMachineByIdQuery,
     useStartMachineProductionMutation,
     useStopMachineProductionMutation,
+    useUpdateMachineStatusMutation,
 } from '../../../store/services/machine.api';
 import { useGetProductsQuery } from '../../../store/services/product.api';
 import {
@@ -89,6 +90,7 @@ export default function StanokchiMachineDetail() {
     /* ── Mutations ── */
     const [startProduction, { isLoading: starting }] = useStartMachineProductionMutation();
     const [stopProduction, { isLoading: stopping }] = useStopMachineProductionMutation();
+    const [updateMachineStatus, { isLoading: statusUpdating }] = useUpdateMachineStatusMutation();
     const [createStockTransaction, { isLoading: producing }] = useCreateStockTransactionMutation();
 
     /* ── Toast ── */
@@ -105,7 +107,12 @@ export default function StanokchiMachineDetail() {
     const [startProductSearch, setStartProductSearch] = useState('');
     const [startProductQuery, setStartProductQuery] = useState('');
     const [startSelectedProductId, setStartSelectedProductId] = useState('');
+    const [startSelectedStatus, setStartSelectedStatus] = useState('WORKING');
     const [startError, setStartError] = useState('');
+
+    /* ════════════════════════════════
+       STATUS MODAL (alohida) — olib tashlandi, endi inline toggle button
+    ════════════════════════════════ */
 
     const { data: startProductsResult, isLoading: startProductsLoading } = useGetProductsQuery(
         { name: startProductQuery || undefined, page: 0, size: 30 },
@@ -215,7 +222,10 @@ export default function StanokchiMachineDetail() {
         return () => window.removeEventListener('keydown', onKey);
     }, [showStartModal]);
 
-    const isWorking = machine?.isWorking && machine?.currentRun;
+    // API javobida `isWorking` field yo'q — status va currentRun orqali aniqlaymiz
+    // status: "WORKING" | "DEFECT" => ishlayapti
+    // status: "IDLE" yoki currentRun yo'q => to'xtatilgan
+    const isWorking = !!machine?.currentRun && machine?.status !== 'IDLE';
 
     /* ════════════════════════════════
        LOADING / ERROR STATES
@@ -287,96 +297,226 @@ export default function StanokchiMachineDetail() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
 
                 {/* ══ Stanok holati kartasi ══ */}
-                <div className="lg:col-span-1 rounded-2xl border p-5 flex flex-col gap-4"
-                    style={{
-                        background: cardBg,
-                        borderColor: isWorking ? (isDark ? 'rgba(34,197,94,0.35)' : '#86EFAC') : cardBorder,
-                        boxShadow: isDark ? '0 4px 20px rgba(0,0,0,0.25)' : '0 4px 16px rgba(15,23,42,0.07)',
-                    }}>
+                {(() => {
+                    const isDefect  = isWorking && machine.status === 'DEFECT';
+                    const isNormal  = isWorking && machine.status !== 'DEFECT';
+                    const isIdle    = !isWorking;
 
-                    {/* Holat */}
-                    <div className="flex items-center gap-3">
-                        <div className="flex items-center justify-center w-12 h-12 rounded-xl"
-                            style={{ background: isDark ? 'rgba(250,204,21,0.12)' : '#FEF3C7' }}>
-                            <LuCog size={24} style={{ color: accentColor }} />
-                        </div>
-                        <div>
-                            <p className="text-xs font-medium mb-0.5" style={{ color: subtitleColor }}>Holati</p>
-                            <span className="inline-flex items-center gap-1.5 text-sm font-bold px-3 py-1 rounded-full"
-                                style={isWorking
-                                    ? { background: isDark ? 'rgba(34,197,94,0.14)' : '#DCFCE7', color: isDark ? '#86EFAC' : '#166534' }
-                                    : { background: isDark ? 'rgba(148,163,184,0.15)' : '#F1F5F9', color: subtitleColor }}>
-                                {isWorking && (
-                                    <span style={{
-                                        width: 7, height: 7, borderRadius: '50%', background: '#22C55E',
-                                        display: 'inline-block', animation: 'stanokPulse 1.5s infinite',
-                                    }} />
-                                )}
-                                {isWorking ? 'Ishlayapti' : "Bo'sh"}
-                            </span>
-                        </div>
-                    </div>
+                    const cardBorderColor = isDefect
+                        ? isDark ? 'rgba(239,68,68,0.45)' : '#FCA5A5'
+                        : isNormal
+                        ? isDark ? 'rgba(34,197,94,0.35)'  : '#86EFAC'
+                        : cardBorder;
 
-                    {/* Joriy seans */}
-                    {isWorking && (
-                        <div className="rounded-xl p-3 flex flex-col gap-2"
+                    const cardBgGlow = isDefect
+                        ? isDark ? 'rgba(239,68,68,0.04)'  : '#FFF5F5'
+                        : isNormal
+                        ? isDark ? 'rgba(34,197,94,0.04)'  : '#F7FFF9'
+                        : cardBg;
+
+                    /* dot pulse rangi */
+                    const dotColor  = isDefect ? '#EF4444' : isNormal ? '#22C55E' : '#94a3b8';
+
+                    /* holat badge */
+                    const badgeBg   = isDefect
+                        ? isDark ? 'rgba(239,68,68,0.18)'  : '#FEE2E2'
+                        : isNormal
+                        ? isDark ? 'rgba(34,197,94,0.18)'  : '#DCFCE7'
+                        : isDark ? 'rgba(148,163,184,0.15)' : '#F1F5F9';
+                    const badgeColor = isDefect
+                        ? isDark ? '#FCA5A5' : '#991B1B'
+                        : isNormal
+                        ? isDark ? '#86EFAC' : '#166534'
+                        : subtitleColor;
+                    const badgeLabel = isDefect ? '⚠ BRAK ishlab chiqarilmoqda'
+                        : isNormal ? '● Ishlab chiqarilmoqda'
+                        : "○ To'xtatilgan";
+
+                    /* seans bloki rang */
+                    const runBg     = isDefect
+                        ? isDark ? 'rgba(239,68,68,0.07)'  : '#FEF2F2'
+                        : isDark  ? 'rgba(34,197,94,0.07)' : '#F0FDF4';
+                    const runBorder = isDefect
+                        ? isDark ? 'rgba(239,68,68,0.2)'   : '#FECACA'
+                        : isDark  ? 'rgba(34,197,94,0.2)'  : '#BBF7D0';
+                    const runIconColor = isDefect ? '#EF4444' : '#22C55E';
+                    const runTextColor = isDefect
+                        ? isDark ? '#FCA5A5' : '#991B1B'
+                        : isDark  ? '#86EFAC' : '#166534';
+
+                    return (
+                        <div className="lg:col-span-1 rounded-2xl border p-5 flex flex-col gap-4"
                             style={{
-                                background: isDark ? 'rgba(34,197,94,0.07)' : '#F0FDF4',
-                                border: `1px solid ${isDark ? 'rgba(34,197,94,0.2)' : '#BBF7D0'}`,
+                                background: cardBgGlow,
+                                borderColor: cardBorderColor,
+                                boxShadow: isDark ? '0 4px 20px rgba(0,0,0,0.25)' : '0 4px 16px rgba(15,23,42,0.07)',
                             }}>
-                            <div className="flex items-center gap-2">
-                                <LuActivity size={14} style={{ color: '#22C55E' }} />
-                                <span className="text-xs font-semibold" style={{ color: isDark ? '#86EFAC' : '#166534' }}>
-                                    Joriy mahsulot
-                                </span>
+
+                            {/* ── Ikon + holat badge ── */}
+                            <div className="flex items-center gap-3">
+                                <div className="relative flex items-center justify-center w-12 h-12 rounded-xl"
+                                    style={{
+                                        background: isDefect
+                                            ? isDark ? 'rgba(239,68,68,0.15)' : '#FEE2E2'
+                                            : isNormal
+                                            ? isDark ? 'rgba(34,197,94,0.15)'  : '#DCFCE7'
+                                            : isDark ? 'rgba(148,163,184,0.12)' : '#F1F5F9',
+                                    }}>
+                                    <LuCog size={24} style={{ color: isDefect ? '#EF4444' : isNormal ? '#22C55E' : subtitleColor }} />
+                                    {/* pulse dot */}
+                                    {isWorking && (
+                                        <span style={{
+                                            position: 'absolute', top: 6, right: 6,
+                                            width: 8, height: 8, borderRadius: '50%',
+                                            background: dotColor,
+                                            animation: 'stanokPulse 1.5s infinite',
+                                        }} />
+                                    )}
+                                </div>
+                                <div>
+                                    <p className="text-xs font-medium mb-1" style={{ color: subtitleColor }}>Holati</p>
+                                    <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full"
+                                        style={{ background: badgeBg, color: badgeColor }}>
+                                        {badgeLabel}
+                                    </span>
+                                </div>
                             </div>
-                            <p className="font-bold text-sm" style={{ color: textColor }}>
-                                {machine.currentRun.productName}
-                            </p>
-                            <div className="flex items-center gap-1.5">
-                                <LuClock size={12} style={{ color: subtitleColor }} />
-                                <span className="text-xs" style={{ color: subtitleColor }}>
-                                    Boshlandi: {formatDate(machine.currentRun.startedAt)}
-                                </span>
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                                <LuClock size={12} style={{ color: '#22C55E' }} />
-                                <span className="text-xs font-medium" style={{ color: isDark ? '#86EFAC' : '#166534' }}>
-                                    Davomiylik: {calcDuration(machine.currentRun.startedAt, null)}
-                                </span>
+
+                            {/* ── Joriy seans ── */}
+                            {isWorking && (
+                                <div className="rounded-xl p-3 flex flex-col gap-2.5"
+                                    style={{ background: runBg, border: `1px solid ${runBorder}` }}>
+
+                             
+
+                                    <div className="flex items-center gap-2">
+                                        <LuActivity size={13} style={{ color: runIconColor }} />
+                                        <span className="text-xs font-semibold" style={{ color: runTextColor }}>
+                                            {isDefect ? 'Brak mahsulot' : 'Joriy mahsulot'}
+                                        </span>
+                                    </div>
+
+                                    <p className="font-bold text-sm" style={{ color: textColor }}>
+                                        {machine.currentRun.productName}
+                                    </p>
+
+                                    <div className="flex items-center gap-1.5">
+                                        <LuClock size={12} style={{ color: subtitleColor }} />
+                                        <span className="text-xs" style={{ color: subtitleColor }}>
+                                            Boshlandi: {formatDate(machine.currentRun.startedAt)}
+                                        </span>
+                                    </div>
+
+                                    <div className="flex items-center gap-1.5">
+                                        <LuClock size={12} style={{ color: runIconColor }} />
+                                        <span className="text-xs font-medium" style={{ color: runTextColor }}>
+                                            Davomiylik: {calcDuration(machine.currentRun.startedAt, null)}
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* ── Bo'sh holat ── */}
+                            {isIdle && (
+                                <div className="rounded-xl px-4 py-3 flex items-center gap-3"
+                                    style={{
+                                        background: isDark ? 'rgba(148,163,184,0.06)' : '#F8FAFC',
+                                        border: `1px solid ${isDark ? 'rgba(148,163,184,0.15)' : '#E2E8F0'}`,
+                                    }}>
+                                    <LuCog size={20} style={{ color: subtitleColor, opacity: 0.4 }} />
+                                    <div>
+                                        <p className="text-xs font-semibold" style={{ color: subtitleColor }}>
+                                            Stanok hozir ishlamayapti
+                                        </p>
+                                        <p className="text-xs mt-0.5" style={{ color: subtitleColor, opacity: 0.7 }}>
+                                            Boshlash uchun pastdagi tugmani bosing
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* ── Tugmalar ── */}
+                            <div className="flex flex-col gap-2 mt-auto">
+
+                                {/* Status toggle — faqat ishlayotgan bo'lsa */}
+                                {isWorking && (
+                                    <button
+                                        onClick={async () => {
+                                            const nextStatus = isDefect ? 'WORKING' : 'DEFECT';
+                                            try {
+                                                await updateMachineStatus({ id, status: nextStatus }).unwrap();
+                                                showToast(
+                                                    nextStatus === 'DEFECT'
+                                                        ? '⚠ Brak rejimi yoqildi'
+                                                        : '✓ Normal ishlab chiqarishga o\'tildi'
+                                                );
+                                                refetchMachine();
+                                            } catch (err) {
+                                                showToast(err?.data?.message || 'Xatolik yuz berdi', 'error');
+                                            }
+                                        }}
+                                        disabled={statusUpdating}
+                                        className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl font-bold text-sm transition-all hover:opacity-90 active:scale-95 disabled:opacity-50"
+                                        style={{
+                                            background: isDefect
+                                                ? isDark ? 'rgba(34,197,94,0.12)' : '#F0FDF4'
+                                                : isDark ? 'rgba(239,68,68,0.12)' : '#FEF2F2',
+                                            color: isDefect
+                                                ? isDark ? '#86EFAC' : '#166534'
+                                                : isDark ? '#FCA5A5' : '#991B1B',
+                                            border: `1px solid ${isDefect
+                                                ? isDark ? 'rgba(34,197,94,0.3)' : '#BBF7D0'
+                                                : isDark ? 'rgba(239,68,68,0.3)' : '#FECACA'}`,
+                                            cursor: statusUpdating ? 'not-allowed' : 'pointer',
+                                        }}
+                                    >
+                                        {statusUpdating ? (
+                                            <>
+                                                <span style={{
+                                                    width: 12, height: 12, borderRadius: '50%',
+                                                    border: '2px solid currentColor',
+                                                    borderTopColor: 'transparent',
+                                                    display: 'inline-block',
+                                                    animation: 'spin 0.8s linear infinite',
+                                                }} />
+                                                Saqlanmoqda...
+                                            </>
+                                        ) : isDefect ? (
+                                            <>✓ Tuzatildi, normal ishlayapti</>
+                                        ) : (
+                                            <>⚠ Brak ishlab chiqarilmoqda</>
+                                        )}
+                                    </button>
+                                )}
+
+                                {/* Start / Stop */}
+                                {!isWorking ? (
+                                    <button onClick={openStartModal} disabled={starting}
+                                        className="flex items-center justify-center gap-2 w-full py-3 rounded-xl font-bold text-sm transition-all hover:opacity-90 active:scale-95 disabled:opacity-50"
+                                        style={{
+                                            background: 'linear-gradient(135deg, #22C55E, #16A34A)',
+                                            color: '#fff', border: 'none',
+                                            cursor: starting ? 'not-allowed' : 'pointer',
+                                        }}>
+                                        <LuPlay size={16} />
+                                        {starting ? 'Boshlanmoqda...' : 'Ishlab chiqarishni boshlash'}
+                                    </button>
+                                ) : (
+                                    <button onClick={handleStop} disabled={stopping}
+                                        className="flex items-center justify-center gap-2 w-full py-3 rounded-xl font-bold text-sm transition-all hover:opacity-90 active:scale-95 disabled:opacity-50"
+                                        style={{
+                                            background: 'linear-gradient(135deg, #EF4444, #DC2626)',
+                                            color: '#fff', border: 'none',
+                                            cursor: stopping ? 'not-allowed' : 'pointer',
+                                        }}>
+                                        <LuSquare size={16} />
+                                        {stopping ? "To'xtatilmoqda..." : "To'xtatish"}
+                                    </button>
+                                )}
                             </div>
                         </div>
-                    )}
-
-                    {/* Knopkalar */}
-                    <div className="flex flex-col gap-2 mt-auto">
-                        {/* Start / Stop */}
-                        {!isWorking ? (
-                            <button onClick={openStartModal} disabled={starting}
-                                className="flex items-center justify-center gap-2 w-full py-3 rounded-xl font-bold text-sm transition-all hover:opacity-90 active:scale-95 disabled:opacity-50"
-                                style={{
-                                    background: 'linear-gradient(135deg, #22C55E, #16A34A)',
-                                    color: '#fff', border: 'none',
-                                    cursor: starting ? 'not-allowed' : 'pointer',
-                                }}>
-                                <LuPlay size={16} />
-                                Ishlab chiqarishni boshlash
-                            </button>
-                        ) : (
-                            <button onClick={handleStop} disabled={stopping}
-                                className="flex items-center justify-center gap-2 w-full py-3 rounded-xl font-bold text-sm transition-all hover:opacity-90 active:scale-95 disabled:opacity-50"
-                                style={{
-                                    background: 'linear-gradient(135deg, #EF4444, #DC2626)',
-                                    color: '#fff', border: 'none',
-                                    cursor: stopping ? 'not-allowed' : 'pointer',
-                                }}>
-                                <LuSquare size={16} />
-                                {stopping ? "To'xtatilmoqda..." : "Ishlab chiqarishni to'xtatish"}
-                            </button>
-                        )}
-                    </div>
-                </div>
-
+                    );
+                })()}
                 {/* ══ PRODUCE tarixi ══ */}
                 <div className="lg:col-span-2 rounded-2xl border overflow-hidden"
                     style={{
@@ -633,12 +773,13 @@ export default function StanokchiMachineDetail() {
                                 subtitleColor={subtitleColor}
                                 accentColor={accentColor}
                             />
+
                             <ModalActions
                                 onCancel={closeStartModal}
                                 submitLabel="Boshlash"
                                 submitIcon={<LuPlay size={15} />}
                                 submitStyle={{ background: 'linear-gradient(135deg, #22C55E, #16A34A)', color: '#fff' }}
-                                loading={starting}
+                                loading={starting || statusUpdating}
                                 disabled={!startSelectedProductId}
                                 cardBorder={cardBorder}
                                 textColor={textColor}
