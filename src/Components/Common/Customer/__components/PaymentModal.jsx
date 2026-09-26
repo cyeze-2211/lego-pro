@@ -8,7 +8,8 @@ import FormControl from '../../../ui/FormControl';
 import { Alert } from '../../../Other/UI/Alert/Alert';
 import { useCreatePaymentMutation } from '../../../../store/services/payment.api';
 import { useGetCashboxesQuery } from '../../../../store/services/cashbox.api';
-import { formatNumber, parseNumber } from '../../../ui/number-format';
+import { formatNumber } from '../../../ui/number-format';
+import UsdCalculator, { CalculatorToggle, formatTypedAmount } from '../../../ui/UsdCalculator';
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -25,6 +26,7 @@ export default function PaymentModal({ open, onClose, customerId, order = null }
     const [amount, setAmount] = useState('');
     const [summary, setSummary] = useState('');
     const [paidAt, setPaidAt] = useState(today());
+    const [calcOpen, setCalcOpen] = useState(false);
 
     const { isDark, accentColor, cardBg, cardBorder, textColor, subtitleColor } = useAppTheme();
     const modalBorder = isDark ? cardBorder : '#94A3B8';
@@ -39,8 +41,14 @@ export default function PaymentModal({ open, onClose, customerId, order = null }
             setAmount('');
             setSummary('');
             setPaidAt(today());
+            setCalcOpen(false);
         }
     }, [open]);
+
+    const applyTyped = (raw, setter) => {
+        const next = formatTypedAmount(raw);
+        if (next !== null) setter(next);
+    };
 
     const save = async () => {
         const numericAmount = Number(String(amount).replace(/\s/g, '').replace(',', '.'));
@@ -71,7 +79,7 @@ export default function PaymentModal({ open, onClose, customerId, order = null }
     };
 
     return (
-        <Dialog.Root open={open} onOpenChange={(e) => !e.open && onClose()} size="md" placement="center">
+        <Dialog.Root open={open} onOpenChange={(e) => !e.open && onClose()} size="lg" placement="center">
             <Portal>
                 <Dialog.Backdrop backdropFilter="blur(6px)" bg={isDark ? 'blackAlpha.700' : 'blackAlpha.400'} />
                 <Dialog.Positioner>
@@ -81,7 +89,7 @@ export default function PaymentModal({ open, onClose, customerId, order = null }
                         borderWidth="1px"
                         borderRadius="2xl"
                         overflow="hidden"
-                        maxW="520px"
+                        maxW={calcOpen ? '760px' : '560px'}
                         w="calc(100% - 32px)"
                     >
                         {/* top accent bar */}
@@ -189,8 +197,8 @@ export default function PaymentModal({ open, onClose, customerId, order = null }
                                 </Field.Root>
 
                                 {/* summa + sana */}
-                                <HStack align="start" flexDirection={{ base: 'column', sm: 'row' }}>
-                                    <Field.Root required flex="1" w="100%">
+                                <HStack align="end" gap={4} flexWrap="wrap" flexDirection={{ base: 'column', sm: 'row' }}>
+                                    <Field.Root required flex="1" w="100%" minW="180px">
                                         <Field.Label color={textColor}>
                                             <HStack gap={2}>
                                                 <LuDollarSign size={16} />
@@ -200,29 +208,13 @@ export default function PaymentModal({ open, onClose, customerId, order = null }
                                         </Field.Label>
                                         <FormControl
                                             value={amount}
-                                            onChange={(e) => {
-                                                // strip all spaces and non-numeric except dot/comma
-                                                const raw = e.target.value.replace(/\s/g, '').replace(',', '.');
-                                                // allow only digits and one decimal separator
-                                                if (raw === '' || /^\d*\.?\d{0,2}$/.test(raw)) {
-                                                    const num = Number(raw);
-                                                    if (raw === '' || raw.endsWith('.')) {
-                                                        // typing in progress — show raw
-                                                        setAmount(raw);
-                                                    } else if (Number.isFinite(num)) {
-                                                        // format integer part with spaces, keep decimals
-                                                        const [int, dec] = raw.split('.');
-                                                        const formatted = Number(int).toLocaleString('ru-RU').replace(/\u00A0/g, ' ');
-                                                        setAmount(dec !== undefined ? `${formatted}.${dec}` : formatted);
-                                                    }
-                                                }
-                                            }}
+                                            onChange={(e) => applyTyped(e.target.value, setAmount)}
                                             inputMode="decimal"
                                             placeholder="0"
                                         />
                                     </Field.Root>
 
-                                    <Field.Root required flex="1" w="100%">
+                                    <Field.Root required flex="1" w="100%" minW="180px">
                                         <Field.Label color={textColor}>
                                             <HStack gap={2}>
                                                 <LuCalendarDays size={16} />
@@ -237,7 +229,17 @@ export default function PaymentModal({ open, onClose, customerId, order = null }
                                             onChange={(e) => setPaidAt(e.target.value)}
                                         />
                                     </Field.Root>
+
+                                    <CalculatorToggle open={calcOpen} onClick={() => setCalcOpen((v) => !v)} />
                                 </HStack>
+
+                                {calcOpen && (
+                                    <UsdCalculator
+                                        active={open && calcOpen}
+                                        onApply={setAmount}
+                                        applyLabel="So'mni to'lov summasiga qo'yish"
+                                    />
+                                )}
 
                                 {/* izoh — general modeda ko'rsatiladi */}
                                 {!isOrderMode && (

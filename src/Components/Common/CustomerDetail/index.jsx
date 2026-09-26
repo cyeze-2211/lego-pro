@@ -1,5 +1,5 @@
-import { useState, useRef } from 'react';
-import { useParams } from 'react-router-dom';
+import { useState } from 'react';
+import { useParams, useLocation } from 'react-router-dom';
 import { Badge, Box, Button, HStack, Table, Text, Spinner, Portal, Dialog, VStack } from '@chakra-ui/react';
 import {
     LuCalendar, LuChevronLeft, LuChevronRight, LuClipboardList,
@@ -148,6 +148,8 @@ function OrderStatusSelect({ orderId, currentStatus, onApprove, onReject, isLoad
 // ── Asosiy komponent ───────────────────────────────────────────────────────
 export default function CustomerDetail() {
     const { id } = useParams();
+    const { pathname } = useLocation();
+    const backTo = pathname.startsWith('/kassir') ? '/kassir/customers' : '/customers';
 
     const [activeTab, setActiveTab] = useState('orders');
     const [orderStatus, setOrderStatus] = useState('');
@@ -221,7 +223,7 @@ export default function CustomerDetail() {
             onPayment={openGeneralPayment}
             title={customer?.name || 'Mijoz'}
             icon={LuUsers}
-            backTo="/customers"
+            backTo={backTo}
             backLabel="Mijozlar"
             loading={isLoading}
             error={isError || !customer}

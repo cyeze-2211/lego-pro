@@ -319,7 +319,7 @@ export const ROUTES = [
     },
     {
         path: '/kassir/customers/:id',
-        component: lazy(() => import('../../Components/Zayavkachi/CustomerDetail')),
+        component: lazy(() => import('../../Components/Common/CustomerDetail')),
         roles: KASSIR_ROLES,
     },
     {
