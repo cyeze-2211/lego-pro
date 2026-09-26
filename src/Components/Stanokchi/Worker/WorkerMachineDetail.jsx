@@ -61,7 +61,7 @@ export default function WorkerMachineDetail() {
         setTimeout(() => setToast(null), 3500);
     };
 
-    const isWorking = machine?.isWorking && machine?.currentRun;
+    const isWorking = !!machine?.currentRun && machine?.status !== 'IDLE';
 
     const handleProduceOne = async () => {
         if (producing || !machine?.currentRun?.productId) return;

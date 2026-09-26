@@ -20,6 +20,7 @@ import Loading from '../../Other/UI/Loadings/Loading';
 import DeleteOrder from '../__components/DeleteOrder';
 import { STATUS_LABEL, statusCx } from '../__components/statusBadge';
 import { Alert } from '../../Other/UI/Alert/Alert';
+import OrderPrintModal from '../__components/OrderPrintModal';
 import logoSvg from '../../../Images/Yellow Unified Lego Outlined.svg';
 
 function OrderStatusControl({ order, isDark }) {
@@ -158,6 +159,7 @@ export default function ZayavkachiOrderDetail() {
     const selectCx = [inputCx, 'pr-8 appearance-none cursor-pointer'].join(' ');
 
     const backToList   = () => navigate(ordersPath);
+    const [showPrintModal, setShowPrintModal] = useState(false);
 
     // Print: layout yashirish/ko'rsatish
 
@@ -209,6 +211,13 @@ export default function ZayavkachiOrderDetail() {
 
     return (
         <>
+            {showPrintModal && (
+                <OrderPrintModal 
+                    order={order} 
+                    onClose={() => setShowPrintModal(false)} 
+                />
+            )}
+            
             {/* ── PRINT STYLES — invoice yangi windowda ochiladi, bu faqat hide uchun ── */}
             <style>{`
                 .invoice-print { display: none !important; }
@@ -233,7 +242,7 @@ export default function ZayavkachiOrderDetail() {
                         <div className="flex flex-wrap items-center gap-2">
                             <OrderStatusControl order={order} isDark={isDark} />
 
-                            <button type="button" onClick={printInvoice} title="Chop etish"
+                            <button type="button" onClick={() => setShowPrintModal(true)} title="Chop etish"
                                 className={`flex h-12 items-center gap-2 rounded-xl border px-5 text-sm font-bold transition-colors hover:border-amber-400/60 hover:text-amber-500 ${ghostBtn}`}>
                                 <LuPrinter size={16} /> Chop etish
                             </button>

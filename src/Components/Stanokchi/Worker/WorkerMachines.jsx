@@ -118,7 +118,7 @@ export default function WorkerMachines() {
 
 /* ── WorkerMachineCard — katta, oddiy ── */
 function WorkerMachineCard({ machine, isDark, cardBg, cardBorder, textColor, subtitleColor, accentColor, onClick }) {
-    const isWorking = machine.isWorking && machine.currentRun;
+    const isWorking = !!machine.currentRun && machine.status !== 'IDLE';
 
     return (
         <button

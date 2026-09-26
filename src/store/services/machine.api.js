@@ -61,6 +61,17 @@ export const machineApi = createApi({
 
     // --- Quyi endpoynlar: hozircha UI da ishlatilmaydi, kelajakdagi ishlab chiqarish boshqaruvi/tarixi uchun tayyor ---
 
+    // PATCH /api/v1/machines/{id}/status — stanokning holatini yangilash
+    updateMachineStatus: builder.mutation({
+      query: ({ id, status }) => ({
+        url: `/machines/${id}/status`,
+        method: 'PATCH',
+        data: { status },
+      }),
+      transformResponse: (response) => response.data,
+      invalidatesTags: (result, error, { id }) => [{ type: 'Machine', id }, { type: 'Machine', id: 'LIST' }],
+    }),
+
     // POST /api/v1/machines/{id}/production-start
     startMachineProduction: builder.mutation({
       query: ({ id, productId }) => ({
@@ -101,6 +112,7 @@ export const {
   useCreateMachineMutation,
   useUpdateMachineMutation,
   useDeleteMachineMutation,
+  useUpdateMachineStatusMutation,
   useStartMachineProductionMutation,
   useStopMachineProductionMutation,
   useGetMachineRunsQuery,

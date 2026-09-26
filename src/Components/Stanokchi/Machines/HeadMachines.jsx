@@ -114,7 +114,8 @@ export default function StanokchiMachines() {
 
 /* ── MachineCard ──────────────────────────────────────────── */
 function MachineCard({ machine, isDark, cardBg, cardBorder, textColor, subtitleColor, accentColor, onClick }) {
-    const isWorking = machine.isWorking && machine.currentRun;
+    const isWorking = !!machine.currentRun && machine.status !== 'IDLE';
+    const isDefect  = isWorking && machine.status === 'DEFECT';
 
     return (
         <button
@@ -130,7 +131,9 @@ function MachineCard({ machine, isDark, cardBg, cardBorder, textColor, subtitleC
             {/* Top accent strip */}
             <div style={{
                 height: 4,
-                background: isWorking
+                background: isDefect
+                    ? 'linear-gradient(90deg, #EF4444, #DC2626)'
+                    : isWorking
                     ? 'linear-gradient(90deg, #22C55E, #16A34A)'
                     : (isDark ? 'rgba(255,255,255,0.06)' : '#E2E8F0'),
             }} />
@@ -147,11 +150,13 @@ function MachineCard({ machine, isDark, cardBg, cardBorder, textColor, subtitleC
 
                     <span
                         className="text-xs font-semibold px-2.5 py-1 rounded-full"
-                        style={isWorking
+                        style={isDefect
+                            ? { background: isDark ? 'rgba(239,68,68,0.15)' : '#FEE2E2', color: isDark ? '#FCA5A5' : '#991B1B' }
+                            : isWorking
                             ? { background: isDark ? 'rgba(34,197,94,0.14)' : '#DCFCE7', color: isDark ? '#86EFAC' : '#166534' }
                             : { background: isDark ? 'rgba(148,163,184,0.15)' : '#F1F5F9', color: subtitleColor }}
                     >
-                        {isWorking ? 'Ishlayapti' : "Bo'sh"}
+                        {isDefect ? '⚠ Brak' : isWorking ? '● Ishlayapti' : "○ Bo'sh"}
                     </span>
                 </div>
 
