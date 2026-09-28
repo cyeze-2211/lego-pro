@@ -267,7 +267,6 @@ export default function ZayavkachiOrderDetail() {
                     <div className="grid grid-cols-1 gap-4 px-5 py-4 sm:grid-cols-2 xl:grid-cols-4">
                         {[
                             { label: 'Mijoz',             value: order.customerName,   icon: LuUser },
-                            { label: 'Yaratgan',          value: order.createdBy,       icon: LuUser },
                             { label: 'Jami summa',        value: `${fmtNum(order.totalAmount)} so'm`, icon: LuPackage },
                             { label: "Oxirgi o'zgarish",  value: fmtDateTime(order.lastModifiedAt),   icon: LuClock3 },
 

@@ -68,15 +68,6 @@ export default function RecipeDetail() {
                 <>
                     <DetailSection title="Retsept ma'lumotlari" icon={LuUtensils}>
                         <DetailRow label="Nomi" value={recipe.name} emphasize />
-                        <DetailRow
-                            label="Qadamlar soni"
-                            value={
-                                <HStack gap={2}>
-                                    <LuListOrdered size={16} />
-                                    <span>{recipe.items?.length ?? 0}</span>
-                                </HStack>
-                            }
-                        />
                     </DetailSection>
 
                     <DetailSection title="Tizim ma'lumotlari" icon={LuCalendar}>

@@ -1,8 +1,8 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
     LuArrowLeft, LuUser, LuStickyNote, LuClock3,
-    LuCircleAlert, LuBoxes, LuWarehouse, LuPackage, LuTruck,
+    LuCircleAlert, LuBoxes, LuWarehouse, LuPackage, LuTruck, LuBarcode,
 } from 'react-icons/lu';
 import { useAppTheme } from '../../../theme/tokens';
 import { formatNumber } from '../../ui/number-format';
@@ -22,6 +22,9 @@ export default function StaffOrderDetail() {
     // State declarations BIRINCHI BO'LISHI KERAK
     const [selectedWarehouseId, setSelectedWarehouseId] = useState('');
     const [editableQuantities, setEditableQuantities] = useState({});
+    const [scannedQuantities, setScannedQuantities] = useState({});
+    const [barcodeInput, setBarcodeInput] = useState('');
+    const barcodeInputRef = useRef(null);
 
     const { data: order, isLoading, isError } = useGetSalesOrderByIdQuery(id, { skip: !id });
     const { data: warehouses = [] } = useGetWarehousesQuery('PRODUCT');
@@ -60,6 +63,31 @@ export default function StaffOrderDetail() {
 
     const allEnough = comparison.length > 0 && comparison.every((c) => c.enough);
     const someShort = comparison.some((c) => !c.enough);
+    const handleBarcodeSubmit = (event) => {
+        event.preventDefault();
+        const barcode = barcodeInput.trim();
+        if (!barcode) return;
+
+        const item = comparison.find((candidate) => candidate.productBarcode?.trim() === barcode);
+        if (!item) {
+            Alert('Bu shtrix-kod buyurtmada topilmadi', 'error');
+            setBarcodeInput('');
+            barcodeInputRef.current?.focus();
+            return;
+        }
+
+        const scannedQty = scannedQuantities[item.id] ?? 0;
+        if (scannedQty >= item.editableQty) {
+            Alert(`${item.productName} uchun buyurtma miqdori to'liq skaner qilindi`, 'error');
+            setBarcodeInput('');
+            barcodeInputRef.current?.focus();
+            return;
+        }
+
+        setScannedQuantities((previous) => ({ ...previous, [item.id]: scannedQty + 1 }));
+        setBarcodeInput('');
+        barcodeInputRef.current?.focus();
+    };
 
     const [createTransaction, { isLoading: isSubmitting }] = useCreateStockTransactionMutation();
 
@@ -129,6 +157,10 @@ export default function StaffOrderDetail() {
         // Ombor qoldig'idan oshmasin
         const item = comparison.find(i => i.id === itemId);
         if (item && numValue > item.stockQty) return;
+
+        if (numValue < (scannedQuantities[itemId] ?? 0)) {
+            setScannedQuantities((previous) => ({ ...previous, [itemId]: numValue }));
+        }
         
         setEditableQuantities(prev => ({
             ...prev,
@@ -293,6 +325,33 @@ export default function StaffOrderDetail() {
                     )}
                 </div>
 
+                {order.status === 'APPROVED' && (
+                    <form
+                        onSubmit={handleBarcodeSubmit}
+                        className={`mx-5 mb-4 flex items-center gap-3 rounded-xl border p-3 ${
+                            isDark ? 'border-[#334155] bg-[#1e293b]/50' : 'border-[#e2e8f0] bg-[#f8fafc]'
+                        }`}
+                    >
+                        <LuBarcode size={20} className="shrink-0 text-amber-500" />
+                        <input
+                            ref={barcodeInputRef}
+                            autoFocus
+                            value={barcodeInput}
+                            onChange={(event) => setBarcodeInput(event.target.value)}
+                            placeholder="Mahsulot shtrix-kodini skaner qiling"
+                            aria-label="Mahsulot shtrix-kodi"
+                            className={`h-10 min-w-0 flex-1 rounded-lg border px-3 text-sm outline-none focus:border-amber-400 ${
+                                isDark
+                                    ? 'border-[#334155] bg-[#0f172a] text-white placeholder:text-[#64748b]'
+                                    : 'border-[#e2e8f0] bg-white text-[#0f172a] placeholder:text-[#94a3b8]'
+                            }`}
+                        />
+                        <span className={`hidden text-xs sm:block ${muted}`}>
+                            Skaner qilingan: {comparison.reduce((sum, item) => sum + (scannedQuantities[item.id] ?? 0), 0)} / {comparison.reduce((sum, item) => sum + item.editableQty, 0)}
+                        </span>
+                    </form>
+                )}
+
                 {stockFetching ? (
                     <div className={`flex items-center justify-center gap-2 py-12 text-sm ${muted}`}>
                         <svg className="h-4 w-4 animate-spin text-amber-400" viewBox="0 0 24 24" fill="none">
@@ -322,6 +381,7 @@ export default function StaffOrderDetail() {
                                         <th className="px-5 py-3">Mahsulot</th>
                                         <th className="px-5 py-3 w-32">Ombor</th>
                                         <th className="px-5 py-3 w-32 text-center">Buyurtma</th>
+                                        {order.status === 'APPROVED' && <th className="px-5 py-3 w-32 text-center">Skaner qilindi</th>}
                                         <th className="px-5 py-3 w-32 text-center">Qoldiq</th>
                                         <th className="px-5 py-3 w-32 text-center">Farq</th>
                                         {order.status === 'APPROVED' && (
@@ -382,6 +442,17 @@ export default function StaffOrderDetail() {
                                                     <span className={`font-bold ${head}`}>{item.editableQty}</span>
                                                 )}
                                             </td>
+                                            {order.status === 'APPROVED' && (
+                                                <td className="px-5 py-3 text-center">
+                                                    <p className={`font-bold ${
+                                                        (scannedQuantities[item.id] ?? 0) === item.editableQty
+                                                            ? 'text-emerald-500'
+                                                            : muted
+                                                    }`}>
+                                                        {scannedQuantities[item.id] ?? 0} / {item.editableQty}
+                                                    </p>
+                                                </td>
+                                            )}
                                             <td className={`px-5 py-3 text-center font-bold ${head}`}>
                                                 {item.stockQty}
                                             </td>
