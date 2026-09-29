@@ -1,7 +1,8 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
     LuHistory, LuSearch, LuChevronLeft, LuChevronRight,
-    LuLogIn, LuLogOut, LuX, LuPackage, LuWarehouse, LuFlame,
+    LuLogIn, LuLogOut, LuX, LuPackage, LuWarehouse, LuCalendar, LuEye,
 } from 'react-icons/lu';
 import { useAppTheme } from '../../../theme/tokens';
 import { useGetRawMaterialTransactionsQuery } from '../../../store/services/rawMaterialStock.api';
@@ -12,35 +13,51 @@ const UNITS = ['GRAM', 'KG', 'TON'];
 
 export default function RawStaffHistory() {
     const { isDark } = useAppTheme();
-    const [page, setPage]                       = useState(0);
+    const navigate = useNavigate();
+    const [page, setPage] = useState(0);
     const [warehouseFilter, setWarehouseFilter] = useState('');
-    const [actionFilter, setActionFilter]       = useState('');
-    const [unit, setUnit]                       = useState('KG');
-    const [search, setSearch]                   = useState('');
+    const [actionFilter, setActionFilter] = useState('');
+    const [unit, setUnit] = useState('KG');
+    const [search, setSearch] = useState('');
+    const [dateFrom, setDateFrom] = useState('');
+    const [dateTo, setDateTo] = useState('');
 
     const { data: warehouses = [] } = useGetWarehousesQuery('RAW_MATERIAL');
-    const { data, isFetching }      = useGetRawMaterialTransactionsQuery({
+    const { data, isFetching } = useGetRawMaterialTransactionsQuery({
         warehouseId: warehouseFilter || undefined,
-        action:      actionFilter     || undefined,
+        action: actionFilter || undefined,
         unit,
+        dateFrom: dateFrom || undefined,
+        dateTo: dateTo || undefined,
         page,
         size: PAGE_SIZE,
     });
 
-    const transactions = data?.data       ?? [];
-    const pagination   = data?.pagination ?? {};
-    const filtered     = search
+    const transactions = data?.data ?? [];
+    const pagination = data?.pagination ?? {};
+    const filtered = search
         ? transactions.filter((t) => t.rawMaterialName?.toLowerCase().includes(search.toLowerCase()))
         : transactions;
 
-    const hasFilters = warehouseFilter || actionFilter || search;
-    const resetFilters = () => { setWarehouseFilter(''); setActionFilter(''); setSearch(''); setPage(0); };
+    const hasFilters = warehouseFilter || actionFilter || search || dateFrom || dateTo;
+    const resetFilters = () => {
+        setWarehouseFilter('');
+        setActionFilter('');
+        setSearch('');
+        setDateFrom('');
+        setDateTo('');
+        setPage(0);
+    };
 
-    const panel   = isDark ? 'border-white/10 bg-[#141C2B]' : 'border-slate-200 bg-white';
-    const muted   = isDark ? 'text-slate-400' : 'text-slate-500';
-    const head    = isDark ? 'text-white' : 'text-slate-900';
+    const goToDetail = (tx) => {
+        navigate(`/raw-staff/history/${tx.id}`, { state: { tx } });
+    };
+
+    const panel = isDark ? 'border-white/10 bg-[#141C2B]' : 'border-slate-200 bg-white';
+    const muted = isDark ? 'text-slate-400' : 'text-slate-500';
+    const head = isDark ? 'text-white' : 'text-slate-900';
     const divider = isDark ? 'divide-slate-700/50' : 'divide-slate-100';
-    const rowHov  = isDark ? 'hover:bg-slate-800/50' : 'hover:bg-amber-50/50';
+    const rowHov = isDark ? 'hover:bg-slate-800/50' : 'hover:bg-amber-50/50';
     const inputCx = [
         'w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none transition-all duration-200 h-[42px]',
         isDark
@@ -50,7 +67,6 @@ export default function RawStaffHistory() {
 
     return (
         <div className="flex w-full flex-col gap-4 py-2">
-
             {/* Header */}
             <div className={`relative overflow-hidden rounded-2xl border px-5 py-4 shadow-md ${panel}`}>
                 <div className="absolute right-0 top-0 h-full w-1/2 bg-gradient-to-l from-amber-400/6 to-transparent" />
@@ -72,81 +88,87 @@ export default function RawStaffHistory() {
 
             {/* Filters */}
             <div className={`rounded-2xl border px-4 py-3.5 shadow-md ${panel}`}>
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:flex-wrap">
+                <div className="flex flex-col gap-3">
+                    {/* Birinchi qator: Ombor + Qidiruv */}
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                        <div className="sm:w-48 shrink-0">
+                            <label className={`mb-1.5 flex items-center gap-1.5 text-xs font-semibold ${muted}`}>
+                                <LuWarehouse size={11} /> Ombor
+                            </label>
+                            <select value={warehouseFilter} onChange={(e) => { setWarehouseFilter(e.target.value); setPage(0); }} className={inputCx}>
+                                <option value="">Barcha omborlar</option>
+                                {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+                            </select>
+                        </div>
 
-                    <div className="sm:w-48 shrink-0">
-                        <label className={`mb-1.5 flex items-center gap-1.5 text-xs font-semibold ${muted}`}>
-                            <LuWarehouse size={11} /> Ombor
-                        </label>
-                        <select value={warehouseFilter}
-                            onChange={(e) => { setWarehouseFilter(e.target.value); setPage(0); }} className={inputCx}>
-                            <option value="">Barcha omborlar</option>
-                            {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
-                        </select>
+                        <div className="flex-1 min-w-[160px]">
+                            <label className={`mb-1.5 flex items-center gap-1.5 text-xs font-semibold ${muted}`}>
+                                <LuSearch size={11} /> Qidiruv
+                            </label>
+                            <div className="relative">
+                                <LuSearch className={`pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 ${muted}`} />
+                                <input type="text" placeholder="Xom ashyo nomi..." value={search} onChange={(e) => setSearch(e.target.value)} className={`${inputCx} pl-10 pr-9`} />
+                                {search && (
+                                    <button type="button" onClick={() => setSearch('')} className={`absolute right-3 top-1/2 -translate-y-1/2 ${muted} hover:text-slate-700`}>
+                                        <LuX size={14} />
+                                    </button>
+                                )}
+                            </div>
+                        </div>
                     </div>
 
-                    <div className="flex-1 min-w-[160px]">
-                        <label className={`mb-1.5 flex items-center gap-1.5 text-xs font-semibold ${muted}`}>
-                            <LuSearch size={11} /> Qidiruv
-                        </label>
-                        <div className="relative">
-                            <LuSearch className={`pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 ${muted}`} />
-                            <input type="text" placeholder="Xom ashyo nomi..." value={search}
-                                onChange={(e) => setSearch(e.target.value)} className={`${inputCx} pl-10 pr-9`} />
-                            {search && (
-                                <button type="button" onClick={() => setSearch('')}
-                                    className={`absolute right-3 top-1/2 -translate-y-1/2 ${muted} hover:text-slate-700`}>
-                                    <LuX size={14} />
+                    {/* Ikkinchi qator: Sana + Yo'nalish + Birlik */}
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:flex-wrap">
+                        <div className="sm:w-48 shrink-0">
+                            <label className={`mb-1.5 flex items-center gap-1.5 text-xs font-semibold ${muted}`}>
+                                <LuCalendar size={11} /> Sanadan
+                            </label>
+                            <input type="date" value={dateFrom} max={dateTo || undefined} onChange={(e) => { setDateFrom(e.target.value); setPage(0); }} className={inputCx} />
+                        </div>
+
+                        <div className="sm:w-48 shrink-0">
+                            <label className={`mb-1.5 flex items-center gap-1.5 text-xs font-semibold ${muted}`}>
+                                <LuCalendar size={11} /> Sanagacha
+                            </label>
+                            <input type="date" value={dateTo} min={dateFrom || undefined} onChange={(e) => { setDateTo(e.target.value); setPage(0); }} className={inputCx} />
+                        </div>
+
+                        <div className="flex items-end gap-2 flex-wrap ml-auto">
+                            <div>
+                                <label className={`mb-1.5 block text-xs font-semibold ${muted}`}>Yo&apos;nalish</label>
+                                <div className={`inline-flex rounded-xl border overflow-hidden ${isDark ? 'border-slate-700' : 'border-slate-200'}`}>
+                                    {[
+                                        { value: '', label: 'Barchasi' },
+                                        { value: 'IN', label: 'Kirim' },
+                                        { value: 'OUT', label: 'Chiqim' },
+                                    ].map(({ value, label }) => (
+                                        <button key={value} type="button" onClick={() => { setActionFilter(value); setPage(0); }}
+                                            className={`h-[42px] px-3.5 text-sm font-semibold transition-colors ${actionFilter === value ? (isDark ? 'bg-amber-400/10 text-amber-300' : 'bg-amber-50 text-amber-700') : (isDark ? 'bg-slate-800/80 text-slate-400 hover:text-slate-200' : 'bg-white text-slate-500 hover:text-slate-700')}`}>
+                                            {label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className={`mb-1.5 block text-xs font-semibold ${muted}`}>Birlik</label>
+                                <div className={`inline-flex rounded-xl border overflow-hidden ${isDark ? 'border-slate-700' : 'border-slate-200'}`}>
+                                    {UNITS.map((u) => (
+                                        <button key={u} type="button" onClick={() => { setUnit(u); setPage(0); }}
+                                            className={`h-[42px] px-3 text-xs font-bold transition-colors ${unit === u ? (isDark ? 'bg-amber-400/10 text-amber-300' : 'bg-amber-50 text-amber-700') : (isDark ? 'bg-slate-800/80 text-slate-400 hover:text-slate-200' : 'bg-white text-slate-500 hover:text-slate-700')}`}>
+                                            {u}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {hasFilters && (
+                                <button type="button" onClick={resetFilters}
+                                    className={`flex h-[42px] items-center gap-1.5 rounded-xl border px-3 text-sm font-medium transition-colors ${isDark ? 'border-slate-700 bg-slate-800/80 text-slate-400 hover:text-rose-400' : 'border-slate-200 text-slate-500 hover:text-rose-500 hover:bg-rose-50'}`}>
+                                    <LuX size={13} /> Tozalash
                                 </button>
                             )}
                         </div>
-                    </div>
-
-                    {/* Yo'nalish + Birlik + Reset */}
-                    <div className="flex items-end gap-2 flex-wrap">
-                        <div>
-                            <label className={`mb-1.5 block text-xs font-semibold ${muted}`}>Yo&apos;nalish</label>
-                            <div className={`inline-flex rounded-xl border overflow-hidden ${isDark ? 'border-slate-700' : 'border-slate-200'}`}>
-                                {[
-                                    { value: '',    label: 'Barchasi', activeCls: isDark ? 'bg-amber-400/10 text-amber-300' : 'bg-amber-50 text-amber-700' },
-                                    { value: 'IN',  label: 'Kirim',    activeCls: isDark ? 'bg-amber-400/10 text-amber-300' : 'bg-amber-50 text-amber-700' },
-                                    { value: 'OUT', label: 'Chiqim',   activeCls: isDark ? 'bg-amber-400/10 text-amber-300' : 'bg-amber-50 text-amber-700' },
-                                ].map(({ value, label, activeCls }) => (
-                                    <button key={value} type="button"
-                                        onClick={() => { setActionFilter(value); setPage(0); }}
-                                        className={`h-[42px] px-3.5 text-sm font-semibold transition-colors ${
-                                            actionFilter === value
-                                                ? activeCls
-                                                : isDark ? 'bg-slate-800/80 text-slate-400 hover:text-slate-200' : 'bg-white text-slate-500 hover:text-slate-700'
-                                        }`}>
-                                        {label}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        <div>
-                            <label className={`mb-1.5 block text-xs font-semibold ${muted}`}>Birlik</label>
-                            <div className={`inline-flex rounded-xl border overflow-hidden ${isDark ? 'border-slate-700' : 'border-slate-200'}`}>
-                                {UNITS.map((u) => (
-                                    <button key={u} type="button" onClick={() => { setUnit(u); setPage(0); }}
-                                        className={`h-[42px] px-3 text-xs font-bold transition-colors ${
-                                            unit === u
-                                                ? isDark ? 'bg-amber-400/10 text-amber-300' : 'bg-amber-50 text-amber-700'
-                                                : isDark ? 'bg-slate-800/80 text-slate-400 hover:text-slate-200' : 'bg-white text-slate-500 hover:text-slate-700'
-                                        }`}>
-                                        {u}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        {hasFilters && (
-                            <button type="button" onClick={resetFilters}
-                                className={`flex h-[42px] items-center gap-1.5 rounded-xl border px-3 text-sm font-medium transition-colors ${isDark ? 'border-slate-700 bg-slate-800/80 text-slate-400 hover:text-rose-400' : 'border-slate-200 text-slate-500 hover:text-rose-500 hover:bg-rose-50'}`}>
-                                <LuX size={13} /> Tozalash
-                            </button>
-                        )}
                     </div>
                 </div>
             </div>
@@ -156,8 +178,8 @@ export default function RawStaffHistory() {
                 {isFetching ? (
                     <div className={`flex flex-col items-center gap-3 py-20 ${muted}`}>
                         <svg className="h-7 w-7 animate-spin text-amber-400" viewBox="0 0 24 24" fill="none">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                         </svg>
                         <span className="text-sm">Yuklanmoqda...</span>
                     </div>
@@ -166,15 +188,14 @@ export default function RawStaffHistory() {
                         <LuPackage size={36} strokeWidth={1.5} />
                         <p className="text-sm font-medium">Ma&apos;lumot topilmadi</p>
                         {hasFilters && (
-                            <button type="button" onClick={resetFilters}
-                                className="text-xs font-semibold text-amber-500 hover:text-amber-600 mt-1">
+                            <button type="button" onClick={resetFilters} className="text-xs font-semibold text-amber-500 hover:text-amber-600 mt-1">
                                 Filtrlarni tozalash
                             </button>
                         )}
                     </div>
                 ) : (
                     <>
-                        {/* Desktop */}
+                        {/* Desktop jadval */}
                         <div className="hidden md:block overflow-x-auto">
                             <table className="w-full text-sm">
                                 <thead>
@@ -185,6 +206,7 @@ export default function RawStaffHistory() {
                                         <th className="px-5 py-3 hidden lg:table-cell">Izoh</th>
                                         <th className="px-5 py-3 text-right">Miqdor</th>
                                         <th className="px-5 py-3">Sana</th>
+                                        <th className="px-5 py-3 text-center">Batafsil</th>
                                     </tr>
                                 </thead>
                                 <tbody className={`divide-y ${divider}`}>
@@ -198,14 +220,22 @@ export default function RawStaffHistory() {
                                                 </span>
                                             </td>
                                             <td className={`px-5 py-3.5 font-semibold ${head}`}>{t.rawMaterialName}</td>
-                                            <td className={`px-5 py-3.5 text-x hidden lg:table-cell ${muted}`}>{t.rawMaterialSummary || '—'}</td>
+                                            <td className={`px-5 py-3.5 text-xs hidden lg:table-cell ${muted}`}>{t.rawMaterialSummary || '—'}</td>
                                             <td className="px-5 py-3.5 text-right">
                                                 <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${t.action === 'IN' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
-                                                    {t.action === 'IN' ? '+' : '-'}{typeof t.quantity === 'number' ? t.quantity.toLocaleString('uz-UZ', { maximumFractionDigits: 3 }) : t.quantity} {t.unit || unit}
+                                                    {t.action === 'IN' ? '+' : '-'}
+                                                    {typeof t.quantity === 'number' ? t.quantity.toLocaleString('uz-UZ', { maximumFractionDigits: 3 }) : t.quantity} {t.unit || unit}
                                                 </span>
                                             </td>
-                                            <td className={`px-5 py-3.5 text-x ${muted}`}>
+                                            <td className={`px-5 py-3.5 text-xs ${muted}`}>
                                                 {t.createdAt ? new Date(t.createdAt).toLocaleString('uz-UZ') : '—'}
+                                            </td>
+                                            <td className="px-5 py-3.5 text-center">
+                                                <button type="button" onClick={() => goToDetail(t)}
+                                                    className={`flex h-8 w-8 items-center justify-center rounded-lg mx-auto transition-colors ${isDark ? 'text-slate-500 hover:bg-slate-700/60 hover:text-amber-400' : 'text-slate-400 hover:bg-amber-50 hover:text-amber-500'}`}
+                                                    title="Batafsil">
+                                                    <LuEye size={15} />
+                                                </button>
                                             </td>
                                         </tr>
                                     ))}
@@ -213,10 +243,11 @@ export default function RawStaffHistory() {
                             </table>
                         </div>
 
-                        {/* Mobile */}
+                        {/* Mobile kartochkalar */}
                         <div className={`flex flex-col divide-y md:hidden ${divider}`}>
                             {filtered.map((t) => (
-                                <div key={t.id} className={`flex items-center justify-between gap-3 px-4 py-3.5 transition-colors ${rowHov}`}>
+                                <button key={t.id} type="button" onClick={() => goToDetail(t)}
+                                    className={`flex items-center justify-between gap-3 px-4 py-3.5 w-full text-left transition-colors ${rowHov}`}>
                                     <div className="flex items-center gap-3 min-w-0">
                                         <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${t.action === 'IN' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
                                             {t.action === 'IN' ? <LuLogIn size={16} /> : <LuLogOut size={16} />}
@@ -226,15 +257,20 @@ export default function RawStaffHistory() {
                                             <p className={`text-xs ${muted}`}>{t.createdAt ? new Date(t.createdAt).toLocaleString('uz-UZ') : '—'}</p>
                                         </div>
                                     </div>
-                                    <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${t.action === 'IN' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
-                                        {t.action === 'IN' ? '+' : '-'}{typeof t.quantity === 'number' ? t.quantity.toLocaleString('uz-UZ', { maximumFractionDigits: 3 }) : t.quantity} {t.unit || unit}
-                                    </span>
-                                </div>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                        <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${t.action === 'IN' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
+                                            {t.action === 'IN' ? '+' : '-'}
+                                            {typeof t.quantity === 'number' ? t.quantity.toLocaleString('uz-UZ', { maximumFractionDigits: 3 }) : t.quantity} {t.unit || unit}
+                                        </span>
+                                        <LuEye size={14} className={muted} />
+                                    </div>
+                                </button>
                             ))}
                         </div>
                     </>
                 )}
 
+                {/* Pagination */}
                 {pagination.totalPages > 1 && (
                     <div className={`flex items-center justify-between gap-3 border-t px-5 py-3.5 ${isDark ? 'border-slate-700/50' : 'border-slate-100'}`}>
                         <p className={`text-xs ${muted}`}>

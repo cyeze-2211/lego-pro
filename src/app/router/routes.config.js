@@ -236,6 +236,11 @@ export const ROUTES = [
         component: lazy(() => import('../../Components/RawStaff/History')),
         roles: RAW_WAREHOUSE_ROLES,
     },
+    {
+        path: '/raw-staff/history/:id',
+        component: lazy(() => import('../../Components/RawStaff/HistoryDetail')),
+        roles: RAW_WAREHOUSE_ROLES,
+    },
 
     // ── Zayavkachi routes ────────────────────────────────────────────────
     {
