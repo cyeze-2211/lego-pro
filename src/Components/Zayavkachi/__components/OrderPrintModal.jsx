@@ -13,13 +13,13 @@ import logo6 from '../../../Images/logocopy/Unified Logo (background).png';
 import logo7 from '../../../Images/logocopy/Ресурс 2300.png';
 
 const LOGOS = [
-    { id: 1, src: logo1, name: 'NovyPlast',   color: '#0D9488', bgColor: '#F0FDFA', textColor: '#134E4A' },  // teal
-    { id: 2, src: logo2, name: 'Ekoplast',     color: '#DC2626', bgColor: '#FEF2F2', textColor: '#7F1D1D' },  // qizil
-    { id: 3, src: logo3, name: 'Lion Plast',   color: '#CA8A04', bgColor: '#FEFCE8', textColor: '#713F12' },  // sariq
-    { id: 4, src: logo4, name: 'LEGO PRO',     color: '#B91C1C', bgColor: '#FEF2F2', textColor: '#450A0A' },  // to'q qizil
-    { id: 5, src: logo5, name: 'MACplast',     color: '#E11D48', bgColor: '#FFF1F2', textColor: '#881337' },  // pushti-qizil
-    { id: 6, src: logo6, name: 'Ekoplast Red', color: '#EF4444', bgColor: '#FEF2F2', textColor: '#7F1D1D' },  // yorqin qizil
-    { id: 7, src: logo7, name: 'Milky Plast',  color: '#1D4ED8', bgColor: '#EFF6FF', textColor: '#1E3A8A' },  // ko'k
+    { id: 1, src: logo1, name: 'Total Plast',    company: 'Total Plast',    color: '#0D9488', bgColor: '#F0FDFA', textColor: '#134E4A' },
+    { id: 2, src: logo2, name: 'Eko Plast',      company: 'Eko Plast',      color: '#DC2626', bgColor: '#FEF2F2', textColor: '#7F1D1D' },
+    { id: 3, src: logo3, name: 'Lion Plast',     company: 'Lion Plast',     color: '#CA8A04', bgColor: '#FEFCE8', textColor: '#713F12' },
+    { id: 4, src: logo4, name: 'LEGO PRO',       company: 'Lego Pro',       color: '#B91C1C', bgColor: '#FEF2F2', textColor: '#450A0A' },
+    { id: 5, src: logo5, name: 'Mega Plast',     company: 'Mega Plast',     color: '#E11D48', bgColor: '#FFF1F2', textColor: '#881337' },
+    { id: 6, src: logo6, name: 'Eko Plast Red',  company: 'Eko Plast',      color: '#EF4444', bgColor: '#FEF2F2', textColor: '#7F1D1D' },
+    { id: 7, src: logo7, name: 'Milliy Plast',   company: 'Milliy Plast',   color: '#1D4ED8', bgColor: '#EFF6FF', textColor: '#1E3A8A' },
 ];
 
 export default function OrderPrintModal({ order, onClose }) {
@@ -103,12 +103,45 @@ export default function OrderPrintModal({ order, onClose }) {
 <div style="width:190mm;margin:0 auto;background:#fff;color:#0f172a;font-family:Arial,Helvetica,sans-serif;font-size:10.5px;line-height:1.45;">
 
   <!-- HEADER -->
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-    <div style="display:flex;align-items:center;gap:10px;">
-      <img src="${logoSrc}" alt="Logo" style="height:52px;width:auto;object-fit:contain;" />
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <img src="${logoSrc}" alt="Logo" style="height:38px;width:auto;object-fit:contain;" />
+      <div>
+        <div style="font-weight:900;font-size:16px;color:#0f172a;letter-spacing:0.5px;">${selectedLogo.company}</div>
+      </div>
     </div>
     <div style="text-align:right;">
       <div style="font-size:36px;font-weight:900;letter-spacing:5px;color:#111827;line-height:1;">INVOICE</div>
+    </div>
+  </div>
+
+  <!-- KOMPANIYA MA'LUMOTLARI -->
+  <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;margin-bottom:10px;">
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:9px;">
+      <div>
+        <div style="color:#64748b;font-weight:600;margin-bottom:2px;">"ZAFAR LUX KREDIT" MCHJ</div>
+        <div style="color:#475569;">📍 Samarqand Shaxar</div>
+      </div>
+      <div>
+        <div style="color:#64748b;font-weight:600;margin-bottom:2px;">Aloqa</div>
+        <div style="color:#475569;">📞 +998 97 907 20 22</div>
+      </div>
+      <div>
+        <div style="color:#64748b;font-weight:600;margin-bottom:2px;">Hisob raqam</div>
+        <div style="color:#475569;font-family:monospace;font-size:8.5px;">2020 8000 2008 5770 2001</div>
+      </div>
+      <div>
+        <div style="color:#64748b;font-weight:600;margin-bottom:2px;">INN</div>
+        <div style="color:#475569;font-family:monospace;">305 406 114</div>
+      </div>
+      <div>
+        <div style="color:#64748b;font-weight:600;margin-bottom:2px;">ОКЭД</div>
+        <div style="color:#475569;font-family:monospace;">47190</div>
+      </div>
+      <div>
+        <div style="color:#64748b;font-weight:600;margin-bottom:2px;">МФО</div>
+        <div style="color:#475569;font-family:monospace;">01133</div>
+      </div>
     </div>
   </div>
 
@@ -120,7 +153,6 @@ export default function OrderPrintModal({ order, onClose }) {
     <div style="flex:1;">
       <div style="font-size:10px;font-weight:700;color:#0f172a;margin-bottom:4px;">Mijoz:</div>
       <div style="font-size:12px;font-weight:700;color:#0f172a;">${order.customerName || '—'}</div>
-      ${order.createdBy ? `<div style="font-size:9.5px;color:#6b7280;margin-top:2px;">Mas'ul: ${order.createdBy}</div>` : ''}
       ${order.summary ? `<div style="font-size:9.5px;color:#4b5563;margin-top:3px;line-height:1.5;">${order.summary}</div>` : ''}
     </div>
     <div style="min-width:190px;">
@@ -179,7 +211,6 @@ export default function OrderPrintModal({ order, onClose }) {
       <div style="font-size:10.5px;font-weight:700;color:#0f172a;margin-bottom:5px;">To'lov ma'lumotlari:</div>
       <div style="font-size:9.5px;color:#374151;line-height:1.7;">
         <div>Mijoz: <strong>${order.customerName || '—'}</strong></div>
-        <div>Mas'ul: <strong>${order.createdBy || '—'}</strong></div>
         <div>Sana: <strong>${fmtDateTime(order.createdAt)}</strong></div>
         ${order.summary ? `<div>Izoh: ${order.summary}</div>` : ''}
       </div>
@@ -273,12 +304,12 @@ export default function OrderPrintModal({ order, onClose }) {
                 {/* Logo selection */}
                 <div className="p-6">
                     <h4 className={`mb-4 text-sm font-bold ${head}`}>Logo tanlang:</h4>
-                    <div className="flex flex-wrap gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                         {LOGOS.map((logo) => (
                             <button
                                 key={logo.id}
                                 onClick={() => setSelectedLogo(logo)}
-                                className={`relative rounded-xl border-2 p-2 transition-all ${
+                                className={`relative flex flex-col items-center gap-2 rounded-xl border-2 p-3 transition-all ${
                                     selectedLogo.id === logo.id
                                         ? 'border-amber-400 bg-amber-400/10 shadow-lg'
                                         : isDark
@@ -289,8 +320,11 @@ export default function OrderPrintModal({ order, onClose }) {
                                 <img
                                     src={logo.src}
                                     alt={logo.name}
-                                    className="h-10 w-24 object-contain"
+                                    className="h-8 w-20 object-contain"
                                 />
+                                <span className={`text-xs font-semibold ${selectedLogo.id === logo.id ? 'text-amber-600' : muted}`}>
+                                    {logo.company}
+                                </span>
                                 {selectedLogo.id === logo.id && (
                                     <div className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-amber-400 text-[10px] font-bold text-[#0F172A]">
                                         ✓
@@ -301,34 +335,44 @@ export default function OrderPrintModal({ order, onClose }) {
                     </div>
 
                     {/* Preview */}
-                    <div className="mt-5">
+                    <div className="mt-6">
                         <h4 className={`mb-3 text-sm font-bold ${head}`}>Dizayn ko'rinishi:</h4>
                         <div
-                            className="rounded-xl p-4"
+                            className="rounded-xl p-5"
                             style={{
                                 backgroundColor: selectedLogo.bgColor,
                                 borderLeft: `4px solid ${selectedLogo.color}`
                             }}
                         >
-                            <div className="flex items-center gap-4">
-                                <img
-                                    src={selectedLogo.src}
-                                    alt="Selected logo"
-                                    className="h-12 w-32 flex-shrink-0 object-contain"
-                                />
-                                <div className={`h-10 w-px`} style={{ backgroundColor: selectedLogo.color + '40' }} />
-                                <div>
+                            <div className="flex items-start gap-4">
+                                <div className="flex items-center gap-3">
+                                    <img
+                                        src={selectedLogo.src}
+                                        alt="Selected logo"
+                                        className="h-10 w-24 flex-shrink-0 object-contain"
+                                    />
+                                    <div>
+                                        <h3
+                                            className="text-base font-black tracking-wide"
+                                            style={{ color: selectedLogo.color }}
+                                        >
+                                            {selectedLogo.company}
+                                        </h3>
+                                    </div>
+                                </div>
+                                <div className={`h-12 w-px mx-2`} style={{ backgroundColor: selectedLogo.color + '40' }} />
+                                <div className="flex-1">
                                     <h3
-                                        className="text-xl font-bold tracking-widest"
+                                        className="text-2xl font-black tracking-[0.3em]"
                                         style={{ color: selectedLogo.color }}
                                     >
                                         INVOICE
                                     </h3>
-                                    <p className="text-sm font-semibold" style={{ color: selectedLogo.textColor }}>
+                                    <p className="text-xs font-semibold mt-1" style={{ color: selectedLogo.textColor }}>
                                         {order.customerName}
                                     </p>
                                 </div>
-                                <div className="ml-auto text-right">
+                                <div className="text-right">
                                     <p className="text-xs" style={{ color: selectedLogo.textColor }}>
                                         {new Date().toLocaleDateString('uz-UZ')}
                                     </p>
