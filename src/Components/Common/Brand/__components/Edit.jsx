@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import PropTypes from 'prop-types';
 import {
     Box,
@@ -11,28 +11,121 @@ import {
     Text,
     VStack,
     useDisclosure,
+    Image,
 } from '@chakra-ui/react';
-import { Check, Tag, X } from 'lucide-react';
+import { Check, Tag, X, Upload, Trash2, Image as ImageIcon } from 'lucide-react';
 import { LuPen } from 'react-icons/lu';
-import { useUpdateBrandMutation } from '../../../../store/services/brand.api';
+import { 
+    useUpdateBrandMutation, 
+    useUploadBrandLogoMutation, 
+    useDeleteBrandLogoMutation 
+} from '../../../../store/services/brand.api';
 import { Alert } from '../../../Other/UI/Alert/Alert';
 import { useAppTheme } from '../../../../theme/tokens';
 import FormControl from '../../../ui/FormControl';
+import $api from '../../../../store/api';
 
 export default function Edit({ brand }) {
     const { open, onOpen, onClose } = useDisclosure();
     const [name, setName] = useState(brand.name || '');
+    const [selectedFile, setSelectedFile] = useState(null);
+    const [previewUrl, setPreviewUrl] = useState(null);
+    const [currentLogoUrl, setCurrentLogoUrl] = useState(null);
+    const fileInputRef = useRef(null);
+    
     const [updateBrand, { isLoading }] = useUpdateBrandMutation();
+    const [uploadLogo, { isLoading: isUploading }] = useUploadBrandLogoMutation();
+    const [deleteLogo, { isLoading: isDeleting }] = useDeleteBrandLogoMutation();
+    
     const { isDark, accentColor, cardBg, cardBorder, textColor, subtitleColor } = useAppTheme();
     const modalBorder = isDark ? cardBorder : '#94A3B8';
 
+    // Load current logo via axios (with token)
+    useEffect(() => {
+        if (!open || !brand.logoUrl) {
+            setCurrentLogoUrl(null);
+            return;
+        }
+
+        let mounted = true;
+        
+        $api.get(brand.logoUrl.replace('/api/v1', ''), { responseType: 'blob' })
+            .then((response) => {
+                if (mounted) {
+                    const url = URL.createObjectURL(response.data);
+                    setCurrentLogoUrl(url);
+                }
+            })
+            .catch((err) => {
+                console.error('Failed to load current logo:', err);
+            });
+
+        return () => {
+            mounted = false;
+            if (currentLogoUrl) URL.revokeObjectURL(currentLogoUrl);
+        };
+    }, [open, brand.logoUrl, brand.id]);
+
     // Modal ochilganda formani brand ma'lumotlari bilan sinxronlash
     useEffect(() => {
-        if (open) setName(brand.name || '');
+        if (open) {
+            setName(brand.name || '');
+            setSelectedFile(null);
+            setPreviewUrl(null);
+        }
     }, [open, brand]);
 
+    const handleFileSelect = (event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        // File type check
+        if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+            Alert('Faqat PNG, JPEG yoki WEBP formatdagi rasmlar', 'error');
+            return;
+        }
+
+        // File size check (5MB)
+        if (file.size > 5 * 1024 * 1024) {
+            Alert('Fayl hajmi 5 MB dan oshmasligi kerak', 'error');
+            return;
+        }
+
+        setSelectedFile(file);
+        
+        // Create preview
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setPreviewUrl(reader.result);
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const handleUploadLogo = async () => {
+        if (!selectedFile) return;
+
+        try {
+            await uploadLogo({ id: brand.id, file: selectedFile }).unwrap();
+            Alert('Logo yuklandi', 'success');
+            setSelectedFile(null);
+            setPreviewUrl(null);
+        } catch (error) {
+            Alert(error?.data?.message || 'Logo yuklanmadi', 'error');
+            throw error;
+        }
+    };
+
+    const handleDeleteLogo = async () => {
+        try {
+            await deleteLogo(brand.id).unwrap();
+            Alert('Logo o\'chirildi', 'success');
+        } catch (error) {
+            Alert(error?.data?.message || 'Logo o\'chirilmadi', 'error');
+        }
+    };
+
     const handleSubmit = async () => {
-        if (isLoading) return;
+        if (isLoading || isUploading) return;
 
         const trimmed = name.trim();
         if (!trimmed) {
@@ -43,16 +136,21 @@ export default function Edit({ brand }) {
             Alert('Brend nomi 255 belgidan oshmasligi kerak', 'error');
             return;
         }
-        if (trimmed === brand.name) {
-            onClose();
-            return;
-        }
 
         try {
-            await updateBrand({
-                id: brand.id,
-                data: { name: trimmed },
-            }).unwrap();
+            // 1. Update name if changed
+            if (trimmed !== brand.name) {
+                await updateBrand({
+                    id: brand.id,
+                    data: { name: trimmed },
+                }).unwrap();
+            }
+
+            // 2. Upload logo if selected
+            if (selectedFile) {
+                await handleUploadLogo();
+            }
+
             Alert('Brend yangilandi', 'success');
             onClose();
         } catch (error) {
@@ -97,7 +195,7 @@ export default function Edit({ brand }) {
                             borderRadius="2xl"
                             boxShadow="2xl"
                             overflow="hidden"
-                            maxW="480px"
+                            maxW="520px"
                             w="calc(100% - 32px)"
                         >
                             <Box
@@ -123,9 +221,7 @@ export default function Edit({ brand }) {
                                         p={3}
                                         borderRadius="xl"
                                         bg={isDark ? 'rgba(250, 204, 21, 0.1)' : '#FEFCE8'}
-                                        borderColor={
-                                            isDark ? 'rgba(250, 204, 21, 0.2)' : '#FDE68A'
-                                        }
+                                        borderColor={isDark ? 'rgba(250, 204, 21, 0.2)' : '#FDE68A'}
                                         borderWidth="1px"
                                         color={accentColor}
                                     >
@@ -133,11 +229,7 @@ export default function Edit({ brand }) {
                                     </Box>
                                     <VStack align="start" gap={0}>
                                         <span>Brendni tahrirlash</span>
-                                        <Box
-                                            fontSize="sm"
-                                            fontWeight="normal"
-                                            color={subtitleColor}
-                                        >
+                                        <Box fontSize="sm" fontWeight="normal" color={subtitleColor}>
                                             {brand.name}
                                         </Box>
                                     </VStack>
@@ -158,8 +250,9 @@ export default function Edit({ brand }) {
                                 </Button>
                             </Dialog.CloseTrigger>
 
-                            <Dialog.Body py={6}>
-                                <VStack gap={5} align="stretch">
+                            <Dialog.Body py={6} px={6}>
+                                <VStack gap={5} align="stretch" w="full">
+                                    {/* Brend nomi */}
                                     <Field.Root required>
                                         <Field.Label color={textColor} fontWeight="medium">
                                             <HStack gap={2}>
@@ -176,7 +269,7 @@ export default function Edit({ brand }) {
                                             size="lg"
                                             minH="52px"
                                             maxLength={255}
-                                            disabled={isLoading}
+                                            disabled={isLoading || isUploading}
                                             onKeyDown={(e) => {
                                                 if (e.key === 'Enter') handleSubmit();
                                             }}
@@ -186,19 +279,96 @@ export default function Edit({ brand }) {
                                         </Field.HelperText>
                                     </Field.Root>
 
-                                    <Text fontSize="sm" color={subtitleColor}>
-                                        Logotip bu yerda o‘zgarmaydi — u alohida boshqariladi.
-                                    </Text>
+                                    {/* Logo section */}
+                                    <Field.Root w="full">
+                                        <Field.Label color={textColor} fontWeight="medium">
+                                            <HStack gap={2}>
+                                                <ImageIcon size={16} />
+                                                <span>Logo</span>
+                                            </HStack>
+                                        </Field.Label>
+                                        
+                                        <VStack gap={3} align="stretch" w="full">
+                                            {/* Current or preview logo */}
+                                            <Box
+                                                w="full"
+                                                borderWidth="1px"
+                                                borderColor={cardBorder}
+                                                borderRadius="xl"
+                                                p={8}
+                                                bg={isDark ? 'rgba(148,163,184,0.06)' : 'gray.50'}
+                                                display="flex"
+                                                alignItems="center"
+                                                justifyContent="center"
+                                                minH="240px"
+                                            >
+                                                {previewUrl ? (
+                                                    <Image src={previewUrl} alt="Preview" maxH="200px" maxW="100%" objectFit="contain" />
+                                                ) : currentLogoUrl ? (
+                                                    <img 
+                                                        src={currentLogoUrl} 
+                                                        alt="Current logo" 
+                                                        style={{ maxHeight: '200px', maxWidth: '100%', objectFit: 'contain' }}
+                                                    />
+                                                ) : (
+                                                    <Box color={subtitleColor} textAlign="center">
+                                                        <ImageIcon size={56} />
+                                                        <Text fontSize="sm" mt={3}>Logo yuklanmagan</Text>
+                                                    </Box>
+                                                )}
+                                            </Box>
+
+                                            {/* Upload button */}
+                                            <input
+                                                ref={fileInputRef}
+                                                type="file"
+                                                accept="image/png,image/jpeg,image/webp"
+                                                onChange={handleFileSelect}
+                                                style={{ display: 'none' }}
+                                            />
+                                            
+                                            <HStack gap={2}>
+                                                <Button
+                                                    onClick={() => fileInputRef.current?.click()}
+                                                    variant="outline"
+                                                    size="sm"
+                                                    flex="1"
+                                                    disabled={isLoading || isUploading || isDeleting}
+                                                >
+                                                    <HStack gap={2}>
+                                                        <Upload size={16} />
+                                                        <span>{selectedFile ? 'Boshqa rasm' : 'Yuklash'}</span>
+                                                    </HStack>
+                                                </Button>
+                                                
+                                                {(currentLogoUrl || previewUrl) && (
+                                                    <Button
+                                                        onClick={previewUrl ? () => { setSelectedFile(null); setPreviewUrl(null); } : handleDeleteLogo}
+                                                        variant="outline"
+                                                        size="sm"
+                                                        colorPalette="red"
+                                                        disabled={isLoading || isUploading || isDeleting}
+                                                    >
+                                                        {isDeleting ? <Spinner size="sm" /> : <Trash2 size={16} />}
+                                                    </Button>
+                                                )}
+                                            </HStack>
+
+                                            {selectedFile && (
+                                                <Text fontSize="xs" color={subtitleColor}>
+                                                    Tanlangan: {selectedFile.name} ({(selectedFile.size / 1024).toFixed(1)} KB)
+                                                </Text>
+                                            )}
+                                        </VStack>
+                                        
+                                        <Field.HelperText color={subtitleColor}>
+                                            PNG, JPEG yoki WEBP, maksimal 5 MB
+                                        </Field.HelperText>
+                                    </Field.Root>
                                 </VStack>
                             </Dialog.Body>
 
-                            <Dialog.Footer
-                                gap={3}
-                                pt={5}
-                                pb={6}
-                                borderTopWidth="1px"
-                                borderColor={modalBorder}
-                            >
+                            <Dialog.Footer gap={3} pt={5} pb={6} borderTopWidth="1px" borderColor={modalBorder}>
                                 <Button
                                     variant="ghost"
                                     onClick={onClose}
@@ -213,13 +383,13 @@ export default function Edit({ brand }) {
                                     size="lg"
                                     px={6}
                                     borderRadius="xl"
-                                    disabled={isLoading}
+                                    disabled={isLoading || isUploading}
                                 >
                                     Bekor qilish
                                 </Button>
                                 <Button
                                     onClick={handleSubmit}
-                                    disabled={isLoading || !name.trim()}
+                                    disabled={isLoading || isUploading || !name.trim()}
                                     bg={accentColor}
                                     color="black"
                                     size="lg"
@@ -238,7 +408,7 @@ export default function Edit({ brand }) {
                                         transform: 'none',
                                     }}
                                 >
-                                    {isLoading ? (
+                                    {isLoading || isUploading ? (
                                         <HStack gap={2}>
                                             <Spinner size="sm" color="black" />
                                             <span>Saqlanmoqda...</span>
@@ -263,5 +433,6 @@ Edit.propTypes = {
     brand: PropTypes.shape({
         id: PropTypes.string.isRequired,
         name: PropTypes.string,
+        logoUrl: PropTypes.string,
     }).isRequired,
 };

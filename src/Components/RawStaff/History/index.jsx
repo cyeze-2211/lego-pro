@@ -3,9 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import {
     LuHistory, LuSearch, LuChevronLeft, LuChevronRight,
     LuLogIn, LuLogOut, LuX, LuPackage, LuWarehouse, LuCalendar, LuEye,
+    LuTrendingUp, LuTrendingDown,
 } from 'react-icons/lu';
 import { useAppTheme } from '../../../theme/tokens';
-import { useGetRawMaterialTransactionsQuery } from '../../../store/services/rawMaterialStock.api';
+import { 
+    useGetRawMaterialTransactionsQuery,
+    useGetRawMaterialTransactionsSummaryQuery,
+} from '../../../store/services/rawMaterialStock.api';
 import { useGetWarehousesQuery } from '../../../store/services/warehouse.api';
 
 const PAGE_SIZE = 20;
@@ -32,6 +36,20 @@ export default function RawStaffHistory() {
         page,
         size: PAGE_SIZE,
     });
+
+    // Summary query
+    const { data: summaryData = [] } = useGetRawMaterialTransactionsSummaryQuery(
+        {
+            warehouseId: warehouseFilter,
+            action: actionFilter,
+            fromDateTime: dateFrom ? `${dateFrom}T00:00:00` : undefined,
+            toDateTime: dateTo ? `${dateTo}T23:59:59` : undefined,
+            unit,
+        },
+        { skip: !warehouseFilter || !actionFilter }
+    );
+
+    const totalQuantity = summaryData.reduce((sum, item) => sum + (item.quantity || 0), 0);
 
     const transactions = data?.data ?? [];
     const pagination = data?.pagination ?? {};
@@ -172,6 +190,57 @@ export default function RawStaffHistory() {
                     </div>
                 </div>
             </div>
+
+            {/* Summary Cards */}
+            {warehouseFilter && actionFilter && summaryData.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* Jami */}
+                    <div className={`rounded-2xl border p-4 shadow-md ${panel}`}>
+                        <div className="flex items-center gap-3">
+                            <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${actionFilter === 'IN' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
+                                {actionFilter === 'IN' ? <LuTrendingUp size={20} /> : <LuTrendingDown size={20} />}
+                            </span>
+                            <div>
+                                <p className={`text-xs font-semibold ${muted}`}>Jami {actionFilter === 'IN' ? 'Kirim' : 'Chiqim'}</p>
+                                <p className={`text-2xl font-black ${head}`}>
+                                    {totalQuantity.toLocaleString('uz-UZ', { maximumFractionDigits: 2 })} {unit}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Xom ashyolar soni */}
+                    <div className={`rounded-2xl border p-4 shadow-md ${panel}`}>
+                        <div className="flex items-center gap-3">
+                            <span className={`flex h-10 w-10 items-center justify-center rounded-xl bg-amber-400/10 text-amber-500`}>
+                                <LuPackage size={20} />
+                            </span>
+                            <div>
+                                <p className={`text-xs font-semibold ${muted}`}>Xom ashyolar</p>
+                                <p className={`text-2xl font-black ${head}`}>{summaryData.length} ta</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Eng ko'p */}
+                    <div className={`rounded-2xl border p-4 shadow-md ${panel}`}>
+                        <div className="flex items-center gap-3">
+                            <span className={`flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/10 text-blue-500`}>
+                                <LuHistory size={20} />
+                            </span>
+                            <div className="min-w-0 flex-1">
+                                <p className={`text-xs font-semibold ${muted}`}>Eng ko'p</p>
+                                <p className={`text-sm font-bold ${head} truncate`}>
+                                    {summaryData[0]?.rawMaterialName || '—'}
+                                </p>
+                                <p className={`text-xs ${muted}`}>
+                                    {(summaryData[0]?.quantity || 0).toLocaleString('uz-UZ', { maximumFractionDigits: 2 })} {unit}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Table */}
             <div className={`rounded-2xl border shadow-md overflow-hidden ${panel}`}>

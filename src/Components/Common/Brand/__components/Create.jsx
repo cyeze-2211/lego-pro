@@ -247,8 +247,8 @@ export default function Create({ onCreated }) {
                                 </Button>
                             </Dialog.CloseTrigger>
 
-                            <Dialog.Body py={6}>
-                                <VStack gap={6} align="stretch">
+                            <Dialog.Body py={6} px={6}>
+                                <VStack gap={6} align="stretch" w="full">
                                     {/* Brend nomi */}
                                     <Field.Root required>
                                         <Field.Label color={textColor} fontWeight="medium">
@@ -277,7 +277,7 @@ export default function Create({ onCreated }) {
                                     </Field.Root>
 
                                     {/* Logotip yuklash */}
-                                    <Field.Root>
+                                    <Field.Root w="full">
                                         <Field.Label color={textColor} fontWeight="medium">
                                             <HStack gap={2}>
                                                 <ImageIcon size={16} />
@@ -313,8 +313,8 @@ export default function Create({ onCreated }) {
                                             >
                                                 <HStack gap={4} align="center">
                                                     <Box
-                                                        w="72px"
-                                                        h="72px"
+                                                        w="120px"
+                                                        h="120px"
                                                         borderRadius="xl"
                                                         overflow="hidden"
                                                         bg="white"
@@ -414,8 +414,8 @@ export default function Create({ onCreated }) {
                                                         ? 'rgba(148,163,184,0.04)'
                                                         : 'gray.50'
                                                 }
-                                                py={6}
-                                                px={4}
+                                                py={8}
+                                                px={6}
                                                 transition="all 0.2s"
                                                 _hover={{
                                                     borderColor: accentColor,
@@ -427,7 +427,7 @@ export default function Create({ onCreated }) {
                                             >
                                                 <VStack gap={2}>
                                                     <Box
-                                                        p={3}
+                                                        p={4}
                                                         borderRadius="full"
                                                         bg={
                                                             isDragging
@@ -451,7 +451,7 @@ export default function Create({ onCreated }) {
                                                         }
                                                         transition="all 0.2s"
                                                     >
-                                                        <Upload size={20} />
+                                                        <Upload size={28} />
                                                     </Box>
                                                     <VStack gap={0.5}>
                                                         <Text

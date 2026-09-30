@@ -9,15 +9,17 @@ export const rawMaterialStockApi = createApi({
 
         // GET /api/v1/raw-material-stocks — joriy qoldiqlar
         getRawMaterialStocks: builder.query({
-            query: ({ rawMaterialId, warehouseId, unit = 'KG', page = 0, size = 20 } = {}) => ({
+            query: ({ rawMaterialId, warehouseId, lowStock, unit = 'KG', page = 0, size = 20, sort } = {}) => ({
                 url: '/raw-material-stocks',
                 method: 'GET',
                 params: {
                     ...(rawMaterialId ? { rawMaterialId } : {}),
                     ...(warehouseId   ? { warehouseId }   : {}),
+                    ...(lowStock === true ? { lowStock: true } : {}),
                     unit,
                     page,
                     size,
+                    ...(sort ? { sort } : {}),
                 },
             }),
             transformResponse: (response) => ({
@@ -46,6 +48,23 @@ export const rawMaterialStockApi = createApi({
             providesTags: [{ type: 'RawMaterialTransaction', id: 'LIST' }],
         }),
 
+        // GET /api/v1/raw-material-stock-transactions/summary — yig'indi
+        getRawMaterialTransactionsSummary: builder.query({
+            query: ({ warehouseId, action, fromDateTime, toDateTime, unit = 'KG' } = {}) => ({
+                url: '/raw-material-stock-transactions/summary',
+                method: 'GET',
+                params: {
+                    warehouseId,
+                    action,
+                    ...(fromDateTime ? { fromDateTime } : {}),
+                    ...(toDateTime   ? { toDateTime }   : {}),
+                    unit,
+                },
+            }),
+            transformResponse: (response) => response.data ?? [],
+            providesTags: [{ type: 'RawMaterialTransaction', id: 'SUMMARY' }],
+        }),
+
         // POST /api/v1/raw-material-stock-transactions — kirim yoki chiqim
         createRawMaterialTransaction: builder.mutation({
             query: (data) => ({
@@ -64,5 +83,6 @@ export const rawMaterialStockApi = createApi({
 export const {
     useGetRawMaterialStocksQuery,
     useGetRawMaterialTransactionsQuery,
+    useGetRawMaterialTransactionsSummaryQuery,
     useCreateRawMaterialTransactionMutation,
 } = rawMaterialStockApi;

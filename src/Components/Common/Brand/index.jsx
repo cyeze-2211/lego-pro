@@ -6,7 +6,6 @@ import {
     Heading,
     Table,
     Text,
-    Image,
     VStack,
 } from '@chakra-ui/react';
 import {
@@ -17,7 +16,6 @@ import {
     LuX,
     LuImage,
     LuCalendar,
-    LuClock,
 } from 'react-icons/lu';
 import { useGetBrandsQuery } from '../../../store/services/brand.api';
 import { BRAND_COLORS, useAppTheme } from '../../../theme/tokens';
@@ -28,6 +26,7 @@ import EmptyData from '../../Other/UI/NoData/EmptyData';
 import FormControl from '../../ui/FormControl';
 import Delete from './__components/Delete';
 import Edit from './__components/Edit';
+import $api from '../../../store/api';
 
 const PAGE_SIZE = 12;
 
@@ -47,7 +46,44 @@ const formatDate = (value) => {
 };
 
 // ── Logo thumbnail ────────────────────────────────────────────────────────
-function BrandLogo({ brandId, hasLogo, isDark, size = 44 }) {
+function BrandLogo({ brand, isDark, size = 44 }) {
+    const [imgSrc, setImgSrc] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(false);
+
+    useEffect(() => {
+        if (!brand.logoUrl) {
+            setImgSrc(null);
+            return;
+        }
+
+        let mounted = true;
+        setLoading(true);
+        setError(false);
+
+        // Axios bilan blob yuklab olish (token bilan)
+        $api.get(brand.logoUrl.replace('/api/v1', ''), { responseType: 'blob' })
+            .then((response) => {
+                if (mounted) {
+                    const url = URL.createObjectURL(response.data);
+                    setImgSrc(url);
+                    setLoading(false);
+                }
+            })
+            .catch((err) => {
+                if (mounted) {
+                    console.error('Logo load error:', err);
+                    setError(true);
+                    setLoading(false);
+                }
+            });
+
+        return () => {
+            mounted = false;
+            if (imgSrc) URL.revokeObjectURL(imgSrc);
+        };
+    }, [brand.logoUrl, brand.id]);
+
     const boxProps = {
         w: `${size}px`,
         h: `${size}px`,
@@ -63,7 +99,7 @@ function BrandLogo({ brandId, hasLogo, isDark, size = 44 }) {
         flexShrink: 0,
     };
 
-    if (!hasLogo) {
+    if (!brand.logoUrl || error) {
         return (
             <Box {...boxProps} color={isDark ? 'whiteAlpha.500' : 'gray.400'}>
                 <LuImage size={18} />
@@ -71,22 +107,31 @@ function BrandLogo({ brandId, hasLogo, isDark, size = 44 }) {
         );
     }
 
-    const logoUrl = `${import.meta.env.VITE_API_URL || ''}/api/v1/brands/${brandId}/logo`;
+    if (loading) {
+        return (
+            <Box {...boxProps} color={isDark ? 'whiteAlpha.500' : 'gray.400'}>
+                <div className="animate-spin">⏳</div>
+            </Box>
+        );
+    }
 
     return (
         <Box {...boxProps} bg="white" p={0.5}>
-            <Image
-                src={logoUrl}
-                alt="logo"
-                objectFit="contain"
-                w="100%"
-                h="100%"
-                fallback={
-                    <Box color={isDark ? 'whiteAlpha.500' : 'gray.400'}>
-                        <LuImage size={18} />
-                    </Box>
-                }
-            />
+            {imgSrc ? (
+                <img
+                    src={imgSrc}
+                    alt={brand.name}
+                    style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'contain',
+                    }}
+                />
+            ) : (
+                <Box color={isDark ? 'whiteAlpha.500' : 'gray.400'}>
+                    <LuImage size={18} />
+                </Box>
+            )}
         </Box>
     );
 }
@@ -319,11 +364,7 @@ export default function Brand() {
                                         {/* Logo */}
                                         <Table.Cell {...cellBorder}>
                                             <Box display="flex" justifyContent="center">
-                                                <BrandLogo
-                                                    brandId={brand.id}
-                                                    hasLogo={!!brand.logoUrl}
-                                                    isDark={isDark}
-                                                />
+                                                <BrandLogo brand={brand} isDark={isDark} />
                                             </Box>
                                         </Table.Cell>
 

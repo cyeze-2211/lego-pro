@@ -24,6 +24,7 @@ import {
     useStartMachineProductionMutation,
     useStopMachineProductionMutation,
     useUpdateMachineStatusMutation,
+    useGetMachineOutputsSummaryQuery,
 } from '../../../store/services/machine.api';
 import { useGetProductsQuery } from '../../../store/services/product.api';
 import {
@@ -86,6 +87,21 @@ export default function StanokchiMachineDetail() {
     const historyItems = historyResult?.items ?? [];
     const historyPagination = historyResult?.pagination;
     const historyTotalPages = historyPagination?.totalPages || 0;
+
+    /* ── Summary (sana filtri bilan) ── */
+    const [summaryDateFrom, setSummaryDateFrom] = useState('');
+    const [summaryDateTo, setSummaryDateTo] = useState('');
+    const [summaryStatus, setSummaryStatus] = useState(''); // '' | 'WORKING' | 'DEFECT'
+
+    const { data: summary, isLoading: summaryLoading } = useGetMachineOutputsSummaryQuery(
+        {
+            machineId: id,
+            ...(summaryDateFrom && { fromDateTime: `${summaryDateFrom}T00:00:00` }),
+            ...(summaryDateTo && { toDateTime: `${summaryDateTo}T23:59:59` }),
+            ...(summaryStatus && { status: summaryStatus }),
+        },
+        { skip: !id }
+    );
 
     /* ── Mutations ── */
     const [startProduction, { isLoading: starting }] = useStartMachineProductionMutation();
@@ -720,6 +736,150 @@ export default function StanokchiMachineDetail() {
                         </>
                     )}
                 </div>
+            </div>
+
+            {/* ══════════════════════════════════════
+                SUMMARY TABLE (hisobot)
+            ══════════════════════════════════════ */}
+            <div className="rounded-2xl border overflow-hidden mt-6"
+                style={{
+                    background: cardBg, borderColor: cardBorder,
+                    boxShadow: isDark ? '0 4px 20px rgba(0,0,0,0.25)' : '0 4px 16px rgba(15,23,42,0.07)',
+                }}>
+                
+                {/* Header */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 px-5 py-4 border-b"
+                    style={{ borderColor: cardBorder }}>
+                    <h2 className="font-bold text-base" style={{ color: textColor }}>
+                        Ishlab chiqarish hisoboti
+                    </h2>
+
+                    {/* Filters */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <input
+                            type="date"
+                            value={summaryDateFrom}
+                            onChange={(e) => setSummaryDateFrom(e.target.value)}
+                            placeholder="Sanadan"
+                            className="px-3 py-1.5 rounded-lg border text-xs"
+                            style={{
+                                background: isDark ? BRAND_COLORS.darkInputBg : BRAND_COLORS.lightInputBg,
+                                borderColor: cardBorder,
+                                color: textColor,
+                                outline: 'none',
+                            }}
+                        />
+                        <span className="text-xs" style={{ color: subtitleColor }}>—</span>
+                        <input
+                            type="date"
+                            value={summaryDateTo}
+                            onChange={(e) => setSummaryDateTo(e.target.value)}
+                            placeholder="Sanagacha"
+                            className="px-3 py-1.5 rounded-lg border text-xs"
+                            style={{
+                                background: isDark ? BRAND_COLORS.darkInputBg : BRAND_COLORS.lightInputBg,
+                                borderColor: cardBorder,
+                                color: textColor,
+                                outline: 'none',
+                            }}
+                        />
+                        <select
+                            value={summaryStatus}
+                            onChange={(e) => setSummaryStatus(e.target.value)}
+                            className="px-3 py-1.5 rounded-lg border text-xs"
+                            style={{
+                                background: isDark ? BRAND_COLORS.darkInputBg : BRAND_COLORS.lightInputBg,
+                                borderColor: cardBorder,
+                                color: textColor,
+                                outline: 'none',
+                                cursor: 'pointer',
+                            }}
+                        >
+                            <option value="">Hammasi</option>
+                            <option value="WORKING">Butun</option>
+                            <option value="DEFECT">Brak</option>
+                        </select>
+                    </div>
+                </div>
+
+                {/* Summary content */}
+                {summaryLoading ? (
+                    <div className="p-5">
+                        <div className="py-8 text-center" style={{ color: subtitleColor }}>
+                            Yuklanmoqda...
+                        </div>
+                    </div>
+                ) : !summary ? (
+                    <div className="p-5">
+                        <div className="py-8 text-center" style={{ color: subtitleColor }}>
+                            Ma&apos;lumot topilmadi
+                        </div>
+                    </div>
+                ) : (
+                    <div className="p-5">
+                        {/* Summary cards */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+                            {/* Jami miqdor */}
+                            <div className="rounded-xl p-4 border"
+                                style={{
+                                    background: isDark ? 'rgba(34,197,94,0.08)' : '#F0FDF4',
+                                    borderColor: isDark ? 'rgba(34,197,94,0.2)' : '#BBF7D0',
+                                }}>
+                                <p className="text-xs font-medium mb-1" style={{ color: subtitleColor }}>
+                                    Jami ishlab chiqarildi
+                                </p>
+                                <p className="text-2xl font-bold" style={{ color: isDark ? '#86EFAC' : '#166534' }}>
+                                    {summary.totalQuantity || 0} dona
+                                </p>
+                            </div>
+
+                            {/* Ish vaqti */}
+                            <div className="rounded-xl p-4 border"
+                                style={{
+                                    background: isDark ? 'rgba(250,204,21,0.08)' : '#FFFBEB',
+                                    borderColor: isDark ? 'rgba(250,204,21,0.2)' : '#FDE68A',
+                                }}>
+                                <p className="text-xs font-medium mb-1" style={{ color: subtitleColor }}>
+                                    Ish vaqti
+                                </p>
+                                <p className="text-2xl font-bold" style={{ color: isDark ? '#FACC15' : '#78350F' }}>
+                                    {summary.workedDurationSeconds
+                                        ? `${Math.floor(summary.workedDurationSeconds / 3600)}s ${Math.floor((summary.workedDurationSeconds % 3600) / 60)}d`
+                                        : '0s 0d'}
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Info row */}
+                        <div className="flex items-center gap-2 px-3 py-2 rounded-lg"
+                            style={{
+                                background: isDark ? 'rgba(255,255,255,0.03)' : '#F8FAFC',
+                                border: `1px solid ${cardBorder}`,
+                            }}>
+                            <LuCog size={14} style={{ color: accentColor }} />
+                            <span className="text-xs font-medium" style={{ color: textColor }}>
+                                {machine.name}
+                            </span>
+                            {summaryDateFrom && summaryDateTo && (
+                                <>
+                                    <span className="text-xs" style={{ color: subtitleColor }}>•</span>
+                                    <span className="text-xs" style={{ color: subtitleColor }}>
+                                        {summaryDateFrom} dan {summaryDateTo} gacha
+                                    </span>
+                                </>
+                            )}
+                            {summaryStatus && (
+                                <>
+                                    <span className="text-xs" style={{ color: subtitleColor }}>•</span>
+                                    <span className="text-xs font-medium"
+                                        style={{ color: summaryStatus === 'DEFECT' ? '#EF4444' : '#22C55E' }}>
+                                        {summaryStatus === 'DEFECT' ? 'Brak' : 'Butun'}
+                                    </span>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* ══════════════════════════════════════
