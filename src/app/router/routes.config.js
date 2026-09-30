@@ -78,6 +78,16 @@ export const ROUTES = [
         roles: ROLES.MANAGER,
     },
     {
+        path: '/roles',
+        component: lazy(() => import('../../Components/Common/Role')),
+        roles: ROLES.MANAGER,
+    },
+    {
+        path: '/roles/:id',
+        component: lazy(() => import('../../Components/Common/RoleDetail')),
+        roles: ROLES.MANAGER,
+    },
+    {
         path: '/devices',
         component: lazy(() => import('../../Components/Common/Device')),
         roles: ROLES.MANAGER,

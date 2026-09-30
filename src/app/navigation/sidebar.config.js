@@ -2,7 +2,7 @@
 import { ROLES, PRODUCT_WAREHOUSE_ROLES, RAW_WAREHOUSE_ROLES, ZAYAVKACHI_ROLES, BUXGALTER_ROLES, KASSIR_ROLES } from '../permissions/roles';
 import {
     Boxes, ClipboardList, Cog, History, LayoutDashboard, LogIn, LogOut,
-    MonitorCog, Package, ReceiptText, UserRound, Users, Wallet, Warehouse, FileSpreadsheet,
+    MonitorCog, Package, ReceiptText, ShieldCheck, UserRound, Users, Wallet, Warehouse, FileSpreadsheet,
 } from 'lucide-react';
 
 // ── Manager ────────────────────────────────────────────────────────────────
@@ -19,6 +19,7 @@ export const SIDEBAR_CONFIG = [
     { label: 'Xarajatlar',       path: '/expenses',  icon: ReceiptText,     roles: [ROLES.MANAGER] },
     { label: 'Sverka',           path: '/reconciliation', icon: FileSpreadsheet, roles: [ROLES.MANAGER] },
     { label: 'Foydalanuvchilar', path: '/users',     icon: UserRound,       roles: [ROLES.MANAGER] },
+    { label: 'Rollar',           path: '/roles',     icon: ShieldCheck,     roles: [ROLES.MANAGER] },
     { label: 'Qurilmalar',       path: '/devices',   icon: MonitorCog,      roles: [ROLES.MANAGER] },
 ];
 
@@ -26,7 +27,7 @@ export const SIDEBAR_GROUPS = [
     { label: 'Asosiy',           items: SIDEBAR_CONFIG.filter((i) => i.path === '/') },
     { label: 'Ishlab chiqarish', items: SIDEBAR_CONFIG.filter((i) => ['/warehouses', '/products', '/raw', '/recipes', '/machines'].includes(i.path)) },
     { label: 'Moliya',           items: SIDEBAR_CONFIG.filter((i) => ['/cashboxes', '/expenses', '/reconciliation'].includes(i.path)) },
-    { label: 'Userlar',          items: SIDEBAR_CONFIG.filter((i) => ['/customers', '/orders', '/users', '/devices'].includes(i.path)) },
+    { label: 'Userlar',          items: SIDEBAR_CONFIG.filter((i) => ['/customers', '/orders', '/users', '/roles', '/devices'].includes(i.path)) },
 ];
 
 // ── Product Storekeeper ────────────────────────────────────────────────────
