@@ -7,94 +7,95 @@ import {
 
 // ── Manager ────────────────────────────────────────────────────────────────
 export const SIDEBAR_CONFIG = [
-    { label: 'Dashboard',        path: '/',          icon: LayoutDashboard, roles: [ROLES.MANAGER] },
-    { label: 'Buyurtmalar',      path: '/orders',    icon: ClipboardList,   roles: [ROLES.MANAGER] },
-    { label: 'Omborlar',         path: '/warehouses',icon: Warehouse,       roles: [ROLES.MANAGER] },
-    { label: 'Maxsulotlar',      path: '/products',  icon: Package,         roles: [ROLES.MANAGER] },
-    { label: 'Xom ashyo',        path: '/raw',       icon: Package,         roles: [ROLES.MANAGER] },
-    { label: 'Retseptlar',       path: '/recipes',   icon: Boxes,           roles: [ROLES.MANAGER] },
-    { label: 'Stanoklar',        path: '/machines',  icon: Cog,             roles: [ROLES.MANAGER] },
-    { label: 'Mijozlar',         path: '/customers', icon: Users,           roles: [ROLES.MANAGER] },
-    { label: 'Kassalar',         path: '/cashboxes', icon: Wallet,          roles: [ROLES.MANAGER] },
-    { label: 'Xarajatlar',       path: '/expenses',  icon: ReceiptText,     roles: [ROLES.MANAGER] },
-    { label: 'Sverka',           path: '/reconciliation', icon: FileSpreadsheet, roles: [ROLES.MANAGER] },
-    { label: 'Foydalanuvchilar', path: '/users',     icon: UserRound,       roles: [ROLES.MANAGER] },
-    { label: 'Rollar',           path: '/roles',     icon: ShieldCheck,     roles: [ROLES.MANAGER] },
-    { label: 'Qurilmalar',       path: '/devices',   icon: MonitorCog,      roles: [ROLES.MANAGER] },
+    { label: 'Dashboard', path: '/', icon: LayoutDashboard, roles: [ROLES.MANAGER] },
+    { label: 'Buyurtmalar', path: '/orders', icon: ClipboardList, roles: [ROLES.MANAGER] },
+    { label: 'Brendlar', path: '/brand', icon: Boxes, roles: [ROLES.MANAGER] },
+    { label: 'Omborlar', path: '/warehouses', icon: Warehouse, roles: [ROLES.MANAGER] },
+    { label: 'Maxsulotlar', path: '/products', icon: Package, roles: [ROLES.MANAGER] },
+    { label: 'Xom ashyo', path: '/raw', icon: Package, roles: [ROLES.MANAGER] },
+    { label: 'Retseptlar', path: '/recipes', icon: Boxes, roles: [ROLES.MANAGER] },
+    { label: 'Stanoklar', path: '/machines', icon: Cog, roles: [ROLES.MANAGER] },
+    { label: 'Mijozlar', path: '/customers', icon: Users, roles: [ROLES.MANAGER] },
+    { label: 'Kassalar', path: '/cashboxes', icon: Wallet, roles: [ROLES.MANAGER] },
+    { label: 'Xarajatlar', path: '/expenses', icon: ReceiptText, roles: [ROLES.MANAGER] },
+    { label: 'Sverka', path: '/reconciliation', icon: FileSpreadsheet, roles: [ROLES.MANAGER] },
+    { label: 'Foydalanuvchilar', path: '/users', icon: UserRound, roles: [ROLES.MANAGER] },
+    { label: 'Rollar', path: '/roles', icon: ShieldCheck, roles: [ROLES.MANAGER] },
+    { label: 'Qurilmalar', path: '/devices', icon: MonitorCog, roles: [ROLES.MANAGER] },
 ];
 
 export const SIDEBAR_GROUPS = [
-    { label: 'Asosiy',           items: SIDEBAR_CONFIG.filter((i) => i.path === '/') },
-    { label: 'Ishlab chiqarish', items: SIDEBAR_CONFIG.filter((i) => ['/warehouses', '/products', '/raw', '/recipes', '/machines'].includes(i.path)) },
-    { label: 'Moliya',           items: SIDEBAR_CONFIG.filter((i) => ['/cashboxes', '/expenses', '/reconciliation'].includes(i.path)) },
-    { label: 'Userlar',          items: SIDEBAR_CONFIG.filter((i) => ['/customers', '/orders', '/users', '/roles', '/devices'].includes(i.path)) },
+    { label: 'Asosiy', items: SIDEBAR_CONFIG.filter((i) => i.path === '/') },
+    { label: 'Ishlab chiqarish', items: SIDEBAR_CONFIG.filter((i) => ['/warehouses', '/products', '/raw', '/recipes', '/machines', '/brand'].includes(i.path)) },
+    { label: 'Moliya', items: SIDEBAR_CONFIG.filter((i) => ['/cashboxes', '/expenses', '/reconciliation'].includes(i.path)) },
+    { label: 'Userlar', items: SIDEBAR_CONFIG.filter((i) => ['/customers', '/orders', '/users', '/roles', '/devices'].includes(i.path)) },
 ];
 
 // ── Product Storekeeper ────────────────────────────────────────────────────
 export const STAFF_SIDEBAR_CONFIG = [
-    { label: 'Dashboard',   path: '/staff',           icon: LayoutDashboard, roles: PRODUCT_WAREHOUSE_ROLES },
-    { label: 'Buyurtmalar', path: '/staff/orders',    icon: ClipboardList,   roles: PRODUCT_WAREHOUSE_ROLES },
-    { label: 'Kirim',       path: '/staff/income',    icon: LogIn,           roles: PRODUCT_WAREHOUSE_ROLES },
-    { label: 'Ombor',       path: '/staff/warehouse', icon: Warehouse,       roles: PRODUCT_WAREHOUSE_ROLES },
-    { label: 'Tarix',       path: '/staff/history',   icon: History,         roles: PRODUCT_WAREHOUSE_ROLES },
+    { label: 'Dashboard', path: '/staff', icon: LayoutDashboard, roles: PRODUCT_WAREHOUSE_ROLES },
+    { label: 'Buyurtmalar', path: '/staff/orders', icon: ClipboardList, roles: PRODUCT_WAREHOUSE_ROLES },
+    { label: 'Kirim', path: '/staff/income', icon: LogIn, roles: PRODUCT_WAREHOUSE_ROLES },
+    { label: 'Ombor', path: '/staff/warehouse', icon: Warehouse, roles: PRODUCT_WAREHOUSE_ROLES },
+    { label: 'Tarix', path: '/staff/history', icon: History, roles: PRODUCT_WAREHOUSE_ROLES },
 ];
 
 export const STAFF_SIDEBAR_GROUPS = [
-    { label: 'Asosiy',     items: STAFF_SIDEBAR_CONFIG.filter((i) => i.path === '/staff') },
-    { label: 'Buyurtma',   items: STAFF_SIDEBAR_CONFIG.filter((i) => i.path === '/staff/orders') },
-    { label: 'Ombor',      items: STAFF_SIDEBAR_CONFIG.filter((i) => ['/staff/income', '/staff/warehouse', '/staff/history'].includes(i.path)) },
+    { label: 'Asosiy', items: STAFF_SIDEBAR_CONFIG.filter((i) => i.path === '/staff') },
+    { label: 'Buyurtma', items: STAFF_SIDEBAR_CONFIG.filter((i) => i.path === '/staff/orders') },
+    { label: 'Ombor', items: STAFF_SIDEBAR_CONFIG.filter((i) => ['/staff/income', '/staff/warehouse', '/staff/history'].includes(i.path)) },
 ];
 
 // ── Raw Material Storekeeper ───────────────────────────────────────────────
 export const RAW_STAFF_SIDEBAR_CONFIG = [
-    { label: 'Dashboard', path: '/raw-staff',           icon: LayoutDashboard, roles: RAW_WAREHOUSE_ROLES },
-    { label: 'Kirim',     path: '/raw-staff/income',    icon: LogIn,           roles: RAW_WAREHOUSE_ROLES },
-    { label: 'Chiqim',    path: '/raw-staff/outcome',   icon: LogOut,          roles: RAW_WAREHOUSE_ROLES },
-    { label: 'Ombor',     path: '/raw-staff/warehouse', icon: Warehouse,       roles: RAW_WAREHOUSE_ROLES },
-    { label: 'Tarix',     path: '/raw-staff/history',   icon: History,         roles: RAW_WAREHOUSE_ROLES },
+    { label: 'Dashboard', path: '/raw-staff', icon: LayoutDashboard, roles: RAW_WAREHOUSE_ROLES },
+    { label: 'Kirim', path: '/raw-staff/income', icon: LogIn, roles: RAW_WAREHOUSE_ROLES },
+    { label: 'Chiqim', path: '/raw-staff/outcome', icon: LogOut, roles: RAW_WAREHOUSE_ROLES },
+    { label: 'Ombor', path: '/raw-staff/warehouse', icon: Warehouse, roles: RAW_WAREHOUSE_ROLES },
+    { label: 'Tarix', path: '/raw-staff/history', icon: History, roles: RAW_WAREHOUSE_ROLES },
 ];
 
 export const RAW_STAFF_SIDEBAR_GROUPS = [
-    { label: 'Asosiy',    items: RAW_STAFF_SIDEBAR_CONFIG.filter((i) => i.path === '/raw-staff') },
+    { label: 'Asosiy', items: RAW_STAFF_SIDEBAR_CONFIG.filter((i) => i.path === '/raw-staff') },
     { label: 'Xom ashyo', items: RAW_STAFF_SIDEBAR_CONFIG.filter((i) => ['/raw-staff/income', '/raw-staff/outcome', '/raw-staff/warehouse', '/raw-staff/history'].includes(i.path)) },
 ];
 
 // ── Zayavkachi ─────────────────────────────────────────────────────────────
 export const ZAYAVKACHI_SIDEBAR_CONFIG = [
-    { label: 'Dashboard',   path: '/zayavkachi',           icon: LayoutDashboard, roles: ZAYAVKACHI_ROLES },
-    { label: 'Buyurtmalar', path: '/zayavkachi/orders',    icon: ClipboardList,   roles: ZAYAVKACHI_ROLES },
-    { label: 'Mijozlar',    path: '/zayavkachi/customers', icon: Users,           roles: ZAYAVKACHI_ROLES },
+    { label: 'Dashboard', path: '/zayavkachi', icon: LayoutDashboard, roles: ZAYAVKACHI_ROLES },
+    { label: 'Buyurtmalar', path: '/zayavkachi/orders', icon: ClipboardList, roles: ZAYAVKACHI_ROLES },
+    { label: 'Mijozlar', path: '/zayavkachi/customers', icon: Users, roles: ZAYAVKACHI_ROLES },
 ];
 
 export const ZAYAVKACHI_SIDEBAR_GROUPS = [
     { label: 'Asosiy', items: ZAYAVKACHI_SIDEBAR_CONFIG.filter((i) => i.path === '/zayavkachi') },
-    { label: 'Savdo',  items: ZAYAVKACHI_SIDEBAR_CONFIG.filter((i) => ['/zayavkachi/orders', '/zayavkachi/customers'].includes(i.path)) },
+    { label: 'Savdo', items: ZAYAVKACHI_SIDEBAR_CONFIG.filter((i) => ['/zayavkachi/orders', '/zayavkachi/customers'].includes(i.path)) },
 ];
 
 // ── Buxgalter ──────────────────────────────────────────────────────────────
 export const BUXGALTER_SIDEBAR_CONFIG = [
-    { label: 'Dashboard',   path: '/zayavkachi',           icon: LayoutDashboard, roles: BUXGALTER_ROLES },
-    { label: 'Buyurtmalar', path: '/zayavkachi/orders',    icon: ClipboardList,   roles: BUXGALTER_ROLES },
-    { label: 'Mijozlar',    path: '/zayavkachi/customers', icon: Users,           roles: BUXGALTER_ROLES },
+    { label: 'Dashboard', path: '/zayavkachi', icon: LayoutDashboard, roles: BUXGALTER_ROLES },
+    { label: 'Buyurtmalar', path: '/zayavkachi/orders', icon: ClipboardList, roles: BUXGALTER_ROLES },
+    { label: 'Mijozlar', path: '/zayavkachi/customers', icon: Users, roles: BUXGALTER_ROLES },
 ];
 
 export const BUXGALTER_SIDEBAR_GROUPS = [
     { label: 'Asosiy', items: BUXGALTER_SIDEBAR_CONFIG.filter((i) => i.path === '/zayavkachi') },
-    { label: 'Savdo',  items: BUXGALTER_SIDEBAR_CONFIG.filter((i) => ['/zayavkachi/orders', '/zayavkachi/customers'].includes(i.path)) },
+    { label: 'Savdo', items: BUXGALTER_SIDEBAR_CONFIG.filter((i) => ['/zayavkachi/orders', '/zayavkachi/customers'].includes(i.path)) },
 ];
 
 // ── Kassir ─────────────────────────────────────────────────────────────────
 export const KASSIR_SIDEBAR_CONFIG = [
-    { label: 'Dashboard',   path: '/kassir',              icon: LayoutDashboard, roles: KASSIR_ROLES },
-    { label: 'Kassalar',    path: '/kassir/cashboxes',    icon: Wallet,          roles: KASSIR_ROLES },
-    { label: 'Mijozlar',    path: '/kassir/customers',    icon: Users,           roles: KASSIR_ROLES },
-    { label: 'Xarajatlar',  path: '/kassir/expenses',     icon: ReceiptText,     roles: KASSIR_ROLES },
-    { label: 'Sverka',      path: '/kassir/reconciliation', icon: FileSpreadsheet, roles: KASSIR_ROLES },
-    { label: 'Buyurtmalar', path: '/kassir/orders',       icon: ClipboardList,   roles: KASSIR_ROLES },
+    { label: 'Dashboard', path: '/kassir', icon: LayoutDashboard, roles: KASSIR_ROLES },
+    { label: 'Kassalar', path: '/kassir/cashboxes', icon: Wallet, roles: KASSIR_ROLES },
+    { label: 'Mijozlar', path: '/kassir/customers', icon: Users, roles: KASSIR_ROLES },
+    { label: 'Xarajatlar', path: '/kassir/expenses', icon: ReceiptText, roles: KASSIR_ROLES },
+    { label: 'Sverka', path: '/kassir/reconciliation', icon: FileSpreadsheet, roles: KASSIR_ROLES },
+    { label: 'Buyurtmalar', path: '/kassir/orders', icon: ClipboardList, roles: KASSIR_ROLES },
 ];
 
 export const KASSIR_SIDEBAR_GROUPS = [
     { label: 'Asosiy', items: KASSIR_SIDEBAR_CONFIG.filter((i) => i.path === '/kassir') },
     { label: 'Moliya', items: KASSIR_SIDEBAR_CONFIG.filter((i) => ['/kassir/cashboxes', '/kassir/expenses', '/kassir/reconciliation'].includes(i.path)) },
-    { label: 'Savdo',  items: KASSIR_SIDEBAR_CONFIG.filter((i) => ['/kassir/customers', '/kassir/orders'].includes(i.path)) },
+    { label: 'Savdo', items: KASSIR_SIDEBAR_CONFIG.filter((i) => ['/kassir/customers', '/kassir/orders'].includes(i.path)) },
 ];

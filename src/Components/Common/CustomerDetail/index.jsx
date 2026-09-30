@@ -1,16 +1,18 @@
 import { useState } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
-import { Badge, Box, Button, HStack, Table, Text, Spinner, Portal, Dialog, VStack } from '@chakra-ui/react';
+import { Badge, Box, Button, HStack, Table, Text, Spinner, Portal, Dialog, VStack, SimpleGrid, IconButton } from '@chakra-ui/react';
 import {
     LuCalendar, LuChevronLeft, LuChevronRight, LuClipboardList,
     LuPhone, LuUsers, LuWallet, LuCreditCard, LuTriangleAlert, LuX,
-    LuBanknote, LuCircleX,
+    LuBanknote, LuCircleX, LuMapPin, LuHash, LuUserCheck, LuSend,
+    LuStickyNote, LuClock, LuTrendingUp, LuTrendingDown, LuCircleCheck,
+    LuCircleAlert, LuCopy, LuExternalLink,
 } from 'react-icons/lu';
 import { useGetCustomerByIdQuery } from '../../../store/services/customer.api';
 import { useGetSalesOrdersQuery, useApproveSalesOrderMutation, useRejectSalesOrderMutation } from '../../../store/services/salesOrder.api';
 import { useGetPaymentsQuery, useCancelPaymentMutation } from '../../../store/services/payment.api';
 import { formatNumber } from '../../ui/number-format';
-import EntityDetail, { DetailRow, DetailSection, formatDetailDate } from '../EntityDetail';
+import EntityDetail, { DetailSection, formatDetailDate } from '../EntityDetail';
 import PaymentModal from '../Customer/__components/PaymentModal';
 import { Alert } from '../../Other/UI/Alert/Alert';
 import { useAppTheme } from '../../../theme/tokens';
@@ -37,8 +39,162 @@ const PAYMENT_STATUS_LABELS = {
 
 const TABS = [
     { value: 'orders', label: 'Buyurtmalar', icon: LuClipboardList },
-    { value: 'payments', label: "To'lovlar tarixi", icon: LuCreditCard },
+    { value: 'payments', label: "To'lovlar", icon: LuCreditCard },
 ];
+
+// ── Yordamchi: bosh harflar ───────────────────────────────────────────────
+const getInitials = (name) => {
+    if (!name) return '?';
+    return name
+        .split(' ')
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((n) => n[0]?.toUpperCase())
+        .join('');
+};
+
+// ── Avatar ────────────────────────────────────────────────────────────────
+function Avatar({ name, size = 64, accentColor, isDark }) {
+    return (
+        <Box
+            w={`${size}px`}
+            h={`${size}px`}
+            minW={`${size}px`}
+            borderRadius="2xl"
+            bg={isDark ? 'rgba(148,163,184,0.10)' : 'gray.100'}
+            borderWidth="1px"
+            borderColor={isDark ? 'whiteAlpha.200' : 'gray.200'}
+            color={accentColor}
+            display="flex"
+            alignItems="center"
+            justifyContent="center"
+            fontWeight="bold"
+            fontSize={`${size * 0.34}px`}
+            letterSpacing="tight"
+            flexShrink={0}
+            userSelect="none"
+        >
+            {getInitials(name)}
+        </Box>
+    );
+}
+
+// ── Info Cell — kartochka ichidagi ma'lumot ───────────────────────────────
+function InfoCell({ icon: Icon, label, value, emptyText = '—', isDark, textColor, subtitleColor, accentColor, href, mono }) {
+    const isEmpty = value === null || value === undefined || value === '';
+    return (
+        <HStack align="start" gap={3} p={3.5} borderRadius="xl" bg={isDark ? 'rgba(148,163,184,0.06)' : 'gray.50'} borderWidth="1px" borderColor={isDark ? 'whiteAlpha.100' : 'gray.100'} _hover={{ borderColor: isDark ? 'whiteAlpha.200' : 'gray.200' }} transition="all 0.15s">
+            <Box
+                p={2}
+                borderRadius="lg"
+                bg={isDark ? 'rgba(250, 204, 21, 0.10)' : '#FEF3C7'}
+                color={accentColor}
+                flexShrink={0}
+                display="inline-flex"
+                alignItems="center"
+                justifyContent="center"
+                w="34px"
+                h="34px"
+            >
+                <Icon size={16} />
+            </Box>
+            <VStack align="start" gap={0.5} flex="1" minW={0}>
+                <Text fontSize="10px" color={subtitleColor} fontWeight="semibold" textTransform="uppercase" letterSpacing="wider">
+                    {label}
+                </Text>
+                {isEmpty ? (
+                    <Text fontSize="sm" color={subtitleColor} fontStyle="italic">{emptyText}</Text>
+                ) : href ? (
+                    <Text
+                        as="a"
+                        href={href}
+                        fontSize="sm"
+                        color={textColor}
+                        fontWeight="medium"
+                        wordBreak="break-word"
+                        _hover={{ color: accentColor }}
+                        transition="color 0.15s"
+                    >
+                        {value}
+                    </Text>
+                ) : (
+                    <Text fontSize="sm" color={textColor} fontWeight="medium" wordBreak="break-word" fontFamily={mono ? 'mono' : 'inherit'}>
+                        {value}
+                    </Text>
+                )}
+            </VStack>
+        </HStack>
+    );
+}
+
+// ── Stat card — yuqoridagi statistika kartalari ───────────────────────────
+function StatCard({ icon: Icon, label, value, suffix, tone = 'default', isDark, textColor, subtitleColor, accentColor }) {
+    const tones = {
+        default: {
+            bg: isDark ? 'rgba(148,163,184,0.06)' : 'gray.50',
+            iconBg: isDark ? 'rgba(148,163,184,0.12)' : 'gray.100',
+            iconColor: subtitleColor,
+            valueColor: textColor,
+        },
+        danger: {
+            bg: isDark ? 'rgba(239,68,68,0.08)' : 'red.50',
+            iconBg: isDark ? 'rgba(239,68,68,0.15)' : 'red.100',
+            iconColor: isDark ? 'red.300' : 'red.600',
+            valueColor: isDark ? 'red.300' : 'red.600',
+        },
+        success: {
+            bg: isDark ? 'rgba(34,197,94,0.08)' : 'green.50',
+            iconBg: isDark ? 'rgba(34,197,94,0.15)' : 'green.100',
+            iconColor: isDark ? 'green.300' : 'green.700',
+            valueColor: isDark ? 'green.300' : 'green.700',
+        },
+        accent: {
+            bg: isDark ? 'rgba(250,204,21,0.08)' : '#FEFCE8',
+            iconBg: isDark ? 'rgba(250,204,21,0.15)' : '#FEF3C7',
+            iconColor: accentColor,
+            valueColor: textColor,
+        },
+    };
+    const t = tones[tone] || tones.default;
+
+    return (
+        <HStack
+            align="center"
+            gap={3}
+            p={4}
+            borderRadius="2xl"
+            bg={t.bg}
+            borderWidth="1px"
+            borderColor={isDark ? 'whiteAlpha.100' : 'gray.100'}
+            transition="all 0.2s"
+            _hover={{ transform: 'translateY(-1px)', boxShadow: isDark ? '0 8px 20px rgba(0,0,0,0.25)' : '0 8px 20px rgba(15,23,42,0.06)' }}
+        >
+            <Box
+                p={2.5}
+                borderRadius="xl"
+                bg={t.iconBg}
+                color={t.iconColor}
+                display="inline-flex"
+                alignItems="center"
+                justifyContent="center"
+                flexShrink={0}
+            >
+                <Icon size={18} />
+            </Box>
+            <VStack align="start" gap={0} flex="1" minW={0}>
+                <Text fontSize="10px" color={subtitleColor} fontWeight="semibold" textTransform="uppercase" letterSpacing="wider">
+                    {label}
+                </Text>
+                <HStack gap={1} align="baseline">
+                    <Text fontSize="lg" fontWeight="bold" color={t.valueColor} lineHeight="1.2" whiteSpace="nowrap" overflow="hidden" textOverflow="ellipsis">
+                        {value}
+                    </Text>
+                    {suffix && <Text fontSize="xs" color={subtitleColor} fontWeight="medium">{suffix}</Text>}
+                </HStack>
+            </VStack>
+        </HStack>
+    );
+}
 
 // ── To'lovni bekor qilish confirm dialogi ─────────────────────────────────
 function CancelPaymentDialog({ open, onClose, onConfirm, isLoading, amount }) {
@@ -46,9 +202,9 @@ function CancelPaymentDialog({ open, onClose, onConfirm, isLoading, amount }) {
     return (
         <Dialog.Root open={open} onOpenChange={(e) => !e.open && onClose()} size="md" placement="center">
             <Portal>
-                <Dialog.Backdrop backdropFilter="blur(6px)" bg={isDark ? 'blackAlpha.700' : 'blackAlpha.400'} />
+                <Dialog.Backdrop backdropFilter="blur(8px)" bg={isDark ? 'blackAlpha.700' : 'blackAlpha.400'} />
                 <Dialog.Positioner>
-                    <Dialog.Content bg={cardBg} borderColor={cardBorder} borderWidth="1px" borderRadius="2xl" overflow="hidden" maxW="440px" w="calc(100% - 32px)">
+                    <Dialog.Content bg={cardBg} borderColor={cardBorder} borderWidth="1px" borderRadius="2xl" overflow="hidden" maxW="460px" w="calc(100% - 32px)" boxShadow="2xl">
                         <Box position="absolute" top="0" left="0" right="0" h="4px" bgGradient="linear(to-r, red.500, red.300)" />
                         <Dialog.Header color={textColor} fontSize="xl" fontWeight="bold" pt={7} pb={4} borderBottomWidth="1px" borderColor={cardBorder}>
                             <HStack gap={3}>
@@ -90,19 +246,20 @@ function CancelPaymentDialog({ open, onClose, onConfirm, isLoading, amount }) {
     );
 }
 
-// ── Status select — PENDING uchun ─────────────────────────────────────────
+// ── Status select ─────────────────────────────────────────────────────────
 function OrderStatusSelect({ orderId, currentStatus, onApprove, onReject, isLoading, isDark }) {
     const styleMap = {
-        PENDING:  { bg: isDark ? 'rgba(250,204,21,.14)' : '#FEF3C7',  color: isDark ? '#fde68a' : '#92400E',  border: isDark ? '#ca8a04' : '#d97706' },
-        APPROVED: { bg: isDark ? 'rgba(34,197,94,.14)'  : '#DCFCE7',  color: isDark ? '#86efac' : '#15803d',  border: isDark ? '#16a34a' : '#16a34a' },
-        REJECTED: { bg: isDark ? 'rgba(239,68,68,.14)'  : '#FEE2E2',  color: isDark ? '#fca5a5' : '#b91c1c',  border: isDark ? '#dc2626' : '#dc2626' },
+        PENDING: { bg: isDark ? 'rgba(250,204,21,.14)' : '#FEF3C7', color: isDark ? '#fde68a' : '#92400E', border: isDark ? '#ca8a04' : '#d97706' },
+        APPROVED: { bg: isDark ? 'rgba(34,197,94,.14)' : '#DCFCE7', color: isDark ? '#86efac' : '#15803d', border: isDark ? '#16a34a' : '#16a34a' },
+        REJECTED: { bg: isDark ? 'rgba(239,68,68,.14)' : '#FEE2E2', color: isDark ? '#fca5a5' : '#b91c1c', border: isDark ? '#dc2626' : '#dc2626' },
     };
     const style = styleMap[currentStatus] || styleMap.PENDING;
 
     if (currentStatus !== 'PENDING') {
+        const Icon = currentStatus === 'APPROVED' ? LuCircleCheck : LuCircleX;
         return (
-            <Badge borderRadius="full" px={3} py={1} bg={style.bg} color={style.color} whiteSpace="nowrap">
-                {ORDER_STATUS_LABELS[currentStatus] || currentStatus}
+            <Badge borderRadius="full" px={2.5} py={1} bg={style.bg} color={style.color} whiteSpace="nowrap" fontSize="11px" fontWeight="semibold">
+                <HStack gap={1.5} display="inline-flex"><Icon size={12} /><span>{ORDER_STATUS_LABELS[currentStatus] || currentStatus}</span></HStack>
             </Badge>
         );
     }
@@ -132,7 +289,7 @@ function OrderStatusSelect({ orderId, currentStatus, onApprove, onReject, isLoad
             borderRadius="full"
             px={3}
             py={1}
-            fontSize="xs"
+            fontSize="11px"
             fontWeight="semibold"
             cursor="pointer"
             outline="none"
@@ -141,6 +298,52 @@ function OrderStatusSelect({ orderId, currentStatus, onApprove, onReject, isLoad
             <option value="PENDING">{ORDER_STATUS_LABELS.PENDING}</option>
             <option value="APPROVED">✓ Tasdiqlash</option>
             <option value="REJECTED">✗ Rad etish</option>
+        </Box>
+    );
+}
+
+// ── Empty state ───────────────────────────────────────────────────────────
+function EmptyState({ icon: Icon, title, description, isDark, subtitleColor }) {
+    return (
+        <VStack py={12} gap={3}>
+            <Box
+                p={4}
+                borderRadius="2xl"
+                bg={isDark ? 'rgba(148,163,184,0.06)' : 'gray.50'}
+                color={subtitleColor}
+            >
+                <Icon size={32} />
+            </Box>
+            <VStack gap={1}>
+                <Text fontWeight="semibold" color={subtitleColor}>{title}</Text>
+                {description && <Text fontSize="sm" color={subtitleColor} opacity={0.7}>{description}</Text>}
+            </VStack>
+        </VStack>
+    );
+}
+
+// ── Section wrapper ───────────────────────────────────────────────────────
+function Section({ title, subtitle, action, children, isDark, textColor, subtitleColor, cardBorder }) {
+    return (
+        <Box
+            bg={isDark ? 'rgba(15,23,42,0.35)' : 'white'}
+            borderWidth="1px"
+            borderColor={cardBorder}
+            borderRadius="2xl"
+            overflow="hidden"
+            boxShadow={isDark ? 'none' : '0 1px 3px rgba(15,23,42,0.04)'}
+            gridColumn={{ base: 'auto', lg: '1 / -1' }}
+        >
+            {(title || action) && (
+                <HStack justify="space-between" align="center" px={5} py={3.5} borderBottomWidth="1px" borderColor={cardBorder}>
+                    <VStack align="start" gap={0}>
+                        {title && <Text fontWeight="bold" fontSize="md" color={textColor}>{title}</Text>}
+                        {subtitle && <Text fontSize="xs" color={subtitleColor}>{subtitle}</Text>}
+                    </VStack>
+                    {action}
+                </HStack>
+            )}
+            <Box p={5}>{children}</Box>
         </Box>
     );
 }
@@ -180,12 +383,12 @@ export default function CustomerDetail() {
     const totalPayments = paymentResult?.pagination?.totalElements ?? 0;
 
     const [approveSalesOrder] = useApproveSalesOrderMutation();
-    const [rejectSalesOrder]  = useRejectSalesOrderMutation();
+    const [rejectSalesOrder] = useRejectSalesOrderMutation();
     const [cancelPayment, { isLoading: cancelling }] = useCancelPaymentMutation();
 
     const openGeneralPayment = () => setPaymentModal({ open: true, order: null });
-    const openOrderPayment   = (order) => setPaymentModal({ open: true, order });
-    const closePayment       = () => setPaymentModal({ open: false, order: null });
+    const openOrderPayment = (order) => setPaymentModal({ open: true, order });
+    const closePayment = () => setPaymentModal({ open: false, order: null });
 
     const handleApprove = async (orderId) => {
         setActionId(orderId);
@@ -217,6 +420,13 @@ export default function CustomerDetail() {
         }
     };
 
+    const copyId = () => {
+        if (customer?.id) {
+            navigator.clipboard.writeText(customer.id);
+            Alert('ID nusxalandi', 'success');
+        }
+    };
+
     return (
         <EntityDetail
             payment="To'lov qilish"
@@ -228,308 +438,483 @@ export default function CustomerDetail() {
             loading={isLoading}
             error={isError || !customer}
         >
-            {({ isDark, textColor, subtitleColor, accentColor, cardBorder, cardBg }) => (
-                <>
-                    <DetailSection title="Mijoz ma'lumotlari" icon={LuUsers}>
-                        <DetailRow label="Nomi" value={customer.name} emphasize />
-                        <DetailRow
-                            label="Telefon"
-                            value={<span><LuPhone size={15} style={{ display: 'inline', marginRight: 7 }} />{customer.phone}</span>}
-                        />
-                        <DetailRow label="Izoh" value={customer.summary} />
-                    </DetailSection>
+            {({ isDark, textColor, subtitleColor, accentColor, cardBorder, cardBg }) => {
+                const balanceValue = Number(customer.balance) || 0;
+                const balanceTone = balanceValue < 0 ? 'danger' : balanceValue > 0 ? 'success' : 'default';
+                const balanceLabel = balanceValue < 0 ? 'Qarzdor' : balanceValue > 0 ? 'Kredit' : 'Balans';
 
-                    <DetailSection title="Hisob-kitob" icon={LuWallet}>
-                        <DetailRow
-                            label="Qoldiq"
-                            value={`${formatNumber(Math.abs(Number(customer.balance) || 0))} so'm ${
-                                (Number(customer.balance) || 0) < 0 ? '(qarzdor)'
-                                : (Number(customer.balance) || 0) > 0 ? '(kredit)' : ''
-                            }`}
-                            emphasize
-                        />
-                        <DetailRow label="Buyurtmalar soni" value={formatNumber(totalOrders)} />
-                    </DetailSection>
+                return (
+                    <>
+                        {/* ══ HERO: Avatar + ism + asosiy info ══ */}
+                        <Box
+                            gridColumn={{ base: 'auto', lg: '1 / -1' }}
+                            bg={isDark ? 'rgba(15,23,42,0.35)' : 'white'}
+                            borderWidth="1px"
+                            borderColor={cardBorder}
+                            borderRadius="2xl"
+                            overflow="hidden"
+                            boxShadow={isDark ? 'none' : '0 1px 3px rgba(15,23,42,0.04)'}
+                        >
+                            {/* Banner */}
+                            <Box
+                                h="52px"
+                                bgGradient={
+                                    isDark
+                                        ? 'linear(135deg, rgba(250,204,21,0.15) 0%, rgba(250,204,21,0.02) 100%)'
+                                        : 'linear(135deg, #FEF3C7 0%, #FFFBEB 100%)'
+                                }
+                                borderColor={cardBorder}
+                            />
 
-                    <DetailSection title="Tizim ma'lumotlari" icon={LuCalendar}>
-                        <DetailRow label="Yaratilgan" value={formatDetailDate(customer.createdAt)} />
-                        <DetailRow label="Yangilangan" value={formatDetailDate(customer.lastModifiedAt)} />
-                    </DetailSection>
+                            {/* Avatar + info */}
+                            <Box px={{ base: 5, md: 6 }} pb={5}>
+                                <HStack align="flex-start" gap={4} mt="-38px" flexWrap={{ base: 'wrap', md: 'nowrap' }}>
+                                    <Avatar name={customer.name} size={76} accentColor={accentColor} isDark={isDark} />
 
-                    {/* ── Tab blok ── */}
-                    <DetailSection
-                        title=""
-                        icon={activeTab === 'orders' ? LuClipboardList : LuCreditCard}
-                        gridColumn={{ base: 'auto', lg: '1 / -1' }}
-                    >
-                        {/* tab tugmalari */}
-                        <HStack gap={2} mb={4} borderBottomWidth="1px" borderColor={cardBorder} pb={3}>
-                            {TABS.map((tab) => {
-                                const isActive = activeTab === tab.value;
-                                const Icon = tab.icon;
-                                return (
-                                    <Button
-                                        key={tab.value}
-                                        size="sm"
-                                        borderRadius="full"
-                                        px={5}
-                                        fontWeight="semibold"
-                                        onClick={() => setActiveTab(tab.value)}
-                                        bg={isActive ? accentColor : 'transparent'}
-                                        color={isActive ? 'black' : subtitleColor}
-                                        borderWidth="1px"
-                                        borderColor={isActive ? accentColor : cardBorder}
-                                        _hover={{ bg: isActive ? accentColor : (isDark ? 'whiteAlpha.100' : 'gray.50') }}
-                                    >
-                                        <HStack gap={2}><Icon size={14} /><span>{tab.label}</span></HStack>
-                                    </Button>
-                                );
-                            })}
-                        </HStack>
-
-                        {/* ══ BUYURTMALAR TAB ══ */}
-                        {activeTab === 'orders' && (
-                            <>
-                                <HStack gap={1} flexWrap="wrap" mb={3}>
-                                    {ORDER_STATUS_FILTERS.map((option) => {
-                                        const isActive = orderStatus === option.value;
-                                        return (
-                                            <Button
-                                                key={option.value || 'all'}
-                                                size="sm"
-                                                borderRadius="full"
-                                                px={4}
-                                                fontWeight="medium"
-                                                onClick={() => { setOrderStatus(option.value); setOrderPage(0); }}
-                                                bg={isActive ? (isDark ? 'whiteAlpha.200' : 'gray.100') : 'transparent'}
-                                                color={isActive ? textColor : subtitleColor}
-                                                borderWidth="1px"
-                                                borderColor={isActive ? (isDark ? 'whiteAlpha.300' : 'gray.300') : cardBorder}
-                                                _hover={{ bg: isDark ? 'whiteAlpha.100' : 'gray.50' }}
+                                    <VStack align="start" gap={2} flex="1" minW={0} pt={{ base: 0, md: 10 }}>
+                                        <HStack gap={2.5} flexWrap="wrap" align="center">
+                                            <Text
+                                                fontSize={{ base: 'xl', md: '2xl' }}
+                                                fontWeight="bold"
+                                                color={textColor}
+                                                lineHeight="1.2"
+                                                letterSpacing="-0.01em"
                                             >
-                                                {option.label}
-                                            </Button>
-                                        );
-                                    })}
+                                                {customer.name}
+                                            </Text>
+                                            <Badge
+                                                borderRadius="full"
+                                                px={2.5}
+                                                py={0.5}
+                                                bg={isDark ? 'rgba(34,197,94,0.15)' : 'green.50'}
+                                                color={isDark ? 'green.300' : 'green.700'}
+                                                fontSize="10px"
+                                                fontWeight="semibold"
+                                                textTransform="uppercase"
+                                                letterSpacing="wide"
+                                                lineHeight="1.4"
+                                            >
+                                                Faol mijoz
+                                            </Badge>
+                                        </HStack>
+
+                                        <HStack gap={4} flexWrap="wrap" color={subtitleColor} fontSize="sm" rowGap={1}>
+                                            <HStack gap={1.5} align="center">
+                                                <LuPhone size={13} style={{ flexShrink: 0 }} />
+                                                <Text
+                                                    as="a"
+                                                    href={`tel:${customer.phone}`}
+                                                    _hover={{ color: accentColor }}
+                                                    transition="color 0.15s"
+                                                    fontWeight="medium"
+                                                >
+                                                    {customer.phone}
+                                                </Text>
+                                            </HStack>
+                                            {customer.address && (
+                                                <HStack gap={1.5} align="center" minW={0}>
+                                                    <LuMapPin size={13} style={{ flexShrink: 0 }} />
+                                                    <Text noOfLines={1} fontWeight="medium">{customer.address}</Text>
+                                                </HStack>
+                                            )}
+                                        </HStack>
+                                    </VStack>
                                 </HStack>
+                            </Box>
+                        </Box>
 
-                                {ordersFetching ? (
-                                    <Text color={subtitleColor} py={6} textAlign="center">Yuklanmoqda...</Text>
-                                ) : orders.length === 0 ? (
-                                    <VStack py={8} gap={2}>
-                                        <LuClipboardList size={36} color={subtitleColor} opacity={0.4} />
-                                        <Text color={subtitleColor}>
-                                            {orderStatus ? 'Bu holatdagi buyurtmalar topilmadi' : "Bu mijozda hozircha buyurtmalar yo'q"}
-                                        </Text>
-                                    </VStack>
-                                ) : (
-                                    <>
-                                        <Box overflowX="auto" borderWidth="1px" borderColor={cardBorder} borderRadius="xl">
-                                            <Table.Root size="md" bg={cardBg} borderCollapse="collapse">
-                                                <Table.Header>
-                                                    <Table.Row>
-                                                        <Table.ColumnHeader color={subtitleColor} w="50px" textAlign="center">№</Table.ColumnHeader>
-                                                        <Table.ColumnHeader color={subtitleColor}>Mahsulotlar</Table.ColumnHeader>
-                                                        <Table.ColumnHeader color={subtitleColor}>Izoh</Table.ColumnHeader>
-                                                        <Table.ColumnHeader color={subtitleColor} textAlign="right">Summa</Table.ColumnHeader>
-                                                        <Table.ColumnHeader color={subtitleColor} textAlign="right">Qolgan qarz</Table.ColumnHeader>
-                                                        <Table.ColumnHeader color={subtitleColor}>Holati</Table.ColumnHeader>
-                                                        <Table.ColumnHeader color={subtitleColor}>Sana</Table.ColumnHeader>
-                                                        <Table.ColumnHeader color={subtitleColor} textAlign="center">Amal</Table.ColumnHeader>
-                                                    </Table.Row>
-                                                </Table.Header>
-                                                <Table.Body>
-                                                    {orders.map((order, index) => (
-                                                        <Table.Row key={order.id} _hover={{ bg: isDark ? 'rgba(250,204,21,.06)' : '#FFFBEB' }}>
-                                                            <Table.Cell color={subtitleColor} textAlign="center">{orderPage * PAGE_SIZE + index + 1}</Table.Cell>
-                                                            <Table.Cell color={textColor} fontWeight="semibold" whiteSpace="nowrap">{order.items?.length ?? 0} ta</Table.Cell>
-                                                            <Table.Cell color={subtitleColor} maxW="200px">{order.summary || '—'}</Table.Cell>
-                                                            <Table.Cell color={textColor} fontWeight="bold" textAlign="right" whiteSpace="nowrap">
-                                                                {formatNumber(order.totalAmount ?? 0)} so&apos;m
-                                                            </Table.Cell>
-                                                            <Table.Cell textAlign="right" whiteSpace="nowrap">
-                                                                <Text
-                                                                    color={(order.remainingDebt ?? 0) > 0 ? (isDark ? 'red.300' : 'red.600') : subtitleColor}
-                                                                    fontWeight={(order.remainingDebt ?? 0) > 0 ? 'bold' : 'normal'}
-                                                                >
-                                                                    {formatNumber(order.remainingDebt ?? 0)} so&apos;m
-                                                                </Text>
-                                                            </Table.Cell>
-                                                            <Table.Cell>
-                                                                <OrderStatusSelect
-                                                                    orderId={order.id}
-                                                                    currentStatus={order.status}
-                                                                    onApprove={handleApprove}
-                                                                    onReject={handleReject}
-                                                                    isLoading={actionId === order.id}
-                                                                    isDark={isDark}
-                                                                />
-                                                            </Table.Cell>
-                                                            <Table.Cell color={subtitleColor} whiteSpace="nowrap">{formatDetailDate(order.createdAt)}</Table.Cell>
-                                                            <Table.Cell textAlign="center">
-                                                                <Button
-                                                                    size="sm"
-                                                                    borderRadius="xl"
-                                                                    px={4}
-                                                                    gap={1}
-                                                                    bg={order.status === 'APPROVED' ? accentColor : (isDark ? 'whiteAlpha.100' : 'gray.100')}
-                                                                    color={order.status === 'APPROVED' ? 'black' : subtitleColor}
-                                                                    cursor={order.status === 'APPROVED' ? 'pointer' : 'not-allowed'}
-                                                                    opacity={order.status === 'APPROVED' ? 1 : 0.5}
-                                                                    _hover={order.status === 'APPROVED' ? { opacity: 0.85 } : {}}
-                                                                    onClick={() => order.status === 'APPROVED' && openOrderPayment(order)}
-                                                                    title={order.status !== 'APPROVED' ? "Avval buyurtmani tasdiqlang" : "To'lov qilish"}
-                                                                >
-                                                                    <LuBanknote size={15} />
-                                                                    <span>To&apos;lov</span>
-                                                                </Button>
-                                                            </Table.Cell>
+                        {/* ══ STATISTIKA KARTALARI ══ */}
+                        <Box gridColumn={{ base: 'auto', lg: '1 / -1' }}>
+                            <SimpleGrid columns={{ base: 1, sm: 2, lg: 4 }} gap={3}>
+                                <StatCard
+                                    icon={balanceValue < 0 ? LuTrendingDown : LuTrendingUp}
+                                    label={balanceLabel}
+                                    value={formatNumber(Math.abs(balanceValue))}
+                                    suffix="so'm"
+                                    tone={balanceTone}
+                                    isDark={isDark}
+                                    textColor={textColor}
+                                    subtitleColor={subtitleColor}
+                                    accentColor={accentColor}
+                                />
+                                <StatCard
+                                    icon={LuClipboardList}
+                                    label="Buyurtmalar"
+                                    value={formatNumber(totalOrders)}
+                                    suffix="ta"
+                                    tone="accent"
+                                    isDark={isDark}
+                                    textColor={textColor}
+                                    subtitleColor={subtitleColor}
+                                    accentColor={accentColor}
+                                />
+                                <StatCard
+                                    icon={LuCreditCard}
+                                    label="To'lovlar"
+                                    value={formatNumber(totalPayments)}
+                                    suffix="ta"
+                                    tone="default"
+                                    isDark={isDark}
+                                    textColor={textColor}
+                                    subtitleColor={subtitleColor}
+                                    accentColor={accentColor}
+                                />
+                                <StatCard
+                                    icon={LuCalendar}
+                                    label="Ro'yxatga olingan"
+                                    value={formatDetailDate(customer.createdAt)?.split(',')[0] || '—'}
+                                    tone="default"
+                                    isDark={isDark}
+                                    textColor={textColor}
+                                    subtitleColor={subtitleColor}
+                                    accentColor={accentColor}
+                                />
+                            </SimpleGrid>
+                        </Box>
+
+                        {/* ══ MIJOZ MA'LUMOTLARI ══ */}
+                        <Section
+                            title="Mijoz ma'lumotlari"
+                            subtitle="Shaxsiy va aloqa ma'lumotlari"
+                            isDark={isDark}
+                            textColor={textColor}
+                            subtitleColor={subtitleColor}
+                            cardBorder={cardBorder}
+                        >
+                            <SimpleGrid columns={{ base: 1, md: 2 }} gap={3}>
+                                <InfoCell icon={LuUsers} label="To‘liq nomi" value={customer.name} isDark={isDark} textColor={textColor} subtitleColor={subtitleColor} accentColor={accentColor} />
+                                <InfoCell icon={LuPhone} label="Telefon" value={customer.phone} href={`tel:${customer.phone}`} isDark={isDark} textColor={textColor} subtitleColor={subtitleColor} accentColor={accentColor} />
+                                <InfoCell icon={LuHash} label="INN / STIR" value={customer.inn} emptyText="Kiritilmagan" mono isDark={isDark} textColor={textColor} subtitleColor={subtitleColor} accentColor={accentColor} />
+                                <InfoCell icon={LuUserCheck} label="Agent" value={customer.agentName} emptyText="Biriktirilmagan" isDark={isDark} textColor={textColor} subtitleColor={subtitleColor} accentColor={accentColor} />
+                                <InfoCell
+                                    icon={LuSend}
+                                    label="Telegram"
+                                    value={customer.telegramChatId ? `Chat ID: ${customer.telegramChatId}` : null}
+                                    emptyText="Ulanmagan"
+                                    mono={!!customer.telegramChatId}
+                                    isDark={isDark}
+                                    textColor={textColor}
+                                    subtitleColor={subtitleColor}
+                                    accentColor={accentColor}
+                                />
+                                <InfoCell icon={LuCalendar} label="Yaratilgan" value={formatDetailDate(customer.createdAt)} isDark={isDark} textColor={textColor} subtitleColor={subtitleColor} accentColor={accentColor} />
+                                <InfoCell icon={LuMapPin} label="Manzil" value={customer.address} emptyText="Kiritilmagan" isDark={isDark} textColor={textColor} subtitleColor={subtitleColor} accentColor={accentColor} />
+                                <InfoCell icon={LuClock} label="Yangilangan" value={formatDetailDate(customer.lastModifiedAt)} isDark={isDark} textColor={textColor} subtitleColor={subtitleColor} accentColor={accentColor} />
+                                <Box gridColumn={{ base: 'auto', md: 'span 2' }}>
+                                    <InfoCell icon={LuStickyNote} label="Izoh" value={customer.summary} emptyText="Izoh yo‘q" isDark={isDark} textColor={textColor} subtitleColor={subtitleColor} accentColor={accentColor} />
+                                </Box>
+
+                            </SimpleGrid>
+                        </Section>
+
+                        {/* ══ BUYURTMALAR / TO'LOVLAR ══ */}
+                        <Section
+                            isDark={isDark}
+                            textColor={textColor}
+                            subtitleColor={subtitleColor}
+                            cardBorder={cardBorder}
+                        >
+                            {/* Tabs */}
+                            <HStack gap={1} mb={5} p={1} bg={isDark ? 'rgba(148,163,184,0.06)' : 'gray.100'} borderRadius="xl" w="fit-content">
+                                {TABS.map((tab) => {
+                                    const isActive = activeTab === tab.value;
+                                    const Icon = tab.icon;
+                                    return (
+                                        <Button
+                                            key={tab.value}
+                                            size="sm"
+                                            borderRadius="lg"
+                                            px={5}
+                                            h="36px"
+                                            fontWeight="semibold"
+                                            fontSize="sm"
+                                            onClick={() => setActiveTab(tab.value)}
+                                            bg={isActive ? (isDark ? 'rgba(250,204,21,0.15)' : 'white') : 'transparent'}
+                                            color={isActive ? accentColor : subtitleColor}
+                                            boxShadow={isActive && !isDark ? '0 1px 3px rgba(15,23,42,0.08)' : 'none'}
+                                            _hover={{ bg: isActive ? (isDark ? 'rgba(250,204,21,0.18)' : 'white') : (isDark ? 'whiteAlpha.50' : 'whiteAlpha.700') }}
+                                            transition="all 0.15s"
+                                        >
+                                            <HStack gap={2}><Icon size={14} /><span>{tab.label}</span></HStack>
+                                        </Button>
+                                    );
+                                })}
+                            </HStack>
+
+                            {/* ══ BUYURTMALAR ══ */}
+                            {activeTab === 'orders' && (
+                                <>
+                                    <HStack gap={1.5} flexWrap="wrap" mb={4}>
+                                        {ORDER_STATUS_FILTERS.map((option) => {
+                                            const isActive = orderStatus === option.value;
+                                            return (
+                                                <Button
+                                                    key={option.value || 'all'}
+                                                    size="sm"
+                                                    borderRadius="full"
+                                                    px={4}
+                                                    h="30px"
+                                                    fontSize="xs"
+                                                    fontWeight="semibold"
+                                                    onClick={() => { setOrderStatus(option.value); setOrderPage(0); }}
+                                                    bg={isActive ? accentColor : 'transparent'}
+                                                    color={isActive ? 'black' : subtitleColor}
+                                                    borderWidth="1px"
+                                                    borderColor={isActive ? accentColor : cardBorder}
+                                                    _hover={{ bg: isActive ? accentColor : (isDark ? 'whiteAlpha.100' : 'gray.50') }}
+                                                    transition="all 0.15s"
+                                                >
+                                                    {option.label}
+                                                </Button>
+                                            );
+                                        })}
+                                    </HStack>
+
+                                    {ordersFetching ? (
+                                        <VStack py={12} gap={3}>
+                                            <Spinner size="md" color={accentColor} thickness="3px" />
+                                            <Text color={subtitleColor} fontSize="sm">Yuklanmoqda...</Text>
+                                        </VStack>
+                                    ) : orders.length === 0 ? (
+                                        <EmptyState
+                                            icon={LuClipboardList}
+                                            title={orderStatus ? 'Bu holatdagi buyurtmalar topilmadi' : "Hozircha buyurtmalar yo'q"}
+                                            description={orderStatus ? 'Boshqa holatni tanlab ko‘ring' : 'Yangi buyurtma yaratilganda bu yerda ko‘rinadi'}
+                                            isDark={isDark}
+                                            subtitleColor={subtitleColor}
+                                        />
+                                    ) : (
+                                        <>
+                                            <Box overflowX="auto" borderWidth="1px" borderColor={cardBorder} borderRadius="xl">
+                                                <Table.Root size="sm" bg={isDark ? 'transparent' : 'white'} borderCollapse="collapse">
+                                                    <Table.Header bg={isDark ? 'rgba(148,163,184,0.06)' : 'gray.50'}>
+                                                        <Table.Row>
+                                                            <Table.ColumnHeader color={subtitleColor} w="50px" textAlign="center" fontSize="11px" fontWeight="semibold" textTransform="uppercase" letterSpacing="wider">№</Table.ColumnHeader>
+                                                            <Table.ColumnHeader color={subtitleColor} fontSize="11px" fontWeight="semibold" textTransform="uppercase" letterSpacing="wider">Mahsulotlar</Table.ColumnHeader>
+                                                            <Table.ColumnHeader color={subtitleColor} fontSize="11px" fontWeight="semibold" textTransform="uppercase" letterSpacing="wider">Izoh</Table.ColumnHeader>
+                                                            <Table.ColumnHeader color={subtitleColor} textAlign="right" fontSize="11px" fontWeight="semibold" textTransform="uppercase" letterSpacing="wider">Summa</Table.ColumnHeader>
+                                                            <Table.ColumnHeader color={subtitleColor} textAlign="right" fontSize="11px" fontWeight="semibold" textTransform="uppercase" letterSpacing="wider">Qarz</Table.ColumnHeader>
+                                                            <Table.ColumnHeader color={subtitleColor} fontSize="11px" fontWeight="semibold" textTransform="uppercase" letterSpacing="wider">Holati</Table.ColumnHeader>
+                                                            <Table.ColumnHeader color={subtitleColor} fontSize="11px" fontWeight="semibold" textTransform="uppercase" letterSpacing="wider">Sana</Table.ColumnHeader>
+                                                            <Table.ColumnHeader color={subtitleColor} textAlign="center" fontSize="11px" fontWeight="semibold" textTransform="uppercase" letterSpacing="wider">Amal</Table.ColumnHeader>
                                                         </Table.Row>
-                                                    ))}
-                                                </Table.Body>
-                                            </Table.Root>
-                                        </Box>
-                                        <HStack justify="space-between" mt={4} flexWrap="wrap" gap={3}>
-                                            <Text color={subtitleColor} fontSize="sm">Jami: {formatNumber(totalOrders)} ta buyurtma</Text>
-                                            {totalOrderPages > 1 && (
-                                                <HStack gap={3}>
-                                                    <Button size="sm" variant="outline" disabled={orderPage === 0} onClick={() => setOrderPage((v) => v - 1)}><LuChevronLeft /></Button>
-                                                    <Text color={subtitleColor} fontSize="sm">{orderPage + 1} / {totalOrderPages}</Text>
-                                                    <Button size="sm" variant="outline" disabled={orderPage >= totalOrderPages - 1} onClick={() => setOrderPage((v) => v + 1)}><LuChevronRight /></Button>
-                                                </HStack>
-                                            )}
-                                        </HStack>
-                                    </>
-                                )}
-                            </>
-                        )}
-
-                        {/* ══ TO'LOVLAR TAB ══ */}
-                        {activeTab === 'payments' && (
-                            <>
-                                {paymentsFetching ? (
-                                    <Text color={subtitleColor} py={6} textAlign="center">Yuklanmoqda...</Text>
-                                ) : payments.length === 0 ? (
-                                    <VStack py={8} gap={2}>
-                                        <LuCreditCard size={36} color={subtitleColor} opacity={0.4} />
-                                        <Text color={subtitleColor}>Bu mijoz uchun hozircha to&apos;lovlar yo&apos;q</Text>
-                                    </VStack>
-                                ) : (
-                                    <>
-                                        <Box overflowX="auto" borderWidth="1px" borderColor={cardBorder} borderRadius="xl">
-                                            <Table.Root size="md" bg={cardBg} borderCollapse="collapse">
-                                                <Table.Header>
-                                                    <Table.Row>
-                                                        <Table.ColumnHeader color={subtitleColor} w="50px" textAlign="center">№</Table.ColumnHeader>
-                                                        <Table.ColumnHeader color={subtitleColor}>Kassa</Table.ColumnHeader>
-                                                        <Table.ColumnHeader color={subtitleColor} textAlign="right">Summa</Table.ColumnHeader>
-                                                        <Table.ColumnHeader color={subtitleColor} textAlign="right">Taqsimlangan</Table.ColumnHeader>
-                                                        <Table.ColumnHeader color={subtitleColor} textAlign="right">Avans</Table.ColumnHeader>
-                                                        <Table.ColumnHeader color={subtitleColor}>Holati</Table.ColumnHeader>
-                                                        <Table.ColumnHeader color={subtitleColor}>Izoh</Table.ColumnHeader>
-                                                        <Table.ColumnHeader color={subtitleColor}>Sana</Table.ColumnHeader>
-                                                        <Table.ColumnHeader color={subtitleColor} textAlign="center">Amal</Table.ColumnHeader>
-                                                    </Table.Row>
-                                                </Table.Header>
-                                                <Table.Body>
-                                                    {payments.map((payment, index) => (
-                                                        <Table.Row
-                                                            key={payment.id}
-                                                            opacity={payment.status === 'CANCELLED' ? 0.5 : 1}
-                                                            _hover={{ bg: isDark ? 'rgba(250,204,21,.06)' : '#FFFBEB' }}
-                                                        >
-                                                            <Table.Cell color={subtitleColor} textAlign="center">{paymentPage * PAGE_SIZE + index + 1}</Table.Cell>
-                                                            <Table.Cell color={textColor} whiteSpace="nowrap">{payment.cashboxName}</Table.Cell>
-                                                            <Table.Cell color={textColor} fontWeight="bold" textAlign="right" whiteSpace="nowrap">
-                                                                {formatNumber(payment.amount ?? 0)} so&apos;m
-                                                            </Table.Cell>
-                                                            <Table.Cell color={subtitleColor} textAlign="right" whiteSpace="nowrap">
-                                                                {formatNumber(payment.allocatedAmount ?? 0)} so&apos;m
-                                                            </Table.Cell>
-                                                            <Table.Cell textAlign="right" whiteSpace="nowrap">
-                                                                <Text
-                                                                    color={(payment.unallocatedAmount ?? 0) > 0 ? (isDark ? 'green.300' : 'green.600') : subtitleColor}
-                                                                    fontWeight={(payment.unallocatedAmount ?? 0) > 0 ? 'semibold' : 'normal'}
-                                                                >
-                                                                    {formatNumber(payment.unallocatedAmount ?? 0)} so&apos;m
-                                                                </Text>
-                                                            </Table.Cell>
-                                                            <Table.Cell>
-                                                                <Badge
-                                                                    borderRadius="full"
-                                                                    px={3}
-                                                                    py={1}
-                                                                    bg={payment.status === 'ACTIVE'
-                                                                        ? (isDark ? 'rgba(34,197,94,.14)' : '#DCFCE7')
-                                                                        : (isDark ? 'rgba(239,68,68,.14)' : '#FEE2E2')}
-                                                                    color={payment.status === 'ACTIVE'
-                                                                        ? (isDark ? 'green.300' : 'green.700')
-                                                                        : (isDark ? 'red.300' : 'red.700')}
-                                                                    whiteSpace="nowrap"
-                                                                >
-                                                                    {PAYMENT_STATUS_LABELS[payment.status] || payment.status}
-                                                                </Badge>
-                                                            </Table.Cell>
-                                                            <Table.Cell color={subtitleColor} maxW="160px">{payment.summary || '—'}</Table.Cell>
-                                                            <Table.Cell color={subtitleColor} whiteSpace="nowrap">{payment.paidAt}</Table.Cell>
-                                                            <Table.Cell textAlign="center">
-                                                                {payment.status === 'ACTIVE' ? (
-                                                                    <Button
-                                                                        size="sm"
-                                                                        borderRadius="xl"
-                                                                        px={4}
-                                                                        gap={1}
-                                                                        bg={isDark ? 'rgba(239,68,68,.15)' : 'red.50'}
-                                                                        color={isDark ? 'red.300' : 'red.600'}
-                                                                        borderWidth="1px"
-                                                                        borderColor={isDark ? 'rgba(239,68,68,.3)' : 'red.200'}
-                                                                        _hover={{ bg: isDark ? 'rgba(239,68,68,.25)' : 'red.100' }}
-                                                                        onClick={() => setCancelConfirm({ open: true, paymentId: payment.id, amount: payment.amount })}
+                                                    </Table.Header>
+                                                    <Table.Body>
+                                                        {orders.map((order, index) => (
+                                                            <Table.Row key={order.id} _hover={{ bg: isDark ? 'rgba(250,204,21,.04)' : '#FFFBEB' }} transition="background 0.15s">
+                                                                <Table.Cell color={subtitleColor} textAlign="center" fontSize="sm">{orderPage * PAGE_SIZE + index + 1}</Table.Cell>
+                                                                <Table.Cell color={textColor} fontWeight="semibold" fontSize="sm" whiteSpace="nowrap">{order.items?.length ?? 0} ta</Table.Cell>
+                                                                <Table.Cell color={subtitleColor} fontSize="sm" maxW="200px">{order.summary || '—'}</Table.Cell>
+                                                                <Table.Cell color={textColor} fontWeight="bold" fontSize="sm" textAlign="right" whiteSpace="nowrap">
+                                                                    {formatNumber(order.totalAmount ?? 0)} <Text as="span" fontSize="xs" color={subtitleColor}>so&apos;m</Text>
+                                                                </Table.Cell>
+                                                                <Table.Cell textAlign="right" whiteSpace="nowrap">
+                                                                    <Text
+                                                                        color={(order.remainingDebt ?? 0) > 0 ? (isDark ? 'red.300' : 'red.600') : subtitleColor}
+                                                                        fontWeight={(order.remainingDebt ?? 0) > 0 ? 'bold' : 'normal'}
+                                                                        fontSize="sm"
                                                                     >
-                                                                        <LuCircleX size={14} />
-                                                                        <span>Bekor qilish</span>
+                                                                        {formatNumber(order.remainingDebt ?? 0)}
+                                                                    </Text>
+                                                                </Table.Cell>
+                                                                <Table.Cell>
+                                                                    <OrderStatusSelect
+                                                                        orderId={order.id}
+                                                                        currentStatus={order.status}
+                                                                        onApprove={handleApprove}
+                                                                        onReject={handleReject}
+                                                                        isLoading={actionId === order.id}
+                                                                        isDark={isDark}
+                                                                    />
+                                                                </Table.Cell>
+                                                                <Table.Cell color={subtitleColor} fontSize="sm" whiteSpace="nowrap">{formatDetailDate(order.createdAt)}</Table.Cell>
+                                                                <Table.Cell textAlign="center">
+                                                                    <Button
+                                                                        size="xs"
+                                                                        height="30px"
+                                                                        borderRadius="lg"
+                                                                        px={3}
+                                                                        gap={1.5}
+                                                                        fontSize="xs"
+                                                                        fontWeight="semibold"
+                                                                        bg={order.status === 'APPROVED' ? accentColor : (isDark ? 'whiteAlpha.100' : 'gray.100')}
+                                                                        color={order.status === 'APPROVED' ? 'black' : subtitleColor}
+                                                                        cursor={order.status === 'APPROVED' ? 'pointer' : 'not-allowed'}
+                                                                        opacity={order.status === 'APPROVED' ? 1 : 0.5}
+                                                                        _hover={order.status === 'APPROVED' ? { opacity: 0.9, transform: 'translateY(-1px)' } : {}}
+                                                                        transition="all 0.15s"
+                                                                        onClick={() => order.status === 'APPROVED' && openOrderPayment(order)}
+                                                                        title={order.status !== 'APPROVED' ? "Avval buyurtmani tasdiqlang" : "To'lov qilish"}
+                                                                    >
+                                                                        <LuBanknote size={13} />
+                                                                        <span>To&apos;lov</span>
                                                                     </Button>
-                                                                ) : (
-                                                                    <Text fontSize="xs" color={subtitleColor}>—</Text>
-                                                                )}
-                                                            </Table.Cell>
-                                                        </Table.Row>
-                                                    ))}
-                                                </Table.Body>
-                                            </Table.Root>
-                                        </Box>
-                                        <HStack justify="space-between" mt={4} flexWrap="wrap" gap={3}>
-                                            <Text color={subtitleColor} fontSize="sm">Jami: {formatNumber(totalPayments)} ta to&apos;lov</Text>
-                                            {totalPaymentPages > 1 && (
-                                                <HStack gap={3}>
-                                                    <Button size="sm" variant="outline" disabled={paymentPage === 0} onClick={() => setPaymentPage((v) => v - 1)}><LuChevronLeft /></Button>
-                                                    <Text color={subtitleColor} fontSize="sm">{paymentPage + 1} / {totalPaymentPages}</Text>
-                                                    <Button size="sm" variant="outline" disabled={paymentPage >= totalPaymentPages - 1} onClick={() => setPaymentPage((v) => v + 1)}><LuChevronRight /></Button>
-                                                </HStack>
-                                            )}
-                                        </HStack>
-                                    </>
-                                )}
-                            </>
-                        )}
-                    </DetailSection>
+                                                                </Table.Cell>
+                                                            </Table.Row>
+                                                        ))}
+                                                    </Table.Body>
+                                                </Table.Root>
+                                            </Box>
+                                            <HStack justify="space-between" mt={4} flexWrap="wrap" gap={3}>
+                                                <Text color={subtitleColor} fontSize="sm">
+                                                    Jami: <Text as="span" fontWeight="bold" color={textColor}>{formatNumber(totalOrders)}</Text> ta buyurtma
+                                                </Text>
+                                                {totalOrderPages > 1 && (
+                                                    <HStack gap={2}>
+                                                        <Button size="sm" variant="outline" borderRadius="lg" disabled={orderPage === 0} onClick={() => setOrderPage((v) => v - 1)}><LuChevronLeft size={14} /></Button>
+                                                        <Text color={subtitleColor} fontSize="sm" fontWeight="medium" px={2}>{orderPage + 1} / {totalOrderPages}</Text>
+                                                        <Button size="sm" variant="outline" borderRadius="lg" disabled={orderPage >= totalOrderPages - 1} onClick={() => setOrderPage((v) => v + 1)}><LuChevronRight size={14} /></Button>
+                                                    </HStack>
+                                                )}
+                                            </HStack>
+                                        </>
+                                    )}
+                                </>
+                            )}
 
-                    {/* ── Modals ── */}
-                    <PaymentModal
-                        open={paymentModal.open}
-                        onClose={closePayment}
-                        customerId={id}
-                        order={paymentModal.order}
-                    />
-                    <CancelPaymentDialog
-                        open={cancelConfirm.open}
-                        onClose={() => setCancelConfirm({ open: false, paymentId: null, amount: 0 })}
-                        onConfirm={handleCancelPayment}
-                        isLoading={cancelling}
-                        amount={cancelConfirm.amount}
-                    />
-                </>
-            )}
+                            {/* ══ TO'LOVLAR ══ */}
+                            {activeTab === 'payments' && (
+                                <>
+                                    {paymentsFetching ? (
+                                        <VStack py={12} gap={3}>
+                                            <Spinner size="md" color={accentColor} thickness="3px" />
+                                            <Text color={subtitleColor} fontSize="sm">Yuklanmoqda...</Text>
+                                        </VStack>
+                                    ) : payments.length === 0 ? (
+                                        <EmptyState
+                                            icon={LuCreditCard}
+                                            title="Hozircha to'lovlar yo'q"
+                                            description="To'lov qilinganda bu yerda tarix paydo bo'ladi"
+                                            isDark={isDark}
+                                            subtitleColor={subtitleColor}
+                                        />
+                                    ) : (
+                                        <>
+                                            <Box overflowX="auto" borderWidth="1px" borderColor={cardBorder} borderRadius="xl">
+                                                <Table.Root size="sm" bg={isDark ? 'transparent' : 'white'} borderCollapse="collapse">
+                                                    <Table.Header bg={isDark ? 'rgba(148,163,184,0.06)' : 'gray.50'}>
+                                                        <Table.Row>
+                                                            <Table.ColumnHeader color={subtitleColor} w="50px" textAlign="center" fontSize="11px" fontWeight="semibold" textTransform="uppercase" letterSpacing="wider">№</Table.ColumnHeader>
+                                                            <Table.ColumnHeader color={subtitleColor} fontSize="11px" fontWeight="semibold" textTransform="uppercase" letterSpacing="wider">Kassa</Table.ColumnHeader>
+                                                            <Table.ColumnHeader color={subtitleColor} textAlign="right" fontSize="11px" fontWeight="semibold" textTransform="uppercase" letterSpacing="wider">Summa</Table.ColumnHeader>
+                                                            <Table.ColumnHeader color={subtitleColor} textAlign="right" fontSize="11px" fontWeight="semibold" textTransform="uppercase" letterSpacing="wider">Taqsimlangan</Table.ColumnHeader>
+                                                            <Table.ColumnHeader color={subtitleColor} textAlign="right" fontSize="11px" fontWeight="semibold" textTransform="uppercase" letterSpacing="wider">Avans</Table.ColumnHeader>
+                                                            <Table.ColumnHeader color={subtitleColor} fontSize="11px" fontWeight="semibold" textTransform="uppercase" letterSpacing="wider">Holati</Table.ColumnHeader>
+                                                            <Table.ColumnHeader color={subtitleColor} fontSize="11px" fontWeight="semibold" textTransform="uppercase" letterSpacing="wider">Izoh</Table.ColumnHeader>
+                                                            <Table.ColumnHeader color={subtitleColor} fontSize="11px" fontWeight="semibold" textTransform="uppercase" letterSpacing="wider">Sana</Table.ColumnHeader>
+                                                            <Table.ColumnHeader color={subtitleColor} textAlign="center" fontSize="11px" fontWeight="semibold" textTransform="uppercase" letterSpacing="wider">Amal</Table.ColumnHeader>
+                                                        </Table.Row>
+                                                    </Table.Header>
+                                                    <Table.Body>
+                                                        {payments.map((payment, index) => (
+                                                            <Table.Row
+                                                                key={payment.id}
+                                                                opacity={payment.status === 'CANCELLED' ? 0.5 : 1}
+                                                                _hover={{ bg: isDark ? 'rgba(250,204,21,.04)' : '#FFFBEB' }}
+                                                                transition="background 0.15s"
+                                                            >
+                                                                <Table.Cell color={subtitleColor} textAlign="center" fontSize="sm">{paymentPage * PAGE_SIZE + index + 1}</Table.Cell>
+                                                                <Table.Cell color={textColor} fontSize="sm" whiteSpace="nowrap" fontWeight="medium">{payment.cashboxName}</Table.Cell>
+                                                                <Table.Cell color={textColor} fontWeight="bold" fontSize="sm" textAlign="right" whiteSpace="nowrap">
+                                                                    {formatNumber(payment.amount ?? 0)} <Text as="span" fontSize="xs" color={subtitleColor}>so&apos;m</Text>
+                                                                </Table.Cell>
+                                                                <Table.Cell color={subtitleColor} fontSize="sm" textAlign="right" whiteSpace="nowrap">
+                                                                    {formatNumber(payment.allocatedAmount ?? 0)}
+                                                                </Table.Cell>
+                                                                <Table.Cell textAlign="right" whiteSpace="nowrap">
+                                                                    <Text
+                                                                        color={(payment.unallocatedAmount ?? 0) > 0 ? (isDark ? 'green.300' : 'green.600') : subtitleColor}
+                                                                        fontWeight={(payment.unallocatedAmount ?? 0) > 0 ? 'bold' : 'normal'}
+                                                                        fontSize="sm"
+                                                                    >
+                                                                        {formatNumber(payment.unallocatedAmount ?? 0)}
+                                                                    </Text>
+                                                                </Table.Cell>
+                                                                <Table.Cell>
+                                                                    <Badge
+                                                                        borderRadius="full"
+                                                                        px={2.5}
+                                                                        py={1}
+                                                                        fontSize="11px"
+                                                                        fontWeight="semibold"
+                                                                        bg={payment.status === 'ACTIVE'
+                                                                            ? (isDark ? 'rgba(34,197,94,.14)' : '#DCFCE7')
+                                                                            : (isDark ? 'rgba(239,68,68,.14)' : '#FEE2E2')}
+                                                                        color={payment.status === 'ACTIVE'
+                                                                            ? (isDark ? 'green.300' : 'green.700')
+                                                                            : (isDark ? 'red.300' : 'red.700')}
+                                                                        whiteSpace="nowrap"
+                                                                    >
+                                                                        {PAYMENT_STATUS_LABELS[payment.status] || payment.status}
+                                                                    </Badge>
+                                                                </Table.Cell>
+                                                                <Table.Cell color={subtitleColor} fontSize="sm" maxW="160px">{payment.summary || '—'}</Table.Cell>
+                                                                <Table.Cell color={subtitleColor} fontSize="sm" whiteSpace="nowrap">{payment.paidAt}</Table.Cell>
+                                                                <Table.Cell textAlign="center">
+                                                                    {payment.status === 'ACTIVE' ? (
+                                                                        <Button
+                                                                            size="xs"
+                                                                            height="28px"
+                                                                            borderRadius="lg"
+                                                                            px={3}
+                                                                            gap={1.5}
+                                                                            fontSize="xs"
+                                                                            fontWeight="semibold"
+                                                                            bg={isDark ? 'rgba(239,68,68,.15)' : 'red.50'}
+                                                                            color={isDark ? 'red.300' : 'red.600'}
+                                                                            borderWidth="1px"
+                                                                            borderColor={isDark ? 'rgba(239,68,68,.3)' : 'red.200'}
+                                                                            _hover={{ bg: isDark ? 'rgba(239,68,68,.25)' : 'red.100' }}
+                                                                            onClick={() => setCancelConfirm({ open: true, paymentId: payment.id, amount: payment.amount })}
+                                                                            transition="all 0.15s"
+                                                                        >
+                                                                            <LuCircleX size={12} />
+                                                                            <span>Bekor</span>
+                                                                        </Button>
+                                                                    ) : (
+                                                                        <Text fontSize="xs" color={subtitleColor}>—</Text>
+                                                                    )}
+                                                                </Table.Cell>
+                                                            </Table.Row>
+                                                        ))}
+                                                    </Table.Body>
+                                                </Table.Root>
+                                            </Box>
+                                            <HStack justify="space-between" mt={4} flexWrap="wrap" gap={3}>
+                                                <Text color={subtitleColor} fontSize="sm">
+                                                    Jami: <Text as="span" fontWeight="bold" color={textColor}>{formatNumber(totalPayments)}</Text> ta to&apos;lov
+                                                </Text>
+                                                {totalPaymentPages > 1 && (
+                                                    <HStack gap={2}>
+                                                        <Button size="sm" variant="outline" borderRadius="lg" disabled={paymentPage === 0} onClick={() => setPaymentPage((v) => v - 1)}><LuChevronLeft size={14} /></Button>
+                                                        <Text color={subtitleColor} fontSize="sm" fontWeight="medium" px={2}>{paymentPage + 1} / {totalPaymentPages}</Text>
+                                                        <Button size="sm" variant="outline" borderRadius="lg" disabled={paymentPage >= totalPaymentPages - 1} onClick={() => setPaymentPage((v) => v + 1)}><LuChevronRight size={14} /></Button>
+                                                    </HStack>
+                                                )}
+                                            </HStack>
+                                        </>
+                                    )}
+                                </>
+                            )}
+                        </Section>
+
+                        {/* ── Modals ── */}
+                        <PaymentModal
+                            open={paymentModal.open}
+                            onClose={closePayment}
+                            customerId={id}
+                            order={paymentModal.order}
+                        />
+                        <CancelPaymentDialog
+                            open={cancelConfirm.open}
+                            onClose={() => setCancelConfirm({ open: false, paymentId: null, amount: 0 })}
+                            onConfirm={handleCancelPayment}
+                            isLoading={cancelling}
+                            amount={cancelConfirm.amount}
+                        />
+                    </>
+                );
+            }}
         </EntityDetail>
     );
 }
