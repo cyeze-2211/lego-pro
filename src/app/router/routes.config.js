@@ -13,6 +13,11 @@ export const ROUTES = [
         roles: ROLES.MANAGER,
     },
     {
+        path: '/brand',
+        component: lazy(() => import('../../Components/Common/Brand')),
+        roles: ROLES.MANAGER,
+    },
+    {
         path: '/profile',
         component: lazy(() => import('../../Components/Common/Profile')),
         roles: [ROLES.MANAGER, ...PRODUCT_WAREHOUSE_ROLES, ...RAW_WAREHOUSE_ROLES, ...ZAYAVKACHI_ROLES, ...BUXGALTER_ROLES, ...KASSIR_ROLES],
