@@ -103,6 +103,21 @@ export const machineApi = createApi({
       transformResponse: (response) => ({ items: response.data, pagination: response.pagination }),
       providesTags: (result, error, { id }) => [{ type: 'Machine', id: `RUNS-${id}` }],
     }),
+
+    // GET /api/v1/machine-outputs/summary — stanok bo'yicha ishlab chiqarish hisobot
+    getMachineOutputsSummary: builder.query({
+      query: ({ machineId, fromDateTime, toDateTime, status }) => ({
+        url: '/machine-outputs/summary',
+        method: 'GET',
+        params: {
+          machineId,
+          ...(fromDateTime && { fromDateTime }),
+          ...(toDateTime && { toDateTime }),
+          ...(status && { status }),
+        },
+      }),
+      transformResponse: (response) => response.data,
+    }),
   }),
 });
 
@@ -116,4 +131,5 @@ export const {
   useStartMachineProductionMutation,
   useStopMachineProductionMutation,
   useGetMachineRunsQuery,
+  useGetMachineOutputsSummaryQuery,
 } = machineApi;

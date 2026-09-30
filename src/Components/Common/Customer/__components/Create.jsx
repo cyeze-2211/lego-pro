@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import PropTypes from 'prop-types';
 import {
     Box,
     Button,
@@ -41,12 +42,17 @@ const initialForm = {
     telegramChatId: '',
 };
 
-export default function Create() {
+export default function Create({ onCreated, compact = false, onBeforeOpen }) {
     const { open, onOpen, onClose } = useDisclosure();
     const [form, setForm] = useState(initialForm);
     const [createCustomer, { isLoading }] = useCreateCustomerMutation();
     const { isDark, accentColor, cardBg, cardBorder, textColor, subtitleColor } = useAppTheme();
     const modalBorder = isDark ? cardBorder : '#94A3B8';
+
+    const handleOpen = () => {
+        onBeforeOpen?.();
+        onOpen();
+    };
 
     const setField = (key, value) =>
         setForm((prev) => ({ ...prev, [key]: value }));
@@ -70,7 +76,7 @@ export default function Create() {
         }
 
         try {
-            await createCustomer({
+            const created = await createCustomer({
                 name: form.name.trim(),
                 phone: form.phone.trim(),
                 summary: form.summary.trim() || null,
@@ -82,6 +88,7 @@ export default function Create() {
             }).unwrap();
 
             Alert('Mijoz muvaffaqiyatli yaratildi', 'success');
+            onCreated?.(created);
             onClose();
             reset();
         } catch (error) {
@@ -91,24 +98,45 @@ export default function Create() {
 
     return (
         <>
-            <Button
-                onClick={onOpen}
-                bg={accentColor}
-                color="black"
-                borderRadius="xl"
-                fontWeight="semibold"
-                px={4}
-                py={4}
-                boxShadow="md"
-                _hover={{ bg: isDark ? 'yellow.300' : 'yellow.500', transform: 'translateY(-1px)', boxShadow: 'lg' }}
-                transition="all 0.2s"
-            >
-                <HStack gap={2}><LuPlus size={20} /><span>Mijoz qo‘shish</span></HStack>
-            </Button>
+            {compact ? (
+                <Button
+                    type="button"
+                    onClick={handleOpen}
+                    aria-label="Mijoz qo‘shish"
+                    h="48px"
+                    w="48px"
+                    minW="48px"
+                    p={0}
+                    bg={accentColor}
+                    color="black"
+                    borderRadius="xl"
+                    boxShadow="md"
+                    _hover={{ bg: isDark ? 'yellow.300' : 'yellow.500', transform: 'translateY(-1px)', boxShadow: 'lg' }}
+                    transition="all 0.2s"
+                >
+                    <LuPlus size={20} />
+                </Button>
+            ) : (
+                <Button
+                    type="button"
+                    onClick={handleOpen}
+                    bg={accentColor}
+                    color="black"
+                    borderRadius="xl"
+                    fontWeight="semibold"
+                    px={4}
+                    py={4}
+                    boxShadow="md"
+                    _hover={{ bg: isDark ? 'yellow.300' : 'yellow.500', transform: 'translateY(-1px)', boxShadow: 'lg' }}
+                    transition="all 0.2s"
+                >
+                    <HStack gap={2}><LuPlus size={20} /><span>Mijoz qo‘shish</span></HStack>
+                </Button>
+            )}
 
             <Dialog.Root
                 open={open}
-                onOpenChange={(event) => (event.open ? onOpen() : onClose())}
+                onOpenChange={(event) => (event.open ? handleOpen() : onClose())}
                 size="2xl"
                 placement="center"
             >
@@ -341,3 +369,9 @@ export default function Create() {
         </>
     );
 }
+
+Create.propTypes = {
+    onCreated: PropTypes.func,
+    compact: PropTypes.bool,
+    onBeforeOpen: PropTypes.func,
+};

@@ -1,8 +1,8 @@
 // Components/Stanokchi/Worker/WorkerMachines.jsx
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { LuCog, LuActivity, LuClock, LuChevronLeft, LuChevronRight } from 'react-icons/lu';
 import { useGetMachinesQuery } from '../../../store/services/machine.api';
+import { useCreateStockTransactionMutation } from '../../../store/services/productStock.api';
 import { useAppTheme } from '../../../theme/tokens';
 
 const PAGE_SIZE = 8;
@@ -18,16 +18,63 @@ const formatStartedAt = (iso) => {
 };
 
 export default function WorkerMachines() {
-    const navigate = useNavigate();
     const [page, setPage] = useState(0);
     const { isDark, pageBg, cardBg, cardBorder, textColor, subtitleColor, accentColor } = useAppTheme();
 
-    const { data: result, isLoading, error } = useGetMachinesQuery({ page, size: PAGE_SIZE });
+    const { data: result, isLoading, error, refetch } = useGetMachinesQuery({ page, size: PAGE_SIZE });
     const machines   = result?.items || [];
     const totalPages = result?.pagination?.totalPages || 0;
 
+    /* ── Qayt etish mutation ── */
+    const [createStockTransaction, { isLoading: producing }] = useCreateStockTransactionMutation();
+    const [producingId, setProducingId] = useState(null);
+
+    /* ── Toast ── */
+    const [toast, setToast] = useState(null);
+    const showToast = (message, type = 'success') => {
+        setToast({ message, type });
+        setTimeout(() => setToast(null), 3500);
+    };
+
+    const handleCardClick = async (machine) => {
+        const isWorking = !!machine.currentRun && machine.status !== 'IDLE';
+        if (!isWorking || producing) return;
+
+        setProducingId(machine.id);
+        try {
+            await createStockTransaction({
+                action: 'PRODUCE',
+                machineId: machine.id,
+                items: [{ productId: machine.currentRun.productId, quantity: 1 }],
+            }).unwrap();
+            showToast(`✓ 1 dona qayd etildi — ${machine.currentRun.productName}`);
+            refetch();
+        } catch (err) {
+            showToast(err?.data?.message || 'Qayd etishda xatolik', 'error');
+        } finally {
+            setProducingId(null);
+        }
+    };
+
     return (
         <div style={{ background: pageBg, color: textColor, minHeight: '100%' }}>
+
+            {/* Toast */}
+            {toast && (
+                <div style={{
+                    position: 'fixed', top: 90, right: 24, zIndex: 9999,
+                    padding: '12px 20px', borderRadius: 12, fontWeight: 600, fontSize: 14,
+                    background: toast.type === 'error'
+                        ? (isDark ? '#7F1D1D' : '#FEE2E2')
+                        : (isDark ? '#14532D' : '#DCFCE7'),
+                    color: toast.type === 'error'
+                        ? (isDark ? '#FCA5A5' : '#991B1B')
+                        : (isDark ? '#86EFAC' : '#166534'),
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
+                }}>
+                    {toast.message}
+                </div>
+            )}
 
             {/* Sarlavha */}
             <div className="mb-8">
@@ -35,7 +82,7 @@ export default function WorkerMachines() {
                     Stanoklar
                 </h1>
                 <p className="text-lg" style={{ color: subtitleColor }}>
-                    Ishlamoqchi bo&apos;lgan stanokning ustiga bosing
+                    Qayd etish uchun ishlayotgan stanokning ustiga bosing
                 </p>
             </div>
 
@@ -82,7 +129,8 @@ export default function WorkerMachines() {
                                 textColor={textColor}
                                 subtitleColor={subtitleColor}
                                 accentColor={accentColor}
-                                onClick={() => navigate(`/stanokchi/machines/${machine.id}`)}
+                                onClick={() => handleCardClick(machine)}
+                                isProducing={producingId === machine.id}
                             />
                         ))}
                     </div>
@@ -117,13 +165,14 @@ export default function WorkerMachines() {
 }
 
 /* ── WorkerMachineCard — katta, oddiy ── */
-function WorkerMachineCard({ machine, isDark, cardBg, cardBorder, textColor, subtitleColor, accentColor, onClick }) {
+function WorkerMachineCard({ machine, isDark, cardBg, cardBorder, textColor, subtitleColor, accentColor, onClick, isProducing }) {
     const isWorking = !!machine.currentRun && machine.status !== 'IDLE';
 
     return (
         <button
             onClick={onClick}
-            className="text-left w-full rounded-3xl border transition-all duration-200 overflow-hidden active:scale-[0.98]"
+            disabled={isProducing}
+            className="relative text-left w-full rounded-3xl border transition-all duration-200 overflow-hidden active:scale-[0.98]"
             style={{
                 background: cardBg,
                 borderColor: isWorking
@@ -132,7 +181,8 @@ function WorkerMachineCard({ machine, isDark, cardBg, cardBorder, textColor, sub
                 boxShadow: isWorking
                     ? (isDark ? '0 6px 28px rgba(34,197,94,0.12)' : '0 6px 24px rgba(34,197,94,0.1)')
                     : (isDark ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 18px rgba(15,23,42,0.08)'),
-                cursor: 'pointer',
+                cursor: isProducing ? 'wait' : isWorking ? 'pointer' : 'default',
+                opacity: isProducing ? 0.6 : 1,
             }}
         >
             {/* Top accent strip */}
@@ -144,6 +194,24 @@ function WorkerMachineCard({ machine, isDark, cardBg, cardBorder, textColor, sub
             }} />
 
             <div className="p-6">
+                {/* Loading indicator (card ustida) */}
+                {isProducing && (
+                    <div className="absolute inset-0 flex items-center justify-center z-10"
+                        style={{ background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(2px)' }}>
+                        <div className="flex flex-col items-center gap-2">
+                            <div style={{
+                                width: 32, height: 32, borderRadius: '50%',
+                                border: '3px solid rgba(255,255,255,0.3)',
+                                borderTopColor: '#22C55E',
+                                animation: 'spin 0.8s linear infinite',
+                            }} />
+                            <span className="text-xs font-semibold" style={{ color: '#fff' }}>
+                                Saqlanmoqda...
+                            </span>
+                        </div>
+                    </div>
+                )}
+
                 {/* Icon + badge row */}
                 <div className="flex items-start justify-between mb-4">
                     <div
@@ -229,4 +297,23 @@ function SkeletonCard({ isDark, cardBg, cardBorder }) {
             </div>
         </div>
     );
+}
+
+/* ── Spin animation ── */
+const spinStyle = `
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+`;
+
+// Inject style
+if (typeof document !== 'undefined') {
+    const styleId = 'worker-machines-animation';
+    if (!document.getElementById(styleId)) {
+        const style = document.createElement('style');
+        style.id = styleId;
+        style.textContent = spinStyle;
+        document.head.appendChild(style);
+    }
 }

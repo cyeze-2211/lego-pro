@@ -1,7 +1,7 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
 import { axiosBaseQuery } from '../baseQuary/axiosBaseQuery';
-
-const API_BASE = import.meta.env.VITE_API_URL || '';
+import { BASE_URL } from '../api';
+import Cookies from 'js-cookie';
 
 export const brandApi = createApi({
     reducerPath: 'brandApi',
@@ -98,20 +98,16 @@ export const brandApi = createApi({
                     const formData = new FormData();
                     formData.append('file', file);
 
-                    // ⚠️ Tokenlarni o'z loyihangizga moslang:
-                    const token = localStorage.getItem('token');
-                    const deviceToken = localStorage.getItem('deviceToken');
+                    const token = Cookies.get('token');
+                    const deviceToken = Cookies.get('device_token');
 
                     const response = await fetch(
-                        `${API_BASE}/api/v1/brands/${id}/logo`,
+                        `${BASE_URL}/api/v1/brands/${id}/logo`,
                         {
                             method: 'POST',
                             headers: {
                                 ...(token ? { Authorization: `Bearer ${token}` } : {}),
-                                ...(deviceToken
-                                    ? { 'X-Device-Token': deviceToken }
-                                    : {}),
-                                // Content-Type YOZILMAYDI — fetch o'zi boundary bilan qo'yadi
+                                ...(deviceToken ? { 'X-Device-Token': deviceToken } : {}),
                             },
                             body: formData,
                         },
