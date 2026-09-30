@@ -384,9 +384,7 @@ export default function RoleDetail() {
                                                                 <Text fontSize="sm" fontWeight="semibold" color={textColor}>
                                                                     {perm.label}
                                                                 </Text>
-                                                                <Text fontSize="11px" color={subtitleColor} fontFamily="mono">
-                                                                    {perm.code}
-                                                                </Text>
+                                                     
                                                             </Box>
                                                         </HStack>
                                                     );

@@ -15,6 +15,12 @@ import Delete from './__components/Delete';
 
 const PAGE_SIZE = 12;
 
+// 50000 -> "50 000"
+const formatNumber = (value) => {
+    if (value === null || value === undefined || value === '') return '—';
+    return String(value).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+};
+
 export default function Raw() {
     const [search, setSearch] = useState('');
     const [query, setQuery] = useState('');
@@ -35,7 +41,10 @@ export default function Raw() {
         accentColor,
     } = useAppTheme();
 
+    // Ответ API: { data: [...], pagination: {...}, message, status }
     const materials = result?.items || [];
+
+    console.log('Raw materials:', materials);
     const totalPages = result?.pagination?.totalPages || 0;
     const tableBg = isDark ? BRAND_COLORS.darkCardBg : cardBg;
     const tableHeaderBg = isDark ? tableBg : '#F8FAFC';
@@ -123,11 +132,12 @@ export default function Raw() {
                         <Table.ColumnHeader bg={tableHeaderBg} borderWidth="0.5px" borderColor={tableBorder} color={subtitleColor} w="60px" textAlign="center">№</Table.ColumnHeader>
                         <Table.ColumnHeader bg={tableHeaderBg} borderWidth="0.5px" borderColor={tableBorder} color={subtitleColor}>Nomi</Table.ColumnHeader>
                         <Table.ColumnHeader bg={tableHeaderBg} borderWidth="0.5px" borderColor={tableBorder} color={subtitleColor}>Tavsifi</Table.ColumnHeader>
-                        <Table.ColumnHeader bg={tableHeaderBg} borderWidth="0.5px" borderColor={tableBorder} color={subtitleColor} textAlign="center">Amallar</Table.ColumnHeader>
+                        <Table.ColumnHeader bg={tableHeaderBg} borderWidth="0.5px" borderColor={tableBorder} color={subtitleColor} textAlign="right" w="160px">Minimal chegara</Table.ColumnHeader>
+                        <Table.ColumnHeader bg={tableHeaderBg} borderWidth="0.5px" borderColor={tableBorder} color={subtitleColor} textAlign="center" w="140px">Amallar</Table.ColumnHeader>
                     </Table.Row>
                 </Table.Header>
                 <Table.Body bg={tableBg}>
-                    {materials.map((material, index) => (
+                    {materials?.map((material, index) => (
                         <Table.Row key={material.id} bg={tableBg} _hover={{ bg: isDark ? 'rgba(250, 204, 21, 0.06)' : '#FFFBEB' }}>
                             <Table.Cell borderWidth="0.5px" borderColor={tableBorder} color={subtitleColor} textAlign="center">{page * PAGE_SIZE + index + 1}</Table.Cell>
                             <Table.Cell borderWidth="0.5px" borderColor={tableBorder}>
@@ -137,6 +147,9 @@ export default function Raw() {
                                 </HStack>
                             </Table.Cell>
                             <Table.Cell borderWidth="0.5px" borderColor={tableBorder} color={subtitleColor}>{material.summary || 'Tavsifsiz'}</Table.Cell>
+                            <Table.Cell borderWidth="0.5px" borderColor={tableBorder} textAlign="right" color={textColor} fontWeight="medium">
+                                {formatNumber(material.minimumLine)}
+                            </Table.Cell>
                             <Table.Cell borderWidth="0.5px" borderColor={tableBorder}>
                                 <HStack justify="center"><Edit material={material} /><Delete material={material} /></HStack>
                             </Table.Cell>

@@ -12,17 +12,25 @@ import {
   useDisclosure,
 } from '@chakra-ui/react';
 import { Check, FileText, Package, X } from 'lucide-react';
-import { LuPlus, LuTag, LuWarehouse } from 'react-icons/lu';
+import { LuPlus, LuTag, LuWarehouse, LuTrendingUp } from 'react-icons/lu';
 import { useCreateRawMaterialMutation } from '../../../../store/services/raw.api';
 import { Alert } from '../../../Other/UI/Alert/Alert';
 import { useAppTheme } from '../../../../theme/tokens';
 import FormControl from '../../../ui/FormControl';
+
+// Форматирование числа с пробелами: 50000 -> "50 000"
+const formatNumber = (value) => {
+  const digits = value.replace(/\D/g, '');
+  if (!digits) return '';
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+};
 
 export default function Create({ warehouses }) {
   const { open, onOpen, onClose } = useDisclosure();
   const [name, setName] = useState('');
   const [summary, setSummary] = useState('');
   const [warehouseId, setWarehouseId] = useState('');
+  const [minimumLine, setMinimumLine] = useState('');
   const [createRawMaterial, { isLoading }] = useCreateRawMaterialMutation();
   const { isDark, accentColor, cardBg, cardBorder, textColor, subtitleColor } = useAppTheme();
 
@@ -32,6 +40,11 @@ export default function Create({ warehouses }) {
     setName('');
     setSummary('');
     setWarehouseId('');
+    setMinimumLine('');
+  };
+
+  const handleMinimumLineChange = (event) => {
+    setMinimumLine(formatNumber(event.target.value));
   };
 
   const handleSubmit = async () => {
@@ -45,6 +58,9 @@ export default function Create({ warehouses }) {
         name: name.trim(),
         summary: summary.trim() || undefined,
         warehouseId,
+        minimumLine: minimumLine
+          ? Number(minimumLine.replace(/\s/g, ''))
+          : undefined,
       }).unwrap();
       Alert('Xom ashyo muvaffaqiyatli yaratildi', 'success');
       onClose();
@@ -193,6 +209,23 @@ export default function Create({ warehouses }) {
                         </option>
                       ))}
                     </FormControl>
+                  </Field.Root>
+
+                  <Field.Root>
+                    <Field.Label color={textColor} fontWeight="medium">
+                      <HStack gap={2}>
+                        <LuTrendingUp size={16} />
+                        <span>Minimal chegara</span>
+                      </HStack>
+                    </Field.Label>
+                    <FormControl
+                      type="text"
+                      inputMode="numeric"
+                      value={minimumLine}
+                      onChange={handleMinimumLineChange}
+                      placeholder="Masalan: 50 000"
+                      minH="52px"
+                    />
                   </Field.Root>
 
                   <Field.Root>
