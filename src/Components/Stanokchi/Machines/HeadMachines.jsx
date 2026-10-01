@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LuCog, LuChevronLeft, LuChevronRight, LuActivity, LuClock } from 'react-icons/lu';
+import { LuCog, LuChevronLeft, LuChevronRight, LuActivity } from 'react-icons/lu';
 import { useGetMachinesQuery } from '../../../store/services/machine.api';
 import { useAppTheme } from '../../../theme/tokens';
 import { useHeaderContext } from '../../../context/HeaderContext';
@@ -19,7 +19,7 @@ const formatStartedAt = (iso) => {
 };
 
 /* ── BrandLogo komponenti ── */
-function BrandLogo({ brand, isDark, accentColor, size = 24 }) {
+function BrandLogo({ brand, isDark, accentColor, size = 24, isRectangle = false }) {
     const [imgSrc, setImgSrc] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(false);
@@ -58,10 +58,10 @@ function BrandLogo({ brand, isDark, accentColor, size = 24 }) {
     }, [brand?.logoUrl, brand?.id]);
 
     const containerStyle = {
-        width: `${size}px`,
+        width: isRectangle ? `${size + 16}px` : `${size}px`,
         height: `${size}px`,
-        minWidth: `${size}px`,
-        borderRadius: '6px',
+        minWidth: isRectangle ? `${size + 16}px` : `${size}px`,
+        borderRadius: '8px',
         overflow: 'hidden',
         display: 'flex',
         alignItems: 'center',
@@ -74,7 +74,7 @@ function BrandLogo({ brand, isDark, accentColor, size = 24 }) {
     if (!brand?.logoUrl || error) {
         return (
             <div style={containerStyle}>
-                <span className="text-[10px] font-bold" style={{ color: accentColor }}>
+                <span className="text-sm font-bold" style={{ color: accentColor }}>
                     {brand?.name?.charAt(0) || 'B'}
                 </span>
             </div>
@@ -84,7 +84,7 @@ function BrandLogo({ brand, isDark, accentColor, size = 24 }) {
     if (loading) {
         return (
             <div style={containerStyle}>
-                <div className="animate-spin text-[10px]" style={{ color: accentColor }}>⏳</div>
+                <div className="animate-spin text-sm" style={{ color: accentColor }}>⏳</div>
             </div>
         );
     }
@@ -95,10 +95,11 @@ function BrandLogo({ brand, isDark, accentColor, size = 24 }) {
                 <img 
                     src={imgSrc} 
                     alt={brand.name}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain"
+                    style={{ padding: '4px' }}
                 />
             ) : (
-                <span className="text-[10px] font-bold" style={{ color: accentColor }}>
+                <span className="text-sm font-bold" style={{ color: accentColor }}>
                     {brand?.name?.charAt(0) || 'B'}
                 </span>
             )}
@@ -129,9 +130,7 @@ export default function StanokchiMachines() {
 
             {/* Loading skeletons */}
             {isLoading && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {Array.from({ length: 8 }).map((_, i) => (
-                        <SkeletonCard key={i} isDark={isDark} cardBg={cardBg} cardBorder={cardBorder} />
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     ))}
                 </div>
             )}
@@ -155,7 +154,7 @@ export default function StanokchiMachines() {
             {/* Cards grid */}
             {!isLoading && !error && machines.length > 0 && (
                 <>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         {machines.map((machine) => (
                             <MachineCard
                                 key={machine.id}
@@ -263,31 +262,45 @@ function MachineCard({ machine, isDark, cardBg, cardBorder, textColor, subtitleC
                     : (isDark ? 'rgba(255,255,255,0.06)' : '#E2E8F0'),
             }} />
 
-            <div className="p-4">
-                {/* Icon + status badge */}
-                <div className="flex items-start justify-between mb-3">
-                    <div
-                        className="flex items-center justify-center w-12 h-12 rounded-xl transition-transform duration-200 group-hover:scale-110"
-                        style={{ 
-                            background: isWorking 
-                                ? (isDark ? 'rgba(34,197,94,0.18)' : 'rgba(34,197,94,0.12)')
-                                : isDefect
-                                ? (isDark ? 'rgba(239,68,68,0.18)' : 'rgba(239,68,68,0.12)')
-                                : (isDark ? 'rgba(250,204,21,0.12)' : '#FEF3C7')
-                        }}
-                    >
-                        <LuCog 
-                            size={24} 
-                            style={{ 
-                                color: isWorking 
-                                    ? '#22C55E'
-                                    : isDefect
-                                    ? '#EF4444'
-                                    : accentColor
-                            }} 
+            <div className="p-5">
+                {/* Brand Logo (katta va to'rtburchak) + Status badge */}
+                <div className="flex items-start justify-between mb-4">
+                    {/* Brand logo yoki default icon */}
+                    {(isWorking || isDefect) && machine.currentRun?.brand ? (
+                        <BrandLogo 
+                            brand={machine.currentRun.brand} 
+                            isDark={isDark} 
+                            accentColor={accentColor}
+                            size={72}
+                            isRectangle={true}
                         />
-                    </div>
+                    ) : (
+                        <div
+                            className="flex items-center justify-center rounded-xl transition-transform duration-200 group-hover:scale-110"
+                            style={{ 
+                                width: '72px',
+                                height: '56px',
+                                background: isWorking 
+                                    ? (isDark ? 'rgba(34,197,94,0.18)' : 'rgba(34,197,94,0.12)')
+                                    : isDefect
+                                    ? (isDark ? 'rgba(239,68,68,0.18)' : 'rgba(239,68,68,0.12)')
+                                    : (isDark ? 'rgba(250,204,21,0.12)' : '#FEF3C7')
+                            }}
+                        >
+                            <LuCog 
+                                size={28} 
+                                style={{ 
+                                    color: isWorking 
+                                        ? '#22C55E'
+                                        : isDefect
+                                        ? '#EF4444'
+                                        : accentColor
+                                }} 
+                            />
+                        </div>
+                    )}
 
+                    {/* Status badge */}
                     <span
                         className="text-xs font-bold px-3 py-1.5 rounded-full"
                         style={
@@ -302,22 +315,51 @@ function MachineCard({ machine, isDark, cardBg, cardBorder, textColor, subtitleC
                     </span>
                 </div>
 
-                {/* Name */}
-                <h3 className="font-bold text-base mb-1 leading-snug group-hover:text-opacity-80 transition-opacity" style={{ color: textColor }}>
-                    {machine.name}
-                </h3>
-
-                {/* Summary */}
-                {machine.summary && (
-                    <p className="text-xs mb-3 line-clamp-2 leading-relaxed" style={{ color: subtitleColor }}>
-                        {machine.summary}
-                    </p>
+                {/* Brand nomi - zamonaviy dizayn */}
+                {(isWorking || isDefect) && machine.currentRun?.brand && (
+                    <div 
+                        className="mb-3 pb-3"
+                        style={{
+                            borderBottom: `2px solid ${
+                                isWorking 
+                                    ? (isDark ? 'rgba(34,197,94,0.2)' : '#BBF7D0')
+                                    : (isDark ? 'rgba(239,68,68,0.2)' : '#FECACA')
+                            }`
+                        }}
+                    >
+                        <div className="flex items-center gap-2 mb-1">
+                            <div 
+                                className="w-1.5 h-5 rounded-full"
+                                style={{
+                                    background: isWorking 
+                                        ? (isDark ? '#86EFAC' : '#16A34A')
+                                        : (isDark ? '#FCA5A5' : '#DC2626')
+                                }}
+                            />
+                            <span 
+                                className="text-lg font-extrabold tracking-tight" 
+                                style={{ color: textColor }}
+                            >
+                                {machine.currentRun.brand.name}
+                            </span>
+                        </div>
+                    </div>
                 )}
 
-                {/* Current run info */}
+                {/* Stanok nomi - kichikroq va subtitle rangida */}
+                <div className="flex items-center gap-2 mb-2">
+                    <LuCog size={14} style={{ color: subtitleColor, flexShrink: 0 }} />
+                    <h3 className="font-semibold text-sm leading-snug" style={{ color: subtitleColor }}>
+                        {machine.name}
+                    </h3>
+                </div>
+
+           
+
+                {/* Current run info - mahsulot nomi */}
                 {(isWorking || isDefect) && machine.currentRun ? (
                     <div 
-                        className="mt-3 pt-3 flex flex-col gap-2"
+                        className="mt-3 pt-3"
                         style={{ 
                             borderTop: `1px solid ${
                                 isWorking 
@@ -326,17 +368,17 @@ function MachineCard({ machine, isDark, cardBg, cardBorder, textColor, subtitleC
                             }` 
                         }}
                     >
-                        {/* Mahsulot */}
-                        <div className="flex items-center gap-1.5">
+                        {/* Mahsulot nomi */}
+                        <div className="flex items-center gap-2">
                             <LuActivity 
-                                size={14} 
+                                size={16} 
                                 style={{ 
                                     color: isWorking ? '#22C55E' : '#EF4444',
                                     flexShrink: 0 
                                 }} 
                             />
                             <span 
-                                className="text-xs font-semibold truncate" 
+                                className="text-sm font-semibold truncate" 
                                 style={{ 
                                     color: isWorking 
                                         ? (isDark ? '#86EFAC' : '#166534')
@@ -344,32 +386,6 @@ function MachineCard({ machine, isDark, cardBg, cardBorder, textColor, subtitleC
                                 }}
                             >
                                 {machine.currentRun.productName}
-                            </span>
-                        </div>
-
-                        {/* Brand */}
-                        {machine.currentRun.brand && (
-                            <div className="flex items-center gap-2">
-                                <BrandLogo 
-                                    brand={machine.currentRun.brand} 
-                                    isDark={isDark} 
-                                    accentColor={accentColor}
-                                    size={24}
-                                />
-                                <span 
-                                    className="text-xs font-medium truncate" 
-                                    style={{ color: subtitleColor }}
-                                >
-                                    {machine.currentRun.brand.name}
-                                </span>
-                            </div>
-                        )}
-
-                        {/* Vaqt */}
-                        <div className="flex items-center gap-1.5">
-                            <LuClock size={12} style={{ color: subtitleColor, flexShrink: 0 }} />
-                            <span className="text-xs truncate" style={{ color: subtitleColor }}>
-                                {formatStartedAt(machine.currentRun.startedAt)}
                             </span>
                         </div>
                     </div>
