@@ -816,39 +816,219 @@ export default function StanokchiMachineDetail() {
                         </div>
                     </div>
                 ) : (
-                    <div className="p-5">
-                        {/* Summary cards */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+                    <div className="p-6">
+                        {/* Summary cards - Yaxshilangan dizayn */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
                             {/* Jami miqdor */}
-                            <div className="rounded-xl p-4 border"
+                            <div 
+                                className="rounded-2xl p-5 border-2 transition-all duration-200 hover:scale-105"
                                 style={{
-                                    background: isDark ? 'rgba(34,197,94,0.08)' : '#F0FDF4',
-                                    borderColor: isDark ? 'rgba(34,197,94,0.2)' : '#BBF7D0',
+                                    background: isDark 
+                                        ? 'linear-gradient(135deg, rgba(34,197,94,0.12) 0%, rgba(34,197,94,0.05) 100%)'
+                                        : 'linear-gradient(135deg, rgba(240,253,244,1) 0%, rgba(220,252,231,0.8) 100%)',
+                                    borderColor: isDark ? 'rgba(34,197,94,0.3)' : '#86EFAC',
+                                    boxShadow: isDark 
+                                        ? '0 4px 16px rgba(34,197,94,0.1)' 
+                                        : '0 4px 16px rgba(34,197,94,0.15)',
                                 }}>
-                                <p className="text-xs font-medium mb-1" style={{ color: subtitleColor }}>
+                                <div className="flex items-start justify-between mb-3">
+                                    <div 
+                                        className="w-12 h-12 rounded-xl flex items-center justify-center"
+                                        style={{
+                                            background: isDark ? 'rgba(34,197,94,0.2)' : 'rgba(34,197,94,0.15)',
+                                        }}
+                                    >
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={isDark ? '#86EFAC' : '#16A34A'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                                            <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                                            <line x1="12" y1="22.08" x2="12" y2="12"/>
+                                        </svg>
+                                    </div>
+                                </div>
+                                <p className="text-xs font-semibold mb-2 uppercase tracking-wide" style={{ color: isDark ? '#86EFAC' : '#166534' }}>
                                     Jami ishlab chiqarildi
                                 </p>
-                                <p className="text-2xl font-bold" style={{ color: isDark ? '#86EFAC' : '#166534' }}>
-                                    {summary.totalQuantity || 0} dona
+                                <p className="text-3xl font-extrabold" style={{ color: isDark ? '#86EFAC' : '#166534' }}>
+                                    {summary?.totalQuantity || 0}
+                                    <span className="text-lg ml-1.5 font-medium opacity-80">dona</span>
                                 </p>
                             </div>
 
                             {/* Ish vaqti */}
-                            <div className="rounded-xl p-4 border"
+                            <div 
+                                className="rounded-2xl p-5 border-2 transition-all duration-200 hover:scale-105"
                                 style={{
-                                    background: isDark ? 'rgba(250,204,21,0.08)' : '#FFFBEB',
-                                    borderColor: isDark ? 'rgba(250,204,21,0.2)' : '#FDE68A',
+                                    background: isDark 
+                                        ? 'linear-gradient(135deg, rgba(250,204,21,0.12) 0%, rgba(250,204,21,0.05) 100%)'
+                                        : 'linear-gradient(135deg, rgba(255,251,235,1) 0%, rgba(254,243,199,0.8) 100%)',
+                                    borderColor: isDark ? 'rgba(250,204,21,0.3)' : '#FDE047',
+                                    boxShadow: isDark 
+                                        ? '0 4px 16px rgba(250,204,21,0.1)' 
+                                        : '0 4px 16px rgba(250,204,21,0.15)',
                                 }}>
-                                <p className="text-xs font-medium mb-1" style={{ color: subtitleColor }}>
+                                <div className="flex items-start justify-between mb-3">
+                                    <div 
+                                        className="w-12 h-12 rounded-xl flex items-center justify-center"
+                                        style={{
+                                            background: isDark ? 'rgba(250,204,21,0.2)' : 'rgba(250,204,21,0.15)',
+                                        }}
+                                    >
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={isDark ? '#FACC15' : '#CA8A04'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                            <circle cx="12" cy="12" r="10"/>
+                                            <polyline points="12 6 12 12 16 14"/>
+                                        </svg>
+                                    </div>
+                                </div>
+                                <p className="text-xs font-semibold mb-2 uppercase tracking-wide" style={{ color: isDark ? '#FACC15' : '#78350F' }}>
                                     Ish vaqti
                                 </p>
-                                <p className="text-2xl font-bold" style={{ color: isDark ? '#FACC15' : '#78350F' }}>
-                                    {summary.workedDurationSeconds
+                                <p className="text-3xl font-extrabold" style={{ color: isDark ? '#FACC15' : '#78350F' }}>
+                                    {summary?.workedDurationSeconds
                                         ? `${Math.floor(summary.workedDurationSeconds / 3600)}s ${Math.floor((summary.workedDurationSeconds % 3600) / 60)}d`
                                         : '0s 0d'}
                                 </p>
                             </div>
+
+                            {/* Brak vaqti */}
+                            <div 
+                                className="rounded-2xl p-5 border-2 transition-all duration-200 hover:scale-105"
+                                style={{
+                                    background: isDark 
+                                        ? 'linear-gradient(135deg, rgba(239,68,68,0.12) 0%, rgba(239,68,68,0.05) 100%)'
+                                        : 'linear-gradient(135deg, rgba(254,242,242,1) 0%, rgba(254,226,226,0.8) 100%)',
+                                    borderColor: isDark ? 'rgba(239,68,68,0.3)' : '#FCA5A5',
+                                    boxShadow: isDark 
+                                        ? '0 4px 16px rgba(239,68,68,0.1)' 
+                                        : '0 4px 16px rgba(239,68,68,0.15)',
+                                }}>
+                                <div className="flex items-start justify-between mb-3">
+                                    <div 
+                                        className="w-12 h-12 rounded-xl flex items-center justify-center"
+                                        style={{
+                                            background: isDark ? 'rgba(239,68,68,0.2)' : 'rgba(239,68,68,0.15)',
+                                        }}
+                                    >
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={isDark ? '#FCA5A5' : '#DC2626'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                            <circle cx="12" cy="12" r="10"/>
+                                            <line x1="15" y1="9" x2="9" y2="15"/>
+                                            <line x1="9" y1="9" x2="15" y2="15"/>
+                                        </svg>
+                                    </div>
+                                </div>
+                                <p className="text-xs font-semibold mb-2 uppercase tracking-wide" style={{ color: isDark ? '#FCA5A5' : '#991B1B' }}>
+                                    Brak vaqti
+                                </p>
+                                <p className="text-3xl font-extrabold" style={{ color: isDark ? '#FCA5A5' : '#991B1B' }}>
+                                    {summary?.defectDurationSeconds
+                                        ? `${Math.floor(summary.defectDurationSeconds / 3600)}s ${Math.floor((summary.defectDurationSeconds % 3600) / 60)}d`
+                                        : '0s 0d'}
+                                </p>
+                            </div>
                         </div>
+
+                        {/* Mahsulotlar ro'yxati - Yaxshilangan dizayn */}
+                        {summary?.products && summary.products.length > 0 && (
+                            <div className="mb-5">
+                                <div className="flex items-center gap-2 mb-4">
+                                    <div 
+                                        className="w-8 h-8 rounded-lg flex items-center justify-center"
+                                        style={{
+                                            background: isDark ? 'rgba(250,204,21,0.15)' : 'rgba(250,204,21,0.2)',
+                                        }}
+                                    >
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={accentColor} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                            <line x1="8" y1="6" x2="21" y2="6"/>
+                                            <line x1="8" y1="12" x2="21" y2="12"/>
+                                            <line x1="8" y1="18" x2="21" y2="18"/>
+                                            <line x1="3" y1="6" x2="3.01" y2="6"/>
+                                            <line x1="3" y1="12" x2="3.01" y2="12"/>
+                                            <line x1="3" y1="18" x2="3.01" y2="18"/>
+                                        </svg>
+                                    </div>
+                                    <h4 className="text-base font-bold" style={{ color: textColor }}>
+                                        Mahsulotlar bo'yicha
+                                    </h4>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {summary.products.map((product) => (
+                                        <div
+                                            key={product.productId}
+                                            className="rounded-2xl p-5 border-2 transition-all duration-200 hover:shadow-lg"
+                                            style={{
+                                                background: isDark 
+                                                    ? 'linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)'
+                                                    : '#FFFFFF',
+                                                borderColor: isDark ? 'rgba(255,255,255,0.1)' : cardBorder,
+                                            }}
+                                        >
+                                            <div className="flex items-start justify-between mb-4">
+                                                <div className="flex-1">
+                                                    <h5 className="font-bold text-lg mb-1" style={{ color: textColor }}>
+                                                        {product.productName}
+                                                    </h5>
+                                                    <p className="text-xs" style={{ color: subtitleColor }}>
+                                                        Mahsulot
+                                                    </p>
+                                                </div>
+                                                <div 
+                                                    className="px-4 py-2 rounded-xl"
+                                                    style={{
+                                                        background: isDark ? 'rgba(250,204,21,0.15)' : 'rgba(250,204,21,0.2)',
+                                                    }}
+                                                >
+                                                    <p className="text-2xl font-extrabold text-center" style={{ color: accentColor }}>
+                                                        {product.totalQuantity}
+                                                    </p>
+                                                    <p className="text-[10px] font-semibold uppercase text-center" style={{ color: accentColor, opacity: 0.8 }}>
+                                                        dona
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div 
+                                                    className="flex items-center gap-2.5 p-3 rounded-xl"
+                                                    style={{
+                                                        background: isDark ? 'rgba(34,197,94,0.1)' : 'rgba(34,197,94,0.08)',
+                                                    }}
+                                                >
+                                                    <div
+                                                        className="w-3 h-3 rounded-full flex-shrink-0"
+                                                        style={{ background: '#22C55E' }}
+                                                    />
+                                                    <div>
+                                                        <p className="text-xs font-medium" style={{ color: subtitleColor }}>
+                                                            Butun
+                                                        </p>
+                                                        <p className="text-lg font-bold" style={{ color: isDark ? '#86EFAC' : '#166534' }}>
+                                                            {product.goodQuantity}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <div 
+                                                    className="flex items-center gap-2.5 p-3 rounded-xl"
+                                                    style={{
+                                                        background: isDark ? 'rgba(239,68,68,0.1)' : 'rgba(239,68,68,0.08)',
+                                                    }}
+                                                >
+                                                    <div
+                                                        className="w-3 h-3 rounded-full flex-shrink-0"
+                                                        style={{ background: '#EF4444' }}
+                                                    />
+                                                    <div>
+                                                        <p className="text-xs font-medium" style={{ color: subtitleColor }}>
+                                                            Brak
+                                                        </p>
+                                                        <p className="text-lg font-bold" style={{ color: isDark ? '#FCA5A5' : '#991B1B' }}>
+                                                            {product.defectQuantity}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
                         {/* Info row */}
                         <div className="flex items-center gap-2 px-3 py-2 rounded-lg"
