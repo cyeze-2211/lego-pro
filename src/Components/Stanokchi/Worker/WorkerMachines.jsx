@@ -1,9 +1,10 @@
 // Components/Stanokchi/Worker/WorkerMachines.jsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { LuCog, LuActivity, LuClock, LuChevronLeft, LuChevronRight } from 'react-icons/lu';
 import { useGetMachinesQuery } from '../../../store/services/machine.api';
 import { useCreateStockTransactionMutation } from '../../../store/services/productStock.api';
 import { useAppTheme } from '../../../theme/tokens';
+import $api from '../../../store/api';
 
 const PAGE_SIZE = 8;
 
@@ -16,6 +17,94 @@ const formatStartedAt = (iso) => {
         hour: '2-digit', minute: '2-digit',
     });
 };
+
+/* ── BrandLogo komponenti ── */
+function BrandLogo({ brand, isDark, accentColor, size = 32 }) {
+    const [imgSrc, setImgSrc] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(false);
+
+    useEffect(() => {
+        if (!brand?.logoUrl) {
+            setImgSrc(null);
+            return;
+        }
+
+        let mounted = true;
+        setLoading(true);
+        setError(false);
+
+        // Axios bilan blob yuklab olish (token bilan)
+        $api.get(brand.logoUrl.replace('/api/v1', ''), { responseType: 'blob' })
+            .then((response) => {
+                if (mounted) {
+                    const url = URL.createObjectURL(response.data);
+                    setImgSrc(url);
+                    setLoading(false);
+                }
+            })
+            .catch((err) => {
+                if (mounted) {
+                    console.error('Logo load error:', err);
+                    setError(true);
+                    setLoading(false);
+                }
+            });
+
+        return () => {
+            mounted = false;
+            if (imgSrc) URL.revokeObjectURL(imgSrc);
+        };
+    }, [brand?.logoUrl, brand?.id]);
+
+    const containerStyle = {
+        width: `${size}px`,
+        height: `${size}px`,
+        minWidth: `${size}px`,
+        borderRadius: '8px',
+        overflow: 'hidden',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+        border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
+        flexShrink: 0,
+    };
+
+    if (!brand?.logoUrl || error) {
+        return (
+            <div style={containerStyle}>
+                <span className="text-xs font-bold" style={{ color: accentColor }}>
+                    {brand?.name?.charAt(0) || 'B'}
+                </span>
+            </div>
+        );
+    }
+
+    if (loading) {
+        return (
+            <div style={containerStyle}>
+                <div className="animate-spin text-xs" style={{ color: accentColor }}>⏳</div>
+            </div>
+        );
+    }
+
+    return (
+        <div style={containerStyle}>
+            {imgSrc ? (
+                <img 
+                    src={imgSrc} 
+                    alt={brand.name}
+                    className="w-full h-full object-cover"
+                />
+            ) : (
+                <span className="text-xs font-bold" style={{ color: accentColor }}>
+                    {brand?.name?.charAt(0) || 'B'}
+                </span>
+            )}
+        </div>
+    );
+}
 
 export default function WorkerMachines() {
     const [page, setPage] = useState(0);
@@ -166,30 +255,67 @@ export default function WorkerMachines() {
 
 /* ── WorkerMachineCard — katta, oddiy ── */
 function WorkerMachineCard({ machine, isDark, cardBg, cardBorder, textColor, subtitleColor, accentColor, onClick, isProducing }) {
-    const isWorking = !!machine.currentRun && machine.status !== 'IDLE';
+    const isWorking = machine.status === 'WORKING';
+    const isDefect = machine.status === 'DEFECT';
+    const isIdle = machine.status === 'IDLE';
+
+    // Status bo'yicha kartaning rangi
+    const getCardBackground = () => {
+        if (isWorking) {
+            return isDark 
+                ? 'linear-gradient(135deg, rgba(22,163,74,0.15) 0%, rgba(34,197,94,0.08) 100%)'
+                : 'linear-gradient(135deg, rgba(220,252,231,0.8) 0%, rgba(187,247,208,0.5) 100%)';
+        }
+        if (isDefect) {
+            return isDark 
+                ? 'linear-gradient(135deg, rgba(220,38,38,0.15) 0%, rgba(239,68,68,0.08) 100%)'
+                : 'linear-gradient(135deg, rgba(254,226,226,0.8) 0%, rgba(252,165,165,0.5) 100%)';
+        }
+        return cardBg;
+    };
+
+    const getBorderColor = () => {
+        if (isWorking) return isDark ? 'rgba(34,197,94,0.5)' : '#86EFAC';
+        if (isDefect) return isDark ? 'rgba(239,68,68,0.5)' : '#FCA5A5';
+        return cardBorder;
+    };
+
+    const getBoxShadow = () => {
+        if (isWorking) {
+            return isDark 
+                ? '0 8px 32px rgba(34,197,94,0.2), 0 0 0 1px rgba(34,197,94,0.1) inset'
+                : '0 8px 28px rgba(34,197,94,0.15), 0 0 0 1px rgba(34,197,94,0.1) inset';
+        }
+        if (isDefect) {
+            return isDark 
+                ? '0 8px 32px rgba(239,68,68,0.2), 0 0 0 1px rgba(239,68,68,0.1) inset'
+                : '0 8px 28px rgba(239,68,68,0.15), 0 0 0 1px rgba(239,68,68,0.1) inset';
+        }
+        return isDark ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 18px rgba(15,23,42,0.08)';
+    };
+
+    const canClick = (isWorking || isDefect) && machine.currentRun;
 
     return (
         <button
             onClick={onClick}
-            disabled={isProducing}
+            disabled={isProducing || !canClick}
             className="relative text-left w-full rounded-3xl border transition-all duration-200 overflow-hidden active:scale-[0.98]"
             style={{
-                background: cardBg,
-                borderColor: isWorking
-                    ? (isDark ? 'rgba(34,197,94,0.45)' : '#86EFAC')
-                    : cardBorder,
-                boxShadow: isWorking
-                    ? (isDark ? '0 6px 28px rgba(34,197,94,0.12)' : '0 6px 24px rgba(34,197,94,0.1)')
-                    : (isDark ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 18px rgba(15,23,42,0.08)'),
-                cursor: isProducing ? 'wait' : isWorking ? 'pointer' : 'default',
+                background: getCardBackground(),
+                borderColor: getBorderColor(),
+                boxShadow: getBoxShadow(),
+                cursor: isProducing ? 'wait' : canClick ? 'pointer' : 'default',
                 opacity: isProducing ? 0.6 : 1,
             }}
         >
             {/* Top accent strip */}
             <div style={{
                 height: 6,
-                background: isWorking
+                background: isWorking 
                     ? 'linear-gradient(90deg,#22C55E,#16A34A)'
+                    : isDefect 
+                    ? 'linear-gradient(90deg,#EF4444,#DC2626)'
                     : (isDark ? 'rgba(255,255,255,0.05)' : '#E2E8F0'),
             }} />
 
@@ -216,24 +342,46 @@ function WorkerMachineCard({ machine, isDark, cardBg, cardBorder, textColor, sub
                 <div className="flex items-start justify-between mb-4">
                     <div
                         className="flex items-center justify-center w-14 h-14 rounded-2xl"
-                        style={{ background: isDark ? 'rgba(250,204,21,0.14)' : '#FEF3C7' }}
+                        style={{ 
+                            background: isWorking 
+                                ? (isDark ? 'rgba(34,197,94,0.2)' : 'rgba(34,197,94,0.15)')
+                                : isDefect
+                                ? (isDark ? 'rgba(239,68,68,0.2)' : 'rgba(239,68,68,0.15)')
+                                : (isDark ? 'rgba(250,204,21,0.14)' : '#FEF3C7')
+                        }}
                     >
-                        <LuCog size={28} style={{ color: accentColor }} />
+                        <LuCog 
+                            size={28} 
+                            style={{ 
+                                color: isWorking 
+                                    ? '#22C55E'
+                                    : isDefect
+                                    ? '#EF4444'
+                                    : accentColor
+                            }} 
+                        />
                     </div>
 
                     <span
                         className="text-base font-bold px-4 py-1.5 rounded-full"
-                        style={isWorking
-                            ? {
-                                background: isDark ? 'rgba(34,197,94,0.14)' : '#DCFCE7',
-                                color: isDark ? '#86EFAC' : '#166534',
-                              }
-                            : {
-                                background: isDark ? 'rgba(148,163,184,0.15)' : '#F1F5F9',
-                                color: subtitleColor,
-                              }}
+                        style={
+                            isWorking
+                                ? {
+                                    background: isDark ? 'rgba(34,197,94,0.2)' : '#DCFCE7',
+                                    color: isDark ? '#86EFAC' : '#166534',
+                                  }
+                                : isDefect
+                                ? {
+                                    background: isDark ? 'rgba(239,68,68,0.2)' : '#FEE2E2',
+                                    color: isDark ? '#FCA5A5' : '#991B1B',
+                                  }
+                                : {
+                                    background: isDark ? 'rgba(148,163,184,0.15)' : '#F1F5F9',
+                                    color: subtitleColor,
+                                  }
+                        }
                     >
-                        {isWorking ? '🟢 Ishlayapti' : '⚪ Bo\'sh'}
+                        {isWorking ? '🟢 Ishlayapti' : isDefect ? '🔴 Brak' : '⚪ Bo\'sh'}
                     </span>
                 </div>
 
@@ -249,17 +397,57 @@ function WorkerMachineCard({ machine, isDark, cardBg, cardBorder, textColor, sub
                 )}
 
                 {/* Current run info */}
-                {isWorking ? (
+                {(isWorking || isDefect) && machine.currentRun ? (
                     <div
-                        className="mt-4 pt-4 flex flex-col gap-2"
-                        style={{ borderTop: `1px solid ${isDark ? 'rgba(34,197,94,0.2)' : '#BBF7D0'}` }}
+                        className="mt-4 pt-4 flex flex-col gap-3"
+                        style={{ 
+                            borderTop: `1px solid ${
+                                isWorking 
+                                    ? (isDark ? 'rgba(34,197,94,0.3)' : '#BBF7D0')
+                                    : (isDark ? 'rgba(239,68,68,0.3)' : '#FECACA')
+                            }` 
+                        }}
                     >
+                        {/* Mahsulot nomi */}
                         <div className="flex items-center gap-2">
-                            <LuActivity size={16} style={{ color: '#22C55E', flexShrink: 0 }} />
-                            <span className="text-base font-semibold" style={{ color: isDark ? '#86EFAC' : '#166534' }}>
+                            <LuActivity 
+                                size={18} 
+                                style={{ 
+                                    color: isWorking ? '#22C55E' : '#EF4444',
+                                    flexShrink: 0 
+                                }} 
+                            />
+                            <span 
+                                className="text-base font-semibold" 
+                                style={{ 
+                                    color: isWorking 
+                                        ? (isDark ? '#86EFAC' : '#166534')
+                                        : (isDark ? '#FCA5A5' : '#991B1B')
+                                }}
+                            >
                                 {machine.currentRun.productName}
                             </span>
                         </div>
+
+                        {/* Brand */}
+                        {machine.currentRun.brand && (
+                            <div className="flex items-center gap-2">
+                                <BrandLogo 
+                                    brand={machine.currentRun.brand} 
+                                    isDark={isDark} 
+                                    accentColor={accentColor}
+                                    size={32}
+                                />
+                                <span 
+                                    className="text-sm font-medium" 
+                                    style={{ color: subtitleColor }}
+                                >
+                                    {machine.currentRun.brand.name}
+                                </span>
+                            </div>
+                        )}
+
+                        {/* Boshlangan vaqt */}
                         <div className="flex items-center gap-2">
                             <LuClock size={15} style={{ color: subtitleColor, flexShrink: 0 }} />
                             <span className="text-sm" style={{ color: subtitleColor }}>
