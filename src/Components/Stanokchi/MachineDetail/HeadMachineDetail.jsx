@@ -36,8 +36,73 @@ import {
     useAcceptProductionTaskMutation,
 } from '../../../store/services/productionTask.api';
 import { useAppTheme, BRAND_COLORS } from '../../../theme/tokens';
+import $api from '../../../store/api';
 
 const HISTORY_PAGE_SIZE = 10;
+
+/* ── BrandLogo komponenti ── */
+function BrandLogo({ brand, isDark, accentColor, size = 48, isRectangle = false }) {
+    const [imgSrc, setImgSrc] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(false);
+
+    useEffect(() => {
+        if (!brand?.logoUrl) { setImgSrc(null); return; }
+
+        let mounted = true;
+        setLoading(true);
+        setError(false);
+
+        $api.get(brand.logoUrl.replace('/api/v1', ''), { responseType: 'blob' })
+            .then((res) => {
+                if (mounted) {
+                    setImgSrc(URL.createObjectURL(res.data));
+                    setLoading(false);
+                }
+            })
+            .catch(() => {
+                if (mounted) { setError(true); setLoading(false); }
+            });
+
+        return () => { mounted = false; };
+    }, [brand?.logoUrl, brand?.id]);
+
+    const w = isRectangle ? `${size + 32}px` : `${size}px`;
+    const h = `${size}px`;
+
+    const base = {
+        width: w, height: h, minWidth: w,
+        borderRadius: '10px', overflow: 'hidden', flexShrink: 0,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)',
+        border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}`,
+    };
+
+    if (!brand?.logoUrl || error) {
+        return (
+            <div style={base}>
+                <span style={{ color: accentColor, fontWeight: 700, fontSize: '18px' }}>
+                    {brand?.name?.charAt(0) || 'B'}
+                </span>
+            </div>
+        );
+    }
+    if (loading) {
+        return (
+            <div style={base}>
+                <div style={{ color: accentColor, fontSize: '14px' }}>⏳</div>
+            </div>
+        );
+    }
+    return (
+        <div style={{ ...base, background: isDark ? 'rgba(255,255,255,0.05)' : '#fff' }}>
+            {imgSrc && (
+                <img src={imgSrc} alt={brand.name}
+                    style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '6px' }} />
+            )}
+        </div>
+    );
+}
 
 const formatDate = (iso) => {
     if (!iso) return '—';
@@ -961,44 +1026,61 @@ export default function StanokchiMachineDetail() {
                                                 borderColor: isDark ? 'rgba(255,255,255,0.1)' : cardBorder,
                                             }}
                                         >
-                                            <div className="flex items-start justify-between mb-4">
-                                                <div className="flex-1">
-                                                    <h5 className="font-bold text-lg mb-1" style={{ color: textColor }}>
+                                            {/* Brand logo + mahsulot nomi */}
+                                            <div className="flex items-center gap-3 mb-4 pb-3"
+                                                style={{
+                                                    borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : cardBorder}`
+                                                }}
+                                            >
+                                                {product.brand && (
+                                                    <BrandLogo
+                                                        brand={product.brand}
+                                                        isDark={isDark}
+                                                        accentColor={accentColor}
+                                                        size={48}
+                                                        isRectangle={true}
+                                                    />
+                                                )}
+                                                <div className="flex-1 min-w-0">
+                                                    {product.brand && (
+                                                        <div className="flex items-center gap-1.5 mb-0.5">
+                                                            <div
+                                                                className="w-1 h-4 rounded-full flex-shrink-0"
+                                                                style={{ background: accentColor }}
+                                                            />
+                                                            <span className="text-xs font-semibold truncate" style={{ color: subtitleColor }}>
+                                                                {product.brand.name}
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                    <h5 className="font-bold text-base leading-tight truncate" style={{ color: textColor }}>
                                                         {product.productName}
                                                     </h5>
-                                                    <p className="text-xs" style={{ color: subtitleColor }}>
-                                                        Mahsulot
-                                                    </p>
                                                 </div>
                                                 <div 
-                                                    className="px-4 py-2 rounded-xl"
+                                                    className="px-3 py-2 rounded-xl flex-shrink-0"
                                                     style={{
                                                         background: isDark ? 'rgba(250,204,21,0.15)' : 'rgba(250,204,21,0.2)',
                                                     }}
                                                 >
-                                                    <p className="text-2xl font-extrabold text-center" style={{ color: accentColor }}>
+                                                    <p className="text-2xl font-extrabold text-center leading-none" style={{ color: accentColor }}>
                                                         {product.totalQuantity}
                                                     </p>
-                                                    <p className="text-[10px] font-semibold uppercase text-center" style={{ color: accentColor, opacity: 0.8 }}>
+                                                    <p className="text-[10px] font-semibold uppercase text-center mt-0.5" style={{ color: accentColor, opacity: 0.8 }}>
                                                         dona
                                                     </p>
                                                 </div>
                                             </div>
+
+                                            {/* Butun / Brak */}
                                             <div className="grid grid-cols-2 gap-3">
                                                 <div 
                                                     className="flex items-center gap-2.5 p-3 rounded-xl"
-                                                    style={{
-                                                        background: isDark ? 'rgba(34,197,94,0.1)' : 'rgba(34,197,94,0.08)',
-                                                    }}
+                                                    style={{ background: isDark ? 'rgba(34,197,94,0.1)' : 'rgba(34,197,94,0.08)' }}
                                                 >
-                                                    <div
-                                                        className="w-3 h-3 rounded-full flex-shrink-0"
-                                                        style={{ background: '#22C55E' }}
-                                                    />
+                                                    <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: '#22C55E' }} />
                                                     <div>
-                                                        <p className="text-xs font-medium" style={{ color: subtitleColor }}>
-                                                            Butun
-                                                        </p>
+                                                        <p className="text-xs font-medium" style={{ color: subtitleColor }}>Butun</p>
                                                         <p className="text-lg font-bold" style={{ color: isDark ? '#86EFAC' : '#166534' }}>
                                                             {product.goodQuantity}
                                                         </p>
@@ -1006,18 +1088,11 @@ export default function StanokchiMachineDetail() {
                                                 </div>
                                                 <div 
                                                     className="flex items-center gap-2.5 p-3 rounded-xl"
-                                                    style={{
-                                                        background: isDark ? 'rgba(239,68,68,0.1)' : 'rgba(239,68,68,0.08)',
-                                                    }}
+                                                    style={{ background: isDark ? 'rgba(239,68,68,0.1)' : 'rgba(239,68,68,0.08)' }}
                                                 >
-                                                    <div
-                                                        className="w-3 h-3 rounded-full flex-shrink-0"
-                                                        style={{ background: '#EF4444' }}
-                                                    />
+                                                    <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: '#EF4444' }} />
                                                     <div>
-                                                        <p className="text-xs font-medium" style={{ color: subtitleColor }}>
-                                                            Brak
-                                                        </p>
+                                                        <p className="text-xs font-medium" style={{ color: subtitleColor }}>Brak</p>
                                                         <p className="text-lg font-bold" style={{ color: isDark ? '#FCA5A5' : '#991B1B' }}>
                                                             {product.defectQuantity}
                                                         </p>
