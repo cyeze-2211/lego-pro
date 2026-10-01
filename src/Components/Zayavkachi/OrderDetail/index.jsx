@@ -10,48 +10,60 @@ import {
 import { useAppTheme } from '../../../theme/tokens';
 import {
     useGetSalesOrderByIdQuery,
-    useApproveSalesOrderMutation,
-    useRejectSalesOrderMutation,
+    useUpdateSalesOrderStatusMutation,
     useUpdateSalesOrderPricesMutation,
 } from '../../../store/services/salesOrder.api';
 import { useGetProductStocksQuery } from '../../../store/services/productStock.api';
 import { useGetWarehousesQuery } from '../../../store/services/warehouse.api';
 import Loading from '../../Other/UI/Loadings/Loading';
 import DeleteOrder from '../__components/DeleteOrder';
-import { STATUS_LABEL, statusCx } from '../__components/statusBadge';
+import {
+    STATUS_LABEL,
+    statusCx,
+    NEXT_STATUS,
+    FINAL_STATUSES,
+} from '../__components/statusBadge';
 import { Alert } from '../../Other/UI/Alert/Alert';
 import OrderPrintModal from '../__components/OrderPrintModal';
 import logoSvg from '../../../Images/Yellow Unified Lego Outlined.svg';
 
+/* ──────────────────────────────────────────────────────────────── */
+/*  Status control (state machine)                                  */
+/* ──────────────────────────────────────────────────────────────── */
 function OrderStatusControl({ order, isDark }) {
     const [action, setAction] = useState(null);
-    const [approveOrder] = useApproveSalesOrderMutation();
-    const [rejectOrder]  = useRejectSalesOrderMutation();
+    const [updateStatus] = useUpdateSalesOrderStatusMutation();
     const [updatePrices] = useUpdateSalesOrderPricesMutation();
 
     const statusStyles = {
-        PENDING:  { bg: isDark ? 'rgba(250,204,21,.14)' : '#FEF3C7', color: isDark ? '#fde68a' : '#92400E', border: isDark ? '#ca8a04' : '#d97706' },
-        APPROVED: { bg: isDark ? 'rgba(34,197,94,.14)'  : '#DCFCE7', color: isDark ? '#86efac' : '#15803d', border: '#16a34a' },
-        REJECTED: { bg: isDark ? 'rgba(239,68,68,.14)'  : '#FEE2E2', color: isDark ? '#fca5a5' : '#b91c1c', border: '#dc2626' },
+        CREATED:    { bg: isDark ? 'rgba(148,163,184,.16)' : '#E2E8F0', color: isDark ? '#cbd5e1' : '#334155', border: isDark ? '#64748b' : '#94a3b8' },
+        DISPATCHED: { bg: isDark ? 'rgba(56,189,248,.16)'  : '#E0F2FE', color: isDark ? '#7dd3fc' : '#075985', border: isDark ? '#0ea5e9' : '#0284c7' },
+        LOADED:     { bg: isDark ? 'rgba(167,139,250,.16)' : '#EDE9FE', color: isDark ? '#c4b5fd' : '#5B21B6', border: isDark ? '#8b5cf6' : '#7c3aed' },
+        CONFIRMED:  { bg: isDark ? 'rgba(34,197,94,.16)'   : '#DCFCE7', color: isDark ? '#86efac' : '#15803d', border: '#16a34a' },
+        REJECTED:   { bg: isDark ? 'rgba(239,68,68,.16)'   : '#FEE2E2', color: isDark ? '#fca5a5' : '#b91c1c', border: '#dc2626' },
     };
-    const style = statusStyles[order.status] || statusStyles.PENDING;
+    const style = statusStyles[order.status] || statusStyles.CREATED;
+
+    const isFinal = FINAL_STATUSES.includes(order.status);
+    const nextStatuses = NEXT_STATUS[order.status] || [];
 
     const changeStatus = async (nextStatus) => {
-        if (nextStatus === 'PENDING' || nextStatus === order.status) return;
+        if (!nextStatus || nextStatus === order.status) return;
         setAction(nextStatus);
         try {
-            if (nextStatus === 'APPROVED') {
+            // CONFIRMED ga o'tishdan oldin narxlarni saqlab olamiz
+            if (nextStatus === 'CONFIRMED') {
                 const priceItems = (order.items ?? []).map((item) => ({
                     itemId: item.id,
                     unitPrice: item.unitPrice,
                 }));
                 await updatePrices({ id: order.id, data: { items: priceItems } }).unwrap();
-                await approveOrder(order.id).unwrap();
-                Alert('Buyurtma muvaffaqiyatli tasdiqlandi', 'success');
-            } else {
-                await rejectOrder({ id: order.id }).unwrap();
-                Alert('Buyurtma rad etildi', 'success');
             }
+            await updateStatus({ id: order.id, status: nextStatus }).unwrap();
+            Alert(
+                `Buyurtma holati "${STATUS_LABEL[nextStatus] ?? nextStatus}" ga o'zgartirildi`,
+                'success',
+            );
         } catch (error) {
             Alert(error?.data?.message || "Statusni o'zgartirishda xatolik", 'error');
         } finally {
@@ -59,7 +71,7 @@ function OrderStatusControl({ order, isDark }) {
         }
     };
 
-    if (order.status !== 'PENDING') {
+    if (isFinal) {
         return (
             <span className={`rounded-full border px-3 py-1.5 text-xs font-bold ${statusCx(order.status)}`}>
                 {STATUS_LABEL[order.status] ?? order.status}
@@ -69,16 +81,17 @@ function OrderStatusControl({ order, isDark }) {
 
     return (
         <select
-            value={action || 'PENDING'}
+            value={action || order.status}
             onChange={(e) => changeStatus(e.target.value)}
             disabled={Boolean(action)}
             aria-label="Buyurtma holatini o'zgartirish"
             className="rounded-full border px-3 py-1.5 text-xs font-bold outline-none disabled:cursor-wait disabled:opacity-60"
             style={{ backgroundColor: style.bg, color: style.color, borderColor: style.border }}
         >
-            <option value="PENDING">{STATUS_LABEL.PENDING}</option>
-            <option value="APPROVED">Tasdiqlash</option>
-            <option value="REJECTED">Rad etish</option>
+            <option value={order.status}>{STATUS_LABEL[order.status] ?? order.status}</option>
+            {nextStatuses.map((s) => (
+                <option key={s} value={s}>→ {STATUS_LABEL[s] ?? s}</option>
+            ))}
         </select>
     );
 }
@@ -95,6 +108,9 @@ OrderStatusControl.propTypes = {
     isDark: PropTypes.bool.isRequired,
 };
 
+/* ──────────────────────────────────────────────────────────────── */
+/*  Detail page                                                     */
+/* ──────────────────────────────────────────────────────────────── */
 export default function ZayavkachiOrderDetail() {
     const { id }       = useParams();
     const navigate     = useNavigate();
@@ -161,8 +177,6 @@ export default function ZayavkachiOrderDetail() {
     const backToList   = () => navigate(ordersPath);
     const [showPrintModal, setShowPrintModal] = useState(false);
 
-    // Print: layout yashirish/ko'rsatish
-
     const printInvoice = () => {
         const invoiceEl = document.querySelector('.invoice-print-root');
         if (!invoiceEl) { window.print(); return; }
@@ -203,21 +217,28 @@ export default function ZayavkachiOrderDetail() {
     }
 
     const items    = order.items ?? [];
-    const editable = order.status === 'PENDING';
+    const editable = order.status === 'CREATED';
+    const showStockComparison = order.status === 'CREATED' || order.status === 'DISPATCHED';
 
     const fmtDate     = (v) => v ? new Date(v).toLocaleDateString('uz-UZ') : '—';
     const fmtDateTime = (v) => v ? new Date(v).toLocaleString('uz-UZ') : '—';
     const fmtNum      = (v) => { const n = Number(v ?? 0); return n.toLocaleString('ru-RU').replace(/\u00A0/g, ' '); };
 
+    const printStatusColor = order.status === 'CONFIRMED'
+        ? '#15803d'
+        : order.status === 'REJECTED'
+        ? '#b91c1c'
+        : '#92400E';
+
     return (
         <>
             {showPrintModal && (
-                <OrderPrintModal 
-                    order={order} 
-                    onClose={() => setShowPrintModal(false)} 
+                <OrderPrintModal
+                    order={order}
+                    onClose={() => setShowPrintModal(false)}
                 />
             )}
-            
+
             {/* ── PRINT STYLES — invoice yangi windowda ochiladi, bu faqat hide uchun ── */}
             <style>{`
                 .invoice-print { display: none !important; }
@@ -249,7 +270,7 @@ export default function ZayavkachiOrderDetail() {
 
                             <button type="button" onClick={() => navigate(`${ordersPath}/${order.id}/edit`)}
                                 disabled={!editable}
-                                title={editable ? 'Tahrirlash' : 'Faqat "Kutilmoqda" holatidagi buyurtma tahrirlanadi'}
+                                title={editable ? 'Tahrirlash' : "Faqat \"Yaratilgan\" holatidagi buyurtma tahrirlanadi"}
                                 className={`flex h-12 items-center gap-2 rounded-xl border px-5 text-sm font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${ghostBtn}`}>
                                 <LuPencil size={16} /> Tahrirlash
                             </button>
@@ -269,7 +290,6 @@ export default function ZayavkachiOrderDetail() {
                             { label: 'Mijoz',             value: order.customerName,   icon: LuUser },
                             { label: 'Jami summa',        value: `${fmtNum(order.totalAmount)} so'm`, icon: LuPackage },
                             { label: "Oxirgi o'zgarish",  value: fmtDateTime(order.lastModifiedAt),   icon: LuClock3 },
-
                         ].map(({ label, value, icon: Icon }) => (
                             <div key={label}>
                                 <p className={`mb-1 flex items-center gap-1.5 text-xs font-semibold ${muted}`}>
@@ -344,8 +364,8 @@ export default function ZayavkachiOrderDetail() {
                     </div>
                 </div>
 
-                {/* ── Ombor qoldiqlari taqqoslov — faqat APPROVED bo'lmasa ── */}
-                {order.status !== 'APPROVED' && (
+                {/* ── Ombor qoldiqlari taqqoslov — faqat CREATED / DISPATCHED ── */}
+                {showStockComparison && (
                 <div className={`rounded-2xl border shadow-md ${panel}`}>
                     <div className={`flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4 ${line}`}>
                         <div className="flex items-center gap-2">
@@ -494,7 +514,6 @@ export default function ZayavkachiOrderDetail() {
             >
                 {/* ══ HEADER ══ */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    {/* Chap: Logo + kompaniya nomi */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <img src={logoSvg} alt="LEGO PRO" style={{ height: '52px', width: 'auto', objectFit: 'contain' }} />
                         <div>
@@ -502,18 +521,15 @@ export default function ZayavkachiOrderDetail() {
                             <div style={{ fontSize: '9px', color: '#6b7280', marginTop: '2px' }}>Innovatsion PVX profillari</div>
                         </div>
                     </div>
-                    {/* O'ng: INVOICE so'zi */}
                     <div style={{ textAlign: 'right' }}>
                         <div style={{ fontSize: '36px', fontWeight: 900, letterSpacing: '5px', color: '#111827', lineHeight: 1 }}>INVOICE</div>
                     </div>
                 </div>
 
-                {/* Accent chiziq */}
                 <div className="inv-accent" style={{ height: '2.5px', background: '#f59e0b', margin: '10px 0 14px 0' }} />
 
                 {/* ══ MIJOZ MA'LUMOTI + HUJJAT № ══ */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '14px', gap: '20px' }}>
-                    {/* Chap: Mijoz */}
                     <div style={{ flex: 1 }}>
                         <div style={{ fontSize: '10px', fontWeight: 700, color: '#0f172a', marginBottom: '4px' }}>Mijoz:</div>
                         <div style={{ fontSize: '12px', fontWeight: 700, color: '#0f172a' }}>{order.customerName || '—'}</div>
@@ -524,9 +540,8 @@ export default function ZayavkachiOrderDetail() {
                             <div style={{ fontSize: '9.5px', color: '#6b7280', marginTop: '2px' }}>Mas&apos;ul: {order.createdBy}</div>
                         )}
                     </div>
-                    {/* O'ng: Hujjat № va Sana */}
                     <div style={{ minWidth: '190px' }}>
-                        <table  style={{  borderCollapse: 'collapse', width: '100%' }}>
+                        <table style={{ borderCollapse: 'collapse', width: '100%' }}>
                             <tbody>
                                 <tr>
                                     <td style={{ fontSize: '10px', fontWeight: 700, color: '#0f172a', paddingBottom: '3px', paddingRight: '12px', whiteSpace: 'nowrap' }}>Hujjat №:</td>
@@ -538,7 +553,7 @@ export default function ZayavkachiOrderDetail() {
                                 </tr>
                                 <tr>
                                     <td style={{ fontSize: '10px', fontWeight: 700, color: '#0f172a', paddingRight: '12px' }}>Holati:</td>
-                                    <td style={{ fontSize: '10px', fontWeight: 700, textAlign: 'right', color: order.status === 'APPROVED' ? '#15803d' : order.status === 'REJECTED' ? '#b91c1c' : '#92400E' }}>
+                                    <td style={{ fontSize: '10px', fontWeight: 700, textAlign: 'right', color: printStatusColor }}>
                                         {STATUS_LABEL[order.status] ?? order.status}
                                     </td>
                                 </tr>
@@ -549,7 +564,7 @@ export default function ZayavkachiOrderDetail() {
 
                 {/* ══ MAHSULOTLAR JADVALI ══ */}
                 <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '0', border: '1px solid #cbd5e1', backgroundColor: '#ffffff' }}>
-                   <thead>
+                    <thead>
                         <tr>
                             <td style={{ padding: 0, width: '28px',  borderRight: '1px solid #334155' }}>
                                 <div style={{ background: '#1e293b', color: '#fff', padding: '7px 8px', textAlign: 'center', fontSize: '9.5px', fontWeight: 700 }}>№</div>
@@ -581,11 +596,9 @@ export default function ZayavkachiOrderDetail() {
                                         <div style={{ fontSize: '8.5px', color: '#94a3b8', fontFamily: 'monospace', marginTop: '1px' }}>{item.productBarcode}</div>
                                     )}
                                 </td>
-                                {/* Pachka: quantity / 6 yoki to'g'ridan quantity */}
                                 <td style={{ backgroundColor: '#ffffff', padding: '6px 8px', textAlign: 'center', fontSize: '10px', color: '#374151', borderRight: '1px solid #e2e8f0' }}>
                                     {item.quantity}
                                 </td>
-                                {/* Dona: quantity */}
                                 <td style={{ backgroundColor: '#ffffff', padding: '6px 8px', textAlign: 'center', fontSize: '10px', color: '#374151', borderRight: '1px solid #e2e8f0' }}>
                                     {item.quantity}
                                 </td>
@@ -597,7 +610,6 @@ export default function ZayavkachiOrderDetail() {
                                 </td>
                             </tr>
                         ))}
-                        {/* Bo'sh qatorlar */}
                         {Array.from({ length: Math.max(0, 9 - items.length) }).map((_, i) => (
                             <tr key={`empty-${i}`} style={{ borderBottom: '1px solid #e2e8f0', backgroundColor: '#ffffff' }}>
                                 <td style={{ backgroundColor: '#ffffff', padding: '6px 8px', borderRight: '1px solid #e2e8f0' }}>&nbsp;</td>
@@ -613,7 +625,6 @@ export default function ZayavkachiOrderDetail() {
 
                 {/* ══ TO'LOV MA'LUMOTLARI + JAMI ══ */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '20px', marginTop: '14px', marginBottom: '12px' }}>
-                    {/* Chap: To'lov ma'lumotlari */}
                     <div style={{ flex: 1 }}>
                         <div style={{ fontSize: '10.5px', fontWeight: 700, color: '#0f172a', marginBottom: '5px' }}>To&apos;lov ma&apos;lumotlari:</div>
                         <div style={{ fontSize: '9.5px', color: '#374151', lineHeight: 1.7 }}>
@@ -624,9 +635,7 @@ export default function ZayavkachiOrderDetail() {
                         </div>
                     </div>
 
-                    {/* O'ng: Olingan tovar / Oldingi qarz / UMUMIY QARZ */}
                     <div style={{ minWidth: '220px' }}>
-                        {/* Olingan tovar jami */}
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
                             <span style={{ fontSize: '9.5px', color: '#374151' }}>Olingan tovar jami:</span>
                             <span className="inv-yellow" style={{
@@ -637,7 +646,6 @@ export default function ZayavkachiOrderDetail() {
                                 {fmtNum(order.totalAmount)} so&apos;m
                             </span>
                         </div>
-                        {/* Oldingi qarzi — paidAmount */}
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
                             <span style={{ fontSize: '9.5px', color: '#374151' }}>To&apos;langan:</span>
                             <span className="inv-yellow" style={{
@@ -648,7 +656,6 @@ export default function ZayavkachiOrderDetail() {
                                 {fmtNum(order.paidAmount)} so&apos;m
                             </span>
                         </div>
-                        {/* UMUMIY QARZ — remainingDebt */}
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <span style={{ fontSize: '10.5px', fontWeight: 800, color: '#0f172a' }}>QOLGAN QARZ:</span>
                             <span className="inv-yellow" style={{

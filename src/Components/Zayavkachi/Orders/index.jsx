@@ -7,37 +7,50 @@ import {
 } from 'react-icons/lu';
 import { useAppTheme } from '../../../theme/tokens';
 import { formatNumber } from '../../ui/number-format';
-import { useGetSalesOrdersQuery, useApproveSalesOrderMutation, useRejectSalesOrderMutation } from '../../../store/services/salesOrder.api';
+import {
+    useGetSalesOrdersQuery,
+    useUpdateSalesOrderStatusMutation,
+} from '../../../store/services/salesOrder.api';
 import DeleteOrder from '../__components/DeleteOrder';
-import { STATUS_LABEL, statusCx } from '../__components/statusBadge';
+import {
+    STATUS_LABEL,
+    statusCx,
+    NEXT_STATUS,
+    FINAL_STATUSES,
+} from '../__components/statusBadge';
 import { Alert } from '../../Other/UI/Alert/Alert';
 
 const PAGE_SIZE = 20;
-const STATUSES = ['PENDING', 'APPROVED', 'REJECTED'];
+const STATUSES = ['CREATED', 'DISPATCHED', 'LOADED', 'CONFIRMED', 'REJECTED'];
 
+/* ──────────────────────────────────────────────────────────────── */
+/*  Status control                                                  */
+/* ──────────────────────────────────────────────────────────────── */
 function OrderListStatusControl({ order, isDark }) {
     const [action, setAction] = useState(null);
-    const [approveOrder] = useApproveSalesOrderMutation();
-    const [rejectOrder] = useRejectSalesOrderMutation();
+    const [updateStatus] = useUpdateSalesOrderStatusMutation();
 
     const statusStyles = {
-        PENDING: { bg: isDark ? 'rgba(250,204,21,.14)' : '#FEF3C7', color: isDark ? '#fde68a' : '#92400E', border: isDark ? '#ca8a04' : '#d97706' },
-        APPROVED: { bg: isDark ? 'rgba(34,197,94,.14)' : '#DCFCE7', color: isDark ? '#86efac' : '#15803d', border: '#16a34a' },
-        REJECTED: { bg: isDark ? 'rgba(239,68,68,.14)' : '#FEE2E2', color: isDark ? '#fca5a5' : '#b91c1c', border: '#dc2626' },
+        CREATED:    { bg: isDark ? 'rgba(148,163,184,.16)' : '#E2E8F0', color: isDark ? '#cbd5e1' : '#334155', border: isDark ? '#64748b' : '#94a3b8' },
+        DISPATCHED: { bg: isDark ? 'rgba(56,189,248,.16)'  : '#E0F2FE', color: isDark ? '#7dd3fc' : '#075985', border: isDark ? '#0ea5e9' : '#0284c7' },
+        LOADED:     { bg: isDark ? 'rgba(167,139,250,.16)' : '#EDE9FE', color: isDark ? '#c4b5fd' : '#5B21B6', border: isDark ? '#8b5cf6' : '#7c3aed' },
+        CONFIRMED:  { bg: isDark ? 'rgba(34,197,94,.16)'   : '#DCFCE7', color: isDark ? '#86efac' : '#15803d', border: '#16a34a' },
+        REJECTED:   { bg: isDark ? 'rgba(239,68,68,.16)'   : '#FEE2E2', color: isDark ? '#fca5a5' : '#b91c1c', border: '#dc2626' },
     };
-    const style = statusStyles[order.status] || statusStyles.PENDING;
+    const style = statusStyles[order.status] || statusStyles.CREATED;
+
+    const isFinal = FINAL_STATUSES.includes(order.status);
+    const nextStatuses = NEXT_STATUS[order.status] || [];
 
     const changeStatus = async (nextStatus) => {
-        if (nextStatus === 'PENDING' || nextStatus === order.status) return;
+        if (!nextStatus || nextStatus === order.status) return;
         setAction(nextStatus);
         try {
-            if (nextStatus === 'APPROVED') {
-                await approveOrder(order.id).unwrap();
-                Alert('Buyurtma muvaffaqiyatli tasdiqlandi', 'success');
-            } else {
-                await rejectOrder({ id: order.id }).unwrap();
-                Alert('Buyurtma rad etildi', 'success');
-            }
+            await updateStatus({ id: order.id, status: nextStatus }).unwrap();
+            Alert(
+                `Buyurtma holati "${STATUS_LABEL[nextStatus] ?? nextStatus}" ga o'zgartirildi`,
+                'success',
+            );
         } catch (error) {
             Alert(error?.data?.message || "Statusni o'zgartirishda xatolik", 'error');
         } finally {
@@ -45,7 +58,7 @@ function OrderListStatusControl({ order, isDark }) {
         }
     };
 
-    if (order.status !== 'PENDING') {
+    if (isFinal) {
         return (
             <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${statusCx(order.status)}`}>
                 {STATUS_LABEL[order.status] ?? order.status}
@@ -55,16 +68,17 @@ function OrderListStatusControl({ order, isDark }) {
 
     return (
         <select
-            value={action || 'PENDING'}
+            value={action || order.status}
             onChange={(event) => changeStatus(event.target.value)}
             disabled={Boolean(action)}
             aria-label="Buyurtma holatini o'zgartirish"
             className="rounded-full border px-2.5 py-1 text-xs font-bold outline-none disabled:cursor-wait disabled:opacity-60"
             style={{ backgroundColor: style.bg, color: style.color, borderColor: style.border }}
         >
-            <option value="PENDING">{STATUS_LABEL.PENDING}</option>
-            <option value="APPROVED">Tasdiqlash</option>
-            <option value="REJECTED">Rad etish</option>
+            <option value={order.status}>{STATUS_LABEL[order.status] ?? order.status}</option>
+            {nextStatuses.map((s) => (
+                <option key={s} value={s}>→ {STATUS_LABEL[s] ?? s}</option>
+            ))}
         </select>
     );
 }
@@ -77,15 +91,20 @@ OrderListStatusControl.propTypes = {
     isDark: PropTypes.bool.isRequired,
 };
 
+/* ──────────────────────────────────────────────────────────────── */
+/*  Main page                                                       */
+/* ──────────────────────────────────────────────────────────────── */
 export default function ZayavkachiOrders() {
     const { isDark } = useAppTheme();
     const navigate = useNavigate();
     const { pathname } = useLocation();
+
     const ordersPath = pathname.startsWith('/orders')
         ? '/orders'
         : pathname.startsWith('/kassir/orders')
         ? '/kassir/orders'
         : '/zayavkachi/orders';
+
     const [page, setPage]                 = useState(0);
     const [statusFilter, setStatusFilter] = useState('');
     const [dateFrom, setDateFrom]         = useState('');
@@ -107,7 +126,13 @@ export default function ZayavkachiOrders() {
         : orders;
 
     const hasFilters = statusFilter || dateFrom || dateTo || search;
-    const resetFilters = () => { setStatusFilter(''); setDateFrom(''); setDateTo(''); setSearch(''); setPage(0); };
+    const resetFilters = () => {
+        setStatusFilter('');
+        setDateFrom('');
+        setDateTo('');
+        setSearch('');
+        setPage(0);
+    };
 
     /* ── theme ─────────────────────────────────────────────────────── */
     const panel   = isDark ? 'border-white/10 bg-[#141C2B]' : 'border-[#e2e8f0] bg-white';
@@ -235,7 +260,7 @@ export default function ZayavkachiOrders() {
                             </thead>
                             <tbody className={`divide-y ${divider}`}>
                                 {filtered.map((o, idx) => {
-                                    const editable = o.status === 'PENDING';
+                                    const editable = o.status === 'CREATED';
                                     return (
                                         <tr key={o.id} className={`transition-colors ${rowHov}`}>
                                             <td className={`px-5 py-3 text-xs ${muted}`}>{page * PAGE_SIZE + idx + 1}</td>
@@ -262,7 +287,7 @@ export default function ZayavkachiOrders() {
                                                     <button type="button" onClick={() => navigate(`${ordersPath}/${o.id}/edit`)}
                                                         disabled={!editable}
                                                         aria-label="Tahrirlash"
-                                                        title={editable ? 'Tahrirlash' : 'Faqat “Kutilmoqda” holatidagi buyurtma tahrirlanadi'}
+                                                        title={editable ? 'Tahrirlash' : "Faqat “Yaratilgan” holatidagi buyurtma tahrirlanadi"}
                                                         className={`${iconBtn} disabled:cursor-not-allowed disabled:opacity-30`}>
                                                         <LuPencil size={16} />
                                                     </button>

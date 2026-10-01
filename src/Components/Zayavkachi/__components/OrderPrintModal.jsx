@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import PropTypes from 'prop-types';
-import { LuX, LuPrinter } from 'react-icons/lu';
+import { LuX, LuPrinter, LuBuilding2, LuCheck } from 'react-icons/lu';
 import { useAppTheme } from '../../../theme/tokens';
 
 // Logo import
@@ -13,14 +13,22 @@ import logo6 from '../../../Images/logocopy/Unified Logo (background).png';
 import logo7 from '../../../Images/logocopy/Ресурс 2300.png';
 
 const LOGOS = [
-    { id: 1, src: logo1, name: 'Total Plast',    company: 'Total Plast',    color: '#0D9488', bgColor: '#F0FDFA', textColor: '#134E4A' },
-    { id: 2, src: logo2, name: 'Eko Plast',      company: 'Eko Plast',      color: '#DC2626', bgColor: '#FEF2F2', textColor: '#7F1D1D' },
-    { id: 3, src: logo3, name: 'Lion Plast',     company: 'Lion Plast',     color: '#CA8A04', bgColor: '#FEFCE8', textColor: '#713F12' },
-    { id: 4, src: logo4, name: 'LEGO PRO',       company: 'Lego Pro',       color: '#B91C1C', bgColor: '#FEF2F2', textColor: '#450A0A' },
-    { id: 5, src: logo5, name: 'Mega Plast',     company: 'Mega Plast',     color: '#E11D48', bgColor: '#FFF1F2', textColor: '#881337' },
-    { id: 6, src: logo6, name: 'Eko Plast Red',  company: 'Eko Plast',      color: '#EF4444', bgColor: '#FEF2F2', textColor: '#7F1D1D' },
-    { id: 7, src: logo7, name: 'Milliy Plast',   company: 'Milliy Plast',   color: '#1D4ED8', bgColor: '#EFF6FF', textColor: '#1E3A8A' },
+    { id: 1, src: logo1, name: 'Total Plast',   company: 'Total Plast',   color: '#0D9488', bgColor: '#F0FDFA', textColor: '#134E4A' },
+    { id: 2, src: logo2, name: 'Eko Plast',     company: 'Eko Plast',     color: '#DC2626', bgColor: '#FEF2F2', textColor: '#7F1D1D' },
+    { id: 3, src: logo3, name: 'Lion Plast',    company: 'Lion Plast',    color: '#CA8A04', bgColor: '#FEFCE8', textColor: '#713F12' },
+    { id: 4, src: logo4, name: 'LEGO PRO',      company: 'Lego Pro',      color: '#B91C1C', bgColor: '#FEF2F2', textColor: '#450A0A' },
+    { id: 5, src: logo5, name: 'Mega Plast',    company: 'Mega Plast',    color: '#E11D48', bgColor: '#FFF1F2', textColor: '#881337' },
+    { id: 6, src: logo6, name: 'Eko Plast Red', company: 'Eko Plast',     color: '#EF4444', bgColor: '#FEF2F2', textColor: '#7F1D1D' },
+    { id: 7, src: logo7, name: 'Milliy Plast',  company: 'Milliy Plast',  color: '#1D4ED8', bgColor: '#EFF6FF', textColor: '#1E3A8A' },
 ];
+
+const STATUS_LABEL_MAP = {
+    CREATED:    'Yaratilgan',
+    DISPATCHED: "Jo'natilgan",
+    LOADED:     'Yuklangan',
+    CONFIRMED:  'Tasdiqlangan',
+    REJECTED:   'Rad etilgan',
+};
 
 export default function OrderPrintModal({ order, onClose }) {
     const { isDark } = useAppTheme();
@@ -28,20 +36,16 @@ export default function OrderPrintModal({ order, onClose }) {
 
     const panel = isDark ? 'border-white/10 bg-[#141C2B]' : 'border-[#e2e8f0] bg-white';
     const muted = isDark ? 'text-[#94a3b8]' : 'text-[#64748b]';
-    const head = isDark ? 'text-white' : 'text-[#0f172a]';
+    const head  = isDark ? 'text-white' : 'text-[#0f172a]';
 
     const handlePrint = () => {
         const printWindow = window.open('', '_blank');
-        const printContent = generatePrintContent();
-        
-        printWindow.document.write(printContent);
+        printWindow.document.write(generatePrintContent());
         printWindow.document.close();
-        
         printWindow.onload = () => {
             printWindow.print();
             printWindow.close();
         };
-        
         onClose();
     };
 
@@ -53,44 +57,47 @@ export default function OrderPrintModal({ order, onClose }) {
             const n = Number(v ?? 0);
             return n.toLocaleString('ru-RU').replace(/\u00A0/g, ' ');
         };
-        const fmtDate = (v) => v ? new Date(v).toLocaleDateString('uz-UZ') : '—';
+        const fmtDate     = (v) => v ? new Date(v).toLocaleDateString('uz-UZ') : '—';
         const fmtDateTime = (v) => v ? new Date(v).toLocaleString('uz-UZ') : '—';
-        const STATUS_LABEL_MAP = { PENDING: 'Kutilmoqda', APPROVED: 'Tasdiqlangan', REJECTED: 'Rad etilgan' };
-        const items = order.items || [];
+        const items       = order.items || [];
 
-        const emptyRows = Array.from({ length: Math.max(0, 9 - items.length) })
-            .map((_, i) => `
-                <tr key="empty-${i}" style="border-bottom:1px solid #e2e8f0;background:#fff;">
-                    <td style="background:#fff;padding:6px 8px;border-right:1px solid #e2e8f0;">&nbsp;</td>
-                    <td style="background:#fff;padding:6px 8px;border-right:1px solid #e2e8f0;">&nbsp;</td>
-                    <td style="background:#fff;padding:6px 8px;border-right:1px solid #e2e8f0;">&nbsp;</td>
-                    <td style="background:#fff;padding:6px 8px;border-right:1px solid #e2e8f0;">&nbsp;</td>
-                    <td style="background:#fff;padding:6px 8px;border-right:1px solid #e2e8f0;">&nbsp;</td>
-                    <td style="background:#fff;padding:6px 8px;">&nbsp;</td>
+        const statusColor = order.status === 'CONFIRMED'
+            ? '#15803d'
+            : order.status === 'REJECTED'
+            ? '#b91c1c'
+            : '#92400E';
+
+        const emptyRows = Array.from({ length: Math.max(0, 8 - items.length) })
+            .map(() => `
+                <tr style="border-bottom:1px solid #e2e8f0;background:#fff;">
+                    <td style="background:#fff;padding:7px 8px;border-right:1px solid #e2e8f0;">&nbsp;</td>
+                    <td style="background:#fff;padding:7px 8px;border-right:1px solid #e2e8f0;">&nbsp;</td>
+                    <td style="background:#fff;padding:7px 8px;border-right:1px solid #e2e8f0;">&nbsp;</td>
+                    <td style="background:#fff;padding:7px 8px;border-right:1px solid #e2e8f0;">&nbsp;</td>
+                    <td style="background:#fff;padding:7px 8px;border-right:1px solid #e2e8f0;">&nbsp;</td>
+                    <td style="background:#fff;padding:7px 8px;">&nbsp;</td>
                 </tr>
             `).join('');
 
         const itemRows = items.map((item, idx) => `
             <tr style="border-bottom:1px solid #e2e8f0;background:#fff;">
-                <td style="background:#fff;padding:6px 8px;text-align:center;font-size:10px;color:#374151;border-right:1px solid #e2e8f0;">${idx + 1}</td>
-                <td style="background:#fff;padding:6px 8px;font-size:10px;border-right:1px solid #e2e8f0;">
+                <td style="background:#fff;padding:7px 8px;text-align:center;font-size:10px;color:#374151;border-right:1px solid #e2e8f0;">${idx + 1}</td>
+                <td style="background:#fff;padding:7px 8px;font-size:10px;border-right:1px solid #e2e8f0;">
                     <div style="font-weight:600;color:#0f172a;">${item.productName || '—'}</div>
                     ${item.productBarcode ? `<div style="font-size:8.5px;color:#94a3b8;font-family:monospace;margin-top:1px;">${item.productBarcode}</div>` : ''}
                 </td>
-                <td style="background:#fff;padding:6px 8px;text-align:center;font-size:10px;color:#374151;border-right:1px solid #e2e8f0;">${item.quantity}</td>
-                <td style="background:#fff;padding:6px 8px;text-align:center;font-size:10px;color:#374151;border-right:1px solid #e2e8f0;">${item.quantity}</td>
-                <td style="background:#fff;padding:6px 8px;text-align:right;font-size:10px;color:#374151;border-right:1px solid #e2e8f0;">${fmtNum(item.unitPrice)}</td>
-                <td style="background:#fff;padding:6px 8px;text-align:right;font-size:10px;font-weight:700;color:#0f172a;">${fmtNum(item.lineTotal)}</td>
+                <td style="background:#fff;padding:7px 8px;text-align:center;font-size:10px;color:#374151;border-right:1px solid #e2e8f0;">${item.quantity}</td>
+                <td style="background:#fff;padding:7px 8px;text-align:center;font-size:10px;color:#374151;border-right:1px solid #e2e8f0;">6</td>
+                <td style="background:#fff;padding:7px 8px;text-align:right;font-size:10px;color:#374151;border-right:1px solid #e2e8f0;">${fmtNum(item.unitPrice)}</td>
+                <td style="background:#fff;padding:7px 8px;text-align:right;font-size:10px;font-weight:700;color:#0f172a;">${fmtNum(item.lineTotal)}</td>
             </tr>
         `).join('');
-
-        const statusColor = order.status === 'APPROVED' ? '#15803d' : order.status === 'REJECTED' ? '#b91c1c' : '#92400E';
 
         return `<!DOCTYPE html>
 <html lang="uz">
 <head>
   <meta charset="UTF-8"/>
-  <title>Invoice</title>
+  <title>Invoice — ${(order.id || '').slice(0,8).toUpperCase()}</title>
   <style>
     @page { size: A4 portrait; margin: 12mm 12mm 14mm 12mm; }
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
@@ -102,100 +109,74 @@ export default function OrderPrintModal({ order, onClose }) {
 <body style="padding:0;margin:0;background:#fff;">
 <div style="width:190mm;margin:0 auto;background:#fff;color:#0f172a;font-family:Arial,Helvetica,sans-serif;font-size:10.5px;line-height:1.45;">
 
-  <!-- HEADER -->
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+  <!-- ═══ HEADER ═══ -->
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
     <div style="display:flex;align-items:center;gap:12px;">
-      <img src="${logoSrc}" alt="Logo" style="height:38px;width:auto;object-fit:contain;" />
+      <img src="${logoSrc}" alt="Logo" style="height:44px;width:auto;object-fit:contain;" />
       <div>
-        <div style="font-weight:900;font-size:16px;color:#0f172a;letter-spacing:0.5px;">${selectedLogo.company}</div>
+        <div style="font-weight:900;font-size:17px;color:#0f172a;letter-spacing:0.5px;">${selectedLogo.company}</div>
+        <div style="font-size:9px;color:#94a3b8;margin-top:2px;letter-spacing:0.3px;">INNOVATSION PVX PROFILLARI</div>
       </div>
     </div>
     <div style="text-align:right;">
-      <div style="font-size:36px;font-weight:900;letter-spacing:5px;color:#111827;line-height:1;">INVOICE</div>
+      <div style="font-size:34px;font-weight:900;letter-spacing:6px;color:${logoColor};line-height:1;">INVOICE</div>
+      <div style="font-size:9px;color:#94a3b8;margin-top:4px;letter-spacing:2px;font-weight:600;">HISOB-FAKTURA</div>
     </div>
   </div>
 
-  <!-- KOMPANIYA MA'LUMOTLARI -->
-  <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;margin-bottom:10px;">
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:9px;">
-      <div>
-        <div style="color:#64748b;font-weight:600;margin-bottom:2px;">"ZAFAR LUX KREDIT" MCHJ</div>
-        <div style="color:#475569;">📍 Samarqand Shaxar</div>
-      </div>
-      <div>
-        <div style="color:#64748b;font-weight:600;margin-bottom:2px;">Aloqa</div>
-        <div style="color:#475569;">📞 +998 97 907 20 22</div>
-      </div>
-      <div>
-        <div style="color:#64748b;font-weight:600;margin-bottom:2px;">Hisob raqam</div>
-        <div style="color:#475569;font-family:monospace;font-size:8.5px;">2020 8000 2008 5770 2001</div>
-      </div>
-      <div>
-        <div style="color:#64748b;font-weight:600;margin-bottom:2px;">INN</div>
-        <div style="color:#475569;font-family:monospace;">305 406 114</div>
-      </div>
-      <div>
-        <div style="color:#64748b;font-weight:600;margin-bottom:2px;">ОКЭД</div>
-        <div style="color:#475569;font-family:monospace;">47190</div>
-      </div>
-      <div>
-        <div style="color:#64748b;font-weight:600;margin-bottom:2px;">МФО</div>
-        <div style="color:#475569;font-family:monospace;">01133</div>
-      </div>
-    </div>
-  </div>
+  <!-- ═══ ACCENT LINE ═══ -->
+  <div style="height:3px;background:${logoColor};margin:10px 0 16px 0;"></div>
 
-  <!-- ACCENT LINE -->
-  <div style="height:2.5px;background:${logoColor};margin:10px 0 14px 0;"></div>
-
-  <!-- MIJOZ + HUJJAT -->
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;gap:20px;">
+  <!-- ═══ MIJOZ + HUJJAT ═══ -->
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;gap:24px;">
     <div style="flex:1;">
-      <div style="font-size:10px;font-weight:700;color:#0f172a;margin-bottom:4px;">Mijoz:</div>
-      <div style="font-size:12px;font-weight:700;color:#0f172a;">${order.customerName || '—'}</div>
-      ${order.summary ? `<div style="font-size:9.5px;color:#4b5563;margin-top:3px;line-height:1.5;">${order.summary}</div>` : ''}
+      <div style="font-size:9px;font-weight:700;color:#94a3b8;letter-spacing:1px;margin-bottom:4px;">MIJOZ </div>
+      <div style="font-size:13px;font-weight:800;color:#0f172a;margin-bottom:3px;">${order.customerName || '—'}</div>
+      ${order.summary ? `<div style="font-size:9.5px;color:#64748b;margin-top:3px;line-height:1.5;">Izoh: ${order.summary}</div>` : ''}
     </div>
-    <div style="min-width:190px;">
+    <div style="min-width:210px;">
       <table style="border-collapse:collapse;width:100%;">
         <tbody>
           <tr>
-            <td style="font-size:10px;font-weight:700;color:#0f172a;padding-bottom:3px;padding-right:12px;white-space:nowrap;">Hujjat №:</td>
-            <td style="font-size:10px;color:#374151;padding-bottom:3px;text-align:right;">${(order.id || '').slice(0,8).toUpperCase()}</td>
+            <td style="font-size:10px;font-weight:700;color:#94a3b8;padding-bottom:4px;padding-right:12px;white-space:nowrap;letter-spacing:0.5px;">HUJJAT №:</td>
+            <td style="font-size:11px;font-weight:800;color:#0f172a;padding-bottom:4px;text-align:right;font-family:monospace;">${(order.id || '').slice(0,8).toUpperCase()}</td>
           </tr>
           <tr>
-            <td style="font-size:10px;font-weight:700;color:#0f172a;padding-bottom:3px;padding-right:12px;">Sana:</td>
-            <td style="font-size:10px;color:#374151;padding-bottom:3px;text-align:right;">${fmtDate(order.createdAt)}</td>
+            <td style="font-size:10px;font-weight:700;color:#94a3b8;padding-bottom:4px;padding-right:12px;letter-spacing:0.5px;">SANA:</td>
+            <td style="font-size:10px;color:#374151;padding-bottom:4px;text-align:right;">${fmtDate(order.createdAt)}</td>
           </tr>
           <tr>
-            <td style="font-size:10px;font-weight:700;color:#0f172a;padding-right:12px;">Holati:</td>
-            <td style="font-size:10px;font-weight:700;text-align:right;color:${statusColor};">${STATUS_LABEL_MAP[order.status] ?? order.status}</td>
+            <td style="font-size:10px;font-weight:700;color:#94a3b8;padding-right:12px;letter-spacing:0.5px;">HOLATI:</td>
+            <td style="font-size:10px;font-weight:800;text-align:right;color:${statusColor};">
+              ${STATUS_LABEL_MAP[order.status] ?? order.status}
+            </td>
           </tr>
         </tbody>
       </table>
     </div>
   </div>
 
-  <!-- JADVAL -->
+  <!-- ═══ MAHSULOTLAR JADVALI ═══ -->
   <table style="width:100%;border-collapse:collapse;margin-bottom:0;border:1px solid #cbd5e1;background:#fff;">
     <thead>
       <tr>
-        <td style="padding:0;width:28px;border-right:1px solid #334155;">
-          <div style="background:#1e293b;color:#fff;padding:7px 8px;text-align:center;font-size:9.5px;font-weight:700;">№</div>
+        <td style="padding:0;width:32px;border-right:1px solid #334155;">
+          <div style="background:#1e293b;color:#fff;padding:8px 8px;text-align:center;font-size:9.5px;font-weight:700;letter-spacing:0.5px;">№</div>
         </td>
         <td style="padding:0;border-right:1px solid #334155;">
-          <div style="background:#1e293b;color:#fff;padding:7px 8px;text-align:left;font-size:9.5px;font-weight:700;">Mahsulot</div>
+          <div style="background:#1e293b;color:#fff;padding:8px 10px;text-align:left;font-size:9.5px;font-weight:700;letter-spacing:0.5px;">MAHSULOT NOMI</div>
+        </td>
+        <td style="padding:0;width:52px;border-right:1px solid #334155;">
+          <div style="background:#1e293b;color:#fff;padding:8px 8px;text-align:center;font-size:9.5px;font-weight:700;letter-spacing:0.5px;">PACHKA</div>
         </td>
         <td style="padding:0;width:48px;border-right:1px solid #334155;">
-          <div style="background:#1e293b;color:#fff;padding:7px 8px;text-align:center;font-size:9.5px;font-weight:700;">Pachka</div>
+          <div style="background:#1e293b;color:#fff;padding:8px 8px;text-align:center;font-size:9.5px;font-weight:700;letter-spacing:0.5px;">DONA</div>
         </td>
-        <td style="padding:0;width:44px;border-right:1px solid #334155;">
-          <div style="background:#1e293b;color:#fff;padding:7px 8px;text-align:center;font-size:9.5px;font-weight:700;">Dona</div>
+        <td style="padding:0;width:92px;border-right:1px solid #334155;">
+          <div style="background:#1e293b;color:#fff;padding:8px 10px;text-align:right;font-size:9.5px;font-weight:700;letter-spacing:0.5px;">NARXI</div>
         </td>
-        <td style="padding:0;width:88px;border-right:1px solid #334155;">
-          <div style="background:#1e293b;color:#fff;padding:7px 8px;text-align:right;font-size:9.5px;font-weight:700;">Narxi</div>
-        </td>
-        <td style="padding:0;width:100px;">
-          <div style="background:#1e293b;color:#fff;padding:7px 8px;text-align:right;font-size:9.5px;font-weight:700;">Jami</div>
+        <td style="padding:0;width:108px;">
+          <div style="background:#1e293b;color:#fff;padding:8px 10px;text-align:right;font-size:9.5px;font-weight:700;letter-spacing:0.5px;">JAMI</div>
         </td>
       </tr>
     </thead>
@@ -205,94 +186,122 @@ export default function OrderPrintModal({ order, onClose }) {
     </tbody>
   </table>
 
-  <!-- TO'LOV + JAMI -->
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:20px;margin-top:14px;margin-bottom:12px;">
+  <!-- ═══ TO'LOV + JAMI ═══ -->
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-top:16px;margin-bottom:14px;">
     <div style="flex:1;">
-      <div style="font-size:10.5px;font-weight:700;color:#0f172a;margin-bottom:5px;">To'lov ma'lumotlari:</div>
-      <div style="font-size:9.5px;color:#374151;line-height:1.7;">
+      <div style="font-size:9px;font-weight:700;color:#94a3b8;letter-spacing:1px;margin-bottom:5px;">TO'LOV MA'LUMOTLARI</div>
+      <div style="font-size:9.5px;color:#374151;line-height:1.8;">
         <div>Mijoz: <strong>${order.customerName || '—'}</strong></div>
         <div>Sana: <strong>${fmtDateTime(order.createdAt)}</strong></div>
-        ${order.summary ? `<div>Izoh: ${order.summary}</div>` : ''}
       </div>
     </div>
-    <div style="min-width:220px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
-        <span style="font-size:9.5px;color:#374151;">Olingan tovar jami:</span>
-        <span style="background:${logoColor};color:#fff;padding:3px 10px;font-size:9.5px;font-weight:700;min-width:90px;text-align:right;white-space:nowrap;">
-          ${fmtNum(order.totalAmount)} so'm
-        </span>
+    <div style="min-width:240px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dashed #cbd5e1;">
+        <span style="font-size:10px;color:#64748b;">Olingan tovar jami:</span>
+        <span style="font-size:10.5px;font-weight:700;color:#0f172a;">${fmtNum(order.totalAmount)} so'm</span>
       </div>
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
-        <span style="font-size:9.5px;color:#374151;">To'langan:</span>
-        <span style="background:${logoColor};color:#fff;padding:3px 10px;font-size:9.5px;font-weight:700;min-width:90px;text-align:right;white-space:nowrap;">
-          ${fmtNum(order.paidAmount)} so'm
-        </span>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dashed #cbd5e1;">
+        <span style="font-size:10px;color:#64748b;">To'langan:</span>
+        <span style="font-size:10.5px;font-weight:700;color:#15803d;">${fmtNum(order.paidAmount)} so'm</span>
       </div>
-      <div style="display:flex;justify-content:space-between;align-items:center;">
-        <span style="font-size:10.5px;font-weight:800;color:#0f172a;">QOLGAN QARZ:</span>
-        <span style="background:${logoColor};color:#fff;padding:5px 10px;font-size:10.5px;font-weight:800;min-width:90px;text-align:right;white-space:nowrap;">
-          ${fmtNum(order.remainingDebt)} so'm
-        </span>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;background:${logoColor};padding:8px 12px;border-radius:6px;">
+        <span style="font-size:11px;font-weight:800;color:#fff;letter-spacing:0.5px;">QOLGAN QARZ:</span>
+        <span style="font-size:12px;font-weight:900;color:#fff;white-space:nowrap;">${fmtNum(order.remainingDebt)} so'm</span>
       </div>
     </div>
   </div>
 
-  <!-- SHARTLAR -->
-  <div style="margin-bottom:16px;">
-    <div style="font-size:10.5px;font-weight:700;color:#0f172a;margin-bottom:4px;">Shartlar va qoidalar (Term &amp; Condition):</div>
-    <div style="font-size:9.5px;color:#4b5563;line-height:1.6;">
-      To'lov shartnomaga muvofiq 5 bank ish kuni ichida amalga oshirilishi lozim.
+  <!-- ═══ SHARTLAR + IMZO ═══ -->
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-bottom:16px;">
+    <div style="flex:1;">
+      <div style="font-size:10px;font-weight:700;color:#0f172a;margin-bottom:4px;letter-spacing:0.3px;">SHARTLAR VA QOIDALAR:</div>
+      <div style="font-size:9px;color:#64748b;line-height:1.6;">
+        To'lov shartnomaga muvofiq 5 bank ish kuni ichida amalga oshirilishi lozim.
+      </div>
+    </div>
+    <div style="text-align:center;min-width:200px;">
+      <div style="font-size:9px;color:#64748b;margin-bottom:22px;letter-spacing:0.3px;">IMZO / AUTHORISED SIGN</div>
+      <div style="border-bottom:1px solid #374151;width:170px;margin-left:auto;"></div>
     </div>
   </div>
 
-  <!-- TASHAKKUR + IMZO -->
-  <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:14px;">
-    <div style="font-size:10.5px;font-weight:600;color:#0f172a;">Xaridingiz uchun tashakkur!</div>
-    <div style="text-align:center;min-width:160px;">
-      <div style="font-size:9.5px;color:#374151;margin-bottom:4px;">Imzo / Authorised Sign:</div>
-      <div style="border-bottom:1px solid #374151;width:140px;margin-left:auto;"></div>
+  <div style="font-size:10px;font-weight:600;color:#0f172a;margin-bottom:18px;font-style:italic;">
+    Xaridingiz uchun tashakkur!
+  </div>
+
+  <!-- ═══ ACCENT LINE ═══ -->
+  <div style="height:2.5px;background:${logoColor};margin-bottom:12px;"></div>
+
+  <!-- ═══ REKVIZITLAR / FOOTER ═══ -->
+  <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px 14px;">
+    <div style="font-size:9px;font-weight:800;color:#0f172a;letter-spacing:1.2px;margin-bottom:8px;">KORXONA REKVIZITLARI</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px 16px;font-size:9px;line-height:1.5;">
+      <div>
+        <div style="color:#94a3b8;font-weight:700;letter-spacing:0.3px;margin-bottom:2px;">TASHKILOT</div>
+        <div style="color:#0f172a;font-weight:600;">"ZAFAR LUX KREDIT" MCHJ</div>
+      </div>
+      <div>
+        <div style="color:#94a3b8;font-weight:700;letter-spacing:0.3px;margin-bottom:2px;">MANZIL</div>
+        <div style="color:#374151;">Samarqand shahri</div>
+      </div>
+      <div>
+        <div style="color:#94a3b8;font-weight:700;letter-spacing:0.3px;margin-bottom:2px;">TELEFON</div>
+        <div style="color:#374151;font-family:monospace;">+998 97 907 20 22</div>
+      </div>
+      <div>
+        <div style="color:#94a3b8;font-weight:700;letter-spacing:0.3px;margin-bottom:2px;">INN</div>
+        <div style="color:#374151;font-family:monospace;">305 406 114</div>
+      </div>
+      <div>
+        <div style="color:#94a3b8;font-weight:700;letter-spacing:0.3px;margin-bottom:2px;">H/R (HISOB RAQAM)</div>
+        <div style="color:#374151;font-family:monospace;font-size:8.5px;">2020 8000 2008 5770 2001</div>
+      </div>
+      <div>
+        <div style="color:#94a3b8;font-weight:700;letter-spacing:0.3px;margin-bottom:2px;">MFO</div>
+        <div style="color:#374151;font-family:monospace;">01133</div>
+      </div>
+      <div>
+        <div style="color:#94a3b8;font-weight:700;letter-spacing:0.3px;margin-bottom:2px;">OKED</div>
+        <div style="color:#374151;font-family:monospace;">47190</div>
+      </div>
+      <div>
+        <div style="color:#94a3b8;font-weight:700;letter-spacing:0.3px;margin-bottom:2px;">BANK</div>
+        <div style="color:#374151;">ATB "SQB" Samarqand fil.</div>
+      </div>
     </div>
   </div>
 
-  <!-- FOOTER LINE -->
-  <div style="height:2.5px;background:${logoColor};margin-bottom:8px;"></div>
-  <div style="display:flex;justify-content:center;align-items:center;gap:10px;font-size:9px;color:#6b7280;flex-wrap:wrap;">
-    <span>📞 +998 71 200 00 00</span>
-    <span style="color:#d1d5db;">|</span>
-    <span>📍 Toshkent sh., Yunusobod t.</span>
-    <span style="color:#d1d5db;">|</span>
-    <span>✉ info@legopro.uz</span>
-    <span style="color:#d1d5db;">|</span>
-    <span>🌐 www.legopro.uz</span>
-  </div>
 
 </div>
 </body>
 </html>`;
     };
 
+    const previewStatus = STATUS_LABEL_MAP[order.status] ?? order.status;
+
     return (
-        <div 
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+        <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
             onClick={onClose}
         >
-            <div 
-                className={`w-full max-w-4xl rounded-2xl border shadow-2xl ${panel} max-h-[90vh] overflow-y-auto`}
+            <div
+                className={`w-full max-w-4xl rounded-2xl border shadow-2xl ${panel} max-h-[92vh] overflow-y-auto`}
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Header */}
-                <div className={`flex items-center justify-between border-b px-6 py-4 ${isDark ? 'border-[#334155]' : 'border-[#e2e8f0]'}`}>
+                <div className={`sticky top-0 z-10 flex items-center justify-between border-b px-6 py-4 ${isDark ? 'border-[#334155] bg-[#141C2B]' : 'border-[#e2e8f0] bg-white'}`}>
                     <div className="flex items-center gap-3">
                         <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-400/10 text-amber-500">
                             <LuPrinter size={20} />
                         </span>
                         <div>
                             <h3 className={`text-lg font-bold ${head}`}>Buyurtmani chop etish</h3>
-                            <p className={`text-sm ${muted}`}>Logo va dizaynni tanlang</p>
+                            <p className={`text-xs ${muted}`}>Logotipni tanlang va chop etish</p>
                         </div>
                     </div>
                     <button
                         onClick={onClose}
+                        aria-label="Yopish"
                         className={`flex h-10 w-10 items-center justify-center rounded-lg transition-colors ${
                             isDark ? 'hover:bg-[#1e293b]' : 'hover:bg-[#f1f5f9]'
                         }`}
@@ -303,84 +312,118 @@ export default function OrderPrintModal({ order, onClose }) {
 
                 {/* Logo selection */}
                 <div className="p-6">
-                    <h4 className={`mb-4 text-sm font-bold ${head}`}>Logo tanlang:</h4>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                        {LOGOS.map((logo) => (
-                            <button
-                                key={logo.id}
-                                onClick={() => setSelectedLogo(logo)}
-                                className={`relative flex flex-col items-center gap-2 rounded-xl border-2 p-3 transition-all ${
-                                    selectedLogo.id === logo.id
-                                        ? 'border-amber-400 bg-amber-400/10 shadow-lg'
-                                        : isDark
-                                        ? 'border-[#334155] hover:border-[#475569]'
-                                        : 'border-[#e2e8f0] hover:border-[#cbd5e1]'
-                                }`}
-                            >
-                                <img
-                                    src={logo.src}
-                                    alt={logo.name}
-                                    className="h-8 w-20 object-contain"
-                                />
-                                <span className={`text-xs font-semibold ${selectedLogo.id === logo.id ? 'text-amber-600' : muted}`}>
-                                    {logo.company}
-                                </span>
-                                {selectedLogo.id === logo.id && (
-                                    <div className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-amber-400 text-[10px] font-bold text-[#0F172A]">
-                                        ✓
+                    <div className="mb-4 flex items-center gap-2">
+                        <LuBuilding2 size={16} className={muted} />
+                        <h4 className={`text-sm font-bold ${head}`}>Kompaniya / Logotip</h4>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+                        {LOGOS.map((logo) => {
+                            const selected = selectedLogo.id === logo.id;
+                            return (
+                                <button
+                                    key={logo.id}
+                                    onClick={() => setSelectedLogo(logo)}
+                                    className={`relative flex flex-col items-center gap-2 rounded-xl border-2 p-3 transition-all ${
+                                        selected
+                                            ? 'border-amber-400 bg-amber-400/10 shadow-lg'
+                                            : isDark
+                                            ? 'border-[#334155] hover:border-[#475569]'
+                                            : 'border-[#e2e8f0] hover:border-[#cbd5e1]'
+                                    }`}
+                                >
+                                    <div className="flex h-10 items-center justify-center">
+                                        <img
+                                            src={logo.src}
+                                            alt={logo.name}
+                                            className="h-8 w-20 object-contain"
+                                        />
                                     </div>
-                                )}
-                            </button>
-                        ))}
+                                    <span className={`text-xs font-semibold ${selected ? 'text-amber-600' : muted}`}>
+                                        {logo.company}
+                                    </span>
+                                    {selected && (
+                                        <div className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-amber-400 text-[#0F172A]">
+                                            <LuCheck size={12} strokeWidth={3} />
+                                        </div>
+                                    )}
+                                </button>
+                            );
+                        })}
                     </div>
 
                     {/* Preview */}
                     <div className="mt-6">
-                        <h4 className={`mb-3 text-sm font-bold ${head}`}>Dizayn ko'rinishi:</h4>
+                        <h4 className={`mb-3 text-sm font-bold ${head}`}>Dizayn ko&apos;rinishi:</h4>
                         <div
-                            className="rounded-xl p-5"
-                            style={{
-                                backgroundColor: selectedLogo.bgColor,
-                                borderLeft: `4px solid ${selectedLogo.color}`
-                            }}
+                            className="overflow-hidden rounded-xl shadow-lg"
+                            style={{ backgroundColor: '#ffffff', border: `1px solid ${selectedLogo.color}30` }}
                         >
-                            <div className="flex items-start gap-4">
-                                <div className="flex items-center gap-3">
-                                    <img
-                                        src={selectedLogo.src}
-                                        alt="Selected logo"
-                                        className="h-10 w-24 flex-shrink-0 object-contain"
-                                    />
-                                    <div>
+                            {/* Preview header bar */}
+                            <div style={{ height: '3px', backgroundColor: selectedLogo.color }} />
+
+                            <div className="p-5">
+                                <div className="flex items-start justify-between gap-4">
+                                    <div className="flex items-center gap-3">
+                                        <img
+                                            src={selectedLogo.src}
+                                            alt="Selected logo"
+                                            className="h-10 w-24 flex-shrink-0 object-contain"
+                                        />
+                                        <div>
+                                            <h3
+                                                className="text-base font-black tracking-wide"
+                                                style={{ color: selectedLogo.color }}
+                                            >
+                                                {selectedLogo.company}
+                                            </h3>
+                                            <p className="text-[10px] font-medium tracking-wider text-[#94a3b8]">
+                                                INNOVATSION PVX PROFILLARI
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
                                         <h3
-                                            className="text-base font-black tracking-wide"
+                                            className="text-2xl font-black tracking-[0.3em]"
                                             style={{ color: selectedLogo.color }}
                                         >
-                                            {selectedLogo.company}
+                                            INVOICE
                                         </h3>
+                                        <p className="text-[10px] font-semibold tracking-widest text-[#94a3b8]">
+                                            HISOB-FAKTURA
+                                        </p>
                                     </div>
                                 </div>
-                                <div className={`h-12 w-px mx-2`} style={{ backgroundColor: selectedLogo.color + '40' }} />
-                                <div className="flex-1">
-                                    <h3
-                                        className="text-2xl font-black tracking-[0.3em]"
-                                        style={{ color: selectedLogo.color }}
-                                    >
-                                        INVOICE
-                                    </h3>
-                                    <p className="text-xs font-semibold mt-1" style={{ color: selectedLogo.textColor }}>
-                                        {order.customerName}
-                                    </p>
+
+                                <div className="my-4 h-px" style={{ backgroundColor: selectedLogo.color + '30' }} />
+
+                                <div className="flex items-start justify-between gap-4">
+                                    <div>
+                                        <p className="text-[10px] font-bold tracking-widest" style={{ color: selectedLogo.textColor, opacity: 0.7 }}>
+                                            MIJOZ
+                                        </p>
+                                        <p className="mt-0.5 text-sm font-bold" style={{ color: '#0f172a' }}>
+                                            {order.customerName || '—'}
+                                        </p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-[10px] font-bold tracking-widest" style={{ color: selectedLogo.textColor, opacity: 0.7 }}>
+                                            SUMMA
+                                        </p>
+                                        <p className="mt-0.5 text-sm font-black" style={{ color: selectedLogo.color }}>
+                                            {Number(order.totalAmount || 0).toLocaleString('ru-RU').replace(/\u00A0/g, ' ')} so&apos;m
+                                        </p>
+                                    </div>
                                 </div>
-                                <div className="text-right">
-                                    <p className="text-xs" style={{ color: selectedLogo.textColor }}>
+
+                                <div className="mt-4 flex items-center justify-between border-t pt-3" style={{ borderColor: '#e2e8f0' }}>
+                                    <p className="text-[10px] text-[#64748b]">
                                         {new Date().toLocaleDateString('uz-UZ')}
                                     </p>
                                     <div
-                                        className="mt-1 rounded-full px-3 py-1 text-xs font-bold text-white"
+                                        className="rounded-full px-3 py-1 text-[10px] font-bold text-white"
                                         style={{ backgroundColor: selectedLogo.color }}
                                     >
-                                        {order.status === 'APPROVED' ? 'Tasdiqlangan' : order.status === 'PENDING' ? 'Kutilmoqda' : 'Rad etilgan'}
+                                        {previewStatus}
                                     </div>
                                 </div>
                             </div>
@@ -389,7 +432,7 @@ export default function OrderPrintModal({ order, onClose }) {
                 </div>
 
                 {/* Footer */}
-                <div className={`flex justify-end gap-3 border-t px-6 py-4 ${isDark ? 'border-[#334155]' : 'border-[#e2e8f0]'}`}>
+                <div className={`sticky bottom-0 flex justify-end gap-3 border-t px-6 py-4 backdrop-blur ${isDark ? 'border-[#334155] bg-[#141C2B]' : 'border-[#e2e8f0] bg-white'}`}>
                     <button
                         onClick={onClose}
                         className={`rounded-xl border px-6 py-3 text-sm font-bold transition-colors ${
@@ -402,7 +445,7 @@ export default function OrderPrintModal({ order, onClose }) {
                     </button>
                     <button
                         onClick={handlePrint}
-                        className="flex items-center gap-2 rounded-xl bg-[#FACC15] px-6 py-3 text-sm font-bold text-[#0F172A] transition-all hover:bg-[#EAB308]"
+                        className="flex items-center gap-2 rounded-xl bg-[#FACC15] px-6 py-3 text-sm font-bold text-[#0F172A] shadow-lg shadow-[#FACC15]/30 transition-all hover:-translate-y-px hover:bg-[#EAB308] hover:shadow-xl"
                     >
                         <LuPrinter size={16} />
                         Chop etish

@@ -6,7 +6,6 @@ export const salesOrderApi = createApi({
   baseQuery: axiosBaseQuery(),
   tagTypes: ['SalesOrder'],
   endpoints: (builder) => ({
-    // GET /api/v1/sales-orders — zayavkalarni filtrlab, sahifalab qaytaradi
     getSalesOrders: builder.query({
       query: ({ customerId, status, productId, warehouseId, dateFrom, dateTo, page = 0, size = 20, sort = ['createdAt,DESC', 'id,DESC'] } = {}) => ({
         url: '/sales-orders',
@@ -18,9 +17,7 @@ export const salesOrderApi = createApi({
           ...(warehouseId ? { warehouseId } : {}),
           ...(dateFrom    ? { dateFrom }    : {}),
           ...(dateTo      ? { dateTo }      : {}),
-          page,
-          size,
-          sort,
+          page, size, sort,
         },
       }),
       transformResponse: (response) => ({
@@ -36,33 +33,42 @@ export const salesOrderApi = createApi({
           : [{ type: 'SalesOrder', id: 'LIST' }],
     }),
 
-    // GET /api/v1/sales-orders/{id} — bitta zayavka items bilan
     getSalesOrderById: builder.query({
-      query: (id) => ({
-        url: `/sales-orders/${id}`,
-        method: 'GET',
-      }),
+      query: (id) => ({ url: `/sales-orders/${id}`, method: 'GET' }),
       transformResponse: (response) => response.data,
       providesTags: (result, error, id) => [{ type: 'SalesOrder', id }],
     }),
 
-    // POST /api/v1/sales-orders — yangi zayavka yaratish (PENDING)
     createSalesOrder: builder.mutation({
-      query: (data) => ({
-        url: '/sales-orders',
-        method: 'POST',
-        data,
-      }),
+      query: (data) => ({ url: '/sales-orders', method: 'POST', data }),
       transformResponse: (response) => response.data,
       invalidatesTags: [{ type: 'SalesOrder', id: 'LIST' }],
     }),
 
-    // PUT /api/v1/sales-orders/{id} — PENDING zayavkani to'liq yangilash
     updateSalesOrder: builder.mutation({
-      query: ({ id, data }) => ({
-        url: `/sales-orders/${id}`,
-        method: 'PUT',
-        data,
+      query: ({ id, data }) => ({ url: `/sales-orders/${id}`, method: 'PUT', data }),
+      transformResponse: (response) => response.data,
+      invalidatesTags: (result, error, { id }) => [
+        { type: 'SalesOrder', id },
+        { type: 'SalesOrder', id: 'LIST' },
+      ],
+    }),
+
+    deleteSalesOrder: builder.mutation({
+      query: (id) => ({ url: `/sales-orders/${id}`, method: 'DELETE' }),
+      transformResponse: (response) => response.data,
+      invalidatesTags: (result, error, id) => [
+        { type: 'SalesOrder', id },
+        { type: 'SalesOrder', id: 'LIST' },
+      ],
+    }),
+
+    // PATCH /api/v1/sales-orders/{id}/status — universal status o'zgartirish
+    updateSalesOrderStatus: builder.mutation({
+      query: ({ id, status, reason }) => ({
+        url: `/sales-orders/${id}/status`,
+        method: 'PATCH',
+        data: { status, ...(reason ? { reason } : {}) },
       }),
       transformResponse: (response) => response.data,
       invalidatesTags: (result, error, { id }) => [
@@ -71,25 +77,9 @@ export const salesOrderApi = createApi({
       ],
     }),
 
-    // DELETE /api/v1/sales-orders/{id} — PENDING zayavkani soft-delete
-    deleteSalesOrder: builder.mutation({
-      query: (id) => ({
-        url: `/sales-orders/${id}`,
-        method: 'DELETE',
-      }),
-      transformResponse: (response) => response.data, // doim null
-      invalidatesTags: (result, error, id) => [
-        { type: 'SalesOrder', id },
-        { type: 'SalesOrder', id: 'LIST' },
-      ],
-    }),
-
-    // POST /api/v1/sales-orders/{id}/approve — PENDING -> APPROVED
+    // Eski endpointlar (agar biror joyda ishlatilsa)
     approveSalesOrder: builder.mutation({
-      query: (id) => ({
-        url: `/sales-orders/${id}/approve`,
-        method: 'POST',
-      }),
+      query: (id) => ({ url: `/sales-orders/${id}/approve`, method: 'POST' }),
       transformResponse: (response) => response.data,
       invalidatesTags: (result, error, id) => [
         { type: 'SalesOrder', id },
@@ -97,7 +87,6 @@ export const salesOrderApi = createApi({
       ],
     }),
 
-    // POST /api/v1/sales-orders/{id}/reject — PENDING -> REJECTED
     rejectSalesOrder: builder.mutation({
       query: ({ id, reason }) => ({
         url: `/sales-orders/${id}/reject`,
@@ -111,7 +100,6 @@ export const salesOrderApi = createApi({
       ],
     }),
 
-    // PATCH /api/v1/sales-orders/{id}/prices — PENDING zayavka narxlarini yangilash
     updateSalesOrderPrices: builder.mutation({
       query: ({ id, data }) => ({
         url: `/sales-orders/${id}/prices`,
@@ -133,6 +121,7 @@ export const {
   useCreateSalesOrderMutation,
   useUpdateSalesOrderMutation,
   useDeleteSalesOrderMutation,
+  useUpdateSalesOrderStatusMutation,
   useApproveSalesOrderMutation,
   useRejectSalesOrderMutation,
   useUpdateSalesOrderPricesMutation,
