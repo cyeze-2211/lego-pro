@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import {
+    Badge,
     Box,
     Button,
     Dialog,
@@ -22,6 +23,7 @@ import {
     LuRuler,
     LuTriangleAlert,
     LuTag,
+    LuClipboardPaste,
 } from 'react-icons/lu';
 import { useCreateProductMutation } from '../../../../store/services/product.api';
 import { useGetBrandsQuery } from '../../../../store/services/brand.api';
@@ -30,18 +32,47 @@ import { useAppTheme } from '../../../../theme/tokens';
 import FormattedNumberInput from '../../../ui/FormattedNumberInput';
 import FormControl from '../../../ui/FormControl';
 
+const CLIPBOARD_EVENT = 'product-clipboard-changed';
+
+const EMPTY_FORM = {
+    name: '',
+    price: '',
+    warehouseId: '',
+    article: '',
+    size: '',
+    minimumLine: '',
+    brandId: '',
+};
+
+/* ── Clipboard helpers (faqat xotirada) ── */
+const readClipboard = () => window.__productClipboard || null;
+
+const clearClipboard = () => {
+    delete window.__productClipboard;
+    window.dispatchEvent(new Event(CLIPBOARD_EVENT));
+};
+
+const buildFromClipboard = (clip) => ({
+    name: clip.name ? `${clip.name} (nusxa)` : '',
+    price: String(clip.price ?? ''),
+    warehouseId: clip.warehouseId || '',
+    article: clip.article || '',
+    size: clip.size || '',
+    minimumLine:
+        clip.minimumLine !== null &&
+        clip.minimumLine !== undefined &&
+        clip.minimumLine !== ''
+            ? String(clip.minimumLine)
+            : '',
+    brandId: clip.brandId || '',
+});
+
 export default function Create({ warehouses }) {
     const { open, onOpen, onClose } = useDisclosure();
 
-    const [form, setForm] = useState({
-        name: '',
-        price: '',
-        warehouseId: '',
-        article: '',
-        size: '',
-        minimumLine: '',
-        brandId: '',
-    });
+    const [form, setForm] = useState(EMPTY_FORM);
+    const [copiedFrom, setCopiedFrom] = useState(null);
+    const [hasClipboard, setHasClipboard] = useState(() => !!readClipboard());
 
     const [createProduct, { isLoading }] = useCreateProductMutation();
     const {
@@ -62,25 +93,45 @@ export default function Create({ warehouses }) {
     const modalBorder = isDark ? cardBorder : '#94A3B8';
     const brands = brandsData?.items ?? [];
 
+    // Clipboard o'zgarishlarini kuzatish (faqat shu sahifa ichida)
+    useEffect(() => {
+        const sync = () => setHasClipboard(!!readClipboard());
+        window.addEventListener(CLIPBOARD_EVENT, sync);
+        return () => window.removeEventListener(CLIPBOARD_EVENT, sync);
+    }, []);
+
     const setField = (key, value) =>
         setForm((prev) => ({ ...prev, [key]: value }));
 
-    const reset = () => {
-        setForm({
-            name: '',
-            price: '',
-            warehouseId: '',
-            article: '',
-            size: '',
-            minimumLine: '',
-            brandId: '',
-        });
+    // Modal ochilganda clipboard'ni tekshiramiz va avtomatik to'ldiramiz
+    const handleOpen = () => {
+        const clip = readClipboard();
+        if (clip) {
+            setForm(buildFromClipboard(clip));
+            setCopiedFrom(clip.sourceName || clip.name || 'Noma’lum');
+        } else {
+            setForm(EMPTY_FORM);
+            setCopiedFrom(null);
+        }
+        onOpen();
     };
 
     const handleClose = () => {
         if (isLoading) return;
         onClose();
-        reset();
+    };
+
+    const handleClearClipboard = () => {
+        clearClipboard();
+        setCopiedFrom(null);
+        setForm(EMPTY_FORM);
+        setHasClipboard(false);
+    };
+
+    const handleReset = () => {
+        // Nusxa saqlanib qoladi, faqat forma tozalanadi
+        setForm(EMPTY_FORM);
+        setCopiedFrom(null);
     };
 
     const handleSubmit = async () => {
@@ -106,7 +157,6 @@ export default function Create({ warehouses }) {
             warehouseId: form.warehouseId,
         };
 
-        // Ixtiyoriy maydonlar — faqat to'ldirilgan bo'lsa qo'shamiz
         if (form.article.trim()) payload.article = form.article.trim();
         if (form.size.trim()) payload.size = form.size.trim();
         if (form.minimumLine !== '' && !Number.isNaN(Number(form.minimumLine))) {
@@ -117,7 +167,9 @@ export default function Create({ warehouses }) {
         try {
             await createProduct(payload).unwrap();
             Alert('Mahsulot muvaffaqiyatli yaratildi', 'success');
-            handleClose();
+            onClose();
+            setForm(EMPTY_FORM);
+            setCopiedFrom(null);
         } catch (error) {
             Alert(error?.data?.message || 'Mahsulot yaratishda xatolik', 'error');
         }
@@ -142,7 +194,7 @@ export default function Create({ warehouses }) {
     return (
         <>
             <Button
-                onClick={onOpen}
+                onClick={handleOpen}
                 bg={accentColor}
                 color="black"
                 borderRadius="xl"
@@ -160,12 +212,25 @@ export default function Create({ warehouses }) {
                 <HStack gap={2}>
                     <LuPlus size={20} />
                     <span>Mahsulot qo‘shish</span>
+                    {hasClipboard && (
+                        <Badge
+                            bg={isDark ? 'blue.400' : 'blue.500'}
+                            color="white"
+                            borderRadius="full"
+                            fontSize="10px"
+                            px={2}
+                            py={0.5}
+                            ml={1}
+                        >
+                            nusxa bor
+                        </Badge>
+                    )}
                 </HStack>
             </Button>
 
             <Dialog.Root
                 open={open}
-                onOpenChange={(event) => (event.open ? onOpen() : handleClose())}
+                onOpenChange={(event) => (event.open ? handleOpen() : handleClose())}
                 size="xl"
                 placement="center"
             >
@@ -247,6 +312,70 @@ export default function Create({ warehouses }) {
                             </Dialog.CloseTrigger>
 
                             <Dialog.Body py={6} overflowY="auto">
+                                {/* ── Nusxa banner ── */}
+                                {copiedFrom && (
+                                    <Box
+                                        mb={5}
+                                        p={3}
+                                        borderRadius="lg"
+                                        bg={
+                                            isDark
+                                                ? 'rgba(96, 165, 250, 0.12)'
+                                                : 'blue.50'
+                                        }
+                                        borderWidth="1px"
+                                        borderColor={
+                                            isDark
+                                                ? 'rgba(96, 165, 250, 0.30)'
+                                                : 'blue.200'
+                                        }
+                                    >
+                                        <HStack justify="space-between" align="center" gap={3}>
+                                            <HStack
+                                                gap={2}
+                                                color={isDark ? 'blue.200' : 'blue.700'}
+                                                minW={0}
+                                            >
+                                                <LuClipboardPaste
+                                                    size={16}
+                                                    style={{ flexShrink: 0 }}
+                                                />
+                                                <Text
+                                                    fontSize="sm"
+                                                    fontWeight="medium"
+                                                    noOfLines={1}
+                                                >
+                                                    Nusxa:{' '}
+                                                    <Text as="span" fontWeight="bold">
+                                                        {copiedFrom}
+                                                    </Text>
+                                                </Text>
+                                            </HStack>
+                                            <Button
+                                                size="xs"
+                                                variant="ghost"
+                                                color={isDark ? 'blue.200' : 'blue.700'}
+                                                onClick={handleClearClipboard}
+                                                _hover={{
+                                                    bg: isDark
+                                                        ? 'rgba(96, 165, 250, 0.2)'
+                                                        : 'blue.100',
+                                                }}
+                                                flexShrink={0}
+                                            >
+                                                <HStack gap={1}>
+                                                    <X size={12} />
+                                                    <span>Tozalash</span>
+                                                </HStack>
+                                            </Button>
+                                        </HStack>
+                                        <Text fontSize="xs" color={subtitleColor} mt={1}>
+                                            Maydonlar avtomatik to‘ldirildi. Kerak bo‘lsa tahrirlab,
+                                            saqlang.
+                                        </Text>
+                                    </Box>
+                                )}
+
                                 <VStack gap={7} align="stretch">
                                     {/* ═══ Asosiy ma'lumotlar ═══ */}
                                     <Box>
@@ -437,6 +566,25 @@ export default function Create({ warehouses }) {
                                 borderTopWidth="1px"
                                 borderColor={modalBorder}
                             >
+                                {copiedFrom && (
+                                    <Button
+                                        variant="ghost"
+                                        onClick={handleReset}
+                                        color={subtitleColor}
+                                        size="lg"
+                                        px={4}
+                                        borderRadius="xl"
+                                        disabled={isLoading}
+                                        _hover={{
+                                            bg: isDark
+                                                ? 'rgba(148, 163, 184, 0.16)'
+                                                : 'gray.100',
+                                            color: textColor,
+                                        }}
+                                    >
+                                        Formani tozalash
+                                    </Button>
+                                )}
                                 <Button
                                     variant="ghost"
                                     onClick={handleClose}
@@ -457,7 +605,12 @@ export default function Create({ warehouses }) {
                                 </Button>
                                 <Button
                                     onClick={handleSubmit}
-                                    disabled={isLoading || !form.name.trim() || !form.price || !form.warehouseId}
+                                    disabled={
+                                        isLoading ||
+                                        !form.name.trim() ||
+                                        !form.price ||
+                                        !form.warehouseId
+                                    }
                                     bg={accentColor}
                                     color="black"
                                     size="lg"

@@ -42,7 +42,7 @@ export default function Login() {
         Cookies.get("device_token") ? "user" : "device"
     );
     const [deviceName, setDeviceName] = useState("");
-    const [devicePassword, setDevicePassword] = useState("ChangeMe123!");
+    const [devicePassword, setDevicePassword] = useState("");
     const [userId, setUserId] = useState("");
     const [pin, setPin] = useState("");
     const [showPassword, setShowPassword] = useState(false);

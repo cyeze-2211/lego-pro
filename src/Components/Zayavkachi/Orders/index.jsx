@@ -23,6 +23,42 @@ import { Alert } from '../../Other/UI/Alert/Alert';
 const PAGE_SIZE = 20;
 const STATUSES = ['CREATED', 'DISPATCHED', 'LOADED', 'CONFIRMED', 'REJECTED'];
 
+/* ── Xavfsiz yordamchilar ── */
+const safeLabel = (status) => {
+    if (!status) return '—';
+    return STATUS_LABEL?.[status] ?? status;
+};
+
+const safeStatusCx = (status) => {
+    try {
+        return typeof statusCx === 'function' ? statusCx(status) ?? '' : '';
+    } catch {
+        return '';
+    }
+};
+
+const safeNextStatuses = (status) => {
+    if (!status) return [];
+    const next = NEXT_STATUS?.[status];
+    return Array.isArray(next) ? next : [];
+};
+
+const isFinalStatus = (status) => {
+    if (!status) return false;
+    return Array.isArray(FINAL_STATUSES) && FINAL_STATUSES.includes(status);
+};
+
+const formatDate = (value) => {
+    if (!value) return '—';
+    try {
+        const d = new Date(value);
+        if (Number.isNaN(d.getTime())) return '—';
+        return d.toLocaleString('uz-UZ');
+    } catch {
+        return '—';
+    }
+};
+
 /* ──────────────────────────────────────────────────────────────── */
 /*  Status control                                                  */
 /* ──────────────────────────────────────────────────────────────── */
@@ -39,8 +75,8 @@ function OrderListStatusControl({ order, isDark }) {
     };
     const style = statusStyles[order.status] || statusStyles.CREATED;
 
-    const isFinal = FINAL_STATUSES.includes(order.status);
-    const nextStatuses = NEXT_STATUS[order.status] || [];
+    const isFinal = isFinalStatus(order.status);
+    const nextStatuses = safeNextStatuses(order.status);
 
     const changeStatus = async (nextStatus) => {
         if (!nextStatus || nextStatus === order.status) return;
@@ -48,7 +84,7 @@ function OrderListStatusControl({ order, isDark }) {
         try {
             await updateStatus({ id: order.id, status: nextStatus }).unwrap();
             Alert(
-                `Buyurtma holati "${STATUS_LABEL[nextStatus] ?? nextStatus}" ga o'zgartirildi`,
+                `Buyurtma holati "${safeLabel(nextStatus)}" ga o'zgartirildi`,
                 'success',
             );
         } catch (error) {
@@ -60,24 +96,24 @@ function OrderListStatusControl({ order, isDark }) {
 
     if (isFinal) {
         return (
-            <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${statusCx(order.status)}`}>
-                {STATUS_LABEL[order.status] ?? order.status}
+            <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${safeStatusCx(order.status)}`}>
+                {safeLabel(order.status)}
             </span>
         );
     }
 
     return (
         <select
-            value={action || order.status}
+            value={action || order.status || ''}
             onChange={(event) => changeStatus(event.target.value)}
             disabled={Boolean(action)}
             aria-label="Buyurtma holatini o'zgartirish"
             className="rounded-full border px-2.5 py-1 text-xs font-bold outline-none disabled:cursor-wait disabled:opacity-60"
             style={{ backgroundColor: style.bg, color: style.color, borderColor: style.border }}
         >
-            <option value={order.status}>{STATUS_LABEL[order.status] ?? order.status}</option>
+            <option value={order.status}>{safeLabel(order.status)}</option>
             {nextStatuses.map((s) => (
-                <option key={s} value={s}>→ {STATUS_LABEL[s] ?? s}</option>
+                <option key={s} value={s}>→ {safeLabel(s)}</option>
             ))}
         </select>
     );
@@ -86,7 +122,7 @@ function OrderListStatusControl({ order, isDark }) {
 OrderListStatusControl.propTypes = {
     order: PropTypes.shape({
         id: PropTypes.string.isRequired,
-        status: PropTypes.string.isRequired,
+        status: PropTypes.string,
     }).isRequired,
     isDark: PropTypes.bool.isRequired,
 };
@@ -99,9 +135,9 @@ export default function ZayavkachiOrders() {
     const navigate = useNavigate();
     const { pathname } = useLocation();
 
-    const ordersPath = pathname.startsWith('/orders')
+    const ordersPath = pathname?.startsWith('/orders')
         ? '/orders'
-        : pathname.startsWith('/kassir/orders')
+        : pathname?.startsWith('/kassir/orders')
         ? '/kassir/orders'
         : '/zayavkachi/orders';
 
@@ -111,7 +147,7 @@ export default function ZayavkachiOrders() {
     const [dateTo, setDateTo]             = useState('');
     const [search, setSearch]             = useState('');
 
-    const { data, isFetching } = useGetSalesOrdersQuery({
+    const { data, isFetching, isError, error } = useGetSalesOrdersQuery({
         status:   statusFilter || undefined,
         dateFrom: dateFrom     || undefined,
         dateTo:   dateTo       || undefined,
@@ -119,13 +155,33 @@ export default function ZayavkachiOrders() {
         size: PAGE_SIZE,
     });
 
-    const orders     = data?.items      ?? [];
-    const pagination = data?.pagination ?? {};
-    const filtered   = search
-        ? orders.filter((o) => o.customerName?.toLowerCase().includes(search.toLowerCase()))
+    /* ── API javobini NORMALIZATSIYA qilamiz ──
+       Quyidagi variantlarning hammasini ushlaydi:
+       1) { items: [...], pagination: {...} }   (RTK transform bilan)
+       2) { data: [...], pagination: {...} }    (xom javob)
+       3) [...]                                  (toza array)
+       4) undefined / null                       (yuklanmagan)          */
+    const rawList = Array.isArray(data)
+        ? data
+        : data?.items ?? data?.data ?? [];
+
+    const orders = Array.isArray(rawList) ? rawList : [];
+    const pagination = (data && typeof data === 'object' && data.pagination) || {};
+
+    const totalPages = Number.isFinite(pagination?.totalPages)
+        ? pagination.totalPages
+        : 0;
+    const totalElements = Number.isFinite(pagination?.totalElements)
+        ? pagination.totalElements
+        : 0;
+
+    const filtered = search
+        ? orders.filter((o) =>
+              (o?.customerName ?? '').toLowerCase().includes(search.toLowerCase())
+          )
         : orders;
 
-    const hasFilters = statusFilter || dateFrom || dateTo || search;
+    const hasFilters = Boolean(statusFilter || dateFrom || dateTo || search);
     const resetFilters = () => {
         setStatusFilter('');
         setDateFrom('');
@@ -151,10 +207,21 @@ export default function ZayavkachiOrders() {
         ? 'flex h-10 w-10 items-center justify-center rounded-lg transition-colors text-[#64748b] hover:bg-[#1e293b] hover:text-amber-400'
         : 'flex h-10 w-10 items-center justify-center rounded-lg transition-colors text-[#94a3b8] hover:bg-amber-50 hover:text-amber-500';
 
+    /* ── Loading / Error / Empty ── */
+    const renderLoading = () => (
+        <div className={`flex items-center justify-center gap-2 py-14 text-sm ${muted}`}>
+            <svg className="h-4 w-4 animate-spin text-amber-400" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+            </svg>
+            Yuklanmoqda...
+        </div>
+    );
+
     return (
         <div className="flex w-full flex-col gap-4 py-2">
 
-            {/* ── Header ────────────────────────────────────────────────── */}
+            {/* ── Header ── */}
             <div className={`relative overflow-hidden rounded-2xl border px-5 py-4 shadow-md ${panel}`}>
                 <div className="absolute right-0 top-0 h-full w-1/2 bg-gradient-to-l from-amber-400/6 to-transparent" />
                 <div className="relative flex flex-wrap items-center justify-between gap-3">
@@ -174,7 +241,7 @@ export default function ZayavkachiOrders() {
                 </div>
             </div>
 
-            {/* ── Ro'yxat ───────────────────────────────────────────────── */}
+            {/* ── Ro'yxat ── */}
             <div className={`rounded-2xl border shadow-md ${panel}`}>
 
                 {/* Filtrlar */}
@@ -186,7 +253,7 @@ export default function ZayavkachiOrders() {
                             className={inputCx}>
                             <option value="">Barchasi</option>
                             {STATUSES.map((s) => (
-                                <option key={s} value={s}>{STATUS_LABEL[s]}</option>
+                                <option key={s} value={s}>{safeLabel(s)}</option>
                             ))}
                         </select>
                     </div>
@@ -231,12 +298,14 @@ export default function ZayavkachiOrders() {
                 </div>
 
                 {isFetching ? (
-                    <div className={`flex items-center justify-center gap-2 py-14 text-sm ${muted}`}>
-                        <svg className="h-4 w-4 animate-spin text-amber-400" viewBox="0 0 24 24" fill="none">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-                        </svg>
-                        Yuklanmoqda...
+                    renderLoading()
+                ) : isError ? (
+                    <div className={`flex flex-col items-center gap-2 py-14 ${muted}`}>
+                        <LuPackage size={34} strokeWidth={1.5} />
+                        <p className="text-sm font-semibold">Ma&apos;lumotlarni yuklashda xatolik</p>
+                        <p className="text-xs">
+                            {error?.data?.message || error?.message || 'Server bilan aloqa yo‘q'}
+                        </p>
                     </div>
                 ) : filtered.length === 0 ? (
                     <div className={`flex flex-col items-center gap-2 py-14 ${muted}`}>
@@ -260,23 +329,25 @@ export default function ZayavkachiOrders() {
                             </thead>
                             <tbody className={`divide-y ${divider}`}>
                                 {filtered.map((o, idx) => {
-                                    const editable = o.status === 'CREATED';
+                                    const editable = o?.status === 'CREATED';
                                     return (
-                                        <tr key={o.id} className={`transition-colors ${rowHov}`}>
+                                        <tr key={o?.id ?? idx} className={`transition-colors ${rowHov}`}>
                                             <td className={`px-5 py-3 text-xs ${muted}`}>{page * PAGE_SIZE + idx + 1}</td>
                                             <td className="px-5 py-3">
-                                                <p className={`font-semibold ${head}`}>{o.customerName}</p>
-                                                {o.summary && <p className={`truncate max-w-xs text-xs ${muted}`}>{o.summary}</p>}
+                                                <p className={`font-semibold ${head}`}>{o?.customerName || '—'}</p>
+                                                {o?.summary && <p className={`truncate max-w-xs text-xs ${muted}`}>{o.summary}</p>}
                                             </td>
-                                            <td className={`px-5 py-3 text-xs font-semibold ${muted}`}>{o.items?.length ?? 0} ta</td>
+                                            <td className={`px-5 py-3 text-xs font-semibold ${muted}`}>
+                                                {Array.isArray(o?.items) ? o.items.length : 0} ta
+                                            </td>
                                             <td className={`px-5 py-3 text-right font-bold ${head}`}>
-                                                {formatNumber(o.totalAmount ?? 0)} so&apos;m
+                                                {formatNumber(o?.totalAmount ?? 0)} so&apos;m
                                             </td>
                                             <td className="px-5 py-3">
                                                 <OrderListStatusControl order={o} isDark={isDark} />
                                             </td>
                                             <td className={`px-5 py-3 text-xs ${muted}`}>
-                                                {o.createdAt ? new Date(o.createdAt).toLocaleString('uz-UZ') : '—'}
+                                                {formatDate(o?.createdAt)}
                                             </td>
                                             <td className="px-5 py-3">
                                                 <div className="flex items-center justify-end gap-1">
@@ -302,18 +373,18 @@ export default function ZayavkachiOrders() {
                     </div>
                 )}
 
-                {pagination.totalPages > 1 && (
+                {totalPages > 1 && (
                     <div className={`flex items-center justify-between gap-3 border-t px-5 py-3.5 ${line}`}>
                         <p className={`text-xs ${muted}`}>
-                            {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, pagination.totalElements)} / {pagination.totalElements}
+                            {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, totalElements)} / {totalElements}
                         </p>
                         <div className="flex items-center gap-1.5">
-                            <button type="button" disabled={pagination.first} onClick={() => setPage((p) => p - 1)}
+                            <button type="button" disabled={page === 0} onClick={() => setPage((p) => Math.max(0, p - 1))}
                                 className={`flex h-8 w-8 items-center justify-center rounded-lg border transition-colors disabled:opacity-40 ${isDark ? 'border-[#334155] hover:bg-[#334155]' : 'border-[#e2e8f0] hover:bg-[#f1f5f9]'}`}>
                                 <LuChevronLeft size={14} />
                             </button>
-                            <span className={`px-3 text-sm font-semibold ${head}`}>{page + 1} / {pagination.totalPages}</span>
-                            <button type="button" disabled={pagination.last} onClick={() => setPage((p) => p + 1)}
+                            <span className={`px-3 text-sm font-semibold ${head}`}>{page + 1} / {totalPages}</span>
+                            <button type="button" disabled={page >= totalPages - 1} onClick={() => setPage((p) => p + 1)}
                                 className={`flex h-8 w-8 items-center justify-center rounded-lg border transition-colors disabled:opacity-40 ${isDark ? 'border-[#334155] hover:bg-[#334155]' : 'border-[#e2e8f0] hover:bg-[#f1f5f9]'}`}>
                                 <LuChevronRight size={14} />
                             </button>

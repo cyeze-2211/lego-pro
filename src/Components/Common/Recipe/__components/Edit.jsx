@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
 import {
     Box,
@@ -25,23 +25,57 @@ export default function Edit({ recipe, rawMaterials }) {
     const [name, setName] = useState('');
     const [items, setItems] = useState([]);
     const [updateRecipe, { isLoading }] = useUpdateRecipeMutation();
-    const { isDark, accentColor, cardBg, cardBorder, textColor, subtitleColor } = useAppTheme();
+    const {
+        isDark,
+        accentColor,
+        cardBg,
+        cardBorder,
+        textColor,
+        subtitleColor,
+    } = useAppTheme();
     const modalBorder = isDark ? cardBorder : '#94A3B8';
+
+    // ✅ MUHIM: Retseptdagi xom ashyolar ro'yxatda bo'lmasa — qo'shib qo'yamiz
+    const enhancedRawMaterials = useMemo(() => {
+        const list = [...(rawMaterials || [])];
+        const existingIds = new Set(list.map((m) => String(m.id)));
+
+        (recipe?.items || []).forEach((item) => {
+            if (
+                item.rawMaterialId &&
+                !existingIds.has(String(item.rawMaterialId))
+            ) {
+                list.push({
+                    id: item.rawMaterialId,
+                    name:
+                        item.rawMaterialName ||
+                        `Noma'lum (${String(item.rawMaterialId).slice(0, 8)}...)`,
+                    _missing: true, // belgisi: asosiy ro'yxatda yo'q
+                });
+                existingIds.add(String(item.rawMaterialId));
+            }
+        });
+
+        return list;
+    }, [rawMaterials, recipe]);
 
     useEffect(() => {
         if (open && recipe) {
             setName(recipe.name || '');
-            setItems((recipe.items || []).map((item) => ({
-                rawMaterialId: item.rawMaterialId,
-                quantity: String(item.quantity),
-                unit: item.unit,
-                stepOrder: item.stepOrder,
-            })));
+            setItems(
+                (recipe.items || []).map((item) => ({
+                    rawMaterialId: item.rawMaterialId,
+                    quantity: String(item.quantity),
+                    unit: item.unit,
+                    stepOrder: item.stepOrder,
+                }))
+            );
         }
     }, [open, recipe]);
 
     const handleSubmit = async () => {
         if (isLoading) return;
+
         if (!name.trim()) {
             Alert('Retsept nomi majburiy', 'error');
             return;
@@ -50,7 +84,10 @@ export default function Edit({ recipe, rawMaterials }) {
             Alert('Retsept kamida bitta qatordan iborat bo‘lishi kerak', 'error');
             return;
         }
-        const hasInvalid = items.some((item) => !item.rawMaterialId || !item.quantity || Number(item.quantity) <= 0);
+        const hasInvalid = items.some(
+            (item) =>
+                !item.rawMaterialId || !item.quantity || Number(item.quantity) <= 0
+        );
         if (hasInvalid) {
             Alert('Har bir qatorda xom ashyo va miqdor majburiy', 'error');
             return;
@@ -61,9 +98,15 @@ export default function Edit({ recipe, rawMaterials }) {
             return;
         }
 
+        const recipeId = recipe.recipeId;
+        if (!recipeId) {
+            Alert('Retsept ID topilmadi', 'error');
+            return;
+        }
+
         try {
             await updateRecipe({
-                recipeId: recipe.recipeId,
+                recipeId,
                 name: name.trim(),
                 items: items.map((item) => ({
                     rawMaterialId: item.rawMaterialId,
@@ -75,7 +118,10 @@ export default function Edit({ recipe, rawMaterials }) {
             Alert('Retsept yangilandi', 'success');
             onClose();
         } catch (error) {
-            Alert(error?.data?.message || 'Retseptni yangilashda xatolik', 'error');
+            Alert(
+                error?.data?.message || 'Retseptni yangilashda xatolik',
+                'error'
+            );
         }
     };
 
@@ -89,47 +135,197 @@ export default function Edit({ recipe, rawMaterials }) {
                 borderRadius="xl"
                 px={3}
                 aria-label="Tahrirlash"
-                _hover={{ bg: isDark ? 'rgba(250, 204, 21, 0.16)' : 'yellow.50', color: isDark ? 'yellow.200' : 'yellow.700' }}
+                _hover={{
+                    bg: isDark ? 'rgba(250, 204, 21, 0.16)' : 'yellow.50',
+                    color: isDark ? 'yellow.200' : 'yellow.700',
+                }}
             >
                 <LuPen size={16} />
             </Button>
 
-            <Dialog.Root open={open} onOpenChange={(event) => (event.open ? onOpen() : onClose())} size="md" placement="center" scrollBehavior="inside">
+            <Dialog.Root
+                open={open}
+                onOpenChange={(event) => (event.open ? onOpen() : onClose())}
+                size="md"
+                placement="center"
+                scrollBehavior="inside"
+            >
                 <Portal>
-                    <Dialog.Backdrop backdropFilter="blur(6px)" bg={isDark ? 'blackAlpha.700' : 'blackAlpha.400'} />
+                    <Dialog.Backdrop
+                        backdropFilter="blur(6px)"
+                        bg={isDark ? 'blackAlpha.700' : 'blackAlpha.400'}
+                    />
                     <Dialog.Positioner>
-                        <Dialog.Content bg={cardBg} borderColor={modalBorder} borderWidth="1px" borderRadius="2xl" boxShadow="2xl" overflow="hidden" maxW="720px" w="calc(100% - 32px)">
-                            <Box position="absolute" top="0" left="0" right="0" h="4px" bgGradient={`linear(to-r, ${accentColor}, yellow.300)`} />
-                            <Dialog.Header color={textColor} fontSize="2xl" fontWeight="bold" pt={7} pb={5} borderBottomWidth="1px" borderColor={modalBorder}>
+                        <Dialog.Content
+                            bg={cardBg}
+                            borderColor={modalBorder}
+                            borderWidth="1px"
+                            borderRadius="2xl"
+                            boxShadow="2xl"
+                            overflow="hidden"
+                            maxW="720px"
+                            w="calc(100% - 32px)"
+                        >
+                            <Box
+                                position="absolute"
+                                top="0"
+                                left="0"
+                                right="0"
+                                h="4px"
+                                bgGradient={`linear(to-r, ${accentColor}, yellow.300)`}
+                            />
+
+                            <Dialog.Header
+                                color={textColor}
+                                fontSize="2xl"
+                                fontWeight="bold"
+                                pt={7}
+                                pb={5}
+                                borderBottomWidth="1px"
+                                borderColor={modalBorder}
+                            >
                                 <HStack gap={3}>
-                                    <Box p={3} borderRadius="xl" bg={isDark ? 'rgba(250, 204, 21, 0.1)' : '#FEFCE8'} borderColor={isDark ? 'rgba(250, 204, 21, 0.2)' : '#FDE68A'} borderWidth="1px" color={accentColor}>
+                                    <Box
+                                        p={3}
+                                        borderRadius="xl"
+                                        bg={
+                                            isDark
+                                                ? 'rgba(250, 204, 21, 0.1)'
+                                                : '#FEFCE8'
+                                        }
+                                        borderColor={
+                                            isDark
+                                                ? 'rgba(250, 204, 21, 0.2)'
+                                                : '#FDE68A'
+                                        }
+                                        borderWidth="1px"
+                                        color={accentColor}
+                                    >
                                         <LuUtensils size={24} />
                                     </Box>
                                     <Box>
                                         <span>Retseptni tahrirlash</span>
-                                        {recipe?.name && <Text fontSize="sm" fontWeight="normal" color={subtitleColor} mt={1}>{recipe.name}</Text>}
+                                        {recipe?.name && (
+                                            <Text
+                                                fontSize="sm"
+                                                fontWeight="normal"
+                                                color={subtitleColor}
+                                                mt={1}
+                                            >
+                                                {recipe.name}
+                                            </Text>
+                                        )}
                                     </Box>
                                 </HStack>
                             </Dialog.Header>
+
                             <Dialog.CloseTrigger asChild>
-                                <Button variant="ghost" color={subtitleColor} size="sm" position="absolute" top="3" right="3" aria-label="Yopish"><X /></Button>
+                                <Button
+                                    variant="ghost"
+                                    color={subtitleColor}
+                                    size="sm"
+                                    position="absolute"
+                                    top="3"
+                                    right="3"
+                                    aria-label="Yopish"
+                                >
+                                    <X />
+                                </Button>
                             </Dialog.CloseTrigger>
 
                             <Dialog.Body py={6}>
                                 <VStack gap={6} align="stretch">
                                     <Field.Root required>
-                                        <Field.Label color={textColor} fontWeight="medium"><HStack gap={2}><LuUtensils size={16} /><span>Retsept nomi</span></HStack><Field.RequiredIndicator /></Field.Label>
-                                        <FormControl value={name} onChange={(event) => setName(event.target.value)} placeholder="Masalan, Plastik quti retsepti" w="100%" minH="52px" />
+                                        <Field.Label
+                                            color={textColor}
+                                            fontWeight="medium"
+                                        >
+                                            <HStack gap={2}>
+                                                <LuUtensils size={16} />
+                                                <span>Retsept nomi</span>
+                                            </HStack>
+                                            <Field.RequiredIndicator />
+                                        </Field.Label>
+                                        <FormControl
+                                            value={name}
+                                            onChange={(event) =>
+                                                setName(event.target.value)
+                                            }
+                                            placeholder="Masalan, Plastik quti retsepti"
+                                            w="100%"
+                                            minH="52px"
+                                        />
                                     </Field.Root>
-                                    <RecipeItemsForm items={items} setItems={setItems} rawMaterials={rawMaterials} />
-                                    <Text fontSize="sm" color={subtitleColor}>Saqlashda qatorlar to‘liq almashtiriladi (eski qatorlar o‘chadi).</Text>
+
+                                    {/* ✅ enhancedRawMaterials uzatamiz */}
+                                    <RecipeItemsForm
+                                        items={items}
+                                        setItems={setItems}
+                                        rawMaterials={enhancedRawMaterials}
+                                    />
+
+                                    <Text fontSize="sm" color={subtitleColor}>
+                                        Saqlashda qatorlar to‘liq almashtiriladi (eski
+                                        qatorlar o‘chadi).
+                                    </Text>
                                 </VStack>
                             </Dialog.Body>
 
-                            <Dialog.Footer gap={3} pt={5} pb={6} borderTopWidth="1px" borderColor={modalBorder}>
-                                <Button variant="ghost" onClick={onClose} color={subtitleColor} borderWidth="1px" borderStyle="solid" borderColor={isDark ? 'transparent' : '#CBD5E1'} _hover={{ bg: isDark ? 'rgba(148, 163, 184, 0.16)' : 'gray.100', color: textColor }} size="lg" px={6} borderRadius="xl">Bekor qilish</Button>
-                                <Button onClick={handleSubmit} disabled={isLoading} bg={accentColor} color="black" size="lg" borderRadius="xl" px={8} fontWeight="semibold" _hover={{ bg: 'yellow.500', transform: 'scale(1.02)', boxShadow: 'lg' }} _active={{ transform: 'scale(0.98)' }}>
-                                    {isLoading ? <HStack gap={2}><Spinner size="sm" color="black" /><span>Saqlanmoqda...</span></HStack> : <HStack gap={2}><Check size={20} /><span>Saqlash</span></HStack>}
+                            <Dialog.Footer
+                                gap={3}
+                                pt={5}
+                                pb={6}
+                                borderTopWidth="1px"
+                                borderColor={modalBorder}
+                            >
+                                <Button
+                                    variant="ghost"
+                                    onClick={onClose}
+                                    color={subtitleColor}
+                                    borderWidth="1px"
+                                    borderStyle="solid"
+                                    borderColor={
+                                        isDark ? 'transparent' : '#CBD5E1'
+                                    }
+                                    _hover={{
+                                        bg: isDark
+                                            ? 'rgba(148, 163, 184, 0.16)'
+                                            : 'gray.100',
+                                        color: textColor,
+                                    }}
+                                    size="lg"
+                                    px={6}
+                                    borderRadius="xl"
+                                >
+                                    Bekor qilish
+                                </Button>
+                                <Button
+                                    onClick={handleSubmit}
+                                    disabled={isLoading}
+                                    bg={accentColor}
+                                    color="black"
+                                    size="lg"
+                                    borderRadius="xl"
+                                    px={8}
+                                    fontWeight="semibold"
+                                    _hover={{
+                                        bg: 'yellow.500',
+                                        transform: 'scale(1.02)',
+                                        boxShadow: 'lg',
+                                    }}
+                                    _active={{ transform: 'scale(0.98)' }}
+                                >
+                                    {isLoading ? (
+                                        <HStack gap={2}>
+                                            <Spinner size="sm" color="black" />
+                                            <span>Saqlanmoqda...</span>
+                                        </HStack>
+                                    ) : (
+                                        <HStack gap={2}>
+                                            <Check size={20} />
+                                            <span>Saqlash</span>
+                                        </HStack>
+                                    )}
                                 </Button>
                             </Dialog.Footer>
                         </Dialog.Content>
@@ -144,12 +340,20 @@ Edit.propTypes = {
     recipe: PropTypes.shape({
         recipeId: PropTypes.string.isRequired,
         name: PropTypes.string,
-        items: PropTypes.arrayOf(PropTypes.shape({
-            rawMaterialId: PropTypes.string.isRequired,
-            quantity: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
-            unit: PropTypes.string.isRequired,
-            stepOrder: PropTypes.number.isRequired,
-        })),
+        items: PropTypes.arrayOf(
+            PropTypes.shape({
+                rawMaterialId: PropTypes.string.isRequired,
+                rawMaterialName: PropTypes.string,
+                quantity: PropTypes.oneOfType([
+                    PropTypes.string,
+                    PropTypes.number,
+                ]).isRequired,
+                unit: PropTypes.string.isRequired,
+                stepOrder: PropTypes.number.isRequired,
+            })
+        ),
     }).isRequired,
-    rawMaterials: PropTypes.arrayOf(PropTypes.shape({ id: PropTypes.string, name: PropTypes.string })).isRequired,
+    rawMaterials: PropTypes.arrayOf(
+        PropTypes.shape({ id: PropTypes.string, name: PropTypes.string })
+    ).isRequired,
 };

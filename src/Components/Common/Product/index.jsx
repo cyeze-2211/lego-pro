@@ -1,14 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Box,
     Button,
     HStack,
     Heading,
+    Spinner,
     Table,
     Text,
     VStack,
-    Badge,
 } from '@chakra-ui/react';
 import {
     LuChevronLeft,
@@ -20,6 +20,8 @@ import {
     LuRuler,
     LuWarehouse,
     LuTriangleAlert,
+    LuCopy,
+    LuCheck,
 } from 'react-icons/lu';
 import { useGetProductsQuery } from '../../../store/services/product.api';
 import { useGetWarehousesQuery } from '../../../store/services/warehouse.api';
@@ -34,12 +36,90 @@ import FormControl from '../../ui/FormControl';
 import { formatNumber } from '../../ui/number-format';
 
 const PAGE_SIZE = 12;
+const CLIPBOARD_EVENT = 'product-clipboard-changed';
+const SEARCH_DEBOUNCE_MS = 500;
+
+/* ── Clipboard helpers (faqat xotirada, refresh'da tozalanadi) ── */
+const saveToClipboard = (product) => {
+    window.__productClipboard = {
+        name: product.name || '',
+        price: product.price ?? '',
+        article: product.article || '',
+        size: product.size || '',
+        minimumLine:
+            product.minimumLine !== null && product.minimumLine !== undefined
+                ? product.minimumLine
+                : '',
+        brandId: product.brand?.id || product.brandId || '',
+        warehouseId: product.warehouseId || '',
+        sourceName: product.name || '',
+    };
+    window.dispatchEvent(new Event(CLIPBOARD_EVENT));
+};
+
+/* ── Copy button (inline komponent) ── */
+function CopyButton({ product }) {
+    const { isDark } = useAppTheme();
+    const [done, setDone] = useState(false);
+
+    const handleCopy = (event) => {
+        event.stopPropagation();
+        saveToClipboard(product);
+        setDone(true);
+        Alert(`"${product.name}" nusxalandi`, 'success');
+        setTimeout(() => setDone(false), 1500);
+    };
+
+    const colorIdle = isDark ? 'blue.300' : 'blue.600';
+    const colorDone = isDark ? 'green.300' : 'green.600';
+
+    return (
+        <Button
+            onClick={handleCopy}
+            variant="ghost"
+            size="sm"
+            color={done ? colorDone : colorIdle}
+            borderRadius="xl"
+            px={3}
+            aria-label="Nusxalash"
+            title="Nusxalash"
+            _hover={{
+                bg: isDark ? 'rgba(96, 165, 250, 0.16)' : 'blue.50',
+                color: isDark ? 'blue.200' : 'blue.700',
+            }}
+        >
+            {done ? <LuCheck size={16} /> : <LuCopy size={16} />}
+        </Button>
+    );
+}
 
 export default function Product() {
     const navigate = useNavigate();
     const [search, setSearch] = useState('');
     const [query, setQuery] = useState('');
     const [page, setPage] = useState(0);
+    const isFirstRender = useRef(true);
+
+    // Debounced qidiruv — yozish to'xtagach 500ms o'tib so'rov yuboriladi
+    useEffect(() => {
+        if (isFirstRender.current) {
+            isFirstRender.current = false;
+            return;
+        }
+
+        const handler = setTimeout(() => {
+            const next = search.trim();
+            setQuery((prev) => {
+                if (prev !== next) {
+                    setPage(0);
+                    return next;
+                }
+                return prev;
+            });
+        }, SEARCH_DEBOUNCE_MS);
+
+        return () => clearTimeout(handler);
+    }, [search]);
 
     const { data: productResult, isLoading, error } = useGetProductsQuery({
         name: query || undefined,
@@ -67,6 +147,9 @@ export default function Product() {
     const tableHeaderBg = isDark ? tableBg : '#F8FAFC';
     const tableBorder = isDark ? cardBorder : '#CBD5E1';
 
+    // Foydalanuvchi hali yozayaptimi? (query hali yangilanmagan)
+    const isDebouncing = search.trim() !== query;
+
     const cellBorder = {
         borderWidth: '0.5px',
         borderColor: tableBorder,
@@ -84,16 +167,11 @@ export default function Product() {
         letterSpacing: 'wider',
     };
 
-    const submitSearch = (event) => {
-        event.preventDefault();
-        setPage(0);
-        setQuery(search.trim());
-    };
-
+    // Tozalash — darhol (debounce kutmasdan)
     const clearSearch = () => {
         setSearch('');
-        setPage(0);
         setQuery('');
+        setPage(0);
     };
 
     useEffect(() => {
@@ -122,13 +200,9 @@ export default function Product() {
                 <Create warehouses={warehouses} />
             </HStack>
 
-            {/* ── Search ── */}
+            {/* ── Search (auto / debounced) ── */}
             <HStack
-                as="form"
-                onSubmit={submitSearch}
                 w="100%"
-                align={{ base: 'stretch', md: 'center' }}
-                flexDirection={{ base: 'column', md: 'row' }}
                 gap={3}
                 mb={4}
                 p={3}
@@ -156,9 +230,26 @@ export default function Product() {
                         placeholder="Mahsulot nomi bo‘yicha qidiring..."
                         aria-label="Mahsulot qidirish"
                         pl={11}
-                        pr={search ? 11 : 4}
+                        pr={search ? 22 : 4}
                         minH="40px"
                     />
+
+                    {/* Debounce jarayonida kichik spinner */}
+                    {isDebouncing && (
+                        <Box
+                            position="absolute"
+                            right={search ? 11 : 4}
+                            top="50%"
+                            transform="translateY(-50%)"
+                            color={subtitleColor}
+                            pointerEvents="none"
+                            display="inline-flex"
+                            alignItems="center"
+                        >
+                            <Spinner size="xs" />
+                        </Box>
+                    )}
+
                     {search && (
                         <Button
                             type="button"
@@ -184,21 +275,6 @@ export default function Product() {
                         </Button>
                     )}
                 </Box>
-                <Button
-                    type="submit"
-                    bg={accentColor}
-                    color="black"
-                    borderRadius="xl"
-                    minH="40px"
-                    px={6}
-                    flexShrink={0}
-                    _hover={{ bg: 'yellow.500', transform: 'translateY(-1px)' }}
-                >
-                    <HStack gap={2}>
-                        <LuSearch size={18} />
-                        <span>Qidirish</span>
-                    </HStack>
-                </Button>
             </HStack>
 
             {/* ── Content ── */}
@@ -261,7 +337,7 @@ export default function Product() {
                                     <Table.ColumnHeader {...headerCell} minW="150px">
                                         Shtrix-kod
                                     </Table.ColumnHeader>
-                                    <Table.ColumnHeader {...headerCell} textAlign="center" w="100px">
+                                    <Table.ColumnHeader {...headerCell} textAlign="center" w="140px">
                                         Amal
                                     </Table.ColumnHeader>
                                 </Table.Row>
@@ -277,6 +353,7 @@ export default function Product() {
                                             cursor="pointer"
                                             onClick={() => navigate(`/products/${product.id}`)}
                                             onKeyDown={(event) => {
+                                                if (event.target !== event.currentTarget) return;
                                                 if (event.key === 'Enter' || event.key === ' ') {
                                                     event.preventDefault();
                                                     navigate(`/products/${product.id}`);
@@ -354,7 +431,7 @@ export default function Product() {
                                                 </HStack>
                                             </Table.Cell>
 
-                                            {/* Brend — obyekt */}
+                                            {/* Brend */}
                                             <Table.Cell {...cellBorder}>
                                                 {brand?.name ? (
                                                     <HStack gap={1.5}>
@@ -523,8 +600,10 @@ export default function Product() {
                                                 {...cellBorder}
                                                 textAlign="center"
                                                 onClick={(event) => event.stopPropagation()}
+                                                onKeyDown={(event) => event.stopPropagation()}
                                             >
                                                 <HStack justify="center" gap={1}>
+                                                    <CopyButton product={product} />
                                                     <Edit product={product} />
                                                     <Delete product={product} />
                                                 </HStack>
