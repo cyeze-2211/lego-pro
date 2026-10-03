@@ -29,7 +29,7 @@ import {
     LuMoon,
 } from "react-icons/lu";
 
-import { useAppDispatch } from "../../../store/hooks";
+import { useAppDispatch, useAppSelector } from "../../../store/hooks";
 import { setAuth, setDeviceAuth } from "../../../store/slices/auth.slice";
 import { useGetUsersQuery, useLoginMutation, useUserLoginMutation } from "../../../store/services/auth.api";
 import { useAppTheme } from "../../../theme/tokens";
@@ -37,25 +37,33 @@ import { useAppTheme } from "../../../theme/tokens";
 import YellowLogo from "../../../Images/Yellow Unified Lego Outlined.svg";
 
 export default function Login() {
-    // Device token cookie da bo'lsa user stepidan boshlash
-    const [step, setStep] = useState(() =>
-        Cookies.get("device_token") ? "user" : "device"
-    );
+    const dispatch = useAppDispatch();
+    const navigate = useNavigate();
+
+    // Токен устройства: сначала из store, потом из cookie
+    const storeDeviceToken = useAppSelector((state) => state.auth.deviceToken);
+    const deviceToken = storeDeviceToken || Cookies.get("device_token");
+
+    const [step, setStep] = useState(() => (deviceToken ? "user" : "device"));
     const [deviceName, setDeviceName] = useState("");
-    const [devicePassword, setDevicePassword] = useState("");
+    const [devicePassword, setDevicePassword] = useState("ChangeMe123!");
     const [userId, setUserId] = useState("");
     const [pin, setPin] = useState("");
     const [showPassword, setShowPassword] = useState(false);
 
     const [deviceLogin, deviceResult] = useLoginMutation();
     const [userLogin, userResult] = useUserLoginMutation();
-    const usersResult = useGetUsersQuery(undefined, { skip: step !== "user" });
-    const users = usersResult.data?.data;
-    const isLoading = deviceResult.isLoading || userResult.isLoading || usersResult.isLoading;
-    const error = deviceResult.error || userResult.error || usersResult.error;
 
-    const dispatch = useAppDispatch();
-    const navigate = useNavigate();
+    // deviceToken = ключ кэша: для каждого устройства свой список, при смене refetch
+    const usersResult = useGetUsersQuery(deviceToken, {
+        skip: step !== "user" || !deviceToken,
+        refetchOnMountOrArgChange: true,
+    });
+    const users = usersResult.data?.data ?? [];
+
+    const isLoading =
+        deviceResult.isLoading || userResult.isLoading || usersResult.isFetching;
+    const error = deviceResult.error || userResult.error || usersResult.error;
 
     const {
         isDark,
@@ -73,11 +81,15 @@ export default function Login() {
         iconColor,
     } = useAppTheme();
 
+    // При смене устройства / обновлении списка синхронизируем выбранного пользователя
     useEffect(() => {
-        if (step === "user" && users?.length === 1) {
+        if (step !== "user") return;
+        if (users.length === 1) {
             setUserId(String(users[0].id));
+        } else if (!users.some((u) => String(u.id) === userId)) {
+            setUserId("");
         }
-    }, [step, users]);
+    }, [step, deviceToken, usersResult.data]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -93,36 +105,46 @@ export default function Login() {
                     deviceToken: response.data.deviceToken,
                     deviceName: response.data.deviceName,
                 }));
+                setUserId("");
+                setPin("");
                 setStep("user");
                 return;
             }
+
+            if (!userId) return;
 
             const response = await userLogin({
                 userId: userId.trim(),
                 code: pin,
             }).unwrap();
 
-            const userRole = response.data.role?.toLowerCase?.() || response.data.roleName?.toLowerCase?.() || null;
+            const userRole =
+                response.data.role?.toLowerCase?.() ||
+                response.data.roleName?.toLowerCase?.() ||
+                null;
+
             dispatch(setAuth({
                 token: response.data.accessToken,
                 userId: response.data.id,
                 role: userRole,
             }));
+
             // Ombor rollari /staff ga, raw material /raw-staff ga, zayavkachi /zayavkachi ga
-            const warehouseRoles  = ['product_storekeeper'];
-            const rawRoles        = ['raw_material_storekeeper'];
-            const zayavkachiRoles = ['zayavkachi'];
+            const warehouseRoles = ["product_storekeeper"];
+            const rawRoles = ["raw_material_storekeeper"];
+            const zayavkachiRoles = ["zayavkachi"];
+
             if (userRole && warehouseRoles.includes(userRole)) {
                 navigate("/staff");
             } else if (userRole && rawRoles.includes(userRole)) {
                 navigate("/raw-staff");
             } else if (userRole && zayavkachiRoles.includes(userRole)) {
                 navigate("/zayavkachi");
-            } else if (userRole === 'stanokchi') {
+            } else if (userRole === "stanokchi") {
                 navigate("/stanokchi");
-            } else if (userRole === 'mikserchi') {
+            } else if (userRole === "mikserchi") {
                 navigate("/mixer");
-            } else if (userRole === 'kassir') {
+            } else if (userRole === "kassir") {
                 navigate("/kassir");
             } else {
                 navigate("/");
@@ -135,6 +157,7 @@ export default function Login() {
     const goBackToDevice = () => {
         setStep("device");
         setPin("");
+        setUserId("");
     };
 
     return (
@@ -175,12 +198,7 @@ export default function Login() {
             />
 
             {/* Top-Right Theme Switcher */}
-            <Box
-                position="absolute"
-                top="24px"
-                right="24px"
-                zIndex={10}
-            >
+            <Box position="absolute" top="24px" right="24px" zIndex={10}>
                 <Button
                     onClick={toggleColorMode}
                     variant="outline"
@@ -259,7 +277,7 @@ export default function Login() {
                                 <Text color={subtitleColor} fontSize="14px">
                                     {step === "device"
                                         ? "Davom etish uchun qurilma ma’lumotlarini kiriting"
-                                        : users?.length > 1
+                                        : users.length > 1
                                             ? "Foydalanuvchini tanlang va 6 xonali PIN-kodni kiriting"
                                             : "6 xonali PIN-kodni kiriting"}
                                 </Text>
@@ -270,66 +288,63 @@ export default function Login() {
                         <Box as="form" onSubmit={handleSubmit}>
                             <Stack gap={4}>
                                 {step === "device" ? (
-                                <Field.Root>
-                                    <Field.Label
-                                        fontSize="13px"
-                                        fontWeight="600"
-                                        color={labelColor}
-                                        mb={1.5}
-                                    >
-                                        {step === "device" ? "Qurilma nomi" : "Foydalanuvchi ID raqami"}
-                                    </Field.Label>
+                                    <Field.Root>
+                                        <Field.Label
+                                            fontSize="13px"
+                                            fontWeight="600"
+                                            color={labelColor}
+                                            mb={1.5}
+                                        >
+                                            Qurilma nomi
+                                        </Field.Label>
 
-                                    <InputGroup
-                                        startElement={
-                                            <Icon color={iconColor}>
-                                                {step === "device" ? <LuMonitor /> : <LuLockKeyhole />}
-                                            </Icon>
-                                        }
-                                    >
-                                        <Input
-                                            id={step === "device" ? "device-name" : "user-id"}
-                                            type="text"
-                                            placeholder={step === "device" ? "Masalan, cashbox-01" : "Foydalanuvchi UUID raqami"}
-                                            value={step === "device" ? deviceName : userId}
-                                            onChange={(e) => (step === "device" ? setDeviceName(e.target.value) : setUserId(e.target.value))}
-                                            required
-                                            size="lg"
-                                            h="50px"
-                                            fontSize="14px"
-                                            borderRadius="14px"
-                                            bg={inputBg}
-                                            borderColor={inputBorder}
-                                            color={textColor}
-                                            _hover={{
-                                                borderColor: inputHoverBorder,
-                                            }}
-                                            _focus={{
-                                                borderColor: "#FACC15",
-                                                boxShadow: "0 0 0 2px rgba(250, 204, 21, 0.35)",
-                                                bg: isDark ? "#141C2B" : "#FFFFFF",
-                                            }}
-                                            transition="all 0.2s"
-                                        />
-                                    </InputGroup>
-                                </Field.Root>
-                                ) : users?.length > 1 ? (
-                                <Field.Root>
-                                    <Field.Label
-                                        fontSize="13px"
-                                        fontWeight="600"
-                                        color={labelColor}
-                                        mb={1.5}
-                                    >
-                                        Foydalanuvchi
-                                    </Field.Label>
+                                        <InputGroup
+                                            startElement={
+                                                <Icon color={iconColor}>
+                                                    <LuMonitor />
+                                                </Icon>
+                                            }
+                                        >
+                                            <Input
+                                                id="device-name"
+                                                type="text"
+                                                placeholder="Masalan, cashbox-01"
+                                                value={deviceName}
+                                                onChange={(e) => setDeviceName(e.target.value)}
+                                                required
+                                                size="lg"
+                                                h="50px"
+                                                fontSize="14px"
+                                                borderRadius="14px"
+                                                bg={inputBg}
+                                                borderColor={inputBorder}
+                                                color={textColor}
+                                                _hover={{ borderColor: inputHoverBorder }}
+                                                _focus={{
+                                                    borderColor: "#FACC15",
+                                                    boxShadow: "0 0 0 2px rgba(250, 204, 21, 0.35)",
+                                                    bg: isDark ? "#141C2B" : "#FFFFFF",
+                                                }}
+                                                transition="all 0.2s"
+                                            />
+                                        </InputGroup>
+                                    </Field.Root>
+                                ) : usersResult.isFetching ? (
+                                    <HStack h="50px" color={subtitleColor}>
+                                        <Spinner size="sm" />
+                                        <Text fontSize="14px">Foydalanuvchilar yuklanmoqda...</Text>
+                                    </HStack>
+                                ) : users.length > 1 ? (
+                                    <Field.Root>
+                                        <Field.Label
+                                            fontSize="13px"
+                                            fontWeight="600"
+                                            color={labelColor}
+                                            mb={1.5}
+                                        >
+                                            Foydalanuvchi
+                                        </Field.Label>
 
-                                    {usersResult.isLoading ? (
-                                        <HStack h="50px" color={subtitleColor}>
-                                            <Spinner size="sm" />
-                                            <Text fontSize="14px">Foydalanuvchilar yuklanmoqda...</Text>
-                                        </HStack>
-                                    ) : (
                                         <Box
                                             as="select"
                                             id="user-id"
@@ -352,11 +367,16 @@ export default function Login() {
                                         >
                                             <option value="" disabled>Foydalanuvchini tanlang</option>
                                             {users.map((user) => (
-                                                <option key={user.id} value={user.id}>{user.username}</option>
+                                                <option key={user.id} value={user.id}>
+                                                    {user.username}
+                                                </option>
                                             ))}
                                         </Box>
-                                    )}
-                                </Field.Root>
+                                    </Field.Root>
+                                ) : users.length === 0 ? (
+                                    <Text fontSize="13px" color={isDark ? "red.300" : "red.600"}>
+                                        Bu qurilmaga foydalanuvchilar biriktirilmagan.
+                                    </Text>
                                 ) : null}
 
                                 <Field.Root>
@@ -375,31 +395,37 @@ export default function Login() {
                                                 <LuLockKeyhole />
                                             </Icon>
                                         }
-                                        endElement={step === "device" && (
-                                            <IconButton
-                                                aria-label="Parolni ko‘rsatish yoki yashirish"
-                                                variant="ghost"
-                                                size="xs"
-                                                color={iconColor}
-                                                _hover={{ color: textColor, bg: "transparent" }}
-                                                onClick={() => setShowPassword(!showPassword)}
-                                                tabIndex={-1}
-                                            >
-                                                <Icon boxSize="16px">
-                                                    {showPassword ? <LuEyeOff /> : <LuEye />}
-                                                </Icon>
-                                            </IconButton>
-                                        )}
+                                        endElement={
+                                            step === "device" && (
+                                                <IconButton
+                                                    aria-label="Parolni ko‘rsatish yoki yashirish"
+                                                    variant="ghost"
+                                                    size="xs"
+                                                    color={iconColor}
+                                                    _hover={{ color: textColor, bg: "transparent" }}
+                                                    onClick={() => setShowPassword(!showPassword)}
+                                                    tabIndex={-1}
+                                                >
+                                                    <Icon boxSize="16px">
+                                                        {showPassword ? <LuEyeOff /> : <LuEye />}
+                                                    </Icon>
+                                                </IconButton>
+                                            )
+                                        }
                                     >
                                         <Input
                                             id="pin"
                                             placeholder={step === "device" ? "Qurilma paroli" : "6 ta raqam kiriting"}
                                             value={step === "device" ? devicePassword : pin}
-                                            onChange={(e) => (step === "device" ? setDevicePassword(e.target.value) : setPin(e.target.value.replace(/\D/g, "").slice(0, 6)))}
+                                            onChange={(e) =>
+                                                step === "device"
+                                                    ? setDevicePassword(e.target.value)
+                                                    : setPin(e.target.value.replace(/\D/g, "").slice(0, 6))
+                                            }
                                             inputMode={step === "user" ? "numeric" : undefined}
                                             maxLength={step === "user" ? 6 : undefined}
                                             pattern={step === "user" ? "[0-9]{6}" : undefined}
-                                            type={step === "user" ? "password" : (showPassword ? "text" : "password")}
+                                            type={step === "user" ? "password" : showPassword ? "text" : "password"}
                                             required
                                             size="lg"
                                             h="50px"
@@ -408,9 +434,7 @@ export default function Login() {
                                             bg={inputBg}
                                             borderColor={inputBorder}
                                             color={textColor}
-                                            _hover={{
-                                                borderColor: inputHoverBorder,
-                                            }}
+                                            _hover={{ borderColor: inputHoverBorder }}
                                             _focus={{
                                                 borderColor: "#FACC15",
                                                 boxShadow: "0 0 0 2px rgba(250, 204, 21, 0.35)",
@@ -435,7 +459,7 @@ export default function Login() {
                                             fontSize="13px"
                                             fontWeight="500"
                                         >
-                                                {error?.data?.message || "Kirish amalga oshmadi. Ma’lumotlarni tekshiring."}
+                                            {error?.data?.message || "Kirish amalga oshmadi. Ma’lumotlarni tekshiring."}
                                         </Text>
                                     </Box>
                                 )}
@@ -449,16 +473,14 @@ export default function Login() {
                                     fontSize="15px"
                                     fontWeight="700"
                                     mt={2}
-                                    disabled={isLoading}
+                                    disabled={isLoading || (step === "user" && !userId)}
                                     transition="all 0.2s ease-in-out"
                                     _hover={{
                                         bg: "#EAB308",
                                         transform: "translateY(-1px)",
                                         boxShadow: "0 10px 25px rgba(250, 204, 21, 0.35)",
                                     }}
-                                    _active={{
-                                        transform: "translateY(0)",
-                                    }}
+                                    _active={{ transform: "translateY(0)" }}
                                 >
                                     {isLoading ? (
                                         <HStack gap={2}>
@@ -468,12 +490,18 @@ export default function Login() {
                                     ) : (
                                         <HStack gap={2}>
                                             <Text>{step === "device" ? "Davom etish" : "Tizimga kirish"}</Text>
-                                            <LuArrowRight boxSize="18px" />
+                                            <LuArrowRight size={18} />
                                         </HStack>
                                     )}
                                 </Button>
+
                                 {step === "user" && (
-                                    <Button type="button" variant="ghost" onClick={goBackToDevice} color={subtitleColor}>
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        onClick={goBackToDevice}
+                                        color={subtitleColor}
+                                    >
                                         Qurilmani almashtirish
                                     </Button>
                                 )}
