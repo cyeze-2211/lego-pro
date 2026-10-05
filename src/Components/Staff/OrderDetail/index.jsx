@@ -2,11 +2,12 @@ import { useState, useMemo, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
     LuArrowLeft, LuUser, LuStickyNote, LuClock3,
-    LuCircleAlert, LuBoxes, LuWarehouse, LuPackage, LuTruck, LuBarcode,
+    LuCircleAlert, LuBoxes, LuPackage, LuTruck, LuBarcode, LuPlus, LuSearch, LuSave, LuX,
 } from 'react-icons/lu';
 import { useAppTheme } from '../../../theme/tokens';
 import { formatNumber } from '../../ui/number-format';
-import { useGetSalesOrderByIdQuery } from '../../../store/services/salesOrder.api';
+import { useGetSalesOrderByIdQuery, useUpdateSalesOrderMutation } from '../../../store/services/salesOrder.api';
+import { useGetProductsQuery } from '../../../store/services/product.api';
 import { useGetProductStocksQuery } from '../../../store/services/productStock.api';
 import { useGetWarehousesQuery } from '../../../store/services/warehouse.api';
 import { useCreateStockTransactionMutation } from '../../../store/services/productStock.api';
@@ -24,10 +25,18 @@ export default function StaffOrderDetail() {
     const [editableQuantities, setEditableQuantities] = useState({});
     const [scannedQuantities, setScannedQuantities] = useState({});
     const [barcodeInput, setBarcodeInput] = useState('');
+    const [isEditingItems, setIsEditingItems] = useState(false);
+    const [draftItems, setDraftItems] = useState([]);
+    const [productSearch, setProductSearch] = useState('');
     const barcodeInputRef = useRef(null);
 
     const { data: order, isLoading, isError } = useGetSalesOrderByIdQuery(id, { skip: !id });
     const { data: warehouses = [] } = useGetWarehousesQuery('PRODUCT');
+    const { data: productsData, isFetching: productsFetching } = useGetProductsQuery(
+        { name: productSearch.trim() || undefined, page: 0, size: 30 },
+        { skip: !isEditingItems || !productSearch.trim() }
+    );
+    const [updateOrder, { isLoading: isSavingOrder }] = useUpdateSalesOrderMutation();
 
     const orderWarehouseIds = useMemo(() => {
         if (!order?.items) return [];
@@ -47,19 +56,20 @@ export default function StaffOrderDetail() {
 
     const comparison = useMemo(() => {
         if (!order?.items) return [];
-        return order.items.map((item) => {
+        const items = isEditingItems ? draftItems : order.items;
+        return items.map((item) => {
             const stock = stockItems.find(
                 (s) =>
                     s.productId === item.productId &&
                     (activeWarehouseId ? s.warehouseId === activeWarehouseId : true)
             );
             const stockQty = stock?.quantity ?? 0;
-            const orderQty = editableQuantities[item.id] ?? item.quantity;
+            const orderQty = isEditingItems ? item.quantity : (editableQuantities[item.id] ?? item.quantity);
             const enough = stockQty >= orderQty;
             const diff = stockQty - orderQty;
-            return { ...item, stockQty, enough, diff, editableQty: orderQty };
+            return { ...item, stockQty, enough, diff, editableQty: orderQty, rowKey: item.id ?? item.productId };
         });
-    }, [order, stockItems, activeWarehouseId, editableQuantities]);
+    }, [order, stockItems, activeWarehouseId, editableQuantities, isEditingItems, draftItems]);
 
     const allEnough = comparison.length > 0 && comparison.every((c) => c.enough);
     const someShort = comparison.some((c) => !c.enough);
@@ -153,6 +163,14 @@ export default function StaffOrderDetail() {
     const handleQuantityChange = (itemId, newValue) => {
         const numValue = typeof newValue === 'number' ? newValue : (parseInt(newValue) || 0);
         if (numValue < 0) return;
+
+        if (isEditingItems) {
+            if (numValue < 1) return;
+            setDraftItems((previous) => previous.map((item) =>
+                item.id === itemId ? { ...item, quantity: numValue } : item
+            ));
+            return;
+        }
         
         // Ombor qoldig'idan oshmasin
         const item = comparison.find(i => i.id === itemId);
@@ -166,6 +184,65 @@ export default function StaffOrderDetail() {
             ...prev,
             [itemId]: numValue
         }));
+    };
+
+    const startEditingItems = () => {
+        setDraftItems(order.items.map((item) => ({ ...item })));
+        setProductSearch('');
+        setIsEditingItems(true);
+    };
+
+    const cancelEditingItems = () => {
+        setDraftItems([]);
+        setProductSearch('');
+        setIsEditingItems(false);
+    };
+
+    const addProduct = (product) => {
+        if (draftItems.some((item) => item.productId === product.id)) return;
+        setDraftItems((previous) => [...previous, {
+            id: `new-${product.id}`,
+            productId: product.id,
+            productName: product.name,
+            productBarcode: product.barcode,
+            productArticle: product.article,
+            warehouseId: activeWarehouseId,
+            warehouseName: warehouses.find((warehouse) => warehouse.id === activeWarehouseId)?.name,
+            quantity: 1,
+            unitPrice: product.price ?? 0,
+        }]);
+        setProductSearch('');
+    };
+
+    const saveOrderItems = async () => {
+        if (!draftItems.length || draftItems.some((item) => !item.warehouseId || item.quantity < 1)) {
+            Alert('Mahsulot, ombor va miqdorni tekshiring', 'error');
+            return;
+        }
+
+        try {
+            await updateOrder({
+                id: order.id,
+                data: {
+                    customerId: order.customerId,
+                    summary: order.summary ?? null,
+                    items: draftItems.map(({ productId, warehouseId, quantity, unitPrice }) => ({
+                        productId,
+                        warehouseId,
+                        quantity: Number(quantity),
+                        unitPrice: Number(unitPrice ?? 0),
+                    })),
+                },
+            }).unwrap();
+            setEditableQuantities({});
+            setScannedQuantities({});
+            setIsEditingItems(false);
+            setDraftItems([]);
+            setProductSearch('');
+            Alert('Buyurtma mahsulotlari saqlandi', 'success');
+        } catch (error) {
+            Alert(error?.data?.message || 'Buyurtma mahsulotlarini saqlashda xatolik', 'error');
+        }
     };
 
     /* ── theme ── */
@@ -222,7 +299,35 @@ export default function StaffOrderDetail() {
                         </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                        {order.status === 'APPROVED' && allEnough && (
+                        {isEditingItems ? (
+                            <>
+                                <button
+                                    type="button"
+                                    onClick={saveOrderItems}
+                                    disabled={isSavingOrder || !draftItems.length}
+                                    className="flex h-12 items-center gap-2 rounded-xl bg-[#FACC15] px-5 text-sm font-bold text-[#0F172A] disabled:opacity-50"
+                                >
+                                    <LuSave size={16} /> {isSavingOrder ? 'Saqlanmoqda...' : 'Saqlash'}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={cancelEditingItems}
+                                    disabled={isSavingOrder}
+                                    className={`flex h-12 items-center gap-2 rounded-xl border px-4 text-sm font-bold ${ghostBtn}`}
+                                >
+                                    <LuX size={16} /> Bekor qilish
+                                </button>
+                            </>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={startEditingItems}
+                                className={`flex h-12 items-center gap-2 rounded-xl border px-5 text-sm font-bold ${ghostBtn}`}
+                            >
+                                <LuPackage size={16} /> Mahsulotlarni tahrirlash
+                            </button>
+                        )}
+                        {order.status === 'APPROVED' && allEnough && !isEditingItems && (
                             <button
                                 type="button"
                                 onClick={handleOutcome}
@@ -325,7 +430,61 @@ export default function StaffOrderDetail() {
                     )}
                 </div>
 
-                {order.status === 'APPROVED' && (
+                {isEditingItems && (
+                    <div className="mx-5 mb-4">
+                        <label className={`mb-2 block text-xs font-semibold ${muted}`} htmlFor="add-order-product">
+                            Buyurtmaga mahsulot qo&apos;shish
+                        </label>
+                        <div className="relative">
+                            <LuSearch className={`pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 ${muted}`} size={16} />
+                            <input
+                                id="add-order-product"
+                                value={productSearch}
+                                onChange={(event) => setProductSearch(event.target.value)}
+                                placeholder="Mahsulot nomini qidiring"
+                                className={`h-11 w-full rounded-xl border pl-10 pr-3 text-sm outline-none focus:border-amber-400 ${
+                                    isDark ? 'border-[#334155] bg-[#1e293b] text-white' : 'border-[#e2e8f0] bg-white text-[#0f172a]'
+                                }`}
+                            />
+                        </div>
+                        {productSearch.trim() && (
+                            <div className={`mt-2 max-h-56 overflow-y-auto rounded-xl border ${
+                                isDark ? 'border-[#334155] bg-[#0f172a]' : 'border-[#e2e8f0] bg-white'
+                            }`}>
+                                {productsFetching ? (
+                                    <p className={`px-4 py-3 text-sm ${muted}`}>Qidirilmoqda...</p>
+                                ) : (productsData?.items ?? []).filter((product) =>
+                                    !draftItems.some((item) => item.productId === product.id)
+                                ).length ? (
+                                    (productsData?.items ?? [])
+                                        .filter((product) => !draftItems.some((item) => item.productId === product.id))
+                                        .map((product) => (
+                                            <button
+                                                key={product.id}
+                                                type="button"
+                                                onClick={() => addProduct(product)}
+                                                className={`flex w-full items-center justify-between gap-3 border-b px-4 py-3 text-left last:border-b-0 ${line} ${
+                                                    isDark ? 'hover:bg-[#1e293b]' : 'hover:bg-amber-50'
+                                                }`}
+                                            >
+                                                <span>
+                                                    <span className={`block text-sm font-semibold ${head}`}>{product.name}</span>
+                                                    <span className={`text-xs ${muted}`}>{product.barcode || product.article || ''}</span>
+                                                </span>
+                                                <span className="flex items-center gap-1 text-xs font-bold text-amber-500">
+                                                    <LuPlus size={15} /> Qo&apos;shish
+                                                </span>
+                                            </button>
+                                        ))
+                                ) : (
+                                    <p className={`px-4 py-3 text-sm ${muted}`}>Mos mahsulot topilmadi</p>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {order.status === 'APPROVED' && !isEditingItems && (
                     <form
                         onSubmit={handleBarcodeSubmit}
                         className={`mx-5 mb-4 flex items-center gap-3 rounded-xl border p-3 ${
@@ -381,17 +540,17 @@ export default function StaffOrderDetail() {
                                         <th className="px-5 py-3">Mahsulot</th>
                                         <th className="px-5 py-3 w-32">Ombor</th>
                                         <th className="px-5 py-3 w-32 text-center">Buyurtma</th>
-                                        {order.status === 'APPROVED' && <th className="px-5 py-3 w-32 text-center">Skaner qilindi</th>}
+                                        {order.status === 'APPROVED' && !isEditingItems && <th className="px-5 py-3 w-32 text-center">Skaner qilindi</th>}
                                         <th className="px-5 py-3 w-32 text-center">Qoldiq</th>
                                         <th className="px-5 py-3 w-32 text-center">Farq</th>
-                                        {order.status === 'APPROVED' && (
+                                        {order.status === 'APPROVED' && !isEditingItems && (
                                             <th className="px-5 py-3 w-32 text-center">Amal</th>
                                         )}
                                     </tr>
                                 </thead>
                                 <tbody className={`divide-y ${divider}`}>
                                     {comparison.map((item, idx) => (
-                                        <tr key={item.id} className="transition-colors">
+                                        <tr key={item.rowKey} className="transition-colors">
                                             <td className={`px-5 py-3 text-xs ${muted}`}>{idx + 1}</td>
                                             <td className="px-5 py-3">
                                                 <p className={`font-semibold ${head}`}>{item.productName}</p>
@@ -401,11 +560,11 @@ export default function StaffOrderDetail() {
                                                 {item.warehouseName}
                                             </td>
                                             <td className="px-5 py-3 text-center">
-                                                {order.status === 'APPROVED' ? (
+                                                {isEditingItems || order.status === 'APPROVED' ? (
                                                     <div className="flex items-center justify-center gap-1">
                                                         <button
                                                             type="button"
-                                                            onClick={() => handleQuantityChange(item.id, Math.max(0, item.editableQty - 1))}
+                                                            onClick={() => handleQuantityChange(item.id, Math.max(isEditingItems ? 1 : 0, item.editableQty - 1))}
                                                             className={`flex h-8 w-8 items-center justify-center rounded-lg border font-bold transition-colors ${
                                                                 isDark
                                                                     ? 'border-[#334155] bg-[#1e293b] text-white hover:bg-[#334155]'
@@ -416,8 +575,8 @@ export default function StaffOrderDetail() {
                                                         </button>
                                                         <input
                                                             type="number"
-                                                            min="0"
-                                                            max={item.stockQty}
+                                                            min={isEditingItems ? 1 : 0}
+                                                            max={isEditingItems ? undefined : item.stockQty}
                                                             value={item.editableQty}
                                                             onChange={(e) => handleQuantityChange(item.id, e.target.value)}
                                                             className={`w-20 rounded-lg border px-2 py-1 text-center text-sm font-bold outline-none ${
@@ -428,7 +587,7 @@ export default function StaffOrderDetail() {
                                                         />
                                                         <button
                                                             type="button"
-                                                            onClick={() => handleQuantityChange(item.id, Math.min(item.stockQty, item.editableQty + 1))}
+                                                            onClick={() => handleQuantityChange(item.id, isEditingItems ? item.editableQty + 1 : Math.min(item.stockQty, item.editableQty + 1))}
                                                             className={`flex h-8 w-8 items-center justify-center rounded-lg border font-bold transition-colors ${
                                                                 isDark
                                                                     ? 'border-[#334155] bg-[#1e293b] text-white hover:bg-[#334155]'
@@ -442,7 +601,7 @@ export default function StaffOrderDetail() {
                                                     <span className={`font-bold ${head}`}>{item.editableQty}</span>
                                                 )}
                                             </td>
-                                            {order.status === 'APPROVED' && (
+                                            {order.status === 'APPROVED' && !isEditingItems && (
                                                 <td className="px-5 py-3 text-center">
                                                     <p className={`font-bold ${
                                                         (scannedQuantities[item.id] ?? 0) === item.editableQty
@@ -470,7 +629,7 @@ export default function StaffOrderDetail() {
                                                 {item.diff >= 0 ? '+' : ''}
                                                 {item.diff}
                                             </td>
-                                            {order.status === 'APPROVED' && (
+                                            {order.status === 'APPROVED' && !isEditingItems && (
                                                 <td className="px-5 py-3 text-center">
                                                     <button
                                                         type="button"
@@ -500,7 +659,7 @@ export default function StaffOrderDetail() {
                                 </p>
                             </div>
                         )}
-                        {allEnough && order.status === 'APPROVED' && (
+                        {allEnough && order.status === 'APPROVED' && !isEditingItems && (
                             <div className="mx-5 mb-5 rounded-xl border border-green-400/30 bg-green-400/10 px-4 py-3">
                                 <p className="text-sm font-semibold text-green-500">
                                     ✓ Barcha mahsulotlar omborga mavjud. Chiqim qilishingiz mumkin.
