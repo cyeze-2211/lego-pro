@@ -6,6 +6,7 @@ import {
     HStack,
     Heading,
     Spinner,
+    Switch,
     Table,
     Text,
     VStack,
@@ -23,7 +24,7 @@ import {
     LuCopy,
     LuCheck,
 } from 'react-icons/lu';
-import { useGetProductsQuery } from '../../../store/services/product.api';
+import { useGetProductsQuery, useUpdateProductMutation } from '../../../store/services/product.api';
 import { useGetWarehousesQuery } from '../../../store/services/warehouse.api';
 import { BRAND_COLORS, useAppTheme } from '../../../theme/tokens';
 import { Alert } from '../../Other/UI/Alert/Alert';
@@ -121,12 +122,13 @@ export default function Product() {
         return () => clearTimeout(handler);
     }, [search]);
 
-    const { data: productResult, isLoading, error } = useGetProductsQuery({
+    const { data: productResult, isLoading, error, refetch } = useGetProductsQuery({
         name: query || undefined,
         page,
         size: PAGE_SIZE,
     });
     const { data: warehouses = [] } = useGetWarehousesQuery('PRODUCT');
+    const [updateProduct] = useUpdateProductMutation();
 
     const {
         isDark,
@@ -183,6 +185,30 @@ export default function Product() {
         if (!warehouseId) return null;
         const found = warehouses.find((w) => w.id === warehouseId);
         return found?.name || null;
+    };
+
+    // lowProductAlert toggle
+    const handleToggleAlert = async (e, product) => {
+        e.stopPropagation();
+        try {
+            await updateProduct({
+                id: product.id,
+                data: {
+                    name: product.name,
+                    price: product.price,
+                    warehouseId: product.warehouseId,
+                    lowProductAlert: !product.lowProductAlert,
+                    ...(product.article && { article: product.article }),
+                    ...(product.size && { size: product.size }),
+                    ...(product.minimumLine !== null && product.minimumLine !== undefined && { minimumLine: product.minimumLine }),
+                    ...(product.piecesPerPack !== null && product.piecesPerPack !== undefined && { piecesPerPack: product.piecesPerPack }),
+                    ...(product.brand?.id && { brandId: product.brand.id }),
+                },
+            }).unwrap();
+            refetch();
+        } catch (err) {
+            Alert(err?.data?.message || 'Yangilashda xatolik', 'error');
+        }
     };
 
     return (
@@ -309,7 +335,7 @@ export default function Product() {
                             interactive
                             bg={tableBg}
                             borderCollapse="collapse"
-                            minW="1150px"
+                            minW="1400px"
                         >
                             <Table.Header bg={tableHeaderBg}>
                                 <Table.Row bg={tableHeaderBg}>
@@ -330,6 +356,12 @@ export default function Product() {
                                     </Table.ColumnHeader>
                                     <Table.ColumnHeader {...headerCell} minW="110px" textAlign="right">
                                         Min. qoldiq
+                                    </Table.ColumnHeader>
+                                    <Table.ColumnHeader {...headerCell} minW="130px" textAlign="center">
+                                        Qadoqdagi dona
+                                    </Table.ColumnHeader>
+                                    <Table.ColumnHeader {...headerCell} minW="130px" textAlign="center">
+                                        Ogohlantirish
                                     </Table.ColumnHeader>
                                     <Table.ColumnHeader {...headerCell} minW="170px">
                                         Ombor
@@ -547,6 +579,90 @@ export default function Product() {
                                                         —
                                                     </Text>
                                                 )}
+                                            </Table.Cell>
+
+                                            {/* Qadoqdagi dona */}
+                                            <Table.Cell {...cellBorder} textAlign="center" whiteSpace="nowrap">
+                                                {product.piecesPerPack !== null && product.piecesPerPack !== undefined ? (
+                                                    <HStack gap={1.5} justify="center">
+                                                        <Box
+                                                            p={1}
+                                                            borderRadius="md"
+                                                            bg={isDark ? 'rgba(99,102,241,0.15)' : '#EEF2FF'}
+                                                            color={isDark ? '#A5B4FC' : '#4338CA'}
+                                                            display="inline-flex"
+                                                            alignItems="center"
+                                                            justifyContent="center"
+                                                            flexShrink={0}
+                                                        >
+                                                            <LuPackage size={12} />
+                                                        </Box>
+                                                        <Text fontSize="sm" color={textColor} fontWeight="medium">
+                                                            {product.piecesPerPack}
+                                                        </Text>
+                                                    </HStack>
+                                                ) : (
+                                                    <Text fontSize="sm" color={subtitleColor}>—</Text>
+                                                )}
+                                            </Table.Cell>
+
+                                            {/* Kam qoldiqda ogohlantirish */}
+                                            <Table.Cell {...cellBorder} textAlign="center"
+                                                onClick={(e) => e.stopPropagation()}
+                                                onKeyDown={(e) => e.stopPropagation()}
+                                            >
+                                                <Box
+                                                    display="inline-flex"
+                                                    alignItems="center"
+                                                    gap={2.5}
+                                                    px={3}
+                                                    py={2}
+                                                    borderRadius="xl"
+                                                    borderWidth="1px"
+                                                    borderColor={
+                                                        product.lowProductAlert
+                                                            ? (isDark ? 'rgba(250,204,21,0.35)' : '#FDE68A')
+                                                            : (isDark ? cardBorder : '#E2E8F0')
+                                                    }
+                                                    bg={
+                                                        product.lowProductAlert
+                                                            ? (isDark ? 'rgba(250,204,21,0.08)' : '#FEFCE8')
+                                                            : 'transparent'
+                                                    }
+                                                    transition="all 0.2s"
+                                                    cursor="pointer"
+                                                    onClick={(e) => handleToggleAlert(e, product)}
+                                                >
+                                                    <Box
+                                                        p={1.5}
+                                                        borderRadius="md"
+                                                        bg={
+                                                            product.lowProductAlert
+                                                                ? (isDark ? 'rgba(250,204,21,0.15)' : '#FEF3C7')
+                                                                : (isDark ? 'rgba(148,163,184,0.12)' : 'rgba(148,163,184,0.15)')
+                                                        }
+                                                        color={product.lowProductAlert ? accentColor : subtitleColor}
+                                                        transition="all 0.2s"
+                                                        display="inline-flex"
+                                                        alignItems="center"
+                                                        justifyContent="center"
+                                                        flexShrink={0}
+                                                    >
+                                                        <LuTriangleAlert size={14} />
+                                                    </Box>
+                                                    <Switch.Root
+                                                        checked={product.lowProductAlert}
+                                                        onCheckedChange={(e) => handleToggleAlert({ stopPropagation: () => {} }, product)}
+                                                        colorPalette="yellow"
+                                                        size="sm"
+                                                        flexShrink={0}
+                                                    >
+                                                        <Switch.HiddenInput />
+                                                        <Switch.Control>
+                                                            <Switch.Thumb />
+                                                        </Switch.Control>
+                                                    </Switch.Root>
+                                                </Box>
                                             </Table.Cell>
 
                                             {/* Ombor */}

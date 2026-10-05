@@ -22,6 +22,7 @@ import { auditApi } from './services/audit.api';
 import { paymentApi } from './services/payment.api';
 import { machineOutputApi } from './services/machineOutput.api';
 import { brandApi } from './services/brand.api';
+import { customerAgentApi } from './services/customerAgent.api';
 
 export const store = configureStore({
     reducer: {
@@ -46,9 +47,10 @@ export const store = configureStore({
         [paymentApi.reducerPath]: paymentApi.reducer,
         [machineOutputApi.reducerPath]: machineOutputApi.reducer,
         [brandApi.reducerPath]: brandApi.reducer,
+        [customerAgentApi.reducerPath]: customerAgentApi.reducer,
     },
     middleware: (getDefaultMiddleware) =>
-        getDefaultMiddleware().concat(authApi.middleware, warehouseApi.middleware, productApi.middleware, rawMaterialApi.middleware, machineApi.middleware, customerApi.middleware, recipeApi.middleware, userApi.middleware, cashboxApi.middleware, expenseApi.middleware, deviceApi.middleware, productStockApi.middleware, roleApi.middleware, rawMaterialStockApi.middleware, salesOrderApi.middleware, productionTaskApi.middleware, auditApi.middleware, paymentApi.middleware, machineOutputApi.middleware, brandApi.middleware),
+        getDefaultMiddleware().concat(authApi.middleware, warehouseApi.middleware, productApi.middleware, rawMaterialApi.middleware, machineApi.middleware, customerApi.middleware, recipeApi.middleware, userApi.middleware, cashboxApi.middleware, expenseApi.middleware, deviceApi.middleware, productStockApi.middleware, roleApi.middleware, rawMaterialStockApi.middleware, salesOrderApi.middleware, productionTaskApi.middleware, auditApi.middleware, paymentApi.middleware, machineOutputApi.middleware, brandApi.middleware, customerAgentApi.middleware),
 });
 
 setupListeners(store.dispatch);

@@ -2,16 +2,25 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     LuClipboardList, LuSearch, LuChevronLeft, LuChevronRight,
-    LuX, LuEye, LuPackage,
+    LuX, LuEye, LuPackage, LuSlidersHorizontal, LuChevronDown, LuInbox,
 } from 'react-icons/lu';
 import { useAppTheme } from '../../../theme/tokens';
 import { formatNumber } from '../../ui/number-format';
 import { useGetSalesOrdersQuery } from '../../../store/services/salesOrder.api';
 import { useGetWarehousesQuery } from '../../../store/services/warehouse.api';
-import { STATUS_LABEL, statusCx } from '../../Zayavkachi/__components/statusBadge';
 
 const PAGE_SIZE = 20;
 const STATUSES = ['PENDING', 'APPROVED', 'REJECTED'];
+const STAFF_STATUS_LABEL = {
+    PENDING: 'Kutilmoqda',
+    APPROVED: 'Tasdiqlangan',
+    REJECTED: 'Rad etilgan',
+};
+const STAFF_STATUS_CX = {
+    PENDING: 'bg-amber-400/10 text-amber-500 border-amber-400/30',
+    APPROVED: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30',
+    REJECTED: 'bg-rose-500/10 text-rose-500 border-rose-500/30',
+};
 
 export default function StaffOrders() {
     const { isDark } = useAppTheme();
@@ -22,11 +31,12 @@ export default function StaffOrders() {
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');
     const [search, setSearch] = useState('');
+    const [filtersOpen, setFiltersOpen] = useState(false);
 
     const { data: warehousesData } = useGetWarehousesQuery('PRODUCT');
     const warehouses = warehousesData || [];
 
-    const { data, isFetching } = useGetSalesOrdersQuery({
+    const { data, isFetching, isError, error } = useGetSalesOrdersQuery({
         status: statusFilter || undefined,
         warehouseId: warehouseFilter || undefined,
         dateFrom: dateFrom || undefined,
@@ -41,7 +51,8 @@ export default function StaffOrders() {
         ? orders.filter((o) => o.customerName?.toLowerCase().includes(search.toLowerCase()))
         : orders;
 
-    const hasFilters = statusFilter || warehouseFilter || dateFrom || dateTo || search;
+    const activeFilterCount = [statusFilter, warehouseFilter, dateFrom, dateTo, search].filter(Boolean).length;
+    const hasFilters = activeFilterCount > 0;
     const resetFilters = () => {
         setStatusFilter('');
         setWarehouseFilter('');
@@ -59,7 +70,7 @@ export default function StaffOrders() {
     const line = isDark ? 'border-[#334155]/60' : 'border-[#f1f5f9]';
     const rowHov = isDark ? 'hover:bg-[#1e293b]/60' : 'hover:bg-amber-50/50';
     const inputCx = [
-        'w-full rounded-xl border px-4 text-sm outline-none transition-all duration-200 h-12',
+        'w-full rounded-xl border px-4 text-sm outline-none transition-all duration-200 h-11',
         isDark
             ? 'border-[#334155] bg-[#1e293b]/80 text-white placeholder:text-[#64748b] focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20'
             : 'border-[#e2e8f0] bg-white text-[#0f172a] placeholder:text-[#94a3b8] focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20',
@@ -80,7 +91,7 @@ export default function StaffOrders() {
                         </span>
                         <div>
                             <h1 className={`text-xl font-bold tracking-tight leading-tight ${head}`}>Buyurtmalar</h1>
-                            <p className={`text-sm mt-0.5 ${muted}`}>Tasdiqlangan buyurtmalar ro&apos;yxati</p>
+                            <p className={`text-sm mt-0.5 ${muted}`}>Buyurtmalar ro&apos;yxati</p>
                         </div>
                     </div>
                 </div>
@@ -89,111 +100,84 @@ export default function StaffOrders() {
             {/* ── Ro'yxat ───────────────────────────────────────────────── */}
             <div className={`rounded-2xl border shadow-md ${panel}`}>
                 {/* Filtrlar */}
-                <div className="flex flex-col gap-3 p-5 sm:flex-row sm:items-end">
-                    <div className="sm:w-48 shrink-0">
-                        <label className={`mb-1.5 block text-xs font-semibold ${muted}`}>Holat</label>
-                        <select
-                            value={statusFilter}
-                            onChange={(e) => {
-                                setStatusFilter(e.target.value);
-                                setPage(0);
-                            }}
-                            className={inputCx}
-                        >
-                            <option value="">Barchasi</option>
-                            {STATUSES.map((s) => (
-                                <option key={s} value={s}>
-                                    {STATUS_LABEL[s]}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div className="sm:w-48 shrink-0">
-                        <label className={`mb-1.5 block text-xs font-semibold ${muted}`}>Ombor</label>
-                        <select
-                            value={warehouseFilter}
-                            onChange={(e) => {
-                                setWarehouseFilter(e.target.value);
-                                setPage(0);
-                            }}
-                            className={inputCx}
-                        >
-                            <option value="">Barcha omborlar</option>
-                            {warehouses.map((w) => (
-                                <option key={w.id} value={w.id}>
-                                    {w.name}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div className="sm:w-44 shrink-0">
-                        <label className={`mb-1.5 block text-xs font-semibold ${muted}`}>Sanadan</label>
-                        <input
-                            type="date"
-                            value={dateFrom}
-                            onChange={(e) => {
-                                setDateFrom(e.target.value);
-                                setPage(0);
-                            }}
-                            className={inputCx}
-                        />
-                    </div>
-
-                    <div className="sm:w-44 shrink-0">
-                        <label className={`mb-1.5 block text-xs font-semibold ${muted}`}>Sanagacha</label>
-                        <input
-                            type="date"
-                            value={dateTo}
-                            onChange={(e) => {
-                                setDateTo(e.target.value);
-                                setPage(0);
-                            }}
-                            className={inputCx}
-                        />
-                    </div>
-
-                    <div className="flex-1">
-                        <label className={`mb-1.5 block text-xs font-semibold ${muted}`}>
-                            Mijoz bo&apos;yicha qidirish
-                        </label>
-                        <div className="relative">
-                            <LuSearch
-                                className={`pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 ${muted}`}
-                            />
-                            <input
-                                type="text"
-                                placeholder="Mijoz nomini yozing"
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                                className={`${inputCx} pl-11 pr-10`}
-                            />
-                            {search && (
-                                <button
-                                    type="button"
-                                    onClick={() => setSearch('')}
-                                    className={`absolute right-3 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-lg ${muted} hover:text-[#f43f5e]`}
-                                >
-                                    <LuX size={15} />
-                                </button>
+                <div className={`border-b ${line}`}>
+                    <button
+                        type="button"
+                        onClick={() => setFiltersOpen((value) => !value)}
+                        aria-expanded={filtersOpen}
+                        className={`flex w-full items-center justify-between gap-3 px-5 py-4 transition-colors ${isDark ? 'hover:bg-[#1e293b]/40' : 'hover:bg-[#f8fafc]'}`}
+                    >
+                        <div className="flex items-center gap-3">
+                            <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-amber-400/30 bg-amber-400/10 text-amber-500">
+                                <LuSlidersHorizontal size={16} />
+                            </span>
+                            <div className="flex items-center gap-2">
+                                <span className={`text-sm font-bold ${head}`}>Filtrlar</span>
+                                {activeFilterCount > 0 && (
+                                    <span className="rounded-full bg-amber-400/20 px-2 py-0.5 text-[11px] font-bold text-amber-500">
+                                        {activeFilterCount}
+                                    </span>
+                                )}
+                            </div>
+                            {!filtersOpen && statusFilter && (
+                                <span className={`hidden text-xs sm:inline ${muted}`}>
+                                    · Holat: <span className="font-semibold text-amber-500">{STAFF_STATUS_LABEL[statusFilter]}</span>
+                                </span>
                             )}
                         </div>
-                    </div>
+                        <LuChevronDown size={18} className={`shrink-0 transition-transform duration-300 ${filtersOpen ? 'rotate-180' : ''} ${muted}`} />
+                    </button>
 
-                    {hasFilters && (
-                        <button
-                            type="button"
-                            onClick={resetFilters}
-                            className={`flex h-12 shrink-0 items-center rounded-xl border px-4 text-xs font-semibold transition-colors ${
-                                isDark
-                                    ? 'border-[#334155] text-[#94a3b8] hover:bg-[#1e293b]'
-                                    : 'border-[#e2e8f0] text-[#64748b] hover:bg-[#f1f5f9]'
-                            }`}
-                        >
-                            Tozalash
-                        </button>
-                    )}
+                    <div className={`grid transition-all duration-300 ease-in-out ${filtersOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+                        <div className="overflow-hidden">
+                            <div className="flex flex-col gap-3 px-5 pb-5 sm:flex-row sm:items-end">
+                                <div className="sm:w-48 shrink-0">
+                                    <label className={`mb-1.5 block text-xs font-semibold ${muted}`}>Holat</label>
+                                    <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }} className={inputCx}>
+                                        <option value="">Barchasi</option>
+                                        {STATUSES.map((status) => <option key={status} value={status}>{STAFF_STATUS_LABEL[status]}</option>)}
+                                    </select>
+                                </div>
+
+                                <div className="sm:w-48 shrink-0">
+                                    <label className={`mb-1.5 block text-xs font-semibold ${muted}`}>Ombor</label>
+                                    <select value={warehouseFilter} onChange={(e) => { setWarehouseFilter(e.target.value); setPage(0); }} className={inputCx}>
+                                        <option value="">Barcha omborlar</option>
+                                        {warehouses.map((warehouse) => <option key={warehouse.id} value={warehouse.id}>{warehouse.name}</option>)}
+                                    </select>
+                                </div>
+
+                                <div className="sm:w-44 shrink-0">
+                                    <label className={`mb-1.5 block text-xs font-semibold ${muted}`}>Sanadan</label>
+                                    <input type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPage(0); }} className={inputCx} />
+                                </div>
+
+                                <div className="sm:w-44 shrink-0">
+                                    <label className={`mb-1.5 block text-xs font-semibold ${muted}`}>Sanagacha</label>
+                                    <input type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPage(0); }} className={inputCx} />
+                                </div>
+
+                                <div className="flex-1">
+                                    <label className={`mb-1.5 block text-xs font-semibold ${muted}`}>Mijoz bo&apos;yicha qidirish</label>
+                                    <div className="relative">
+                                        <LuSearch className={`pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 ${muted}`} />
+                                        <input type="text" placeholder="Mijoz nomini yozing" value={search} onChange={(e) => setSearch(e.target.value)} className={`${inputCx} pl-11 pr-10`} />
+                                        {search && (
+                                            <button type="button" onClick={() => setSearch('')} aria-label="Qidiruvni tozalash" className={`absolute right-3 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-lg ${muted} hover:text-[#f43f5e]`}>
+                                                <LuX size={15} />
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {hasFilters && (
+                                    <button type="button" onClick={resetFilters} className={`flex h-11 shrink-0 items-center rounded-xl border px-4 text-xs font-semibold transition-colors ${isDark ? 'border-[#334155] text-[#94a3b8] hover:bg-[#1e293b]' : 'border-[#e2e8f0] text-[#64748b] hover:bg-[#f1f5f9]'}`}>
+                                        Tozalash
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 {isFetching ? (
@@ -215,57 +199,63 @@ export default function StaffOrders() {
                         </svg>
                         Yuklanmoqda...
                     </div>
-                ) : filtered.length === 0 ? (
+                ) : isError ? (
                     <div className={`flex flex-col items-center gap-2 py-14 ${muted}`}>
                         <LuPackage size={34} strokeWidth={1.5} />
+                        <p className="text-sm font-semibold">Ma&apos;lumotlarni yuklashda xatolik</p>
+                        <p className="text-xs">{error?.data?.message || error?.message || 'Server bilan aloqa yo‘q'}</p>
+                    </div>
+                ) : filtered.length === 0 ? (
+                    <div className={`flex flex-col items-center gap-2 py-14 ${muted}`}>
+                        <LuInbox size={34} strokeWidth={1.5} />
                         <p className="text-sm font-semibold">Buyurtmalar topilmadi</p>
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
+                        <table className="w-full min-w-[900px] text-sm">
                             <thead>
                                 <tr
                                     className={`text-left text-xs font-semibold uppercase tracking-wide ${muted} ${
                                         isDark ? 'bg-[#0f172a]/30' : 'bg-[#f8fafc]/80'
                                     }`}
                                 >
-                                    <th className="px-5 py-3 w-14">№</th>
-                                    <th className="px-5 py-3">Mijoz</th>
-                                    <th className="px-5 py-3 w-32">Mahsulot</th>
+                                    <th className="px-5 py-3 w-14 text-center">№</th>
+                                    <th className="px-5 py-3 min-w-[220px]">Mijoz</th>
+                                    <th className="px-5 py-3 w-36">Mahsulot</th>
                                     <th className="px-5 py-3 w-44 text-right">Jami summa</th>
                                     <th className="px-5 py-3 w-40">Holat</th>
-                                    <th className="px-5 py-3 w-44">Sana</th>
-                                    <th className="px-5 py-3 w-20"></th>
+                                    <th className="px-5 py-3 w-48">Sana</th>
+                                    <th className="px-5 py-3 w-20 text-right"></th>
                                 </tr>
                             </thead>
                             <tbody className={`divide-y ${divider}`}>
                                 {filtered.map((o, idx) => (
                                     <tr key={o.id} className={`transition-colors ${rowHov}`}>
-                                        <td className={`px-5 py-3 text-xs ${muted}`}>
+                                        <td className={`px-5 py-3 text-center text-xs tabular-nums ${muted}`}>
                                             {page * PAGE_SIZE + idx + 1}
                                         </td>
                                         <td className="px-5 py-3">
-                                            <p className={`font-semibold ${head}`}>{o.customerName}</p>
+                                            <p className={`truncate font-semibold ${head}`}>{o.customerName || '—'}</p>
                                             {o.summary && (
                                                 <p className={`truncate max-w-xs text-xs ${muted}`}>{o.summary}</p>
                                             )}
                                         </td>
                                         <td className={`px-5 py-3 text-xs font-semibold ${muted}`}>
-                                            {o.items?.length ?? 0} ta
+                                            <span className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 ${isDark ? 'bg-white/5' : 'bg-slate-100'}`}>
+                                                <LuPackage size={13} /> {o.items?.length ?? 0} ta
+                                            </span>
                                         </td>
-                                        <td className={`px-5 py-3 text-right font-bold ${head}`}>
+                                        <td className={`px-5 py-3 text-right font-bold tabular-nums ${head}`}>
                                             {formatNumber(o.totalAmount ?? 0)} so&apos;m
                                         </td>
                                         <td className="px-5 py-3">
                                             <span
-                                                className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${statusCx(
-                                                    o.status
-                                                )}`}
+                                                className={`inline-flex whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-bold ${STAFF_STATUS_CX[o.status] ?? 'bg-slate-500/10 text-slate-500 border-slate-500/30'}`}
                                             >
-                                                {STATUS_LABEL[o.status] ?? o.status}
+                                                {STAFF_STATUS_LABEL[o.status] ?? o.status}
                                             </span>
                                         </td>
-                                        <td className={`px-5 py-3 text-xs ${muted}`}>
+                                        <td className={`whitespace-nowrap px-5 py-3 text-xs ${muted}`}>
                                             {o.createdAt
                                                 ? new Date(o.createdAt).toLocaleString('uz-UZ')
                                                 : '—'}
