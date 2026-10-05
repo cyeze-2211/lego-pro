@@ -6,6 +6,10 @@ import {
 } from '@chakra-ui/react';
 import {
     LuPlus, LuSearch, LuTrash2, LuUserRound, LuX,
+    LuShieldCheck, LuCrown, LuCalculator, LuShoppingCart,
+    LuTruck, LuWarehouse, LuHeadset, LuClipboardList,
+    LuBriefcase, LuUserCog, LuUsers, LuPackageOpen,
+    LuFactory, LuBlend, LuReceipt, LuBoxes, LuCoins,
 } from 'react-icons/lu';
 import { useGetUsersQuery, useRegisterUserMutation, useDeleteUserMutation } from '../../../store/services/user.api';
 import { useGetDevicesQuery } from '../../../store/services/device.api';
@@ -15,6 +19,105 @@ import { Alert } from '../../Other/UI/Alert/Alert';
 import Loading from '../../Other/UI/Loadings/Loading';
 import FormControl from '../../ui/FormControl';
 import DeleteConfirmDialog from '../DeleteConfirmDialog';
+
+/* ─── Rol nomlarini o'zbek (lotin) tiliga o'girish ─────────── */
+const ROLE_LABELS = {
+    /* Admin / boshqaruv */
+    ADMIN:                    { uz: 'Administrator',          Icon: LuShieldCheck,   color: 'red' },
+    SUPERADMIN:               { uz: 'Bosh administrator',     Icon: LuCrown,         color: 'red' },
+    DIRECTOR:                 { uz: 'Direktor',               Icon: LuBriefcase,     color: 'purple' },
+    MANAGER:                  { uz: 'Menejer',                Icon: LuUserCog,       color: 'blue' },
+    USER:                     { uz: 'Foydalanuvchi',          Icon: LuUsers,         color: 'gray' },
+
+    /* Savdo / kassa */
+    KASSIR:                   { uz: 'Kassir',                 Icon: LuCoins,         color: 'green' },
+    CASHIER:                  { uz: 'Kassir',                 Icon: LuCoins,         color: 'green' },
+    SELLER:                   { uz: 'Sotuvchi',               Icon: LuShoppingCart,  color: 'teal' },
+    OPERATOR:                 { uz: 'Operator',               Icon: LuHeadset,       color: 'cyan' },
+    ZAYAVKACHI:               { uz: 'Zayavkachi',             Icon: LuClipboardList, color: 'orange' },
+
+    /* Ombor / ishlab chiqarish */
+    WAREHOUSE:                { uz: 'Omborchi',               Icon: LuWarehouse,     color: 'yellow' },
+    RAW_MATERIAL_STOREKEEPER: { uz: 'Xom ashyo omborchisi',   Icon: LuPackageOpen,   color: 'amber' },
+    PRODUCT_STOREKEEPER:      { uz: 'Mahsulot omborchisi',    Icon: LuBoxes,         color: 'lime' },
+    STANOKCHI:                { uz: 'Stanokchi',              Icon: LuFactory,       color: 'indigo' },
+    MIKSERCHI:                { uz: 'Mikserchi',              Icon: LuBlend,         color: 'fuchsia' },
+
+    /* Moliya / hisob */
+    ACCOUNTANT:               { uz: 'Buxgalter',              Icon: LuCalculator,    color: 'purple' },
+    BUXGALTER:                { uz: 'Hisobchi',               Icon: LuReceipt,       color: 'violet' },
+
+    /* Logistika */
+    COURIER:                  { uz: 'Kuryer',                 Icon: LuTruck,         color: 'pink' },
+};
+
+const ROLE_COLORS = {
+    red:     { bg: 'rgba(239,68,68,.12)',   fg: '#ef4444', border: 'rgba(239,68,68,.3)' },
+    orange:  { bg: 'rgba(249,115,22,.12)',  fg: '#f97316', border: 'rgba(249,115,22,.3)' },
+    amber:   { bg: 'rgba(245,158,11,.14)',  fg: '#d97706', border: 'rgba(245,158,11,.3)' },
+    yellow:  { bg: 'rgba(234,179,8,.14)',   fg: '#ca8a04', border: 'rgba(234,179,8,.3)' },
+    lime:    { bg: 'rgba(132,204,22,.14)',  fg: '#65a30d', border: 'rgba(132,204,22,.3)' },
+    green:   { bg: 'rgba(34,197,94,.12)',   fg: '#16a34a', border: 'rgba(34,197,94,.3)' },
+    teal:    { bg: 'rgba(20,184,166,.12)',  fg: '#0d9488', border: 'rgba(20,184,166,.3)' },
+    cyan:    { bg: 'rgba(6,182,212,.12)',   fg: '#0891b2', border: 'rgba(6,182,212,.3)' },
+    blue:    { bg: 'rgba(59,130,246,.12)',  fg: '#2563eb', border: 'rgba(59,130,246,.3)' },
+    indigo:  { bg: 'rgba(99,102,241,.12)',  fg: '#4f46e5', border: 'rgba(99,102,241,.3)' },
+    violet:  { bg: 'rgba(139,92,246,.12)',  fg: '#7c3aed', border: 'rgba(139,92,246,.3)' },
+    purple:  { bg: 'rgba(168,85,247,.12)',  fg: '#9333ea', border: 'rgba(168,85,247,.3)' },
+    fuchsia: { bg: 'rgba(217,70,239,.12)',  fg: '#c026d3', border: 'rgba(217,70,239,.3)' },
+    pink:    { bg: 'rgba(236,72,153,.12)',  fg: '#db2777', border: 'rgba(236,72,153,.3)' },
+    gray:    { bg: 'rgba(148,163,184,.14)', fg: '#64748b', border: 'rgba(148,163,184,.35)' },
+};
+
+const normalizeRoleKey = (role) => {
+    if (!role) return 'USER';
+    return String(role).toUpperCase().replace(/[\s-]/g, '_');
+};
+
+const getRoleMeta = (roleName) => {
+    const key = normalizeRoleKey(roleName);
+    return ROLE_LABELS[key] || {
+        uz: roleName || 'Foydalanuvchi',
+        Icon: LuUserRound,
+        color: 'gray',
+    };
+};
+
+/* ─── Chiroyli rol badge ───────────────────────────────────── */
+function RoleBadge({ roleName, isDark }) {
+    const meta = getRoleMeta(roleName);
+    const { Icon } = meta;
+    const palette = ROLE_COLORS[meta.color] || ROLE_COLORS.gray;
+
+    return (
+        <HStack
+            gap={2}
+            px={2.5}
+            py={1}
+            borderRadius="full"
+            borderWidth="1px"
+            borderColor={palette.border}
+            bg={isDark
+                ? palette.bg.replace(/\.\d+\)/, '.18)')
+                : palette.bg}
+            w="fit-content"
+            title={roleName}
+        >
+            <Box color={palette.fg} display="flex" alignItems="center">
+                <Icon size={14} />
+            </Box>
+            <Text
+                fontSize="xs"
+                fontWeight="bold"
+                color={palette.fg}
+                letterSpacing="wide"
+                whiteSpace="nowrap"
+            >
+                {meta.uz}
+            </Text>
+        </HStack>
+    );
+}
 
 /* ─── Create user dialog ───────────────────────────────────── */
 function CreateUser({ devices, onDone }) {
@@ -45,6 +148,9 @@ function CreateUser({ devices, onDone }) {
             Alert(error?.data?.message || 'Foydalanuvchi yaratishda xatolik', 'error');
         }
     };
+
+    const selectedRole = roles.find((r) => String(r.id) === String(form.roleId));
+    const selectedMeta = selectedRole ? getRoleMeta(selectedRole.roleName) : null;
 
     return (
         <>
@@ -105,11 +211,21 @@ function CreateUser({ devices, onDone }) {
                                         <FormControl as="select" value={form.roleId} onChange={update('roleId')}>
                                             {rolesLoading
                                                 ? <option value="">Yuklanmoqda...</option>
-                                                : roles.map((r) => (
-                                                    <option key={r.id} value={r.id}>{r.roleName}</option>
-                                                ))
+                                                : roles.map((r) => {
+                                                    const meta = getRoleMeta(r.roleName);
+                                                    return (
+                                                        <option key={r.id} value={r.id}>
+                                                            {meta.uz}
+                                                        </option>
+                                                    );
+                                                })
                                             }
                                         </FormControl>
+                                        {selectedMeta && (
+                                            <Box mt={2}>
+                                                <RoleBadge roleName={selectedRole?.roleName} isDark={isDark} />
+                                            </Box>
+                                        )}
                                     </Field.Root>
 
                                     <Field.Root required>
@@ -223,7 +339,9 @@ export default function User() {
                                             </Text>
                                         </HStack>
                                     </Table.Cell>
-                                    <Table.Cell bg={tableBg} borderWidth="1px" borderColor={cardBorder}>{user.roleName}</Table.Cell>
+                                    <Table.Cell bg={tableBg} borderWidth="1px" borderColor={cardBorder}>
+                                        <RoleBadge roleName={user.roleName} isDark={isDark} />
+                                    </Table.Cell>
                                     <Table.Cell bg={tableBg} borderWidth="1px" borderColor={cardBorder}>{user.deviceName || '—'}</Table.Cell>
                                     <Table.Cell bg={tableBg} borderWidth="1px" borderColor={cardBorder} color={subtitleColor}>
                                         {user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString('uz-UZ') : 'Kirilmagan'}

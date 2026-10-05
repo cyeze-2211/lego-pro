@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import PropTypes from 'prop-types';
+
 import {
     Badge, Box, Button, Dialog, Field, HStack, Heading,
     Portal, Table, Text, VStack, useDisclosure,
@@ -7,6 +9,10 @@ import {
 import {
     LuCheck, LuPencil, LuPlus, LuSearch, LuShieldCheck,
     LuTrash2, LuUsers, LuX, LuLock,
+    LuCrown, LuCalculator, LuShoppingCart,
+    LuTruck, LuWarehouse, LuHeadset, LuClipboardList,
+    LuBriefcase, LuUserCog, LuUserRound, LuPackageOpen,
+    LuFactory, LuBlend, LuReceipt, LuBoxes, LuCoins,
 } from 'react-icons/lu';
 import {
     useGetRolesQuery,
@@ -20,6 +26,112 @@ import { Alert } from '../../Other/UI/Alert/Alert';
 import Loading from '../../Other/UI/Loadings/Loading';
 import FormControl from '../../ui/FormControl';
 import DeleteConfirmDialog from '../DeleteConfirmDialog';
+
+/* ─── Rol nomlarini o'zbek (lotin) tiliga o'girish ─────────── */
+const ROLE_LABELS = {
+    /* Admin / boshqaruv */
+    ADMIN:                    { uz: 'Administrator',          Icon: LuShieldCheck,   color: 'red' },
+    SUPERADMIN:               { uz: 'Bosh administrator',     Icon: LuCrown,         color: 'red' },
+    DIRECTOR:                 { uz: 'Direktor',               Icon: LuBriefcase,     color: 'purple' },
+    MANAGER:                  { uz: 'Menejer',                Icon: LuUserCog,       color: 'blue' },
+    USER:                     { uz: 'Foydalanuvchi',          Icon: LuUsers,         color: 'gray' },
+
+    /* Savdo / kassa */
+    KASSIR:                   { uz: 'Kassir',                 Icon: LuCoins,         color: 'green' },
+    CASHIER:                  { uz: 'Kassir',                 Icon: LuCoins,         color: 'green' },
+    SELLER:                   { uz: 'Sotuvchi',               Icon: LuShoppingCart,  color: 'teal' },
+    OPERATOR:                 { uz: 'Operator',               Icon: LuHeadset,       color: 'cyan' },
+    ZAYAVKACHI:               { uz: 'Zayavkachi',             Icon: LuClipboardList, color: 'orange' },
+
+    /* Ombor / ishlab chiqarish */
+    WAREHOUSE:                { uz: 'Omborchi',               Icon: LuWarehouse,     color: 'yellow' },
+    RAW_MATERIAL_STOREKEEPER: { uz: 'Xom ashyo omborchisi',   Icon: LuPackageOpen,   color: 'amber' },
+    PRODUCT_STOREKEEPER:      { uz: 'Mahsulot omborchisi',    Icon: LuBoxes,         color: 'lime' },
+    STANOKCHI:                { uz: 'Stanokchi',              Icon: LuFactory,       color: 'indigo' },
+    MIKSERCHI:                { uz: 'Mikserchi',              Icon: LuBlend,         color: 'fuchsia' },
+
+    /* Moliya / hisob */
+    ACCOUNTANT:               { uz: 'Buxgalter',              Icon: LuCalculator,    color: 'purple' },
+    BUXGALTER:                { uz: 'Hisobchi',               Icon: LuReceipt,       color: 'violet' },
+
+    /* Logistika */
+    COURIER:                  { uz: 'Kuryer',                 Icon: LuTruck,         color: 'pink' },
+};
+
+const ROLE_COLORS = {
+    red:     { bg: 'rgba(239,68,68,.12)',   fg: '#ef4444', border: 'rgba(239,68,68,.3)' },
+    orange:  { bg: 'rgba(249,115,22,.12)',  fg: '#f97316', border: 'rgba(249,115,22,.3)' },
+    amber:   { bg: 'rgba(245,158,11,.14)',  fg: '#d97706', border: 'rgba(245,158,11,.3)' },
+    yellow:  { bg: 'rgba(234,179,8,.14)',   fg: '#ca8a04', border: 'rgba(234,179,8,.3)' },
+    lime:    { bg: 'rgba(132,204,22,.14)',  fg: '#65a30d', border: 'rgba(132,204,22,.3)' },
+    green:   { bg: 'rgba(34,197,94,.12)',   fg: '#16a34a', border: 'rgba(34,197,94,.3)' },
+    teal:    { bg: 'rgba(20,184,166,.12)',  fg: '#0d9488', border: 'rgba(20,184,166,.3)' },
+    cyan:    { bg: 'rgba(6,182,212,.12)',   fg: '#0891b2', border: 'rgba(6,182,212,.3)' },
+    blue:    { bg: 'rgba(59,130,246,.12)',  fg: '#2563eb', border: 'rgba(59,130,246,.3)' },
+    indigo:  { bg: 'rgba(99,102,241,.12)',  fg: '#4f46e5', border: 'rgba(99,102,241,.3)' },
+    violet:  { bg: 'rgba(139,92,246,.12)',  fg: '#7c3aed', border: 'rgba(139,92,246,.3)' },
+    purple:  { bg: 'rgba(168,85,247,.12)',  fg: '#9333ea', border: 'rgba(168,85,247,.3)' },
+    fuchsia: { bg: 'rgba(217,70,239,.12)',  fg: '#c026d3', border: 'rgba(217,70,239,.3)' },
+    pink:    { bg: 'rgba(236,72,153,.12)',  fg: '#db2777', border: 'rgba(236,72,153,.3)' },
+    gray:    { bg: 'rgba(148,163,184,.14)', fg: '#64748b', border: 'rgba(148,163,184,.35)' },
+};
+
+const normalizeRoleKey = (role) => {
+    if (!role) return '';
+    return String(role).toUpperCase().replace(/[\s-]/g, '_');
+};
+
+const getRoleMeta = (roleName) => {
+    const key = normalizeRoleKey(roleName);
+    return ROLE_LABELS[key] || {
+        uz: roleName || '—',
+        Icon: LuUserRound,
+        color: 'gray',
+    };
+};
+
+/* ─── Chiroyli rol badge ───────────────────────────────────── */
+function RoleBadge({ roleName, isDark, size = 'md' }) {
+    const meta = getRoleMeta(roleName);
+    const { Icon } = meta;
+    const palette = ROLE_COLORS[meta.color] || ROLE_COLORS.gray;
+    const isSmall = size === 'sm';
+
+    return (
+        <HStack
+            gap={isSmall ? 1.5 : 2}
+            px={isSmall ? 2 : 2.5}
+            py={isSmall ? 0.5 : 1}
+            borderRadius="full"
+            borderWidth="1px"
+            borderColor={palette.border}
+            bg={isDark
+                ? palette.bg.replace(/\.\d+\)/, '.18)')
+                : palette.bg}
+            w="fit-content"
+            title={roleName}
+        >
+            <Box color={palette.fg} display="flex" alignItems="center">
+                <Icon size={isSmall ? 12 : 14} />
+            </Box>
+            <Text
+                fontSize={isSmall ? '11px' : 'xs'}
+                fontWeight="bold"
+                color={palette.fg}
+                letterSpacing="wide"
+                whiteSpace="nowrap"
+            >
+                {meta.uz}
+            </Text>
+        </HStack>
+    );
+}
+
+RoleBadge.propTypes = {
+    roleName: PropTypes.string,
+    isDark: PropTypes.bool,
+    size: PropTypes.oneOf(['sm', 'md']),
+};
 
 /* ─── Create Role Dialog ───────────────────────────────────── */
 function CreateRole({ onDone }) {
@@ -72,6 +184,8 @@ function CreateRole({ onDone }) {
         }
     };
 
+    const previewMeta = form.roleName.trim() ? getRoleMeta(form.roleName.trim()) : null;
+
     return (
         <>
             <Button onClick={onOpen} bg={accentColor} color="black" borderRadius="xl" fontWeight="semibold" px={4}>
@@ -118,6 +232,11 @@ function CreateRole({ onDone }) {
                                             onChange={(e) => setForm({ ...form, roleName: e.target.value })}
                                             placeholder="Masalan: AUDITOR, DISPATCHER..."
                                         />
+                                        {previewMeta && (
+                                            <Box mt={2}>
+                                                <RoleBadge roleName={form.roleName.trim()} isDark={isDark} />
+                                            </Box>
+                                        )}
                                     </Field.Root>
 
                                     <Field.Root>
@@ -327,6 +446,11 @@ function EditRole({ role, onClose, onDone }) {
                                         placeholder="Rol nomi..."
                                         disabled={role?.system}
                                     />
+                                    {form.roleName.trim() && (
+                                        <Box mt={2}>
+                                            <RoleBadge roleName={form.roleName.trim()} isDark={isDark} />
+                                        </Box>
+                                    )}
                                 </Field.Root>
 
                                 <Field.Root>
@@ -375,11 +499,14 @@ export default function Role() {
     const filteredRoles = useMemo(() => {
         const q = search.trim().toLowerCase();
         if (!q) return roles;
-        return roles.filter(
-            (r) =>
+        return roles.filter((r) => {
+            const meta = getRoleMeta(r.roleName);
+            return (
                 r.roleName?.toLowerCase().includes(q) ||
+                meta.uz?.toLowerCase().includes(q) ||
                 r.description?.toLowerCase().includes(q)
-        );
+            );
+        });
     }, [roles, search]);
 
     const remove = async () => {
@@ -433,7 +560,7 @@ export default function Role() {
                     <Table.Root size="md" interactive bg={tableBg} borderCollapse="collapse">
                         <Table.Header bg={isDark ? 'rgba(148,163,184,.08)' : '#F8FAFC'}>
                             <Table.Row>
-                                {['Rol nomi', 'Turi', 'Izoh', 'Huquqlar soni', 'Foydalanuvchilar', 'Amallar'].map((label) => (
+                                {['Rol', 'Turi', 'Izoh', 'Huquqlar soni', 'Foydalanuvchilar', 'Amallar'].map((label) => (
                                     <Table.ColumnHeader key={label} color={subtitleColor} borderWidth="1px" borderColor={cardBorder}>
                                         {label}
                                     </Table.ColumnHeader>
@@ -441,96 +568,117 @@ export default function Role() {
                             </Table.Row>
                         </Table.Header>
                         <Table.Body bg={tableBg}>
-                            {filteredRoles.map((role) => (
-                                <Table.Row key={role.id} bg={tableBg} _hover={{ bg: isDark ? 'rgba(250,204,21,.06)' : '#FFFBEB' }}>
-                                    <Table.Cell bg={tableBg} borderWidth="1px" borderColor={cardBorder}>
-                                        <HStack gap={3}>
-                                            <Box p={2} borderRadius="lg" bg={isDark ? 'rgba(250,204,21,.12)' : '#FEF3C7'} color={accentColor}>
-                                                <LuShieldCheck size={18} />
-                                            </Box>
-                                            <Text
-                                                as={Link}
-                                                to={`/roles/${role.id}`}
-                                                fontWeight="bold"
-                                                color={textColor}
-                                                _hover={{ color: accentColor, textDecoration: 'underline' }}
-                                            >
-                                                {role.roleName}
-                                            </Text>
-                                        </HStack>
-                                    </Table.Cell>
+                            {filteredRoles.map((role) => {
+                                const meta = getRoleMeta(role.roleName);
+                                const palette = ROLE_COLORS[meta.color] || ROLE_COLORS.gray;
+                                const isKnownRole = Boolean(ROLE_LABELS[normalizeRoleKey(role.roleName)]);
+                                return (
+                                    <Table.Row key={role.id} bg={tableBg} _hover={{ bg: isDark ? 'rgba(250,204,21,.06)' : '#FFFBEB' }}>
+                                        <Table.Cell bg={tableBg} borderWidth="1px" borderColor={cardBorder}>
+                                            <HStack gap={3}>
+                                                <Box
+                                                    p={2}
+                                                    borderRadius="lg"
+                                                    bg={isDark
+                                                        ? palette.bg.replace(/\.\d+\)/, '.18)')
+                                                        : palette.bg}
+                                                    color={palette.fg}
+                                                    borderWidth="1px"
+                                                    borderColor={palette.border}
+                                                >
+                                                    <meta.Icon size={18} />
+                                                </Box>
+                                                <VStack align="start" gap={0} minW={0}>
+                                                    <Text
+                                                        as={Link}
+                                                        to={`/roles/${role.id}`}
+                                                        fontWeight="bold"
+                                                        color={textColor}
+                                                        _hover={{ color: accentColor, textDecoration: 'underline' }}
+                                                    >
+                                                        {meta.uz}
+                                                    </Text>
+                                                    {isKnownRole && (
+                                                        <Text fontSize="10px" color={subtitleColor} fontFamily="mono">
+                                                            {role.roleName}
+                                                        </Text>
+                                                    )}
+                                                </VStack>
+                                            </HStack>
+                                        </Table.Cell>
 
-                                    <Table.Cell bg={tableBg} borderWidth="1px" borderColor={cardBorder}>
-                                        {role.system ? (
-                                            <Badge colorPalette="purple" variant="subtle" px={2.5} py={0.5} borderRadius="full">
-                                                <HStack gap={1}><LuLock size={12} /><span>Tizim roli</span></HStack>
+                                        <Table.Cell bg={tableBg} borderWidth="1px" borderColor={cardBorder}>
+                                            {role.system ? (
+                                                <Badge colorPalette="purple" variant="subtle" px={2.5} py={0.5} borderRadius="full">
+                                                    <HStack gap={1}><LuLock size={12} /><span>Tizim roli</span></HStack>
+                                                </Badge>
+                                            ) : (
+                                                <Badge colorPalette="gray" variant="outline" px={2.5} py={0.5} borderRadius="full">
+                                                    Maxsus rol
+                                                </Badge>
+                                            )}
+                                        </Table.Cell>
+
+                                        <Table.Cell bg={tableBg} borderWidth="1px" borderColor={cardBorder} color={subtitleColor} maxW="260px">
+                                            <Text truncate>{role.description || '—'}</Text>
+                                        </Table.Cell>
+
+                                        <Table.Cell bg={tableBg} borderWidth="1px" borderColor={cardBorder}>
+                                            <Badge colorPalette="yellow" variant="subtle" px={2.5} py={0.5} borderRadius="full">
+                                                {role.permissionCount ?? 0} ta huquq
                                             </Badge>
-                                        ) : (
-                                            <Badge colorPalette="gray" variant="outline" px={2.5} py={0.5} borderRadius="full">
-                                                Maxsus rol
-                                            </Badge>
-                                        )}
-                                    </Table.Cell>
+                                        </Table.Cell>
 
-                                    <Table.Cell bg={tableBg} borderWidth="1px" borderColor={cardBorder} color={subtitleColor} maxW="260px">
-                                        <Text truncate>{role.description || '—'}</Text>
-                                    </Table.Cell>
+                                        <Table.Cell bg={tableBg} borderWidth="1px" borderColor={cardBorder}>
+                                            <HStack gap={1.5} color={subtitleColor}>
+                                                <LuUsers size={14} />
+                                                <Text fontWeight="semibold" color={textColor}>
+                                                    {role.userCount ?? 0}
+                                                </Text>
+                                            </HStack>
+                                        </Table.Cell>
 
-                                    <Table.Cell bg={tableBg} borderWidth="1px" borderColor={cardBorder}>
-                                        <Badge colorPalette="yellow" variant="subtle" px={2.5} py={0.5} borderRadius="full">
-                                            {role.permissionCount ?? 0} ta huquq
-                                        </Badge>
-                                    </Table.Cell>
+                                        <Table.Cell bg={tableBg} borderWidth="1px" borderColor={cardBorder}>
+                                            <HStack gap={2}>
+                                                <Button
+                                                    as={Link}
+                                                    to={`/roles/${role.id}`}
+                                                    size="sm"
+                                                    variant="outline"
+                                                    color={accentColor}
+                                                    borderRadius="lg"
+                                                >
+                                                    Batafsil / Huquqlar
+                                                </Button>
 
-                                    <Table.Cell bg={tableBg} borderWidth="1px" borderColor={cardBorder}>
-                                        <HStack gap={1.5} color={subtitleColor}>
-                                            <LuUsers size={14} />
-                                            <Text fontWeight="semibold" color={textColor}>
-                                                {role.userCount ?? 0}
-                                            </Text>
-                                        </HStack>
-                                    </Table.Cell>
-
-                                    <Table.Cell bg={tableBg} borderWidth="1px" borderColor={cardBorder}>
-                                        <HStack gap={2}>
-                                            <Button
-                                                as={Link}
-                                                to={`/roles/${role.id}`}
-                                                size="sm"
-                                                variant="outline"
-                                                color={accentColor}
-                                                borderRadius="lg"
-                                            >
-                                                Batafsil / Huquqlar
-                                            </Button>
-
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                color={subtitleColor}
-                                                _hover={{ color: textColor }}
-                                                onClick={() => setEditRole(role)}
-                                                aria-label="Tahrirlash"
-                                            >
-                                                <LuPencil size={16} />
-                                            </Button>
-
-                                            {!role.system && (
                                                 <Button
                                                     variant="ghost"
                                                     size="sm"
-                                                    color="red.500"
-                                                    _hover={{ bg: 'red.50', color: 'red.600' }}
-                                                    onClick={() => setDeleteRoleTarget(role)}
-                                                    aria-label="O'chirish"
+                                                    color={subtitleColor}
+                                                    _hover={{ color: textColor }}
+                                                    onClick={() => setEditRole(role)}
+                                                    aria-label="Tahrirlash"
                                                 >
-                                                    <LuTrash2 size={16} />
+                                                    <LuPencil size={16} />
                                                 </Button>
-                                            )}
-                                        </HStack>
-                                    </Table.Cell>
-                                </Table.Row>
-                            ))}
+
+                                                {!role.system && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        color="red.500"
+                                                        _hover={{ bg: 'red.50', color: 'red.600' }}
+                                                        onClick={() => setDeleteRoleTarget(role)}
+                                                        aria-label="O'chirish"
+                                                    >
+                                                        <LuTrash2 size={16} />
+                                                    </Button>
+                                                )}
+                                            </HStack>
+                                        </Table.Cell>
+                                    </Table.Row>
+                                );
+                            })}
                         </Table.Body>
                     </Table.Root>
                     {filteredRoles.length === 0 && (
@@ -555,11 +703,15 @@ export default function Role() {
                 onConfirm={remove}
                 isLoading={isDeleting}
                 title="Rolni o'chirish"
-                itemName={deleteRoleTarget?.roleName}
+                itemName={
+                    deleteRoleTarget
+                        ? getRoleMeta(deleteRoleTarget.roleName).uz
+                        : ''
+                }
                 description={
                     deleteRoleTarget?.userCount > 0
-                        ? `Diqqat! "${deleteRoleTarget.roleName}" roliga ${deleteRoleTarget.userCount} ta foydalanuvchi biriktirilgan. Biriktirilgan foydalanuvchisi bor rolni o'chirib bo'lmaydi.`
-                        : `Siz haqiqatdan ham "${deleteRoleTarget?.roleName}" rolini o'chirmoqchimisiz?`
+                        ? `Diqqat! "${getRoleMeta(deleteRoleTarget.roleName).uz}" roliga ${deleteRoleTarget.userCount} ta foydalanuvchi biriktirilgan. Biriktirilgan foydalanuvchisi bor rolni o'chirib bo'lmaydi.`
+                        : `Siz haqiqatdan ham "${deleteRoleTarget ? getRoleMeta(deleteRoleTarget.roleName).uz : ''}" rolini o'chirmoqchimisiz?`
                 }
             />
         </Box>

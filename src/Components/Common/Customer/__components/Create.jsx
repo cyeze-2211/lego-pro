@@ -22,24 +22,74 @@ import {
     LuHash,
     LuUserCheck,
     LuSend,
+    LuTrendingUp,
+    LuTrendingDown,
+    LuWallet,
 } from 'react-icons/lu';
 import { useCreateCustomerMutation } from '../../../../store/services/customer.api';
 import { Alert } from '../../../Other/UI/Alert/Alert';
 import { useAppTheme } from '../../../../theme/tokens';
-import FormattedNumberInput from '../../../ui/FormattedNumberInput';
 import FormControl from '../../../ui/FormControl';
 
 const PHONE_REGEX = /^\+998\d{9}$/;
+
+const formatPhone = (value) => {
+    const digits = String(value).replace(/\D/g, '');
+    const hasCountryCode = String(value).trim().startsWith('+998')
+        || (digits.length > 9 && digits.startsWith('998'));
+    const localDigits = (hasCountryCode ? digits.slice(3) : digits).slice(0, 9);
+    const groups = [
+        localDigits.slice(0, 2),
+        localDigits.slice(2, 5),
+        localDigits.slice(5, 7),
+        localDigits.slice(7, 9),
+    ].filter(Boolean);
+
+    return `+998${groups.map((group) => `-${group}`).join('')}`;
+};
+
+const getPhoneCursorPosition = (value, digitCount) => {
+    if (digitCount === 0) return 0;
+
+    let digitsSeen = 0;
+    for (let index = 0; index < value.length; index += 1) {
+        if (/\d/.test(value[index])) {
+            digitsSeen += 1;
+            if (digitsSeen === digitCount) return index + 1;
+        }
+    }
+    return value.length;
+};
+
+// "200000" -> "200 000"
+const formatBalanceDisplay = (raw) => {
+    if (raw === '' || raw === null || raw === undefined) return '';
+    const str = String(raw);
+    const [intPart, decPart] = str.split('.');
+    const formattedInt = (intPart || '').replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+    return decPart !== undefined ? `${formattedInt}.${decPart}` : formattedInt;
+};
 
 const initialForm = {
     name: '',
     phone: '+998',
     summary: '',
-    balance: '0',
+    balance: '',
+    balanceType: 'credit',
     address: '',
     inn: '',
     agentName: '',
     telegramChatId: '',
+};
+
+const numberInputSx = {
+    '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
+        '-webkit-appearance': 'none',
+        margin: 0,
+    },
+    '& input[type=number]': {
+        '-moz-appearance': 'textfield',
+    },
 };
 
 export default function Create({ onCreated, compact = false, onBeforeOpen }) {
@@ -49,6 +99,10 @@ export default function Create({ onCreated, compact = false, onBeforeOpen }) {
     const { isDark, accentColor, cardBg, cardBorder, textColor, subtitleColor } = useAppTheme();
     const modalBorder = isDark ? cardBorder : '#94A3B8';
 
+    const parsedBalance = Number(form.balance);
+    const hasValidBalance = form.balance !== '' && Number.isFinite(parsedBalance) && parsedBalance >= 0;
+    const previewAmount = hasValidBalance ? parsedBalance : 0;
+
     const handleOpen = () => {
         onBeforeOpen?.();
         onOpen();
@@ -56,6 +110,68 @@ export default function Create({ onCreated, compact = false, onBeforeOpen }) {
 
     const setField = (key, value) =>
         setForm((prev) => ({ ...prev, [key]: value }));
+
+    const handlePhoneChange = (event) => {
+        const input = event.currentTarget;
+        const rawValue = input.value;
+        const digitsBeforeCursor = rawValue.slice(0, input.selectionStart ?? rawValue.length)
+            .replace(/\D/g, '').length;
+        const rawDigits = rawValue.replace(/\D/g, '');
+        const hasCountryCode = rawValue.trim().startsWith('+998')
+            || (rawDigits.length > 9 && rawDigits.startsWith('998'));
+        const localDigitsBeforeCursor = Math.max(0, digitsBeforeCursor - (hasCountryCode ? 3 : 0));
+        const formattedValue = formatPhone(rawValue);
+
+        setField('phone', formattedValue);
+        requestAnimationFrame(() => {
+            const cursorPosition = getPhoneCursorPosition(formattedValue, 3 + localDigitsBeforeCursor);
+            input.setSelectionRange(cursorPosition, cursorPosition);
+        });
+    };
+
+    const handleBalanceChange = (event) => {
+        const input = event.currentTarget;
+        const rawValue = input.value;
+        const cursorPos = input.selectionStart ?? rawValue.length;
+        const beforeCursor = rawValue.slice(0, cursorPos);
+
+        // Sanitize: faqat raqamlar va bitta nuqta
+        let cleaned = rawValue.replace(/\s/g, '').replace(/,/g, '.').replace(/[^\d.]/g, '');
+        const dotIndex = cleaned.indexOf('.');
+        if (dotIndex !== -1) {
+            cleaned = cleaned.slice(0, dotIndex + 1) + cleaned.slice(dotIndex + 1).replace(/\./g, '');
+        }
+
+        setField('balance', cleaned);
+
+        // Kursorni to'g'ri joyga qaytarish
+        const digitsBefore = beforeCursor.replace(/[^\d]/g, '').length;
+        const hasDotBefore = /[.,]/.test(beforeCursor);
+        const decimalsBefore = hasDotBefore
+            ? (beforeCursor.split(/[.,]/)[1] || '').replace(/[^\d]/g, '').length
+            : 0;
+
+        requestAnimationFrame(() => {
+            const formatted = formatBalanceDisplay(cleaned);
+            let newPos = formatted.length;
+            if (hasDotBefore) {
+                const dotPos = formatted.indexOf('.');
+                newPos = dotPos !== -1 ? dotPos + 1 + decimalsBefore : formatted.length;
+            } else {
+                let seen = 0;
+                for (let i = 0; i < formatted.length; i += 1) {
+                    if (/\d/.test(formatted[i])) {
+                        seen += 1;
+                        if (seen === digitsBefore) {
+                            newPos = i + 1;
+                            break;
+                        }
+                    }
+                }
+            }
+            input.setSelectionRange(newPos, newPos);
+        });
+    };
 
     const reset = () => setForm(initialForm);
 
@@ -66,21 +182,26 @@ export default function Create({ onCreated, compact = false, onBeforeOpen }) {
             Alert('Mijoz nomi majburiy', 'error');
             return;
         }
-        if (!PHONE_REGEX.test(form.phone.trim())) {
-            Alert('Telefon formati: +998XXXXXXXXX (9 raqam)', 'error');
+        const phone = form.phone.replace(/-/g, '').trim();
+        if (!PHONE_REGEX.test(phone)) {
+            Alert('Telefon formati: +998-XX-XXX-XX-XX', 'error');
             return;
         }
-        if (form.balance === '' || Number.isNaN(Number(form.balance))) {
+        const balanceAmount = form.balance === '' ? 0 : Number(form.balance);
+        if (!Number.isFinite(balanceAmount) || balanceAmount < 0) {
             Alert('Boshlang‘ich qoldiqni kiriting (masalan, 0)', 'error');
             return;
         }
+        const balance = balanceAmount === 0
+            ? 0
+            : form.balanceType === 'debt' ? -balanceAmount : balanceAmount;
 
         try {
             const created = await createCustomer({
                 name: form.name.trim(),
-                phone: form.phone.trim(),
+                phone,
                 summary: form.summary.trim() || null,
-                balance: Number(form.balance),
+                balance,
                 address: form.address.trim() || null,
                 inn: form.inn.trim() || null,
                 agentName: form.agentName.trim() || null,
@@ -95,6 +216,8 @@ export default function Create({ onCreated, compact = false, onBeforeOpen }) {
             Alert(error?.data?.message || 'Mijoz yaratishda xatolik', 'error');
         }
     };
+
+    const balanceTypeAccent = form.balanceType === 'debt' ? 'red' : 'green';
 
     return (
         <>
@@ -225,12 +348,11 @@ export default function Create({ onCreated, compact = false, onBeforeOpen }) {
                                                 </Field.Label>
                                                 <FormControl
                                                     value={form.phone}
-                                                    onChange={(e) => setField('phone', e.target.value)}
-                                                    placeholder="+998901234567"
+                                                    onChange={handlePhoneChange}
+                                                    placeholder="+998-99-233-55-18"
                                                     type="tel"
                                                     minH="52px"
                                                 />
-                                                <Field.HelperText color={subtitleColor}>Format: +998 va 9 raqam</Field.HelperText>
                                             </Field.Root>
 
                                             <Field.Root>
@@ -243,6 +365,133 @@ export default function Create({ onCreated, compact = false, onBeforeOpen }) {
                                                     placeholder="302123456"
                                                     minH="52px"
                                                 />
+                                            </Field.Root>
+
+                                            {/* === Boshlang'ich balans — hammasi bitta qatorda, full width === */}
+                                            <Field.Root gridColumn={{ base: 'auto', md: 'span 2' }}>
+                                                <Field.Label color={textColor} fontWeight="medium">
+                                                    <HStack gap={2}>
+                                                        <LuWallet size={16} />
+                                                        <span>Boshlang‘ich balans</span>
+                                                    </HStack>
+                                                </Field.Label>
+
+                                                <HStack gap={3} align="stretch" flexWrap="nowrap" w="full" sx={numberInputSx}>
+                                                    {/* Kredit (+) — ikonka tugma */}
+                                                    <Button
+                                                        type="button"
+                                                        onClick={() => setField('balanceType', 'credit')}
+                                                        aria-label="Kredit"
+                                                        variant="outline"
+                                                        flexShrink={0}
+                                                        h="52px"
+                                                        minW="52px"
+                                                        px={3}
+                                                        borderWidth="2px"
+                                                        borderColor={form.balanceType === 'credit' ? 'green.400' : modalBorder}
+                                                        bg={form.balanceType === 'credit'
+                                                            ? (isDark ? 'rgba(34, 197, 94, 0.15)' : 'green.50')
+                                                            : 'transparent'}
+                                                        color={form.balanceType === 'credit'
+                                                            ? (isDark ? 'green.200' : 'green.600')
+                                                            : subtitleColor}
+                                                        borderRadius="xl"
+                                                        transition="all 0.2s"
+                                                        _hover={{
+                                                            bg: form.balanceType === 'credit'
+                                                                ? (isDark ? 'rgba(34, 197, 94, 0.22)' : 'green.100')
+                                                                : (isDark ? 'whiteAlpha.50' : 'gray.50'),
+                                                            borderColor: 'green.400',
+                                                            color: isDark ? 'green.200' : 'green.600',
+                                                        }}
+                                                    >
+                                                        <HStack gap={2}>
+                                                            <LuTrendingUp size={18} />
+                                                            <Box fontWeight="bold" fontSize="sm">+</Box>
+                                                        </HStack>
+                                                    </Button>
+
+                                                    {/* Qarzdor (−) — ikonka tugma */}
+                                                    <Button
+                                                        type="button"
+                                                        onClick={() => setField('balanceType', 'debt')}
+                                                        aria-label="Qarzdor"
+                                                        variant="outline"
+                                                        flexShrink={0}
+                                                        h="52px"
+                                                        minW="52px"
+                                                        px={3}
+                                                        borderWidth="2px"
+                                                        borderColor={form.balanceType === 'debt' ? 'red.400' : modalBorder}
+                                                        bg={form.balanceType === 'debt'
+                                                            ? (isDark ? 'rgba(239, 68, 68, 0.15)' : 'red.50')
+                                                            : 'transparent'}
+                                                        color={form.balanceType === 'debt'
+                                                            ? (isDark ? 'red.200' : 'red.600')
+                                                            : subtitleColor}
+                                                        borderRadius="xl"
+                                                        transition="all 0.2s"
+                                                        _hover={{
+                                                            bg: form.balanceType === 'debt'
+                                                                ? (isDark ? 'rgba(239, 68, 68, 0.22)' : 'red.100')
+                                                                : (isDark ? 'whiteAlpha.50' : 'gray.50'),
+                                                            borderColor: 'red.400',
+                                                            color: isDark ? 'red.200' : 'red.600',
+                                                        }}
+                                                    >
+                                                        <HStack gap={2}>
+                                                            <LuTrendingDown size={18} />
+                                                            <Box fontWeight="bold" fontSize="sm">−</Box>
+                                                        </HStack>
+                                                    </Button>
+
+                                                    {/* Input + so'm suffix — full width */}
+                                                    <Box position="relative" flex="1" minW={0} w="full">
+                                                        <FormControl
+                                                            value={formatBalanceDisplay(form.balance)}
+                                                            onChange={handleBalanceChange}
+                                                            placeholder="0"
+                                                            type="text"
+                                                            inputMode="decimal"
+                                                            h="52px"
+                                                            minH="52px"
+                                                            pr="64px"
+                                                            _focus={{ borderColor: `${balanceTypeAccent}.400` }}
+                                                        />
+                                                        <Box
+                                                            position="absolute"
+                                                            right="16px"
+                                                            top="50%"
+                                                            transform="translateY(-50%)"
+                                                            fontSize="sm"
+                                                            fontWeight="medium"
+                                                            color={subtitleColor}
+                                                            pointerEvents="none"
+                                                            userSelect="none"
+                                                        >
+                                                            so‘m
+                                                        </Box>
+                                                    </Box>
+                                                </HStack>
+
+                                                {/* Preview / helper */}
+                                                <Field.HelperText color={subtitleColor} mt={2}>
+                                                    {hasValidBalance && previewAmount > 0 ? (
+                                                        <>
+                                                            Saqlanadigan balans:{' '}
+                                                            <Box
+                                                                as="span"
+                                                                fontWeight="bold"
+                                                                color={form.balanceType === 'debt' ? 'red.400' : 'green.400'}
+                                                            >
+                                                                {form.balanceType === 'debt' ? '−' : '+'}
+                                                                {formatBalanceDisplay(previewAmount)} so‘m
+                                                            </Box>
+                                                        </>
+                                                    ) : (
+                                                        "Bo‘sh qoldirsangiz — balans 0 bo‘ladi."
+                                                    )}
+                                                </Field.HelperText>
                                             </Field.Root>
 
                                             <Field.Root gridColumn={{ base: 'auto', md: 'span 2' }}>
@@ -258,8 +507,6 @@ export default function Create({ onCreated, compact = false, onBeforeOpen }) {
                                             </Field.Root>
                                         </SimpleGrid>
                                     </Box>
-
-                             
 
                                     {/* === Agent va Telegram === */}
                                     <Box>

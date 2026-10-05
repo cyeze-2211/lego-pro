@@ -10,6 +10,7 @@ import {
     Portal,
     Spinner,
     SimpleGrid,
+    Switch,
     Text,
     VStack,
     useDisclosure,
@@ -24,6 +25,8 @@ import {
     LuTriangleAlert,
     LuTag,
     LuClipboardPaste,
+    LuBoxes,
+    LuBellRing,
 } from 'react-icons/lu';
 import { useCreateProductMutation } from '../../../../store/services/product.api';
 import { useGetBrandsQuery } from '../../../../store/services/brand.api';
@@ -41,6 +44,8 @@ const EMPTY_FORM = {
     article: '',
     size: '',
     minimumLine: '',
+    piecesPerPack: '',
+    lowProductAlert: true,
     brandId: '',
 };
 
@@ -64,6 +69,14 @@ const buildFromClipboard = (clip) => ({
         clip.minimumLine !== ''
             ? String(clip.minimumLine)
             : '',
+    piecesPerPack:
+        clip.piecesPerPack !== null &&
+        clip.piecesPerPack !== undefined &&
+        clip.piecesPerPack !== ''
+            ? String(clip.piecesPerPack)
+            : '',
+    lowProductAlert:
+        typeof clip.lowProductAlert === 'boolean' ? clip.lowProductAlert : true,
     brandId: clip.brandId || '',
 });
 
@@ -155,12 +168,16 @@ export default function Create({ warehouses }) {
             name: trimmedName,
             price: Number(form.price),
             warehouseId: form.warehouseId,
+            lowProductAlert: Boolean(form.lowProductAlert),
         };
 
         if (form.article.trim()) payload.article = form.article.trim();
         if (form.size.trim()) payload.size = form.size.trim();
         if (form.minimumLine !== '' && !Number.isNaN(Number(form.minimumLine))) {
             payload.minimumLine = Number(form.minimumLine);
+        }
+        if (form.piecesPerPack !== '' && !Number.isNaN(Number(form.piecesPerPack))) {
+            payload.piecesPerPack = Number(form.piecesPerPack);
         }
         if (form.brandId) payload.brandId = form.brandId;
 
@@ -527,30 +544,119 @@ export default function Create({ warehouses }) {
                                         </SimpleGrid>
                                     </Box>
 
-                                    {/* ═══ Minimum ═══ */}
+                                    {/* ═══ Qadoq va ogohlantirish ═══ */}
                                     <Box>
-                                        {sectionHeader(<LuTriangleAlert size={16} />, 'Ogohlantirish chegarasi')}
-                                        <Field.Root>
-                                            <Field.Label color={textColor} fontWeight="medium">
-                                                <HStack gap={2}>
-                                                    <LuTriangleAlert size={16} />
-                                                    <span>Minimum qoldiq (dona)</span>
+                                        {sectionHeader(<LuBoxes size={16} />, 'Qadoq va ogohlantirish')}
+                                        <SimpleGrid columns={{ base: 1, md: 2 }} gap={5}>
+                                            <Field.Root>
+                                                <Field.Label color={textColor} fontWeight="medium">
+                                                    <HStack gap={2}>
+                                                        <LuBoxes size={16} />
+                                                        <span>Qadoqdagi dona</span>
+                                                    </HStack>
+                                                </Field.Label>
+                                                <FormControl
+                                                    type="number"
+                                                    value={form.piecesPerPack}
+                                                    onChange={(e) => setField('piecesPerPack', e.target.value)}
+                                                    placeholder="12"
+                                                    min="1"
+                                                    step="1"
+                                                    minH="52px"
+                                                    disabled={isLoading}
+                                                />
+                                                <Field.HelperText color={subtitleColor}>
+                                                    1 qadoqda nechta dona bor
+                                                </Field.HelperText>
+                                            </Field.Root>
+
+                                            <Field.Root>
+                                                <Field.Label color={textColor} fontWeight="medium">
+                                                    <HStack gap={2}>
+                                                        <LuTriangleAlert size={16} />
+                                                        <span>Minimum qoldiq (dona)</span>
+                                                    </HStack>
+                                                </Field.Label>
+                                                <FormControl
+                                                    type="number"
+                                                    value={form.minimumLine}
+                                                    onChange={(e) => setField('minimumLine', e.target.value)}
+                                                    placeholder="10"
+                                                    min="0"
+                                                    step="1"
+                                                    minH="52px"
+                                                    disabled={isLoading}
+                                                />
+                                                <Field.HelperText color={subtitleColor}>
+                                                    Qoldiq shu miqdordan tushsa — ogohlantirish
+                                                </Field.HelperText>
+                                            </Field.Root>
+                                        </SimpleGrid>
+
+                                        {/* ── Low product alert toggle ── */}
+                                        <Box
+                                            mt={5}
+                                            p={4}
+                                            borderRadius="xl"
+                                            borderWidth="1px"
+                                            borderColor={
+                                                form.lowProductAlert
+                                                    ? (isDark ? 'rgba(250, 204, 21, 0.35)' : '#FDE68A')
+                                                    : modalBorder
+                                            }
+                                            bg={
+                                                form.lowProductAlert
+                                                    ? (isDark ? 'rgba(250, 204, 21, 0.08)' : '#FEFCE8')
+                                                    : 'transparent'
+                                            }
+                                            transition="all 0.2s"
+                                        >
+                                            <HStack justify="space-between" gap={4} align="center">
+                                                <HStack gap={3} minW={0}>
+                                                    <Box
+                                                        p={2}
+                                                        borderRadius="lg"
+                                                        bg={
+                                                            form.lowProductAlert
+                                                                ? (isDark ? 'rgba(250, 204, 21, 0.15)' : '#FEF3C7')
+                                                                : (isDark ? 'rgba(148, 163, 184, 0.12)' : 'gray.100')
+                                                        }
+                                                        color={form.lowProductAlert ? accentColor : subtitleColor}
+                                                        flexShrink={0}
+                                                        transition="all 0.2s"
+                                                    >
+                                                        <LuBellRing size={18} />
+                                                    </Box>
+                                                    <VStack align="start" gap={0} minW={0}>
+                                                        <Text
+                                                            fontWeight="semibold"
+                                                            fontSize="sm"
+                                                            color={textColor}
+                                                        >
+                                                            Kam qoldiqda ogohlantirish
+                                                        </Text>
+                                                        <Text fontSize="xs" color={subtitleColor}>
+                                                            Qoldiq minimum chegaradan tushsa — xabar yuboriladi
+                                                        </Text>
+                                                    </VStack>
                                                 </HStack>
-                                            </Field.Label>
-                                            <FormControl
-                                                type="number"
-                                                value={form.minimumLine}
-                                                onChange={(e) => setField('minimumLine', e.target.value)}
-                                                placeholder="10"
-                                                min="0"
-                                                step="1"
-                                                minH="52px"
-                                                disabled={isLoading}
-                                            />
-                                            <Field.HelperText color={subtitleColor}>
-                                                Ombordagi qoldiq shu miqdordan tushsa — ogohlantirish chiqadi
-                                            </Field.HelperText>
-                                        </Field.Root>
+
+                                                <Switch.Root
+                                                    checked={form.lowProductAlert}
+                                                    onCheckedChange={(e) =>
+                                                        setField('lowProductAlert', e.checked)
+                                                    }
+                                                    disabled={isLoading}
+                                                    colorPalette="yellow"
+                                                    flexShrink={0}
+                                                >
+                                                    <Switch.HiddenInput />
+                                                    <Switch.Control>
+                                                        <Switch.Thumb />
+                                                    </Switch.Control>
+                                                </Switch.Root>
+                                            </HStack>
+                                        </Box>
                                     </Box>
 
                                     <Text fontSize="sm" color={subtitleColor}>

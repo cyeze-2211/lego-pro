@@ -117,17 +117,77 @@ const formatDate = (iso) => {
     });
 };
 
+const UZBEKISTAN_TIME_ZONE = 'Asia/Tashkent';
+
+const getUzbekistanTimeParts = (date) => {
+    const parts = new Intl.DateTimeFormat('en-GB', {
+        timeZone: UZBEKISTAN_TIME_ZONE,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hourCycle: 'h23',
+    }).formatToParts(date);
+
+    return Object.fromEntries(parts.map(({ type, value }) => [type, Number(value)]));
+};
+
+const formatApiDateTime = (date) => {
+    const pad = (value) => String(value).padStart(2, '0');
+    return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}T${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())}`;
+};
+
+const getCurrentShift = (now) => {
+    const { year, month, day, hour, minute, second } = getUzbekistanTimeParts(now);
+    const tashkentWallTime = new Date(Date.UTC(year, month - 1, day, hour, minute, second));
+    const start = new Date(tashkentWallTime);
+    const end = new Date(tashkentWallTime);
+
+    if (hour >= 8 && hour < 20) {
+        start.setUTCHours(8, 0, 0, 0);
+        end.setUTCHours(20, 0, 0, 0);
+        return { name: 'Kunduzgi smena', start, end };
+    }
+
+    if (hour >= 20) {
+        start.setUTCHours(20, 0, 0, 0);
+        end.setUTCDate(end.getUTCDate() + 1);
+        end.setUTCHours(8, 0, 0, 0);
+    } else {
+        start.setUTCDate(start.getUTCDate() - 1);
+        start.setUTCHours(20, 0, 0, 0);
+        end.setUTCHours(8, 0, 0, 0);
+    }
+
+    return { name: 'Kechki smena', start, end };
+};
+
+const formatShiftDateTime = (date) => {
+    const pad = (value) => String(value).padStart(2, '0');
+    return `${pad(date.getUTCDate())}.${pad(date.getUTCMonth() + 1)}.${date.getUTCFullYear()}, ${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}`;
+};
+
+const formatDurationMinutes = (totalMinutes) => {
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+
+    if (hours && minutes) return `${hours} soat ${minutes} daqiqa`;
+    if (hours) return `${hours} soat`;
+    return `${minutes} daqiqa`;
+};
+
+const formatDurationSeconds = (seconds = 0) =>
+    formatDurationMinutes(Math.floor((Number(seconds) || 0) / 60));
+
 const calcDuration = (startedAt, endedAt) => {
     if (!startedAt) return null;
     const start = new Date(startedAt);
     const end = endedAt ? new Date(endedAt) : new Date();
     const diffMs = end - start;
     if (diffMs < 0) return null;
-    const totalMin = Math.floor(diffMs / 60000);
-    const h = Math.floor(totalMin / 60);
-    const m = totalMin % 60;
-    if (h > 0) return `${h}s ${m}d`;
-    return `${m}d`;
+    return formatDurationMinutes(Math.floor(diffMs / 60000));
 };
 
 /* ═══════════════════════════════════════════════════════════
@@ -137,6 +197,19 @@ export default function StanokchiMachineDetail() {
     const { id } = useParams();
     const navigate = useNavigate();
     const { isDark, pageBg, cardBg, cardBorder, textColor, subtitleColor, accentColor } = useAppTheme();
+    const [currentTime] = useState(() => new Date());
+
+    const currentUzbekistanTime = getUzbekistanTimeParts(currentTime);
+    const currentShift = getCurrentShift(currentTime);
+    const shiftFromDateTime = formatApiDateTime(currentShift.start);
+    const shiftToDateTime = formatApiDateTime(new Date(Date.UTC(
+        currentUzbekistanTime.year,
+        currentUzbekistanTime.month - 1,
+        currentUzbekistanTime.day,
+        currentUzbekistanTime.hour,
+        currentUzbekistanTime.minute,
+        currentUzbekistanTime.second
+    )));
 
     /* ── Stanok ma'lumotlari ── */
     const { data: machine, isLoading: machineLoading, refetch: refetchMachine } =
@@ -153,16 +226,20 @@ export default function StanokchiMachineDetail() {
     const historyPagination = historyResult?.pagination;
     const historyTotalPages = historyPagination?.totalPages || 0;
 
-    /* ── Summary (sana filtri bilan) ── */
-    const [summaryDateFrom, setSummaryDateFrom] = useState('');
-    const [summaryDateTo, setSummaryDateTo] = useState('');
+    /* ── Joriy smena hisoboti ── */
     const [summaryStatus, setSummaryStatus] = useState(''); // '' | 'WORKING' | 'DEFECT'
 
-    const { data: summary, isLoading: summaryLoading } = useGetMachineOutputsSummaryQuery(
+    const {
+        data: summary,
+        isLoading: summaryLoading,
+        isFetching: summaryFetching,
+        isError: summaryError,
+        refetch: refetchSummary,
+    } = useGetMachineOutputsSummaryQuery(
         {
             machineId: id,
-            ...(summaryDateFrom && { fromDateTime: `${summaryDateFrom}T00:00:00` }),
-            ...(summaryDateTo && { toDateTime: `${summaryDateTo}T23:59:59` }),
+            fromDateTime: shiftFromDateTime,
+            toDateTime: shiftToDateTime,
             ...(summaryStatus && { status: summaryStatus }),
         },
         { skip: !id }
@@ -224,6 +301,7 @@ export default function StanokchiMachineDetail() {
             showToast('Ishlab chiqarish boshlandi');
             closeStartModal();
             refetchMachine();
+            refetchSummary();
         } catch (err) {
             showToast(err?.data?.message || 'Boshlashda xatolik', 'error');
         }
@@ -242,6 +320,7 @@ export default function StanokchiMachineDetail() {
             }).unwrap();
             showToast(`1 dona qayd etildi — ${machine.currentRun.productName}`);
             refetchHistory();
+            refetchSummary();
         } catch (err) {
             showToast(err?.data?.message || 'Qayd etishda xatolik', 'error');
         }
@@ -254,6 +333,7 @@ export default function StanokchiMachineDetail() {
             await stopProduction(id).unwrap();
             showToast("Ishlab chiqarish to'xtatildi");
             refetchMachine();
+            refetchSummary();
         } catch (err) {
             showToast(err?.data?.message || "To'xtatishda xatolik", 'error');
         }
@@ -286,6 +366,7 @@ export default function StanokchiMachineDetail() {
             showToast(`${task.productName} ishlab chiqarish boshlandi`);
             refetchMachine();
             refetchTasks();
+            refetchSummary();
         } catch (err) {
             showToast(err?.data?.message || 'Xatolik yuz berdi', 'error');
         } finally {
@@ -532,6 +613,7 @@ export default function StanokchiMachineDetail() {
                                                         : '✓ Normal ishlab chiqarishga o\'tildi'
                                                 );
                                                 refetchMachine();
+                                                refetchSummary();
                                             } catch (err) {
                                                 showToast(err?.data?.message || 'Xatolik yuz berdi', 'error');
                                             }
@@ -815,39 +897,32 @@ export default function StanokchiMachineDetail() {
                 {/* Header */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 px-5 py-4 border-b"
                     style={{ borderColor: cardBorder }}>
-                    <h2 className="font-bold text-base" style={{ color: textColor }}>
-                        Ishlab chiqarish hisoboti
-                    </h2>
+                    <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <h2 className="font-bold text-base" style={{ color: textColor }}>
+                                Ishlab chiqarish hisoboti
+                            </h2>
+                            <span
+                                className="rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide"
+                                style={{
+                                    background: isDark ? 'rgba(250,204,21,0.16)' : '#FEF3C7',
+                                    color: isDark ? '#FACC15' : '#92400E',
+                                    border: `1px solid ${isDark ? 'rgba(250,204,21,0.35)' : '#FDE68A'}`,
+                                }}
+                            >
+                                Hozirgi smena
+                            </span>
+                        </div>
+                        <p className="mt-1 text-sm font-semibold" style={{ color: accentColor }}>
+                            {currentShift.name}
+                        </p>
+                        <p className="mt-1 text-xs" style={{ color: subtitleColor }}>
+                            {formatShiftDateTime(currentShift.start)} – {formatShiftDateTime(currentShift.end)}
+                            {' · '}O‘zbekiston vaqti (UTC+05:00)
+                        </p>
+                    </div>
 
-                    {/* Filters */}
                     <div className="flex items-center gap-2 flex-wrap">
-                        <input
-                            type="date"
-                            value={summaryDateFrom}
-                            onChange={(e) => setSummaryDateFrom(e.target.value)}
-                            placeholder="Sanadan"
-                            className="px-3 py-1.5 rounded-lg border text-xs"
-                            style={{
-                                background: isDark ? BRAND_COLORS.darkInputBg : BRAND_COLORS.lightInputBg,
-                                borderColor: cardBorder,
-                                color: textColor,
-                                outline: 'none',
-                            }}
-                        />
-                        <span className="text-xs" style={{ color: subtitleColor }}>—</span>
-                        <input
-                            type="date"
-                            value={summaryDateTo}
-                            onChange={(e) => setSummaryDateTo(e.target.value)}
-                            placeholder="Sanagacha"
-                            className="px-3 py-1.5 rounded-lg border text-xs"
-                            style={{
-                                background: isDark ? BRAND_COLORS.darkInputBg : BRAND_COLORS.lightInputBg,
-                                borderColor: cardBorder,
-                                color: textColor,
-                                outline: 'none',
-                            }}
-                        />
                         <select
                             value={summaryStatus}
                             onChange={(e) => setSummaryStatus(e.target.value)}
@@ -864,6 +939,15 @@ export default function StanokchiMachineDetail() {
                             <option value="WORKING">Butun</option>
                             <option value="DEFECT">Brak</option>
                         </select>
+                        <button
+                            type="button"
+                            onClick={() => refetchSummary()}
+                            disabled={summaryFetching}
+                            className="px-3 py-1.5 rounded-lg border text-xs font-semibold disabled:opacity-50"
+                            style={{ color: textColor, borderColor: cardBorder }}
+                        >
+                            {summaryFetching ? 'Yuklanmoqda...' : 'Yangilash'}
+                        </button>
                     </div>
                 </div>
 
@@ -876,8 +960,8 @@ export default function StanokchiMachineDetail() {
                     </div>
                 ) : !summary ? (
                     <div className="p-5">
-                        <div className="py-8 text-center" style={{ color: subtitleColor }}>
-                            Ma&apos;lumot topilmadi
+                        <div className="py-8 text-center" style={{ color: summaryError ? (isDark ? '#FCA5A5' : '#B91C1C') : subtitleColor }}>
+                            {summaryError ? 'Smena hisobotini yuklab bo‘lmadi. Qayta urinib ko‘ring.' : 'Bu smenada ma’lumot topilmadi.'}
                         </div>
                     </div>
                 ) : (
@@ -949,8 +1033,8 @@ export default function StanokchiMachineDetail() {
                                 </p>
                                 <p className="text-3xl font-extrabold" style={{ color: isDark ? '#FACC15' : '#78350F' }}>
                                     {summary?.workedDurationSeconds
-                                        ? `${Math.floor(summary.workedDurationSeconds / 3600)}s ${Math.floor((summary.workedDurationSeconds % 3600) / 60)}d`
-                                        : '0s 0d'}
+                                        ? formatDurationSeconds(summary.workedDurationSeconds)
+                                        : '0 daqiqa'}
                                 </p>
                             </div>
 
@@ -985,8 +1069,8 @@ export default function StanokchiMachineDetail() {
                                 </p>
                                 <p className="text-3xl font-extrabold" style={{ color: isDark ? '#FCA5A5' : '#991B1B' }}>
                                     {summary?.defectDurationSeconds
-                                        ? `${Math.floor(summary.defectDurationSeconds / 3600)}s ${Math.floor((summary.defectDurationSeconds % 3600) / 60)}d`
-                                        : '0s 0d'}
+                                        ? formatDurationSeconds(summary.defectDurationSeconds)
+                                        : '0 daqiqa'}
                                 </p>
                             </div>
                         </div>
@@ -1115,14 +1199,10 @@ export default function StanokchiMachineDetail() {
                             <span className="text-xs font-medium" style={{ color: textColor }}>
                                 {machine.name}
                             </span>
-                            {summaryDateFrom && summaryDateTo && (
-                                <>
-                                    <span className="text-xs" style={{ color: subtitleColor }}>•</span>
-                                    <span className="text-xs" style={{ color: subtitleColor }}>
-                                        {summaryDateFrom} dan {summaryDateTo} gacha
-                                    </span>
-                                </>
-                            )}
+                            <span className="text-xs" style={{ color: subtitleColor }}>•</span>
+                            <span className="text-xs" style={{ color: subtitleColor }}>
+                                {currentShift.name}
+                            </span>
                             {summaryStatus && (
                                 <>
                                     <span className="text-xs" style={{ color: subtitleColor }}>•</span>
