@@ -136,6 +136,7 @@ export default function StaffStockWarehouse() {
                                         <th className="px-5 py-3">#</th>
                                         <th className="px-5 py-3">Mahsulot</th>
                                         <th className="px-5 py-3">Barcode</th>
+                                        <th className="px-5 py-3 text-center">Qadoqdagi dona</th>
                                         <th className="px-5 py-3">Oxirgi yangilanish</th>
                                         <th className="px-5 py-3 text-right">Qoldiq</th>
                                     </tr>
@@ -145,16 +146,27 @@ export default function StaffStockWarehouse() {
                                         <tr key={`${s.productId}-${s.warehouseId}`} className={`transition-colors ${rowHov}`}>
                                             <td className={`px-5 py-3.5 text-xs ${muted}`}>{page * PAGE_SIZE + idx + 1}</td>
                                             <td className={`px-5 py-3.5 font-semibold ${head}`}>{s.productName}</td>
-                                            <td className={`px-5 py-3.5 font-mono text-x ${muted}`}>
+                                            <td className={`px-5 py-3.5 font-mono text-xs ${muted}`}>
                                                 <span className="flex items-center gap-1.5">
                                                     <LuBarcode size={12} />{s.productBarcode}
                                                 </span>
                                             </td>
-                                            <td className={`px-5 py-3.5 text-x ${muted}`}>
+                                            {/* Qadoqdagi dona */}
+                                            <td className="px-5 py-3.5 text-center">
+                                                {s.productPiecesPerPack ? (
+                                                    <span className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-bold ${isDark ? 'bg-indigo-500/15 text-indigo-300' : 'bg-indigo-50 text-indigo-600'}`}>
+                                                        <LuBoxes size={12} />
+                                                        {s.productPiecesPerPack} dona
+                                                    </span>
+                                                ) : (
+                                                    <span className={`text-xs ${muted}`}>—</span>
+                                                )}
+                                            </td>
+                                            <td className={`px-5 py-3.5 text-xs ${muted}`}>
                                                 {s.lastModifiedAt ? new Date(s.lastModifiedAt).toLocaleString('uz-UZ') : '—'}
                                             </td>
                                             <td className="px-5 py-3.5 text-right">
-                                                <QtyBadge qty={s.quantity} />
+                                                <QtyBadge qty={s.quantity} piecesPerPack={s.productPiecesPerPack} />
                                             </td>
                                         </tr>
                                     ))}
@@ -174,9 +186,14 @@ export default function StaffStockWarehouse() {
                                         <div className="min-w-0">
                                             <p className={`truncate font-semibold text-sm ${head}`}>{s.productName}</p>
                                             <p className={`text-xs font-mono ${muted}`}>{s.productBarcode}</p>
+                                            {s.productPiecesPerPack && (
+                                                <p className={`text-xs mt-0.5 ${isDark ? 'text-indigo-300' : 'text-indigo-500'}`}>
+                                                    1 blok = {s.productPiecesPerPack} dona
+                                                </p>
+                                            )}
                                         </div>
                                     </div>
-                                    <QtyBadge qty={s.quantity} />
+                                    <QtyBadge qty={s.quantity} piecesPerPack={s.productPiecesPerPack} />
                                 </div>
                             ))}
                         </div>
@@ -207,15 +224,27 @@ export default function StaffStockWarehouse() {
     );
 }
 
-function QtyBadge({ qty }) {
+function QtyBadge({ qty, piecesPerPack }) {
     const cls = qty > 10
         ? 'bg-emerald-500/10 text-emerald-500'
         : qty > 0
         ? 'bg-amber-500/10 text-amber-500'
         : 'bg-rose-500/10 text-rose-500';
+
+    const packs = piecesPerPack && piecesPerPack > 0
+        ? Math.floor(qty / piecesPerPack)
+        : null;
+
     return (
-        <span className={`inline-block rounded-full px-2.5 py-1 text-xs font-bold ${cls}`}>
-            {qty} dona
-        </span>
+        <div className="inline-flex flex-col items-end gap-0.5">
+            <span className={`inline-block rounded-full px-2.5 py-1 text-xs font-bold ${cls}`}>
+                {qty} dona
+            </span>
+            {packs !== null && (
+                <span className="text-[10px] font-medium text-indigo-400">
+                    ≈ {packs} blok
+                </span>
+            )}
+        </div>
     );
 }

@@ -123,6 +123,7 @@ export default function StaffDashboard() {
                                         <th className="px-5 py-2.5">Mahsulot</th>
                                         <th className="px-5 py-2.5 hidden sm:table-cell">Barcode</th>
                                         <th className="px-5 py-2.5 hidden lg:table-cell">Ombor</th>
+                                        <th className="px-5 py-2.5 text-center">Qadoqdagi dona</th>
                                         <th className="px-5 py-2.5 text-right">Min. chiziq</th>
                                         <th className="px-5 py-2.5 text-right">Qoldiq</th>
                                     </tr>
@@ -140,13 +141,36 @@ export default function StaffDashboard() {
                                             <td className={`px-5 py-3 hidden lg:table-cell text-xs ${muted}`}>
                                                 {warehouseName[s.warehouseId] || '—'}
                                             </td>
+                                            {/* Qadoqdagi dona */}
+                                            <td className="px-5 py-3 text-center">
+                                                {s.productPiecesPerPack ? (
+                                                    <span className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-bold ${isDark ? 'bg-indigo-500/15 text-indigo-300' : 'bg-indigo-50 text-indigo-600'}`}>
+                                                        <LuBoxes size={11} />
+                                                        {s.productPiecesPerPack} dona
+                                                    </span>
+                                                ) : (
+                                                    <span className={`text-xs ${muted}`}>—</span>
+                                                )}
+                                            </td>
                                             <td className={`px-5 py-3 text-right text-xs ${muted}`}>
                                                 {formatNumber(s.productMinimumLine)} dona
                                             </td>
+                                            {/* Qoldiq — dona + blok */}
                                             <td className="px-5 py-3 text-right">
-                                                <span className="rounded-full bg-rose-500/10 px-2.5 py-1 text-xs font-bold text-rose-500">
-                                                    {formatNumber(s.quantity)} dona
-                                                </span>
+                                                <div className="inline-flex flex-col items-end gap-0.5">
+                                                    <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${
+                                                        s.quantity === 0
+                                                            ? 'bg-rose-500/10 text-rose-500'
+                                                            : 'bg-amber-500/10 text-amber-500'
+                                                    }`}>
+                                                        {formatNumber(s.quantity)} dona
+                                                    </span>
+                                                    {s.productPiecesPerPack > 0 && (
+                                                        <span className={`text-[10px] font-medium ${isDark ? 'text-indigo-300' : 'text-indigo-500'}`}>
+                                                            ≈ {Math.floor(s.quantity / s.productPiecesPerPack)} blok
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}
@@ -168,11 +192,27 @@ export default function StaffDashboard() {
                                                 min {formatNumber(s.productMinimumLine)}
                                                 {warehouseName[s.warehouseId] ? ` · ${warehouseName[s.warehouseId]}` : ''}
                                             </p>
+                                            {s.productPiecesPerPack && (
+                                                <p className={`text-xs mt-0.5 ${isDark ? 'text-indigo-300' : 'text-indigo-500'}`}>
+                                                    1 blok = {s.productPiecesPerPack} dona
+                                                </p>
+                                            )}
                                         </div>
                                     </div>
-                                    <span className="shrink-0 rounded-full bg-rose-500/10 px-2.5 py-1 text-xs font-bold text-rose-500">
-                                        {formatNumber(s.quantity)} dona
-                                    </span>
+                                    <div className="inline-flex flex-col items-end gap-0.5 shrink-0">
+                                        <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${
+                                            s.quantity === 0
+                                                ? 'bg-rose-500/10 text-rose-500'
+                                                : 'bg-amber-500/10 text-amber-500'
+                                        }`}>
+                                            {formatNumber(s.quantity)} dona
+                                        </span>
+                                        {s.productPiecesPerPack > 0 && (
+                                            <span className={`text-[10px] font-medium ${isDark ? 'text-indigo-300' : 'text-indigo-500'}`}>
+                                                ≈ {Math.floor(s.quantity / s.productPiecesPerPack)} blok
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
                             ))}
                         </div>

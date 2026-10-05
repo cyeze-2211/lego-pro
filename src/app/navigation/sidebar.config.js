@@ -2,7 +2,7 @@
 import { ROLES, PRODUCT_WAREHOUSE_ROLES, RAW_WAREHOUSE_ROLES, ZAYAVKACHI_ROLES, BUXGALTER_ROLES, KASSIR_ROLES } from '../permissions/roles';
 import {
     Boxes, ClipboardList, Cog, History, LayoutDashboard, LogIn, LogOut,
-    MonitorCog, Package, ReceiptText, ShieldCheck, UserRound, Users, Wallet, Warehouse, FileSpreadsheet,
+    MonitorCog, Package, ReceiptText, ShieldCheck, UserRound, Users, Wallet, Warehouse, FileSpreadsheet, UserCheck,
 } from 'lucide-react';
 
 // ── Manager ────────────────────────────────────────────────────────────────
@@ -16,6 +16,7 @@ export const SIDEBAR_CONFIG = [
     { label: 'Retseptlar', path: '/recipes', icon: Boxes, roles: [ROLES.MANAGER] },
     { label: 'Stanoklar', path: '/machines', icon: Cog, roles: [ROLES.MANAGER] },
     { label: 'Mijozlar', path: '/customers', icon: Users, roles: [ROLES.MANAGER] },
+    { label: 'Agentlar', path: '/customer-agents', icon: UserCheck, roles: [ROLES.MANAGER] },
     { label: 'Kassalar', path: '/cashboxes', icon: Wallet, roles: [ROLES.MANAGER] },
     { label: 'Xarajatlar', path: '/expenses', icon: ReceiptText, roles: [ROLES.MANAGER] },
     { label: 'Sverka', path: '/reconciliation', icon: FileSpreadsheet, roles: [ROLES.MANAGER] },
@@ -28,7 +29,7 @@ export const SIDEBAR_GROUPS = [
     { label: 'Asosiy', items: SIDEBAR_CONFIG.filter((i) => i.path === '/') },
     { label: 'Ishlab chiqarish', items: SIDEBAR_CONFIG.filter((i) => ['/warehouses', '/products', '/raw', '/recipes', '/machines', '/brand'].includes(i.path)) },
     { label: 'Moliya', items: SIDEBAR_CONFIG.filter((i) => ['/cashboxes', '/expenses', '/reconciliation'].includes(i.path)) },
-    { label: 'Userlar', items: SIDEBAR_CONFIG.filter((i) => ['/customers', '/orders', '/users', '/roles', '/devices'].includes(i.path)) },
+    { label: 'Userlar', items: SIDEBAR_CONFIG.filter((i) => ['/customers', '/customer-agents', '/orders', '/users', '/roles', '/devices'].includes(i.path)) },
 ];
 
 // ── Product Storekeeper ────────────────────────────────────────────────────

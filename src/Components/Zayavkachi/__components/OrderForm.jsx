@@ -67,6 +67,7 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
             id:              i.id,
             productId:      i.productId,
             productName:    i.productName,
+            productArticle: i.productArticle,
             productBarcode: i.productBarcode,
             warehouseId:    i.warehouseId,
             quantity:       i.quantity,
@@ -237,16 +238,20 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
     const addProduct = useCallback((stock, whId) => {
         setItems((prev) => {
             if (prev.find((i) => i.productId === stock.productId)) return prev;
-            // Auto-fill price: last used price for this customer > product default price
             const autoPrice = lastPriceMap[stock.productId] ?? productPriceMap[stock.productId] ?? 0;
             return [...prev, {
-                productId:      stock.productId,
-                productName:    stock.productName,
-                productBarcode: stock.productBarcode,
-                warehouseId:    whId,
-                quantity:       1,
-                unitPrice:      autoPrice,
-                _fromHistory:   lastPriceMap[stock.productId] != null,
+                productId:       stock.productId,
+                productName:     stock.productName,
+                productArticle:  stock.productArticle,
+                productBarcode:  stock.productBarcode,
+                piecesPerPack:   stock.productPiecesPerPack ?? null,
+                warehouseId:     whId,
+                quantity:        1,
+                packs:           stock.productPiecesPerPack > 0 && 1 % stock.productPiecesPerPack === 0
+                    ? 1 / stock.productPiecesPerPack
+                    : 0,
+                unitPrice:       autoPrice,
+                _fromHistory:    lastPriceMap[stock.productId] != null,
             }];
         });
     }, [lastPriceMap, productPriceMap]);
@@ -262,7 +267,13 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
     const updateQty = (id, val) => {
         const qty = parseInt(val, 10);
         if (isNaN(qty) || qty < 1) return;
-        setItems((p) => p.map((i) => i.productId === id ? { ...i, quantity: qty } : i));
+        setItems((p) => p.map((i) => {
+            if (i.productId !== id) return i;
+            const packs = i.piecesPerPack > 0 && qty % i.piecesPerPack === 0
+                ? qty / i.piecesPerPack
+                : 0;
+            return { ...i, quantity: qty, packs };
+        }));
     };
 
     const formatPriceInput = (val) => {
@@ -283,13 +294,40 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
     };
 
     const stepQty = (id, delta) => {
-        setItems((p) => p.map((i) =>
-            i.productId === id ? { ...i, quantity: Math.max(1, i.quantity + delta) } : i
-        ));
+        setItems((p) => p.map((i) => {
+            if (i.productId !== id) return i;
+            const qty = Math.max(1, i.quantity + delta);
+            const packs = i.piecesPerPack > 0 && qty % i.piecesPerPack === 0
+                ? qty / i.piecesPerPack
+                : 0;
+            return { ...i, quantity: qty, packs };
+        }));
     };
 
-    const handleWarehouseChange = (value) => {
-        setWarehouseId(value);
+    const updatePacks = (id, val) => {
+        const packs = parseInt(val, 10);
+        if (isNaN(packs) || packs < 0) return;
+        setItems((p) => p.map((i) => {
+            if (i.productId !== id) return i;
+            const qty = packs > 0 && i.piecesPerPack > 0
+                ? packs * i.piecesPerPack
+                : i.quantity;
+            return { ...i, packs, quantity: qty };
+        }));
+    };
+
+    const stepPacks = (id, delta) => {
+        setItems((p) => p.map((i) => {
+            if (i.productId !== id) return i;
+            const packs = Math.max(0, (i.packs ?? 0) + delta);
+            const qty = packs > 0 && i.piecesPerPack > 0
+                ? packs * i.piecesPerPack
+                : i.quantity;
+            return { ...i, packs, quantity: qty };
+        }));
+    };
+
+    const handleWarehouseChange = (value) => {        setWarehouseId(value);
         setFilters(EMPTY_FILTERS);
         setStockPage(0);
         setStockCache({});
@@ -794,8 +832,9 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                 <thead>
                                     <tr className={`text-left text-xs font-semibold uppercase tracking-wide ${muted} ${isDark ? 'bg-[#0f172a]/40' : 'bg-[#f8fafc]'}`}>
                                         <th className="px-5 py-3">Mahsulot</th>
-                                        <th className="px-5 py-3 w-44">Barcode</th>
+                                        <th className="px-5 py-3 w-44">Artikul</th>
                                         <th className="px-5 py-3 w-52 text-right">Narx (so&apos;m)</th>
+                                        <th className="px-5 py-3 w-36">Qadoq</th>
                                         <th className="px-5 py-3 w-52">Miqdor</th>
                                         <th className="px-5 py-3 w-44 text-right">Jami</th>
                                         <th className="px-5 py-3 w-12"></th>
@@ -839,10 +878,10 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                                 </div>
                                             </td>
 
-                                            {/* Barcode */}
+                                            {/* Article */}
                                             <td className={`px-5 py-3.5 font-mono text-xs ${muted}`}>
                                                 <span className="flex items-center gap-1.5">
-                                                    <LuBarcode size={13} />{item.productBarcode || '—'}
+                                                    <LuTag size={13} />{item.productArticle || '—'}
                                                 </span>
                                             </td>
 
@@ -900,6 +939,31 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                                         </div>
                                                     )}
                                                 </div>
+                                            </td>
+
+                                            {/* Pack count */}
+                                            <td className="px-5 py-3.5">
+                                                {item.piecesPerPack > 0 ? (
+                                                    <div className="flex items-center gap-1.5">
+                                                        <div className={`inline-flex items-center overflow-hidden rounded-xl border ${isDark ? 'border-[#334155]' : 'border-[#e2e8f0]'}`}>
+                                                            <button type="button" onClick={() => stepPacks(item.productId, -1)}
+                                                                aria-label="Qadoqni kamaytirish"
+                                                                className={`flex h-9 w-9 items-center justify-center transition-colors ${isDark ? 'bg-[#1e293b] hover:bg-[#334155] text-[#cbd5e1]' : 'bg-[#f8fafc] hover:bg-[#f1f5f9] text-[#475569]'}`}>
+                                                                <LuMinus size={14} />
+                                                            </button>
+                                                            <input type="number" min={0} value={item.packs ?? 0}
+                                                                onChange={(e) => updatePacks(item.productId, e.target.value)}
+                                                                aria-label={`Qadoq soni, ${item.productName}`}
+                                                                className={`h-9 w-14 border-x text-center text-sm font-bold outline-none ${isDark ? 'border-[#334155] bg-[#0f172a] text-white' : 'border-[#e2e8f0] bg-white text-[#0f172a]'}`}
+                                                            />
+                                                            <button type="button" onClick={() => stepPacks(item.productId, 1)}
+                                                                aria-label="Qadoqni ko'paytirish"
+                                                                className={`flex h-9 w-9 items-center justify-center transition-colors ${isDark ? 'bg-[#1e293b] hover:bg-[#334155] text-[#cbd5e1]' : 'bg-[#f8fafc] hover:bg-[#f1f5f9] text-[#475569]'}`}>
+                                                                <LuPlus size={14} />
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ) : <span className={muted}>—</span>}
                                             </td>
 
                                             {/* Qty stepper */}

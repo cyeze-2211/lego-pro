@@ -24,6 +24,7 @@ import {
     LuSend,
 } from 'react-icons/lu';
 import { useUpdateCustomerMutation } from '../../../../store/services/customer.api';
+import { useGetCustomerAgentsQuery } from '../../../../store/services/customerAgent.api';
 import { Alert } from '../../../Other/UI/Alert/Alert';
 import { useAppTheme } from '../../../../theme/tokens';
 import FormControl from '../../../ui/FormControl';
@@ -31,12 +32,13 @@ import FormControl from '../../../ui/FormControl';
 const PHONE_REGEX = /^\+998\d{9}$/;
 
 const buildInitial = (customer) => ({
-    name: customer.name || '',
-    phone: customer.phone || '+998',
-    summary: customer.summary || '',
-    address: customer.address || '',
-    inn: customer.inn || '',
-    agentName: customer.agentName || '',
+    name:          customer.name          || '',
+    phone:         customer.phone         || '+998',
+    summary:       customer.summary       || '',
+    address:       customer.address       || '',
+    inn:           customer.inn           || '',
+    agentId:       customer.agentId       || '',
+    agentName:     customer.agentName     || '',
     telegramChatId: customer.telegramChatId ? String(customer.telegramChatId) : '',
 });
 
@@ -46,6 +48,23 @@ export default function Edit({ customer }) {
     const [updateCustomer, { isLoading }] = useUpdateCustomerMutation();
     const { isDark, accentColor, cardBg, cardBorder, textColor, subtitleColor } = useAppTheme();
     const modalBorder = isDark ? cardBorder : '#94A3B8';
+
+    const { data: agentsData } = useGetCustomerAgentsQuery(
+        { size: 200 },
+        { skip: !open }
+    );
+    const agents = agentsData?.items ?? [];
+
+    // Agent tanlanganda agentName va telegramChatId ni avtomatik to'ldirish
+    const handleAgentChange = (agentId) => {
+        const found = agents.find((a) => a.id === agentId);
+        setForm((p) => ({
+            ...p,
+            agentId,
+            agentName:      found ? found.name       : '',
+            telegramChatId: found ? (found.telegramId ?? '') : '',
+        }));
+    };
 
     useEffect(() => {
         if (open) setForm(buildInitial(customer));
@@ -236,14 +255,22 @@ export default function Edit({ customer }) {
                                         <SimpleGrid columns={{ base: 1, md: 2 }} gap={5}>
                                             <Field.Root>
                                                 <Field.Label color={textColor} fontWeight="medium">
-                                                    <HStack gap={2}><LuUserCheck size={16} /><span>Agent ismi</span></HStack>
+                                                    <HStack gap={2}><LuUserCheck size={16} /><span>Agent</span></HStack>
                                                 </Field.Label>
                                                 <FormControl
-                                                    value={form.agentName}
-                                                    onChange={(e) => setField('agentName', e.target.value)}
-                                                    placeholder="Masalan, Anvar Tursunov"
+                                                    as="select"
+                                                    value={form.agentId}
+                                                    onChange={(e) => handleAgentChange(e.target.value)}
                                                     minH="52px"
-                                                />
+                                                >
+                                                    <option value="">Agent tanlang (ixtiyoriy)</option>
+                                                    {agents.map((a) => (
+                                                        <option key={a.id} value={a.id}>
+                                                            {a.name} — {a.phone}
+                                                        </option>
+                                                    ))}
+                                                </FormControl>
+                                                <Field.HelperText color={subtitleColor}>Mijozni biriktirgan agent</Field.HelperText>
                                             </Field.Root>
 
                                             <Field.Root>

@@ -108,6 +108,16 @@ export const ROUTES = [
         roles: ROLES.MANAGER,
     },
     {
+        path: '/customer-agents',
+        component: lazy(() => import('../../Components/Common/CustomerAgent')),
+        roles: ROLES.MANAGER,
+    },
+    {
+        path: '/customer-agents/:id',
+        component: lazy(() => import('../../Components/Common/CustomerAgentDetail')),
+        roles: ROLES.MANAGER,
+    },
+    {
         path: '/cashboxes',
         component: lazy(() => import('../../Components/Common/Cashbox')),
         roles: ROLES.MANAGER,
