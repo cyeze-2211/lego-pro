@@ -28,6 +28,7 @@ function HeadStanokchiLayoutInner() {
     // Sidebar state — same pattern as MainLayout
     const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 1024);
     const [mobileOpen, setMobileOpen] = useState(false);
+    const [isMobile, setIsMobile] = useState(() => window.innerWidth < 1024);
 
     // Profile dropdown
     const [openMenu, setOpenMenu] = useState(false);
@@ -35,7 +36,9 @@ function HeadStanokchiLayoutInner() {
 
     useEffect(() => {
         const onResize = () => {
-            if (window.innerWidth >= 1024) setMobileOpen(false);
+            const mobile = window.innerWidth < 1024;
+            setIsMobile(mobile);
+            if (!mobile) setMobileOpen(false);
         };
         window.addEventListener('resize', onResize);
         return () => window.removeEventListener('resize', onResize);
@@ -59,7 +62,6 @@ function HeadStanokchiLayoutInner() {
         }
     };
 
-    const isMobile = window.innerWidth < 1024;
     const effectiveSidebarOpen = isMobile ? false : sidebarOpen;
 
     const handleLogout = async () => {
@@ -82,7 +84,7 @@ function HeadStanokchiLayoutInner() {
             {/* Mobile overlay */}
             {mobileOpen && (
                 <div
-                    className="fixed inset-0 z-30 bg-black/50 lg:hidden"
+                    className="fixed inset-0 z-[45] bg-black/60 lg:hidden backdrop-blur-[2px]"
                     onClick={() => setMobileOpen(false)}
                     aria-hidden="true"
                 />
@@ -101,7 +103,7 @@ function HeadStanokchiLayoutInner() {
             >
                 {/* ── Header ── */}
                 <header
-                    className="fixed top-0 right-0 z-20 h-[72px] transition-all duration-300"
+                    className="fixed top-0 right-0 z-20 h-[60px] sm:h-[72px] transition-all duration-300"
                     style={{
                         left: isMobile ? 0 : (effectiveSidebarOpen ? 220 : 88),
                         background: headerBg,
@@ -109,13 +111,13 @@ function HeadStanokchiLayoutInner() {
                         borderBottom: headerBorder,
                     }}
                 >
-                    <div className="flex h-full items-center justify-between px-4 lg:px-3">
+                    <div className="flex h-full items-center justify-between px-3 sm:px-4 lg:px-3">
                         {/* Left: hamburger + sarlavha */}
-                        <div className="flex items-center gap-3 min-w-0">
+                        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                             <button
                                 type="button"
                                 onClick={toggleSidebar}
-                                className={`flex-shrink-0 flex h-9 w-9 items-center justify-center rounded-lg border transition-all ${
+                                className={`flex-shrink-0 flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-lg border transition-all ${
                                     isDark
                                         ? 'border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800'
                                         : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
@@ -127,24 +129,24 @@ function HeadStanokchiLayoutInner() {
 
                             {pageHeader ? (
                                 /* Sahifadan sarlavha kelgan — back button + title */
-                                <div className="flex items-center gap-2.5 min-w-0">
+                                <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
                                     {pageHeader.backTo && (
                                         <button
                                             type="button"
                                             onClick={() => navigate(pageHeader.backTo)}
-                                            className={`flex-shrink-0 flex h-8 w-8 items-center justify-center rounded-lg border transition-all duration-200 hover:scale-105 ${
+                                            className={`flex-shrink-0 flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-lg border transition-all duration-200 hover:scale-105 ${
                                                 isDark
                                                     ? 'border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800'
                                                     : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                                             }`}
                                             aria-label="Orqaga"
                                         >
-                                            <ArrowLeft className="h-4 w-4" />
+                                            <ArrowLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                         </button>
                                     )}
                                     {pageHeader.backTo && (
                                         <span
-                                            className="flex-shrink-0 w-px h-5"
+                                            className="flex-shrink-0 w-px h-4 sm:h-5"
                                             style={{
                                                 background: isDark
                                                     ? 'rgba(255,255,255,0.1)'
@@ -154,14 +156,14 @@ function HeadStanokchiLayoutInner() {
                                     )}
                                     <div className="min-w-0">
                                         <span
-                                            className="block text-sm font-bold truncate"
+                                            className="block text-xs sm:text-sm font-bold truncate max-w-[140px] sm:max-w-[260px]"
                                             style={{ color: isDark ? '#F1F5F9' : '#0F172A' }}
                                         >
                                             {pageHeader.title}
                                         </span>
                                         {pageHeader.subtitle && (
                                             <span
-                                                className="block text-xs truncate"
+                                                className="hidden sm:block text-xs truncate max-w-[260px]"
                                                 style={{ color: isDark ? '#94A3B8' : '#64748B' }}
                                             >
                                                 {pageHeader.subtitle}
@@ -172,7 +174,7 @@ function HeadStanokchiLayoutInner() {
                             ) : (
                                 /* Default: panel nomi */
                                 <span
-                                    className="text-base font-bold tracking-wide hidden sm:block"
+                                    className="text-sm sm:text-base font-bold tracking-wide hidden xs:block"
                                     style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}
                                 >
                                     Stanokchi Panel
@@ -181,12 +183,12 @@ function HeadStanokchiLayoutInner() {
                         </div>
 
                         {/* Right: theme + profile */}
-                        <div className="flex items-center gap-3 flex-shrink-0">
+                        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
                             {/* Dark/light toggle */}
                             <button
                                 type="button"
                                 onClick={toggleColorMode}
-                                className={`flex h-9 w-9 items-center justify-center rounded-lg border transition-all ${
+                                className={`flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-lg border transition-all ${
                                     isDark
                                         ? 'border-slate-700 bg-slate-900 text-amber-400 hover:bg-slate-800'
                                         : 'border-slate-200 bg-white text-amber-600 hover:bg-slate-100'
@@ -201,7 +203,7 @@ function HeadStanokchiLayoutInner() {
                                 <button
                                     type="button"
                                     onClick={() => setOpenMenu((p) => !p)}
-                                    className={`group flex items-center gap-2.5 rounded-xl border px-2.5 py-1.5 text-sm font-semibold transition-all ${
+                                    className={`group flex items-center gap-1.5 sm:gap-2.5 rounded-xl border px-2 py-1.5 sm:px-2.5 text-sm font-semibold transition-all ${
                                         isDark
                                             ? 'border-amber-400/20 bg-slate-900 text-slate-100 hover:border-amber-400/50 hover:bg-slate-800'
                                             : 'border-slate-200 bg-white text-slate-800 hover:border-amber-300 hover:bg-amber-50'
@@ -209,23 +211,23 @@ function HeadStanokchiLayoutInner() {
                                     aria-expanded={openMenu}
                                     aria-haspopup="menu"
                                 >
-                                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-400/20">
+                                    <div className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-lg bg-amber-400/20">
                                         <User className="h-4 w-4 text-amber-500" />
                                     </div>
                                     {user?.fullName && (
-                                        <span className="hidden sm:block max-w-[120px] truncate">
+                                        <span className="hidden sm:block max-w-[100px] truncate">
                                             {user.fullName}
                                         </span>
                                     )}
                                     <ChevronDown
-                                        className={`h-4 w-4 transition-transform duration-200 ${openMenu ? 'rotate-180' : ''}`}
+                                        className={`h-3.5 w-3.5 sm:h-4 sm:w-4 transition-transform duration-200 ${openMenu ? 'rotate-180' : ''}`}
                                     />
                                 </button>
 
                                 {openMenu && (
                                     <div
                                         role="menu"
-                                        className={`absolute right-0 top-[calc(100%+10px)] z-50 w-52 overflow-hidden rounded-xl border p-1.5 shadow-xl ${
+                                        className={`absolute right-0 top-[calc(100%+8px)] z-50 w-48 sm:w-52 overflow-hidden rounded-xl border p-1.5 shadow-xl ${
                                             isDark
                                                 ? 'border-slate-700 bg-[#111827] text-slate-100 shadow-black/30'
                                                 : 'border-slate-200 bg-white text-slate-800 shadow-slate-200/70'
@@ -270,7 +272,7 @@ function HeadStanokchiLayoutInner() {
                 </header>
 
                 {/* ── Main content ── */}
-                <main className="px-3 pb-8 pt-[88px] sm:px-4 md:px-6">
+                <main className="px-3 pb-8 pt-[68px] sm:pt-[80px] sm:px-4 md:px-6">
                     <Suspense fallback={<Loading />}>
                         <Outlet />
                     </Suspense>

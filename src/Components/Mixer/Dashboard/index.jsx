@@ -34,13 +34,13 @@ export default function MixerDashboard() {
     return (
         <div style={{ background: pageBg, color: textColor, minHeight: '100%' }}>
             {/* Header */}
-            <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-                <h1 className="text-2xl font-bold" style={{ color: textColor }}>Retseptlar</h1>
+            <div className="mb-5 sm:mb-6 flex flex-wrap items-center justify-between gap-3">
+                <h1 className="text-xl sm:text-2xl font-bold" style={{ color: textColor }}>Retseptlar</h1>
                 <div
                     className="flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-semibold"
                     style={{ borderColor: cardBorder, background: cardBg, color: subtitleColor }}
                 >
-                    <LuFlaskConical size={14} style={{ color: accentColor }} />
+                    <LuFlaskConical size={13} style={{ color: accentColor }} />
                     {data?.pagination?.totalElements ?? recipes.length} ta
                 </div>
             </div>
@@ -76,14 +76,14 @@ export default function MixerDashboard() {
                     </div>
 
                     {totalPages > 1 && (
-                        <div className="mt-8 flex items-center justify-center gap-3">
+                        <div className="mt-6 sm:mt-8 flex items-center justify-center gap-3">
                             <button
                                 disabled={page === 0}
                                 onClick={() => setPage((p) => p - 1)}
                                 className="rounded-xl border p-2 disabled:opacity-40 transition-all hover:opacity-70"
                                 style={{ borderColor: cardBorder, background: cardBg, color: textColor }}
                             >
-                                <LuChevronLeft size={16} />
+                                <LuChevronLeft size={15} />
                             </button>
                             <span className="text-sm" style={{ color: subtitleColor }}>
                                 {page + 1} / {totalPages}
@@ -94,7 +94,7 @@ export default function MixerDashboard() {
                                 className="rounded-xl border p-2 disabled:opacity-40 transition-all hover:opacity-70"
                                 style={{ borderColor: cardBorder, background: cardBg, color: textColor }}
                             >
-                                <LuChevronRight size={16} />
+                                <LuChevronRight size={15} />
                             </button>
                         </div>
                     )}
@@ -139,30 +139,27 @@ function RecipeCard({
             />
 
             {/* Icon */}
-            <div className="flex items-center px-4">
+            <div className="flex items-center px-3 sm:px-4">
                 <div
-                    className="flex items-center justify-center w-10 h-10 rounded-xl flex-shrink-0"
+                    className="flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex-shrink-0"
                     style={{ background: accentSoftBg }}
                 >
-                    <LuFlaskConical size={18} style={{ color: accentColor }} />
+                    <LuFlaskConical size={16} style={{ color: accentColor }} />
                 </div>
             </div>
 
-            {/* Text — name + ingredients */}
-            <div className="flex-1 py-3.5 pr-3 min-w-0 flex flex-col justify-center gap-1">
+            {/* Text */}
+            <div className="flex-1 py-3 pr-3 min-w-0 flex flex-col justify-center gap-0.5 sm:gap-1">
                 <div className="flex items-center gap-2 flex-wrap">
                     <span
-                        className="text-sm font-bold leading-tight"
+                        className="text-xs sm:text-sm font-bold leading-tight"
                         style={{ color: textColor }}
                     >
                         {recipe.name}
                     </span>
                     <span
-                        className="flex-shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full"
-                        style={{
-                            background: accentBadgeBg,
-                            color: accentColor,
-                        }}
+                        className="flex-shrink-0 text-[10px] sm:text-[11px] font-semibold px-1.5 sm:px-2 py-0.5 rounded-full"
+                        style={{ background: accentBadgeBg, color: accentColor }}
                     >
                         {items.length} ta xom ashyo
                     </span>
@@ -170,7 +167,7 @@ function RecipeCard({
 
                 {items.length > 0 && (
                     <p
-                        className="text-[11px] leading-snug"
+                        className="text-[10px] sm:text-[11px] leading-snug"
                         style={{
                             color: subtitleColor,
                             display: '-webkit-box',
@@ -185,9 +182,9 @@ function RecipeCard({
             </div>
 
             {/* Arrow */}
-            <div className="flex items-center pr-4 flex-shrink-0">
+            <div className="flex items-center pr-3 sm:pr-4 flex-shrink-0">
                 <LuArrowRight
-                    size={16}
+                    size={15}
                     className="transition-transform duration-200 group-hover:translate-x-1"
                     style={{ color: subtitleColor }}
                 />

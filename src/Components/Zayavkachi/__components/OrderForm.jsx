@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+﻿import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import PropTypes from 'prop-types';
 import {
     LuPlus, LuSearch, LuTrash2, LuPackage, LuSend, LuCheck,
@@ -394,25 +394,25 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
         <div className="flex w-full flex-col gap-4 py-2">
 
             {/* ── Header ────────────────────────────────────────────────── */}
-            <div className={`relative overflow-hidden rounded-2xl border px-5 py-4 shadow-md ${panel}`}>
+            <div className={`relative overflow-hidden rounded-2xl border px-4 py-3.5 sm:px-5 sm:py-4 shadow-md ${panel}`}>
                 <div className="absolute right-0 top-0 h-full w-1/2 bg-gradient-to-l from-amber-400/6 to-transparent" />
-                <div className="relative flex flex-wrap items-center justify-between gap-3">
+                <div className="relative flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
                     <div className="flex items-center gap-3">
-                        <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border ${badge}`}>
-                            <LuPackage size={20} />
+                        <span className={`flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl border ${badge}`}>
+                            <LuPackage size={18} />
                         </span>
                         <div>
-                            <h1 className={`text-xl font-bold tracking-tight leading-tight ${head}`}>
+                            <h1 className={`text-lg sm:text-xl font-bold tracking-tight leading-tight ${head}`}>
                                 {isEdit ? 'Buyurtmani tahrirlash' : 'Yangi buyurtma'}
                             </h1>
-                            <p className={`text-sm mt-0.5 ${muted}`}>
+                            <p className={`text-xs sm:text-sm mt-0.5 ${muted}`}>
                                 Mijoz va mahsulotlarni tanlang, miqdorni kiriting
                             </p>
                         </div>
                     </div>
                     <button type="button" onClick={onCancel}
-                        className={`flex h-12 shrink-0 items-center gap-2 rounded-xl border px-5 text-sm font-bold transition-colors ${ghostBtn}`}>
-                        <LuArrowLeft size={16} /> Buyurtmalar
+                        className={`flex h-10 sm:h-12 w-full sm:w-auto shrink-0 items-center justify-center gap-2 rounded-xl border px-4 sm:px-5 text-sm font-bold transition-colors ${ghostBtn}`}>
+                        <LuArrowLeft size={15} /> Buyurtmalar
                     </button>
                 </div>
             </div>
@@ -421,8 +421,8 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                 <div className={`rounded-2xl border shadow-md ${panel}`}>
 
                     {/* ── Mijoz + Ombor ───────────────────────────────── */}
-                    <div className="flex flex-col gap-3 px-5 pt-5 sm:flex-row sm:items-end">
-                        <div className="relative flex-1" ref={customerRef}>
+                    <div className="flex flex-col gap-3 px-4 pt-4 sm:px-5 sm:pt-5">
+                        <div className="relative" ref={customerRef}>
                             <label className={`mb-1.5 flex items-center gap-2 text-xs font-semibold ${muted}`}>
                                 <span className={stepCx}>1</span> <LuUser size={12} /> Mijoz
                             </label>
@@ -523,7 +523,7 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                     </div>
 
                     {/* ── Mahsulot qo'shish (stock dropdown) ──────────── */}
-                    <div className="px-5 pt-4">
+                    <div className="px-4 pt-3 sm:px-5 sm:pt-4">
                         <div className="relative" ref={searchRef}>
                             <label className={`mb-1.5 flex items-center gap-2 text-xs font-semibold ${muted}`}>
                                 <span className={stepCx}>3</span> Mahsulot qo&apos;shish
@@ -686,16 +686,16 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                                     <button key={`${st.productId}-${st.warehouseId}`} type="button"
                                                         onClick={() => !blocked && addProduct(st, warehouseId)}
                                                         disabled={blocked}
-                                                        className={`flex w-full items-center gap-3 px-4 py-3 text-left text-sm transition-colors ${
+                                                        className={`flex w-full items-center gap-2.5 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 text-left text-sm transition-colors ${
                                                             blocked ? 'cursor-not-allowed opacity-50'
                                                                     : isDark ? 'hover:bg-[#1e293b]' : 'hover:bg-amber-50'
                                                         }`}
                                                     >
-                                                        <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${isDark ? 'bg-[#334155]' : 'bg-[#f1f5f9]'}`}>
-                                                            <LuPackage size={16} className={muted} />
+                                                        <span className={`flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-xl ${isDark ? 'bg-[#334155]' : 'bg-[#f1f5f9]'}`}>
+                                                            <LuPackage size={15} className={muted} />
                                                         </span>
                                                         <div className="min-w-0 flex-1">
-                                                            <p className="flex items-center gap-2">
+                                                            <p className="flex flex-wrap items-center gap-1.5">
                                                                 <span className={`truncate font-semibold text-sm ${head}`}>{st.productName}</span>
                                                                 {st.productSize && (
                                                                     <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-bold ${isDark ? 'bg-white/5 text-slate-300' : 'bg-slate-100 text-slate-600'}`}>
@@ -708,9 +708,9 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                                                     </span>
                                                                 )}
                                                             </p>
-                                                            <p className={`mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs ${muted}`}>
+                                                            <p className={`mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] ${muted}`}>
                                                                 {st.productArticle && <span className="font-mono">{st.productArticle}</span>}
-                                                                <span className="flex items-center gap-1"><LuBarcode size={11} />{st.productBarcode || '—'}</span>
+                                                                <span className="hidden sm:flex items-center gap-1"><LuBarcode size={11} />{st.productBarcode || '—'}</span>
                                                                 {defPrice ? <span>{formatNumber(defPrice)} so&apos;m</span> : null}
                                                                 {lastPrice != null && (
                                                                     <span className={`flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${isDark ? 'bg-amber-400/10 text-amber-400' : 'bg-amber-50 text-amber-700'}`}>
@@ -722,12 +722,12 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
 
                                                         {/* Stock badge */}
                                                         <div className="flex shrink-0 flex-col items-end gap-0.5">
-                                                            <span className={`rounded-full border px-2.5 py-1 text-xs font-bold ${stockTone(st.quantity, isLow)}`}>
-                                                                {empty ? 'Qolmagan' : `${formatNumber(st.quantity)} dona`}
+                                                            <span className={`rounded-full border px-2 py-0.5 sm:px-2.5 sm:py-1 text-[11px] font-bold ${stockTone(st.quantity, isLow)}`}>
+                                                                {empty ? 'Qolmagan' : `${formatNumber(st.quantity)}`}
                                                             </span>
                                                             {isLow && !empty && (
-                                                                <span className="text-[10px] font-semibold text-amber-500">
-                                                                    Kam qolgan · min {formatNumber(st.productMinimumLine)}
+                                                                <span className="hidden sm:block text-[10px] font-semibold text-amber-500">
+                                                                    Kam · min {formatNumber(st.productMinimumLine)}
                                                                 </span>
                                                             )}
                                                         </div>
@@ -786,7 +786,7 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                     </div>
 
                     {/* ── Izoh ────────────────────────────────────────── */}
-                    <div className="px-5 pb-5 pt-4">
+                    <div className="px-4 pb-4 pt-3 sm:px-5 sm:pb-5 sm:pt-4">
                         <label className={`mb-1.5 flex items-center gap-2 text-xs font-semibold ${muted}`}>
                             <LuStickyNote size={12} /> Izoh <span className="font-normal">(ixtiyoriy)</span>
                         </label>
@@ -800,7 +800,7 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                     </div>
 
                     {/* ── Tanlanganlar ────────────────────────────────── */}
-                    <div className={`flex flex-wrap items-center justify-between gap-3 border-t px-5 py-3.5 ${line}`}>
+                    <div className={`flex flex-wrap items-center justify-between gap-3 border-t px-4 py-3 sm:px-5 sm:py-3.5 ${line}`}>
                         <div className="flex items-center gap-2">
                             <span className={stepCx}>4</span>
                             <h2 className={`text-sm font-bold ${head}`}>Tanlangan mahsulotlar</h2>
@@ -827,198 +827,355 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                             </div>
                         </div>
                     ) : (
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
-                                <thead>
-                                    <tr className={`text-left text-xs font-semibold uppercase tracking-wide ${muted} ${isDark ? 'bg-[#0f172a]/40' : 'bg-[#f8fafc]'}`}>
-                                        <th className="px-5 py-3">Mahsulot</th>
-                                        <th className="px-5 py-3 w-44">Artikul</th>
-                                        <th className="px-5 py-3 w-52 text-right">Narx (so&apos;m)</th>
-                                        <th className="px-5 py-3 w-36">Qadoq</th>
-                                        <th className="px-5 py-3 w-52">Miqdor</th>
-                                        <th className="px-5 py-3 w-44 text-right">Jami</th>
-                                        <th className="px-5 py-3 w-12"></th>
-                                    </tr>
-                                </thead>
-                                <tbody className={`divide-y ${divider}`}>
-                                    {items.map((item, idx) => {
-                                        const lastPrice = lastPriceMap[item.productId];
-                                        const hasLastPrice = lastPrice != null;
-                                        const priceChanged = hasLastPrice && item.unitPrice !== lastPrice;
-                                        const stockQty = stockMap[item.productId];
-                                        const overStock = stockQty != null && item.quantity > stockQty;
-                                        return (
-                                        <tr key={item.productId} className={`transition-colors ${rowBg}`}>
-                                            {/* Product name */}
-                                            <td className="px-5 py-3.5">
-                                                <div className="flex items-center gap-3">
-                                                    <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${isDark ? 'bg-white/5 text-slate-400' : 'bg-slate-100 text-slate-500'}`}>
-                                                        {idx + 1}
-                                                    </span>
-                                                    <div>
-                                                        <p className={`font-semibold leading-tight ${head}`}>{item.productName}</p>
-                                                        {hasLastPrice && (
-                                                            <p className={`text-xs mt-0.5 flex items-center gap-1 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
-                                                                <LuTag size={10} />
-                                                                Oxirgi: {formatNumber(lastPrice)} so&apos;m
-                                                            </p>
-                                                        )}
-                                                        {stockQty != null && (
-                                                            <p className={`text-xs mt-0.5 flex items-center gap-1 font-semibold ${overStock ? 'text-red-500' : muted}`}>
-                                                                <LuBoxes size={10} />
-                                                                Omborda: {formatNumber(stockQty)} dona{overStock ? ' — yetarli emas!' : ''}
-                                                            </p>
-                                                        )}
-                                                    </div>
-                                                    {item._fromHistory && !priceChanged && (
-                                                        <span className={`ml-1 flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${isDark ? 'bg-green-500/10 text-green-400' : 'bg-green-50 text-green-700'}`}>
-                                                            <LuCheck size={9} /> Tarix
+                        <>
+                            {/* ── Desktop table ── */}
+                            <div className="hidden md:block overflow-x-auto">
+                                <table className="w-full text-sm">
+                                    <thead>
+                                        <tr className={`text-left text-xs font-semibold uppercase tracking-wide ${muted} ${isDark ? 'bg-[#0f172a]/40' : 'bg-[#f8fafc]'}`}>
+                                            <th className="px-5 py-3">Mahsulot</th>
+                                            <th className="px-5 py-3 w-44">Artikul</th>
+                                            <th className="px-5 py-3 w-52 text-right">Narx (so&apos;m)</th>
+                                            <th className="px-5 py-3 w-36">Qadoq</th>
+                                            <th className="px-5 py-3 w-52">Miqdor</th>
+                                            <th className="px-5 py-3 w-44 text-right">Jami</th>
+                                            <th className="px-5 py-3 w-12"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className={`divide-y ${divider}`}>
+                                        {items.map((item, idx) => {
+                                            const lastPrice = lastPriceMap[item.productId];
+                                            const hasLastPrice = lastPrice != null;
+                                            const priceChanged = hasLastPrice && item.unitPrice !== lastPrice;
+                                            const stockQty = stockMap[item.productId];
+                                            const overStock = stockQty != null && item.quantity > stockQty;
+                                            return (
+                                            <tr key={item.productId} className={`transition-colors ${rowBg}`}>
+                                                {/* Product name */}
+                                                <td className="px-5 py-3.5">
+                                                    <div className="flex items-center gap-3">
+                                                        <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${isDark ? 'bg-white/5 text-slate-400' : 'bg-slate-100 text-slate-500'}`}>
+                                                            {idx + 1}
                                                         </span>
-                                                    )}
-                                                </div>
-                                            </td>
-
-                                            {/* Article */}
-                                            <td className={`px-5 py-3.5 font-mono text-xs ${muted}`}>
-                                                <span className="flex items-center gap-1.5">
-                                                    <LuTag size={13} />{item.productArticle || '—'}
-                                                </span>
-                                            </td>
-
-                                            {/* Price input */}
-                                            <td className="px-5 py-3.5">
-                                                <div className="flex flex-col items-end gap-1">
-                                                    {canEditPrice ? (
-                                                        <>
-                                                            <div className="relative">
-                                                                <input
-                                                                    type="text"
-                                                                    inputMode="decimal"
-                                                                    value={
-                                                                        item._priceRaw !== undefined
-                                                                            ? (() => {
-                                                                                const r = item._priceRaw;
-                                                                                if (r === '' || r.endsWith('.')) return r;
-                                                                                const [int, dec] = r.split('.');
-                                                                                const fmt = Number(int).toLocaleString('ru-RU').replace(/\u00A0/g, ' ');
-                                                                                return dec !== undefined ? `${fmt}.${dec}` : fmt;
-                                                                            })()
-                                                                            : formatPriceInput(item.unitPrice)
-                                                                    }
-                                                                    onChange={(e) => handlePriceInput(item.productId, e)}
-                                                                    aria-label="Narxni tahrirlash"
-                                                                    className={`w-40 rounded-xl border px-3 pr-9 h-9 text-right text-sm font-semibold outline-none transition-all duration-200 ${fieldCx}`}
-                                                                />
-                                                                <span className={`pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs ${muted}`}>
-                                                                    so&apos;m
-                                                                </span>
-                                                            </div>
-                                                            {hasLastPrice && priceChanged && (
-                                                                <button
-                                                                    type="button"
-                                                                    title={`Oxirgi narxga qaytarish: ${formatNumber(lastPrice)} so'm`}
-                                                                    onClick={() => setItems((p) => p.map((i) =>
-                                                                        i.productId === item.productId
-                                                                            ? { ...i, unitPrice: lastPrice, _priceRaw: undefined, _fromHistory: true }
-                                                                            : i
-                                                                    ))}
-                                                                    className={`flex items-center gap-1 text-[10px] font-semibold transition-colors ${isDark ? 'text-amber-400/70 hover:text-amber-400' : 'text-amber-600/70 hover:text-amber-600'}`}
-                                                                >
-                                                                    ↩ {formatNumber(lastPrice)} so&apos;m ga qaytarish
-                                                                </button>
-                                                            )}
-                                                        </>
-                                                    ) : (
-                                                        <div className="text-right">
-                                                            <p className={`font-bold text-sm ${head}`}>{formatNumber(item.unitPrice ?? 0)} so&apos;m</p>
-                                                            {hasLastPrice && priceChanged && (
-                                                                <p className={`text-[10px] mt-0.5 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                                                        <div>
+                                                            <p className={`font-semibold leading-tight ${head}`}>{item.productName}</p>
+                                                            {hasLastPrice && (
+                                                                <p className={`text-xs mt-0.5 flex items-center gap-1 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                                                                    <LuTag size={10} />
                                                                     Oxirgi: {formatNumber(lastPrice)} so&apos;m
                                                                 </p>
                                                             )}
+                                                            {stockQty != null && (
+                                                                <p className={`text-xs mt-0.5 flex items-center gap-1 font-semibold ${overStock ? 'text-red-500' : muted}`}>
+                                                                    <LuBoxes size={10} />
+                                                                    Omborda: {formatNumber(stockQty)} dona{overStock ? ' — yetarli emas!' : ''}
+                                                                </p>
+                                                            )}
                                                         </div>
-                                                    )}
-                                                </div>
-                                            </td>
+                                                        {item._fromHistory && !priceChanged && (
+                                                            <span className={`ml-1 flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${isDark ? 'bg-green-500/10 text-green-400' : 'bg-green-50 text-green-700'}`}>
+                                                                <LuCheck size={9} /> Tarix
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </td>
 
-                                            {/* Pack count */}
-                                            <td className="px-5 py-3.5">
-                                                {item.piecesPerPack > 0 ? (
-                                                    <div className="flex items-center gap-1.5">
-                                                        <div className={`inline-flex items-center overflow-hidden rounded-xl border ${isDark ? 'border-[#334155]' : 'border-[#e2e8f0]'}`}>
-                                                            <button type="button" onClick={() => stepPacks(item.productId, -1)}
-                                                                aria-label="Qadoqni kamaytirish"
+                                                {/* Article */}
+                                                <td className={`px-5 py-3.5 font-mono text-xs ${muted}`}>
+                                                    <span className="flex items-center gap-1.5">
+                                                        <LuTag size={13} />{item.productArticle || '—'}
+                                                    </span>
+                                                </td>
+
+                                                {/* Price input */}
+                                                <td className="px-5 py-3.5">
+                                                    <div className="flex flex-col items-end gap-1">
+                                                        {canEditPrice ? (
+                                                            <>
+                                                                <div className="relative">
+                                                                    <input
+                                                                        type="text"
+                                                                        inputMode="decimal"
+                                                                        value={
+                                                                            item._priceRaw !== undefined
+                                                                                ? (() => {
+                                                                                    const r = item._priceRaw;
+                                                                                    if (r === '' || r.endsWith('.')) return r;
+                                                                                    const [int, dec] = r.split('.');
+                                                                                    const fmt = Number(int).toLocaleString('ru-RU').replace(/\u00A0/g, ' ');
+                                                                                    return dec !== undefined ? `${fmt}.${dec}` : fmt;
+                                                                                })()
+                                                                                : formatPriceInput(item.unitPrice)
+                                                                        }
+                                                                        onChange={(e) => handlePriceInput(item.productId, e)}
+                                                                        aria-label="Narxni tahrirlash"
+                                                                        className={`w-40 rounded-xl border px-3 pr-9 h-9 text-right text-sm font-semibold outline-none transition-all duration-200 ${fieldCx}`}
+                                                                    />
+                                                                    <span className={`pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs ${muted}`}>
+                                                                        so&apos;m
+                                                                    </span>
+                                                                </div>
+                                                                {hasLastPrice && priceChanged && (
+                                                                    <button
+                                                                        type="button"
+                                                                        title={`Oxirgi narxga qaytarish: ${formatNumber(lastPrice)} so'm`}
+                                                                        onClick={() => setItems((p) => p.map((i) =>
+                                                                            i.productId === item.productId
+                                                                                ? { ...i, unitPrice: lastPrice, _priceRaw: undefined, _fromHistory: true }
+                                                                                : i
+                                                                        ))}
+                                                                        className={`flex items-center gap-1 text-[10px] font-semibold transition-colors ${isDark ? 'text-amber-400/70 hover:text-amber-400' : 'text-amber-600/70 hover:text-amber-600'}`}
+                                                                    >
+                                                                        ↩ {formatNumber(lastPrice)} so&apos;m ga qaytarish
+                                                                    </button>
+                                                                )}
+                                                            </>
+                                                        ) : (
+                                                            <div className="text-right">
+                                                                <p className={`font-bold text-sm ${head}`}>{formatNumber(item.unitPrice ?? 0)} so&apos;m</p>
+                                                                {hasLastPrice && priceChanged && (
+                                                                    <p className={`text-[10px] mt-0.5 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                                                                        Oxirgi: {formatNumber(lastPrice)} so&apos;m
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </td>
+
+                                                {/* Pack count */}
+                                                <td className="px-5 py-3.5">
+                                                    {item.piecesPerPack > 0 ? (
+                                                        <div className="flex items-center gap-1.5">
+                                                            <div className={`inline-flex items-center overflow-hidden rounded-xl border ${isDark ? 'border-[#334155]' : 'border-[#e2e8f0]'}`}>
+                                                                <button type="button" onClick={() => stepPacks(item.productId, -1)}
+                                                                    aria-label="Qadoqni kamaytirish"
+                                                                    className={`flex h-9 w-9 items-center justify-center transition-colors ${isDark ? 'bg-[#1e293b] hover:bg-[#334155] text-[#cbd5e1]' : 'bg-[#f8fafc] hover:bg-[#f1f5f9] text-[#475569]'}`}>
+                                                                    <LuMinus size={14} />
+                                                                </button>
+                                                                <input type="number" min={0} value={item.packs ?? 0}
+                                                                    onChange={(e) => updatePacks(item.productId, e.target.value)}
+                                                                    aria-label={`Qadoq soni, ${item.productName}`}
+                                                                    className={`h-9 w-14 border-x text-center text-sm font-bold outline-none ${isDark ? 'border-[#334155] bg-[#0f172a] text-white' : 'border-[#e2e8f0] bg-white text-[#0f172a]'}`}
+                                                                />
+                                                                <button type="button" onClick={() => stepPacks(item.productId, 1)}
+                                                                    aria-label="Qadoqni ko'paytirish"
+                                                                    className={`flex h-9 w-9 items-center justify-center transition-colors ${isDark ? 'bg-[#1e293b] hover:bg-[#334155] text-[#cbd5e1]' : 'bg-[#f8fafc] hover:bg-[#f1f5f9] text-[#475569]'}`}>
+                                                                    <LuPlus size={14} />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    ) : <span className={muted}>—</span>}
+                                                </td>
+
+                                                {/* Qty stepper */}
+                                                <td className="px-5 py-3.5">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className={`inline-flex items-center rounded-xl border overflow-hidden ${overStock ? 'border-red-400' : isDark ? 'border-[#334155]' : 'border-[#e2e8f0]'}`}>
+                                                            <button type="button" onClick={() => stepQty(item.productId, -1)}
+                                                                aria-label="Kamaytirish"
                                                                 className={`flex h-9 w-9 items-center justify-center transition-colors ${isDark ? 'bg-[#1e293b] hover:bg-[#334155] text-[#cbd5e1]' : 'bg-[#f8fafc] hover:bg-[#f1f5f9] text-[#475569]'}`}>
                                                                 <LuMinus size={14} />
                                                             </button>
-                                                            <input type="number" min={0} value={item.packs ?? 0}
-                                                                onChange={(e) => updatePacks(item.productId, e.target.value)}
-                                                                aria-label={`Qadoq soni, ${item.productName}`}
-                                                                className={`h-9 w-14 border-x text-center text-sm font-bold outline-none ${isDark ? 'border-[#334155] bg-[#0f172a] text-white' : 'border-[#e2e8f0] bg-white text-[#0f172a]'}`}
+                                                            <input type="number" min={1} value={item.quantity}
+                                                                onChange={(e) => updateQty(item.productId, e.target.value)}
+                                                                className={`h-9 w-16 border-x text-center text-sm font-bold outline-none ${isDark ? 'border-[#334155] bg-[#0f172a] text-white' : 'border-[#e2e8f0] bg-white text-[#0f172a]'}`}
                                                             />
-                                                            <button type="button" onClick={() => stepPacks(item.productId, 1)}
-                                                                aria-label="Qadoqni ko'paytirish"
+                                                            <button type="button" onClick={() => stepQty(item.productId, 1)}
+                                                                aria-label="Ko'paytirish"
                                                                 className={`flex h-9 w-9 items-center justify-center transition-colors ${isDark ? 'bg-[#1e293b] hover:bg-[#334155] text-[#cbd5e1]' : 'bg-[#f8fafc] hover:bg-[#f1f5f9] text-[#475569]'}`}>
                                                                 <LuPlus size={14} />
                                                             </button>
                                                         </div>
+                                                        <span className={`text-xs font-medium ${muted}`}>dona</span>
                                                     </div>
-                                                ) : <span className={muted}>—</span>}
-                                            </td>
+                                                </td>
 
-                                            {/* Qty stepper */}
-                                            <td className="px-5 py-3.5">
-                                                <div className="flex items-center gap-2">
-                                                    <div className={`inline-flex items-center rounded-xl border overflow-hidden ${overStock ? 'border-red-400' : isDark ? 'border-[#334155]' : 'border-[#e2e8f0]'}`}>
+                                                {/* Line total */}
+                                                <td className="px-5 py-3.5 text-right">
+                                                    <p className={`font-bold text-sm ${head}`}>
+                                                        {formatNumber(item.quantity * (item.unitPrice ?? 0))} so&apos;m
+                                                    </p>
+                                                    {item.quantity > 1 && (
+                                                        <p className={`text-xs mt-0.5 ${muted}`}>
+                                                            {item.quantity} × {formatNumber(item.unitPrice ?? 0)}
+                                                        </p>
+                                                    )}
+                                                </td>
+
+                                                {/* Delete */}
+                                                <td className="px-3 py-3.5 text-right">
+                                                    <button type="button" onClick={() => removeItem(item.productId)}
+                                                        aria-label="O'chirish"
+                                                        className={`flex h-9 w-9 items-center justify-center rounded-xl transition-colors ${isDark ? 'text-[#64748b] hover:bg-red-500/10 hover:text-red-400' : 'text-[#94a3b8] hover:bg-red-50 hover:text-red-500'}`}>
+                                                        <LuTrash2 size={15} />
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {/* ── Mobile card list ── */}
+                            <div className={`flex flex-col divide-y md:hidden ${divider}`}>
+                                {items.map((item, idx) => {
+                                    const lastPrice = lastPriceMap[item.productId];
+                                    const hasLastPrice = lastPrice != null;
+                                    const priceChanged = hasLastPrice && item.unitPrice !== lastPrice;
+                                    const stockQty = stockMap[item.productId];
+                                    const overStock = stockQty != null && item.quantity > stockQty;
+                                    return (
+                                        <div key={item.productId} className={`px-4 py-3.5 transition-colors ${rowBg}`}>
+                                            {/* Top: index + name + delete */}
+                                            <div className="flex items-start gap-2.5 mb-3">
+                                                <span className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${isDark ? 'bg-white/5 text-slate-400' : 'bg-slate-100 text-slate-500'}`}>
+                                                    {idx + 1}
+                                                </span>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className={`font-semibold text-sm leading-tight ${head}`}>{item.productName}</p>
+                                                    {item.productArticle && (
+                                                        <p className={`text-xs font-mono mt-0.5 ${muted}`}>{item.productArticle}</p>
+                                                    )}
+                                                    {hasLastPrice && (
+                                                        <p className={`text-xs mt-0.5 flex items-center gap-1 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                                                            <LuTag size={9} /> Oxirgi: {formatNumber(lastPrice)} so&apos;m
+                                                        </p>
+                                                    )}
+                                                    {stockQty != null && (
+                                                        <p className={`text-xs mt-0.5 flex items-center gap-1 font-semibold ${overStock ? 'text-red-500' : muted}`}>
+                                                            <LuBoxes size={9} />
+                                                            Omborda: {formatNumber(stockQty)} dona{overStock ? ' — yetarli emas!' : ''}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                                <button type="button" onClick={() => removeItem(item.productId)}
+                                                    aria-label="O'chirish"
+                                                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition-colors ${isDark ? 'text-[#64748b] hover:bg-red-500/10 hover:text-red-400' : 'text-[#94a3b8] hover:bg-red-50 hover:text-red-500'}`}>
+                                                    <LuTrash2 size={15} />
+                                                </button>
+                                            </div>
+
+                                            {/* Narx */}
+                                            <div className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5 mb-2.5 ${isDark ? 'border-[#334155] bg-[#1e293b]/40' : 'border-[#e2e8f0] bg-[#f8fafc]'}`}>
+                                                <span className={`text-xs font-semibold ${muted}`}>Narx</span>
+                                                {canEditPrice ? (
+                                                    <div className="relative">
+                                                        <input
+                                                            type="text"
+                                                            inputMode="decimal"
+                                                            value={
+                                                                item._priceRaw !== undefined
+                                                                    ? (() => {
+                                                                        const r = item._priceRaw;
+                                                                        if (r === '' || r.endsWith('.')) return r;
+                                                                        const [int, dec] = r.split('.');
+                                                                        const fmt = Number(int).toLocaleString('ru-RU').replace(/\u00A0/g, ' ');
+                                                                        return dec !== undefined ? `${fmt}.${dec}` : fmt;
+                                                                    })()
+                                                                    : formatPriceInput(item.unitPrice)
+                                                            }
+                                                            onChange={(e) => handlePriceInput(item.productId, e)}
+                                                            aria-label="Narxni tahrirlash"
+                                                            className={`w-36 rounded-lg border px-3 pr-9 h-8 text-right text-sm font-semibold outline-none transition-all duration-200 ${fieldCx}`}
+                                                        />
+                                                        <span className={`pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs ${muted}`}>
+                                                            so&apos;m
+                                                        </span>
+                                                    </div>
+                                                ) : (
+                                                    <span className={`font-bold text-sm ${head}`}>
+                                                        {formatNumber(item.unitPrice ?? 0)} so&apos;m
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            {/* Miqdor + Qadoq */}
+                                            <div className="grid grid-cols-2 gap-2 mb-2.5">
+                                                {/* Dona */}
+                                                <div className={`flex flex-col gap-1.5 rounded-xl border px-3 py-2.5 ${overStock ? (isDark ? 'border-red-400/40 bg-red-500/5' : 'border-red-200 bg-red-50/50') : isDark ? 'border-[#334155] bg-[#1e293b]/40' : 'border-[#e2e8f0] bg-[#f8fafc]'}`}>
+                                                    <span className={`text-[11px] font-semibold ${muted}`}>Dona</span>
+                                                    <div className={`inline-flex items-center rounded-lg border overflow-hidden w-full ${overStock ? 'border-red-400' : isDark ? 'border-[#334155]' : 'border-[#e2e8f0]'}`}>
                                                         <button type="button" onClick={() => stepQty(item.productId, -1)}
                                                             aria-label="Kamaytirish"
-                                                            className={`flex h-9 w-9 items-center justify-center transition-colors ${isDark ? 'bg-[#1e293b] hover:bg-[#334155] text-[#cbd5e1]' : 'bg-[#f8fafc] hover:bg-[#f1f5f9] text-[#475569]'}`}>
-                                                            <LuMinus size={14} />
+                                                            className={`flex h-8 w-8 shrink-0 items-center justify-center transition-colors ${isDark ? 'bg-[#1e293b] hover:bg-[#334155] text-[#cbd5e1]' : 'bg-white hover:bg-[#f1f5f9] text-[#475569]'}`}>
+                                                            <LuMinus size={13} />
                                                         </button>
                                                         <input type="number" min={1} value={item.quantity}
                                                             onChange={(e) => updateQty(item.productId, e.target.value)}
-                                                            className={`h-9 w-16 border-x text-center text-sm font-bold outline-none ${isDark ? 'border-[#334155] bg-[#0f172a] text-white' : 'border-[#e2e8f0] bg-white text-[#0f172a]'}`}
+                                                            className={`h-8 flex-1 min-w-0 border-x text-center text-sm font-bold outline-none ${isDark ? 'border-[#334155] bg-[#0f172a] text-white' : 'border-[#e2e8f0] bg-white text-[#0f172a]'}`}
                                                         />
                                                         <button type="button" onClick={() => stepQty(item.productId, 1)}
                                                             aria-label="Ko'paytirish"
-                                                            className={`flex h-9 w-9 items-center justify-center transition-colors ${isDark ? 'bg-[#1e293b] hover:bg-[#334155] text-[#cbd5e1]' : 'bg-[#f8fafc] hover:bg-[#f1f5f9] text-[#475569]'}`}>
-                                                            <LuPlus size={14} />
+                                                            className={`flex h-8 w-8 shrink-0 items-center justify-center transition-colors ${isDark ? 'bg-[#1e293b] hover:bg-[#334155] text-[#cbd5e1]' : 'bg-white hover:bg-[#f1f5f9] text-[#475569]'}`}>
+                                                            <LuPlus size={13} />
                                                         </button>
                                                     </div>
-                                                    <span className={`text-xs font-medium ${muted}`}>dona</span>
                                                 </div>
-                                            </td>
 
-                                            {/* Line total */}
-                                            <td className="px-5 py-3.5 text-right">
-                                                <p className={`font-bold text-sm ${head}`}>
-                                                    {formatNumber(item.quantity * (item.unitPrice ?? 0))} so&apos;m
-                                                </p>
-                                                {item.quantity > 1 && (
-                                                    <p className={`text-xs mt-0.5 ${muted}`}>
-                                                        {item.quantity} × {formatNumber(item.unitPrice ?? 0)}
-                                                    </p>
+                                                {/* Qadoq */}
+                                                <div className={`flex flex-col gap-1.5 rounded-xl border px-3 py-2.5 ${isDark ? 'border-[#334155] bg-[#1e293b]/40' : 'border-[#e2e8f0] bg-[#f8fafc]'} ${!item.piecesPerPack ? 'opacity-40' : ''}`}>
+                                                    <span className={`text-[11px] font-semibold ${muted}`}>
+                                                        Blok {item.piecesPerPack ? `(1=${item.piecesPerPack}d)` : ''}
+                                                    </span>
+                                                    {item.piecesPerPack > 0 ? (
+                                                        <div className={`inline-flex items-center rounded-lg border overflow-hidden w-full ${isDark ? 'border-[#334155]' : 'border-[#e2e8f0]'}`}>
+                                                            <button type="button" onClick={() => stepPacks(item.productId, -1)}
+                                                                aria-label="Qadoqni kamaytirish"
+                                                                className={`flex h-8 w-8 shrink-0 items-center justify-center transition-colors ${isDark ? 'bg-[#1e293b] hover:bg-[#334155] text-[#cbd5e1]' : 'bg-white hover:bg-[#f1f5f9] text-[#475569]'}`}>
+                                                                <LuMinus size={13} />
+                                                            </button>
+                                                            <input type="number" min={0} value={item.packs ?? 0}
+                                                                onChange={(e) => updatePacks(item.productId, e.target.value)}
+                                                                aria-label={`Qadoq soni, ${item.productName}`}
+                                                                className={`h-8 flex-1 min-w-0 border-x text-center text-sm font-bold outline-none ${isDark ? 'border-[#334155] bg-[#0f172a] text-white' : 'border-[#e2e8f0] bg-white text-[#0f172a]'}`}
+                                                            />
+                                                            <button type="button" onClick={() => stepPacks(item.productId, 1)}
+                                                                aria-label="Qadoqni ko'paytirish"
+                                                                className={`flex h-8 w-8 shrink-0 items-center justify-center transition-colors ${isDark ? 'bg-[#1e293b] hover:bg-[#334155] text-[#cbd5e1]' : 'bg-white hover:bg-[#f1f5f9] text-[#475569]'}`}>
+                                                                <LuPlus size={13} />
+                                                            </button>
+                                                        </div>
+                                                    ) : (
+                                                        <span className={`text-xs ${muted}`}>Blok yo&apos;q</span>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* Jami summa */}
+                                            <div className="flex items-center justify-between">
+                                                {item._fromHistory && !priceChanged && (
+                                                    <span className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${isDark ? 'bg-green-500/10 text-green-400' : 'bg-green-50 text-green-700'}`}>
+                                                        <LuCheck size={9} /> Tarixdan narx
+                                                    </span>
                                                 )}
-                                            </td>
-
-                                            {/* Delete */}
-                                            <td className="px-3 py-3.5 text-right">
-                                                <button type="button" onClick={() => removeItem(item.productId)}
-                                                    aria-label="O'chirish"
-                                                    className={`flex h-9 w-9 items-center justify-center rounded-xl transition-colors ${isDark ? 'text-[#64748b] hover:bg-red-500/10 hover:text-red-400' : 'text-[#94a3b8] hover:bg-red-50 hover:text-red-500'}`}>
-                                                    <LuTrash2 size={15} />
-                                                </button>
-                                            </td>
-                                        </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
-                        </div>
+                                                {canEditPrice && hasLastPrice && priceChanged && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setItems((p) => p.map((i) =>
+                                                            i.productId === item.productId
+                                                                ? { ...i, unitPrice: lastPrice, _priceRaw: undefined, _fromHistory: true }
+                                                                : i
+                                                        ))}
+                                                        className={`flex items-center gap-1 text-[10px] font-semibold transition-colors ${isDark ? 'text-amber-400/70 hover:text-amber-400' : 'text-amber-600/70 hover:text-amber-600'}`}
+                                                    >
+                                                        ↩ {formatNumber(lastPrice)} so&apos;m
+                                                    </button>
+                                                )}
+                                                <span className={`ml-auto font-bold text-sm ${head}`}>
+                                                    {formatNumber(item.quantity * (item.unitPrice ?? 0))} so&apos;m
+                                                </span>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </>
                     )}
 
                     {/* ── Footer ──────────────────────────────────────── */}
-                    <div className={`flex flex-wrap items-center justify-between gap-3 border-t px-5 py-4 ${line}`}>
+                    <div className={`flex flex-col gap-3 border-t px-4 py-3.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:px-5 sm:py-4 ${line}`}>
                         <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
                             <span className={`text-sm ${muted}`}>
                                 Jami: <span className={`font-bold ${head}`}>{items.length} ta mahsulot</span>
@@ -1037,12 +1194,12 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                         </div>
                         <div className="flex items-center gap-2">
                             <button type="button" onClick={onCancel}
-                                className={`flex h-12 items-center rounded-xl border px-5 text-sm font-bold transition-colors ${ghostBtn}`}>
+                                className={`flex h-11 sm:h-12 flex-1 sm:flex-none items-center justify-center rounded-xl border px-4 sm:px-5 text-sm font-bold transition-colors ${ghostBtn}`}>
                                 Bekor qilish
                             </button>
                             <button type="submit"
                                 disabled={isSending || items.length === 0 || !customerId}
-                                className={`flex h-12 items-center gap-2 rounded-xl px-7 text-sm font-bold shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-xl hover:-translate-y-px ${submitBtn}`}>
+                                className={`flex h-11 sm:h-12 flex-1 sm:flex-none items-center justify-center gap-2 rounded-xl px-5 sm:px-7 text-sm font-bold shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-xl hover:-translate-y-px ${submitBtn}`}>
                                 {isSending ? (
                                     <>
                                         <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">

@@ -31,17 +31,17 @@ export default function KassirDashboard() {
         <div className="flex w-full flex-col gap-4 py-2">
 
             {/* Hero */}
-            <div className={`relative overflow-hidden rounded-2xl border px-5 py-4 shadow-md ${panel}`}>
+            <div className={`relative overflow-hidden rounded-2xl border px-4 py-4 sm:px-5 shadow-md ${panel}`}>
                 <div className="absolute right-0 top-0 h-full w-1/2 bg-gradient-to-l from-emerald-400/6 to-transparent" />
-                <div className="relative flex flex-wrap items-center justify-between gap-3">
+                <div className="relative flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
                     <div>
                         <p className="mb-1 text-xs font-bold uppercase tracking-wider text-emerald-500">Kassir</p>
-                        <h1 className={`text-xl font-bold ${head}`}>Xayrli kun!</h1>
+                        <h1 className={`text-lg sm:text-xl font-bold ${head}`}>Xayrli kun!</h1>
                         <p className={`mt-0.5 text-xs ${muted}`}>Moliyaviy operatsiyalarni boshqaring va kuzatib boring.</p>
                     </div>
-                    <div className={`flex items-center gap-2.5 rounded-xl border px-3.5 py-2.5 text-sm ${isDark ? 'border-emerald-400/20 bg-emerald-400/10' : 'border-emerald-200 bg-emerald-50'}`}>
-                        <LuClock3 className="text-emerald-500 shrink-0" size={16} />
-                        <span className={`font-semibold ${head}`}>
+                    <div className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm w-fit ${isDark ? 'border-emerald-400/20 bg-emerald-400/10' : 'border-emerald-200 bg-emerald-50'}`}>
+                        <LuClock3 className="text-emerald-500 shrink-0" size={15} />
+                        <span className={`font-semibold text-xs sm:text-sm ${head}`}>
                             {new Date().toLocaleDateString('uz-UZ', { day: '2-digit', month: 'long', year: 'numeric' })}
                         </span>
                     </div>
@@ -56,12 +56,12 @@ export default function KassirDashboard() {
                     { label: 'Xarajatlar',  value: totalExpenses,  icon: LuReceiptText,   cls: 'bg-rose-400/10 text-rose-500'       },
                     { label: 'Buyurtmalar', value: totalOrders,    icon: LuClipboardList, cls: 'bg-amber-400/10 text-amber-500'     },
                 ].map(({ label, value, icon: Icon, cls }) => (
-                    <div key={label} className={`flex flex-col gap-3 rounded-2xl border p-4 shadow-md ${panel}`}>
-                        <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${cls}`}>
-                            <Icon size={17} />
+                    <div key={label} className={`flex flex-col gap-2.5 sm:gap-3 rounded-2xl border p-3 sm:p-4 shadow-md ${panel}`}>
+                        <span className={`flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl ${cls}`}>
+                            <Icon size={16} />
                         </span>
                         <div>
-                            <p className={`text-2xl font-bold ${head}`}>{value}</p>
+                            <p className={`text-xl sm:text-2xl font-bold ${head}`}>{value}</p>
                             <p className={`mt-0.5 text-xs leading-snug ${muted}`}>{label}</p>
                         </div>
                     </div>
@@ -72,12 +72,12 @@ export default function KassirDashboard() {
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {quickLinks.map(({ label, path, icon: Icon, badge }) => (
                     <Link key={path} to={path}
-                        className={`group flex items-center gap-3 rounded-2xl border p-4 shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${panel}`}>
-                        <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition-colors ${badge}`}>
-                            <Icon size={18} />
+                        className={`group flex items-center gap-2.5 sm:gap-3 rounded-2xl border p-3 sm:p-4 shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${panel}`}>
+                        <span className={`flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-xl border transition-colors ${badge}`}>
+                            <Icon size={17} />
                         </span>
-                        <span className={`font-semibold text-sm ${head}`}>{label}</span>
-                        <LuArrowRight size={14} className={`ml-auto shrink-0 transition-transform group-hover:translate-x-0.5 ${muted}`} />
+                        <span className={`font-semibold text-xs sm:text-sm leading-tight ${head}`}>{label}</span>
+                        <LuArrowRight size={13} className={`ml-auto shrink-0 transition-transform group-hover:translate-x-0.5 ${muted}`} />
                     </Link>
                 ))}
             </div>
@@ -86,17 +86,17 @@ export default function KassirDashboard() {
             <div className="grid gap-3 md:grid-cols-2">
                 {/* Recent expenses */}
                 <div className={`rounded-2xl border shadow-md ${panel}`}>
-                    <div className={`flex items-center justify-between border-b px-5 py-3.5 ${line}`}>
+                    <div className={`flex items-center justify-between border-b px-4 py-3 sm:px-5 sm:py-3.5 ${line}`}>
                         <div className="flex items-center gap-2.5">
-                            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-rose-400/10 text-rose-500">
-                                <LuReceiptText size={15} />
+                            <span className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-xl bg-rose-400/10 text-rose-500">
+                                <LuReceiptText size={14} />
                             </span>
                             <div>
                                 <p className={`text-sm font-bold ${head}`}>So&apos;nggi xarajatlar</p>
-                                <p className={`text-xs ${muted}`}>Oxirgi 5 ta xarajat</p>
+                                <p className={`hidden sm:block text-xs ${muted}`}>Oxirgi 5 ta xarajat</p>
                             </div>
                         </div>
-                        <Link to="/kassir/expenses" className="flex items-center gap-1 text-xs font-semibold text-rose-500 hover:text-rose-600">
+                        <Link to="/kassir/expenses" className="flex items-center gap-1 text-xs font-semibold text-rose-500 hover:text-rose-600 whitespace-nowrap">
                             Barchasi <LuArrowRight size={12} />
                         </Link>
                     </div>
@@ -107,17 +107,17 @@ export default function KassirDashboard() {
 
                 {/* Recent orders */}
                 <div className={`rounded-2xl border shadow-md ${panel}`}>
-                    <div className={`flex items-center justify-between border-b px-5 py-3.5 ${line}`}>
+                    <div className={`flex items-center justify-between border-b px-4 py-3 sm:px-5 sm:py-3.5 ${line}`}>
                         <div className="flex items-center gap-2.5">
-                            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-400/10 text-amber-500">
-                                <LuClipboardList size={15} />
+                            <span className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-xl bg-amber-400/10 text-amber-500">
+                                <LuClipboardList size={14} />
                             </span>
                             <div>
                                 <p className={`text-sm font-bold ${head}`}>So&apos;nggi buyurtmalar</p>
-                                <p className={`text-xs ${muted}`}>Oxirgi 5 ta buyurtma</p>
+                                <p className={`hidden sm:block text-xs ${muted}`}>Oxirgi 5 ta buyurtma</p>
                             </div>
                         </div>
-                        <Link to="/kassir/orders" className="flex items-center gap-1 text-xs font-semibold text-amber-500 hover:text-amber-600">
+                        <Link to="/kassir/orders" className="flex items-center gap-1 text-xs font-semibold text-amber-500 hover:text-amber-600 whitespace-nowrap">
                             Barchasi <LuArrowRight size={12} />
                         </Link>
                     </div>

@@ -14,7 +14,7 @@ export default function MixerLayout() {
         <HeaderProvider>
             <div className={`min-h-screen w-full transition-colors duration-300 ${isDark ? "theme-dark" : "theme-light"}`}>
                 <MixerHeader user={user} />
-                <main className="mx-auto max-w-7xl px-3 pb-8 pt-[88px] sm:px-4 md:px-6">
+                <main className="mx-auto max-w-7xl px-3 pb-8 pt-[68px] sm:px-4 sm:pt-[80px] md:px-6">
                     <Outlet />
                 </main>
             </div>
