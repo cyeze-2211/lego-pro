@@ -135,7 +135,7 @@ export default function WorkerMachines() {
             await createStockTransaction({
                 action: 'PRODUCE',
                 machineId: machine.id,
-                items: [{ productId: machine.currentRun.productId, quantity: 1 }],
+                items: [{ productId: machine.currentRun.productId, quantity: 1, unit: 'PIECE' }],
             }).unwrap();
             showToast(`✓ 1 dona qayd etildi — ${machine.currentRun.productName}`);
             refetch();
@@ -167,11 +167,11 @@ export default function WorkerMachines() {
             )}
 
             {/* Sarlavha */}
-            <div className="mb-8">
-                <h1 className="text-4xl font-extrabold mb-2 leading-tight" style={{ color: textColor }}>
+            <div className="mb-6 sm:mb-8">
+                <h1 className="text-2xl sm:text-4xl font-extrabold mb-1.5 sm:mb-2 leading-tight" style={{ color: textColor }}>
                     Stanoklar
                 </h1>
-                <p className="text-lg" style={{ color: subtitleColor }}>
+                <p className="text-sm sm:text-lg" style={{ color: subtitleColor }}>
                     Qayd etish uchun ishlayotgan stanokning ustiga bosing
                 </p>
             </div>
@@ -208,7 +208,7 @@ export default function WorkerMachines() {
             {/* Cards */}
             {!isLoading && !error && machines.length > 0 && (
                 <>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-5">
                         {machines.map((machine) => (
                             <WorkerMachineCard
                                 key={machine.id}
@@ -226,25 +226,25 @@ export default function WorkerMachines() {
                     </div>
 
                     {totalPages > 1 && (
-                        <div className="flex items-center justify-center gap-4 mt-10">
+                        <div className="flex items-center justify-center gap-3 sm:gap-4 mt-8 sm:mt-10">
                             <button
                                 disabled={page === 0}
                                 onClick={() => setPage((p) => p - 1)}
-                                className="flex items-center justify-center w-12 h-12 rounded-xl border text-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                                className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-xl border text-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                                 style={{ background: cardBg, borderColor: cardBorder, color: textColor }}
                             >
-                                <LuChevronLeft size={22} />
+                                <LuChevronLeft size={20} />
                             </button>
-                            <span className="text-lg font-bold" style={{ color: subtitleColor }}>
+                            <span className="text-base sm:text-lg font-bold" style={{ color: subtitleColor }}>
                                 {page + 1} / {totalPages}
                             </span>
                             <button
                                 disabled={page >= totalPages - 1}
                                 onClick={() => setPage((p) => p + 1)}
-                                className="flex items-center justify-center w-12 h-12 rounded-xl border text-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                                className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-xl border text-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                                 style={{ background: cardBg, borderColor: cardBorder, color: textColor }}
                             >
-                                <LuChevronRight size={22} />
+                                <LuChevronRight size={20} />
                             </button>
                         </div>
                     )}
@@ -320,7 +320,7 @@ function WorkerMachineCard({ machine, isDark, cardBg, cardBorder, textColor, sub
                     : (isDark ? 'rgba(255,255,255,0.05)' : '#E2E8F0'),
             }} />
 
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
                 {/* Loading indicator (card ustida) */}
                 {isProducing && (
                     <div className="absolute inset-0 flex items-center justify-center z-10"
@@ -340,44 +340,44 @@ function WorkerMachineCard({ machine, isDark, cardBg, cardBorder, textColor, sub
                 )}
 
                 {/* Logo + badge row */}
-                <div className="flex items-start justify-between mb-4">
-                    {/* Brand logo (katta, to'rtburchak) yoki default icon */}
+                <div className="flex items-start justify-between mb-3 sm:mb-4">
+                    {/* Brand logo */}
                     {(isWorking || isDefect) && machine.currentRun?.brand ? (
-                        <BrandLogo 
-                            brand={machine.currentRun.brand} 
-                            isDark={isDark} 
+                        <BrandLogo
+                            brand={machine.currentRun.brand}
+                            isDark={isDark}
                             accentColor={accentColor}
-                            size={64}
+                            size={52}
                             isRectangle={true}
                         />
                     ) : (
                         <div
                             className="flex items-center justify-center rounded-2xl"
-                            style={{ 
-                                width: '96px',
-                                height: '64px',
-                                background: isWorking 
+                            style={{
+                                width: '80px',
+                                height: '52px',
+                                background: isWorking
                                     ? (isDark ? 'rgba(34,197,94,0.2)' : 'rgba(34,197,94,0.15)')
                                     : isDefect
                                     ? (isDark ? 'rgba(239,68,68,0.2)' : 'rgba(239,68,68,0.15)')
                                     : (isDark ? 'rgba(250,204,21,0.14)' : '#FEF3C7')
                             }}
                         >
-                            <LuCog 
-                                size={32} 
-                                style={{ 
-                                    color: isWorking 
+                            <LuCog
+                                size={26}
+                                style={{
+                                    color: isWorking
                                         ? '#22C55E'
                                         : isDefect
                                         ? '#EF4444'
                                         : accentColor
-                                }} 
+                                }}
                             />
                         </div>
                     )}
 
                     <span
-                        className="text-sm font-bold px-3 py-1.5 rounded-full"
+                        className="text-xs sm:text-sm font-bold px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full"
                         style={
                             isWorking
                                 ? { background: isDark ? 'rgba(34,197,94,0.2)' : '#DCFCE7', color: isDark ? '#86EFAC' : '#166534' }
@@ -390,29 +390,29 @@ function WorkerMachineCard({ machine, isDark, cardBg, cardBorder, textColor, sub
                     </span>
                 </div>
 
-                {/* Brand nomi - zamonaviy dizayn */}
+                {/* Brand nomi */}
                 {(isWorking || isDefect) && machine.currentRun?.brand && (
-                    <div 
-                        className="mb-3 pb-3"
+                    <div
+                        className="mb-2.5 sm:mb-3 pb-2.5 sm:pb-3"
                         style={{
                             borderBottom: `2px solid ${
-                                isWorking 
+                                isWorking
                                     ? (isDark ? 'rgba(34,197,94,0.2)' : '#BBF7D0')
                                     : (isDark ? 'rgba(239,68,68,0.2)' : '#FECACA')
                             }`
                         }}
                     >
                         <div className="flex items-center gap-2">
-                            <div 
-                                className="w-1.5 h-6 rounded-full flex-shrink-0"
+                            <div
+                                className="w-1.5 h-5 sm:h-6 rounded-full flex-shrink-0"
                                 style={{
-                                    background: isWorking 
+                                    background: isWorking
                                         ? (isDark ? '#86EFAC' : '#16A34A')
                                         : (isDark ? '#FCA5A5' : '#DC2626')
                                 }}
                             />
-                            <span 
-                                className="text-xl font-extrabold tracking-tight" 
+                            <span
+                                className="text-base sm:text-xl font-extrabold tracking-tight"
                                 style={{ color: textColor }}
                             >
                                 {machine.currentRun.brand.name}
@@ -421,10 +421,10 @@ function WorkerMachineCard({ machine, isDark, cardBg, cardBorder, textColor, sub
                     </div>
                 )}
 
-                {/* Stanok nomi - kichikroq, subtitle rangida */}
+                {/* Stanok nomi */}
                 <div className="flex items-center gap-2 mb-2">
-                    <LuCog size={14} style={{ color: subtitleColor, flexShrink: 0 }} />
-                    <h3 className="font-semibold text-sm" style={{ color: subtitleColor }}>
+                    <LuCog size={13} style={{ color: subtitleColor, flexShrink: 0 }} />
+                    <h3 className="font-semibold text-xs sm:text-sm" style={{ color: subtitleColor }}>
                         {machine.name}
                     </h3>
                 </div>
@@ -432,28 +432,27 @@ function WorkerMachineCard({ machine, isDark, cardBg, cardBorder, textColor, sub
                 {/* Current run info */}
                 {(isWorking || isDefect) && machine.currentRun ? (
                     <div
-                        className="mt-3 pt-3 flex flex-col gap-2"
-                        style={{ 
+                        className="mt-2.5 sm:mt-3 pt-2.5 sm:pt-3 flex flex-col gap-2"
+                        style={{
                             borderTop: `1px solid ${
-                                isWorking 
+                                isWorking
                                     ? (isDark ? 'rgba(34,197,94,0.3)' : '#BBF7D0')
                                     : (isDark ? 'rgba(239,68,68,0.3)' : '#FECACA')
-                            }` 
+                            }`
                         }}
                     >
-                        {/* Mahsulot nomi */}
                         <div className="flex items-center gap-2">
-                            <LuActivity 
-                                size={16} 
-                                style={{ 
+                            <LuActivity
+                                size={14}
+                                style={{
                                     color: isWorking ? '#22C55E' : '#EF4444',
-                                    flexShrink: 0 
-                                }} 
+                                    flexShrink: 0
+                                }}
                             />
-                            <span 
-                                className="text-base font-semibold" 
-                                style={{ 
-                                    color: isWorking 
+                            <span
+                                className="text-sm sm:text-base font-semibold"
+                                style={{
+                                    color: isWorking
                                         ? (isDark ? '#86EFAC' : '#166534')
                                         : (isDark ? '#FCA5A5' : '#991B1B')
                                 }}
@@ -464,10 +463,10 @@ function WorkerMachineCard({ machine, isDark, cardBg, cardBorder, textColor, sub
                     </div>
                 ) : (
                     <div
-                        className="mt-4 pt-4"
+                        className="mt-3 sm:mt-4 pt-3 sm:pt-4"
                         style={{ borderTop: `1px solid ${cardBorder}` }}
                     >
-                        <span className="text-base" style={{ color: subtitleColor }}>Hozir ishlamayapti</span>
+                        <span className="text-sm sm:text-base" style={{ color: subtitleColor }}>Hozir ishlamayapti</span>
                     </div>
                 )}
             </div>

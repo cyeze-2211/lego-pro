@@ -57,28 +57,28 @@ export default function WorkerStanokchiLayout() {
         >
             {/* ── Worker Header ── */}
             <header
-                className="fixed top-0 left-0 right-0 z-30 h-[72px]"
+                className="fixed top-0 left-0 right-0 z-30 h-[60px] sm:h-[72px]"
                 style={{
                     background: headerBg,
                     backdropFilter: "blur(12px)",
                     borderBottom: headerBorder,
                 }}
             >
-                <div className="flex h-full items-center justify-between px-5 max-w-7xl mx-auto">
+                <div className="flex h-full items-center justify-between px-3 sm:px-5 max-w-7xl mx-auto">
                     {/* Logo / title */}
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2.5 sm:gap-3">
                         <div
-                            className="flex items-center justify-center w-9 h-9 rounded-xl"
+                            className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-xl"
                             style={{ background: "#FACC15" }}
                         >
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
                                 stroke="#0F172A" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                                 <circle cx="12" cy="12" r="3" />
                                 <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" />
                             </svg>
                         </div>
                         <span
-                            className="text-base font-bold tracking-wide"
+                            className="text-sm sm:text-base font-bold tracking-wide"
                             style={{ color: isDark ? "#F8FAFC" : "#0F172A" }}
                         >
                             Xodim Panel
@@ -86,12 +86,12 @@ export default function WorkerStanokchiLayout() {
                     </div>
 
                     {/* Right actions */}
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 sm:gap-3">
                         {/* Theme toggle */}
                         <button
                             type="button"
                             onClick={toggleColorMode}
-                            className={`flex h-9 w-9 items-center justify-center rounded-lg border transition-all ${
+                            className={`flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-lg border transition-all ${
                                 isDark
                                     ? "border-slate-700 bg-slate-900 text-amber-400 hover:bg-slate-800"
                                     : "border-slate-200 bg-white text-amber-600 hover:bg-slate-100"
@@ -106,7 +106,7 @@ export default function WorkerStanokchiLayout() {
                             <button
                                 type="button"
                                 onClick={() => setOpenMenu((p) => !p)}
-                                className={`group flex items-center gap-2.5 rounded-xl border px-2.5 py-1.5 text-sm font-semibold transition-all ${
+                                className={`group flex items-center gap-1.5 sm:gap-2.5 rounded-xl border px-2 py-1.5 sm:px-2.5 text-sm font-semibold transition-all ${
                                     isDark
                                         ? "border-amber-400/20 bg-slate-900 text-slate-100 hover:border-amber-400/50 hover:bg-slate-800"
                                         : "border-slate-200 bg-white text-slate-800 hover:border-amber-300 hover:bg-amber-50"
@@ -114,23 +114,23 @@ export default function WorkerStanokchiLayout() {
                                 aria-expanded={openMenu}
                                 aria-haspopup="menu"
                             >
-                                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-400/20">
+                                <div className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-lg bg-amber-400/20">
                                     <User className="h-4 w-4 text-amber-500" />
                                 </div>
                                 {user?.fullName && (
-                                    <span className="hidden sm:block max-w-[120px] truncate">
+                                    <span className="hidden sm:block max-w-[100px] truncate">
                                         {user.fullName}
                                     </span>
                                 )}
                                 <ChevronDown
-                                    className={`h-4 w-4 transition-transform duration-200 ${openMenu ? "rotate-180" : ""}`}
+                                    className={`h-3.5 w-3.5 sm:h-4 sm:w-4 transition-transform duration-200 ${openMenu ? "rotate-180" : ""}`}
                                 />
                             </button>
 
                             {openMenu && (
                                 <div
                                     role="menu"
-                                    className={`absolute right-0 top-[calc(100%+10px)] z-50 w-52 overflow-hidden rounded-xl border p-1.5 shadow-xl ${
+                                    className={`absolute right-0 top-[calc(100%+8px)] z-50 w-48 sm:w-52 overflow-hidden rounded-xl border p-1.5 shadow-xl ${
                                         isDark
                                             ? "border-slate-700 bg-[#111827] text-slate-100 shadow-black/30"
                                             : "border-slate-200 bg-white text-slate-800 shadow-slate-200/70"
@@ -158,7 +158,7 @@ export default function WorkerStanokchiLayout() {
             </header>
 
             {/* ── Main ── */}
-            <main className="pt-[88px] pb-8 px-3 sm:px-4 md:px-6 max-w-7xl mx-auto">
+            <main className="pt-[68px] sm:pt-[80px] pb-8 px-3 sm:px-4 md:px-6 max-w-7xl mx-auto">
                 <Suspense fallback={<Loading />}>
                     <Outlet />
                 </Suspense>

@@ -101,25 +101,31 @@ export default function HeadStanokchiSidebar({ open, mobileOpen, onMobileClose }
 
             {/* Mobile overlay */}
             <aside
-                className={`fixed left-0 top-0 bottom-0 z-40 flex flex-col w-[260px] lg:hidden transition-transform duration-300 ease-in-out ${
+                className={`fixed left-0 top-0 bottom-0 z-50 flex flex-col w-[280px] max-w-[85vw] lg:hidden transition-transform duration-300 ease-in-out ${
                     isDark ? 'theme-dark' : 'theme-light'
-                } ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}
+                } ${mobileOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'}`}
                 style={{
                     borderRight: `1px solid ${isDark ? 'rgba(255,255,255,0.07)' : '#E2E8F0'}`,
                 }}
             >
-                <button
-                    type="button"
-                    onClick={onMobileClose}
-                    className={`absolute top-4 right-3 flex h-8 w-8 items-center justify-center rounded-lg border transition-colors ${
-                        isDark
-                            ? 'border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700'
-                            : 'border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}
-                    aria-label="Yopish"
-                >
-                    <X className="h-4 w-4" />
-                </button>
+                {/* Header: "Menyu" + yopish */}
+                <div className="flex items-center justify-between px-3 pt-3 pb-1">
+                    <span className={`text-xs font-bold uppercase tracking-widest ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                        Menyu
+                    </span>
+                    <button
+                        type="button"
+                        onClick={onMobileClose}
+                        className={`flex h-8 w-8 items-center justify-center rounded-lg border transition-colors ${
+                            isDark
+                                ? 'border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700'
+                                : 'border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
+                        aria-label="Yopish"
+                    >
+                        <X className="h-4 w-4" />
+                    </button>
+                </div>
                 {sidebarContent}
             </aside>
         </>

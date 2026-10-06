@@ -47,17 +47,17 @@ export default function AdminHeader({
 
     return (
         <header
-            className={`header fixed top-0 right-0 z-30 h-[72px] transition-all duration-300 left-0 ${
+            className={`header fixed top-0 right-0 z-30 h-[60px] sm:h-[72px] transition-all duration-300 left-0 ${
                 sidebarOpen ? "lg:header-open" : "lg:header-collapsed"
             } ${isDark ? "theme-dark" : "theme-light"}`}
         >
-            <div className="flex h-full items-center justify-between gap-4 px-5">
+            <div className="flex h-full items-center justify-between gap-2 px-3 sm:gap-4 sm:px-5">
                 {/* ── Chap tomon ── */}
-                <div className="flex items-center gap-3 min-w-0">
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                     {/* Sidebar toggle */}
                     <button
                         onClick={active}
-                        className={`flex-shrink-0 flex h-9 w-9 items-center justify-center rounded-lg border transition-all duration-200 ${
+                        className={`flex-shrink-0 flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-lg border transition-all duration-200 ${
                             isDark
                                 ? "border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800"
                                 : "border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
@@ -69,26 +69,26 @@ export default function AdminHeader({
 
                     {/* Sahifa sarlavhasi (pageHeader bo'lsa) */}
                     {pageHeader && (
-                        <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
                             {/* Back button */}
                             {pageHeader.backTo && (
                                 <button
                                     onClick={() => navigate(pageHeader.backTo)}
-                                    className={`flex-shrink-0 flex h-8 w-8 items-center justify-center rounded-lg border transition-all duration-200 hover:scale-105 ${
+                                    className={`flex-shrink-0 flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-lg border transition-all duration-200 hover:scale-105 ${
                                         isDark
                                             ? "border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800"
                                             : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
                                     }`}
                                     aria-label="Orqaga"
                                 >
-                                    <ArrowLeft className="h-4 w-4" />
+                                    <ArrowLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                 </button>
                             )}
 
                             {/* Separator */}
                             {pageHeader.backTo && (
                                 <span
-                                    className="flex-shrink-0 w-px h-5"
+                                    className="flex-shrink-0 w-px h-4 sm:h-5"
                                     style={{
                                         background: isDark
                                             ? 'rgba(255,255,255,0.1)'
@@ -100,14 +100,14 @@ export default function AdminHeader({
                             {/* Title */}
                             <div className="min-w-0">
                                 <span
-                                    className="block text-sm font-bold truncate"
+                                    className="block text-xs sm:text-sm font-bold truncate max-w-[140px] sm:max-w-[260px] md:max-w-xs"
                                     style={{ color: isDark ? '#F1F5F9' : '#0F172A' }}
                                 >
                                     {pageHeader.title}
                                 </span>
                                 {pageHeader.subtitle && (
                                     <span
-                                        className="block text-xs truncate"
+                                        className="hidden sm:block text-xs truncate max-w-[260px] md:max-w-xs"
                                         style={{ color: isDark ? '#94A3B8' : '#64748B' }}
                                     >
                                         {pageHeader.subtitle}
@@ -119,13 +119,13 @@ export default function AdminHeader({
                 </div>
 
                 {/* ── O'ng tomon ── */}
-                <div className="flex items-center gap-3 flex-shrink-0">
+                <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
                     {/* Dark / Light toggle */}
                     <button
                         onClick={toggleColorMode}
                         onMouseEnter={() => setIsHovered(true)}
                         onMouseLeave={() => setIsHovered(false)}
-                        className={`flex h-9 w-9 items-center justify-center rounded-lg border transition-all duration-200 ${
+                        className={`flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-lg border transition-all duration-200 ${
                             isDark
                                 ? "border-slate-700 bg-slate-900 text-amber-400 hover:bg-slate-800"
                                 : "border-slate-200 bg-white text-amber-600 hover:bg-slate-100"
@@ -139,7 +139,7 @@ export default function AdminHeader({
                     <div className="relative" ref={menuRef}>
                         <button
                             onClick={() => setOpenMenu((isOpen) => !isOpen)}
-                            className={`group flex items-center gap-2.5 rounded-xl border px-2.5 py-1.5 text-sm font-semibold transition-all duration-200 ${
+                            className={`group flex items-center gap-1.5 sm:gap-2.5 rounded-xl border px-2 py-1.5 sm:px-2.5 text-sm font-semibold transition-all duration-200 ${
                                 isDark
                                     ? "border-amber-400/20 bg-slate-900 text-slate-100 hover:border-amber-400/50 hover:bg-slate-800"
                                     : "border-slate-200 bg-white text-slate-800 hover:border-amber-300 hover:bg-amber-50"
@@ -147,12 +147,14 @@ export default function AdminHeader({
                             aria-expanded={openMenu}
                             aria-haspopup="menu"
                         >
-                            <div className="profile-badge flex h-8 w-8 items-center justify-center rounded-lg transition-transform duration-200 group-hover:scale-105">
+                            <div className="profile-badge flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-lg transition-transform duration-200 group-hover:scale-105">
                                 <User className="h-4 w-4" />
                             </div>
-                            <span className="hidden sm:block">Profile</span>
+                            <span className="hidden sm:block max-w-[100px] truncate">
+                                {user?.fullName || 'Profile'}
+                            </span>
                             <ChevronDown
-                                className={`h-4 w-4 transition-transform duration-200 ${
+                                className={`h-3.5 w-3.5 sm:h-4 sm:w-4 transition-transform duration-200 ${
                                     openMenu ? "rotate-180" : ""
                                 }`}
                             />
@@ -161,7 +163,7 @@ export default function AdminHeader({
                         {openMenu && (
                             <div
                                 role="menu"
-                                className={`absolute right-0 top-[calc(100%+10px)] z-50 w-48 overflow-hidden rounded-xl border p-1.5 shadow-xl ${
+                                className={`absolute right-0 top-[calc(100%+8px)] z-50 w-44 sm:w-48 overflow-hidden rounded-xl border p-1.5 shadow-xl ${
                                     isDark
                                         ? "border-slate-700 bg-[#111827] text-slate-100 shadow-black/30"
                                         : "border-slate-200 bg-white text-slate-800 shadow-slate-200/70"

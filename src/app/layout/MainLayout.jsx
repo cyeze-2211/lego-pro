@@ -15,17 +15,18 @@ export default function MainLayout() {
     // Mobile: sidebar always starts closed; Desktop: starts open
     const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 1024);
     const [mobileOpen, setMobileOpen] = useState(false);
+    const [isMobile, setIsMobile] = useState(() => window.innerWidth < 1024);
 
     const { data: user, isLoading } = useGetUserByIdQuery(userId, {
         skip: !userId,
     });
 
-    // Close mobile sidebar on resize to desktop
+    // Track mobile state and close mobile sidebar on resize to desktop
     useEffect(() => {
         const onResize = () => {
-            if (window.innerWidth >= 1024) {
-                setMobileOpen(false);
-            }
+            const mobile = window.innerWidth < 1024;
+            setIsMobile(mobile);
+            if (!mobile) setMobileOpen(false);
         };
         window.addEventListener("resize", onResize);
         return () => window.removeEventListener("resize", onResize);
@@ -40,7 +41,6 @@ export default function MainLayout() {
     };
 
     // On mobile, sidebar is "open" visually when mobileOpen is true
-    const isMobile = typeof window !== "undefined" && window.innerWidth < 1024;
     const effectiveSidebarOpen = isMobile ? false : sidebarOpen;
 
     return (
@@ -48,7 +48,7 @@ export default function MainLayout() {
             {/* Mobile overlay backdrop */}
             {mobileOpen && (
                 <div
-                    className="fixed inset-0 z-30 bg-black/50 lg:hidden"
+                    className="fixed inset-0 z-[45] bg-black/60 lg:hidden backdrop-blur-[2px]"
                     onClick={() => setMobileOpen(false)}
                     aria-hidden="true"
                 />
@@ -74,7 +74,7 @@ export default function MainLayout() {
                         isLoading={isLoading}
                     />
 
-                    <main className="px-3 pb-8 pt-[80px] sm:px-4 md:px-6">
+                    <main className="px-3 pb-8 pt-[72px] sm:px-4 sm:pt-[80px] md:px-6">
                         <Suspense fallback={<Loading />}>
                             <Outlet />
                         </Suspense>

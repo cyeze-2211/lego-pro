@@ -47,20 +47,20 @@ export default function StaffDashboard() {
     return (
         <div className="flex w-full flex-col gap-4 py-2">
 
-            <div className={`relative overflow-hidden rounded-2xl border px-5 py-4 shadow-md ${panel}`}>
+            <div className={`relative overflow-hidden rounded-2xl border px-4 py-4 sm:px-5 shadow-md ${panel}`}>
                 <div className="absolute right-0 top-0 h-full w-1/2 bg-gradient-to-l from-amber-400/6 to-transparent" />
-                <div className="relative flex flex-wrap items-center justify-between gap-3">
+                <div className="relative flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
                     <div>
                         <p className="mb-1 text-xs font-bold uppercase tracking-wider text-amber-500">Ombor boshqaruvi</p>
-                        <h1 className={`text-xl font-bold ${head}`}>Xayrli kun, omborchi!</h1>
+                        <h1 className={`text-lg sm:text-xl font-bold ${head}`}>Xayrli kun, omborchi!</h1>
                         <p className={`mt-0.5 text-xs ${muted}`}>Minimal chiziqdan past yoki teng qolgan mahsulotlar.</p>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2.5">
+                    <div className="flex flex-wrap items-center gap-2">
                         <span className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold ${isDark ? 'border-rose-400/20 bg-rose-500/10 text-rose-400' : 'border-rose-200 bg-rose-50 text-rose-600'}`}>
                             <LuTriangleAlert size={14} /> {pagination.totalElements ?? 0} ta kam qoldiq
                         </span>
-                        <div className={`flex items-center gap-2.5 rounded-xl border px-3.5 py-2.5 text-sm ${isDark ? 'border-amber-400/20 bg-amber-400/10' : 'border-amber-200 bg-amber-50'}`}>
-                            <LuClock3 className="text-amber-500 shrink-0" size={16} />
+                        <div className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs sm:text-sm ${isDark ? 'border-amber-400/20 bg-amber-400/10' : 'border-amber-200 bg-amber-50'}`}>
+                            <LuClock3 className="text-amber-500 shrink-0" size={14} />
                             <span className={`font-semibold ${head}`}>
                                 {new Date().toLocaleDateString('uz-UZ', { day: '2-digit', month: 'long', year: 'numeric' })}
                             </span>
@@ -74,30 +74,30 @@ export default function StaffDashboard() {
                     <Link
                         key={path}
                         to={path}
-                        className={`group flex items-center gap-3 rounded-2xl border p-4 shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${panel}`}
+                        className={`group flex items-center gap-2.5 sm:gap-3 rounded-2xl border p-3 sm:p-4 shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${panel}`}
                     >
-                        <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition-colors ${badge}`}>
-                            <Icon size={18} />
+                        <span className={`flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-xl border transition-colors ${badge}`}>
+                            <Icon size={17} />
                         </span>
-                        <span className={`font-semibold text-sm ${head}`}>{label}</span>
-                        <LuArrowRight size={14} className={`ml-auto shrink-0 transition-transform group-hover:translate-x-0.5 ${muted}`} />
+                        <span className={`font-semibold text-xs sm:text-sm leading-tight ${head}`}>{label}</span>
+                        <LuArrowRight size={13} className={`ml-auto shrink-0 transition-transform group-hover:translate-x-0.5 ${muted}`} />
                     </Link>
                 ))}
             </div>
 
             <div className={`rounded-2xl border shadow-md overflow-hidden ${panel}`}>
-                <div className={`flex items-center justify-between border-b px-5 py-3.5 ${isDark ? 'border-slate-700/60' : 'border-slate-100'}`}>
+                <div className={`flex items-center justify-between border-b px-4 py-3 sm:px-5 sm:py-3.5 ${isDark ? 'border-slate-700/60' : 'border-slate-100'}`}>
                     <div className="flex items-center gap-2.5">
-                        <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-rose-500/10 text-rose-500">
-                            <LuTriangleAlert size={15} />
+                        <span className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-xl bg-rose-500/10 text-rose-500">
+                            <LuTriangleAlert size={14} />
                         </span>
                         <div>
                             <p className={`text-sm font-bold ${head}`}>Kam qolgan mahsulotlar</p>
-                            <p className={`text-xs ${muted}`}>Qoldiq minimal chiziqqa teng yoki past</p>
+                            <p className={`hidden sm:block text-xs ${muted}`}>Qoldiq minimal chiziqqa teng yoki past</p>
                         </div>
                     </div>
-                    <Link to="/staff/warehouse" className="flex items-center gap-1 text-xs font-semibold text-amber-500 hover:text-amber-600">
-                        Barcha qoldiqlar <LuArrowRight size={12} />
+                    <Link to="/staff/warehouse" className="flex items-center gap-1 text-xs font-semibold text-amber-500 hover:text-amber-600 whitespace-nowrap">
+                        Barchasi <LuArrowRight size={12} />
                     </Link>
                 </div>
 
@@ -181,10 +181,10 @@ export default function StaffDashboard() {
                         <div className={`flex flex-col divide-y md:hidden ${divider}`}>
                             {stocks.map((s) => (
                                 <div key={`${s.productId}-${s.warehouseId}`}
-                                    className={`flex items-center justify-between gap-3 px-4 py-3.5 ${rowBg}`}>
+                                    className={`flex items-center justify-between gap-3 px-4 py-3 ${rowBg}`}>
                                     <div className="flex items-center gap-3 min-w-0">
-                                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-rose-500/10 text-rose-500">
-                                            <LuPackage size={16} />
+                                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-rose-500/10 text-rose-500">
+                                            <LuPackage size={15} />
                                         </span>
                                         <div className="min-w-0">
                                             <p className={`truncate font-semibold text-sm ${head}`}>{s.productName}</p>
@@ -192,15 +192,15 @@ export default function StaffDashboard() {
                                                 min {formatNumber(s.productMinimumLine)}
                                                 {warehouseName[s.warehouseId] ? ` · ${warehouseName[s.warehouseId]}` : ''}
                                             </p>
-                                            {s.productPiecesPerPack && (
-                                                <p className={`text-xs mt-0.5 ${isDark ? 'text-indigo-300' : 'text-indigo-500'}`}>
+                                            {s.productPiecesPerPack > 0 && (
+                                                <p className={`text-[11px] ${isDark ? 'text-indigo-300' : 'text-indigo-500'}`}>
                                                     1 blok = {s.productPiecesPerPack} dona
                                                 </p>
                                             )}
                                         </div>
                                     </div>
                                     <div className="inline-flex flex-col items-end gap-0.5 shrink-0">
-                                        <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${
+                                        <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${
                                             s.quantity === 0
                                                 ? 'bg-rose-500/10 text-rose-500'
                                                 : 'bg-amber-500/10 text-amber-500'

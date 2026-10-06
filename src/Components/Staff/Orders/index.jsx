@@ -130,8 +130,8 @@ export default function StaffOrders() {
 
                     <div className={`grid transition-all duration-300 ease-in-out ${filtersOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
                         <div className="overflow-hidden">
-                            <div className="flex flex-col gap-3 px-5 pb-5 sm:flex-row sm:items-end">
-                                <div className="sm:w-48 shrink-0">
+                            <div className="grid grid-cols-1 gap-3 px-4 pb-4 sm:grid-cols-2 lg:flex lg:flex-row lg:items-end lg:px-5 lg:pb-5">
+                                <div className="lg:w-48 lg:shrink-0">
                                     <label className={`mb-1.5 block text-xs font-semibold ${muted}`}>Holat</label>
                                     <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }} className={inputCx}>
                                         <option value="">Barchasi</option>
@@ -139,7 +139,7 @@ export default function StaffOrders() {
                                     </select>
                                 </div>
 
-                                <div className="sm:w-48 shrink-0">
+                                <div className="lg:w-48 lg:shrink-0">
                                     <label className={`mb-1.5 block text-xs font-semibold ${muted}`}>Ombor</label>
                                     <select value={warehouseFilter} onChange={(e) => { setWarehouseFilter(e.target.value); setPage(0); }} className={inputCx}>
                                         <option value="">Barcha omborlar</option>
@@ -147,17 +147,17 @@ export default function StaffOrders() {
                                     </select>
                                 </div>
 
-                                <div className="sm:w-44 shrink-0">
+                                <div className="lg:w-44 lg:shrink-0">
                                     <label className={`mb-1.5 block text-xs font-semibold ${muted}`}>Sanadan</label>
                                     <input type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPage(0); }} className={inputCx} />
                                 </div>
 
-                                <div className="sm:w-44 shrink-0">
+                                <div className="lg:w-44 lg:shrink-0">
                                     <label className={`mb-1.5 block text-xs font-semibold ${muted}`}>Sanagacha</label>
                                     <input type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPage(0); }} className={inputCx} />
                                 </div>
 
-                                <div className="flex-1">
+                                <div className="sm:col-span-2 lg:flex-1">
                                     <label className={`mb-1.5 block text-xs font-semibold ${muted}`}>Mijoz bo&apos;yicha qidirish</label>
                                     <div className="relative">
                                         <LuSearch className={`pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 ${muted}`} />
@@ -171,7 +171,7 @@ export default function StaffOrders() {
                                 </div>
 
                                 {hasFilters && (
-                                    <button type="button" onClick={resetFilters} className={`flex h-11 shrink-0 items-center rounded-xl border px-4 text-xs font-semibold transition-colors ${isDark ? 'border-[#334155] text-[#94a3b8] hover:bg-[#1e293b]' : 'border-[#e2e8f0] text-[#64748b] hover:bg-[#f1f5f9]'}`}>
+                                    <button type="button" onClick={resetFilters} className={`flex h-11 w-full items-center justify-center rounded-xl border px-4 text-xs font-semibold transition-colors lg:w-auto lg:shrink-0 ${isDark ? 'border-[#334155] text-[#94a3b8] hover:bg-[#1e293b]' : 'border-[#e2e8f0] text-[#64748b] hover:bg-[#f1f5f9]'}`}>
                                         Tozalash
                                     </button>
                                 )}
@@ -211,73 +211,139 @@ export default function StaffOrders() {
                         <p className="text-sm font-semibold">Buyurtmalar topilmadi</p>
                     </div>
                 ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full min-w-[900px] text-sm">
-                            <thead>
-                                <tr
-                                    className={`text-left text-xs font-semibold uppercase tracking-wide ${muted} ${
-                                        isDark ? 'bg-[#0f172a]/30' : 'bg-[#f8fafc]/80'
-                                    }`}
-                                >
-                                    <th className="px-5 py-3 w-14 text-center">№</th>
-                                    <th className="px-5 py-3 min-w-[220px]">Mijoz</th>
-                                    <th className="px-5 py-3 w-36">Mahsulot</th>
-                                    <th className="px-5 py-3 w-44 text-right">Jami summa</th>
-                                    <th className="px-5 py-3 w-40">Holat</th>
-                                    <th className="px-5 py-3 w-48">Sana</th>
-                                    <th className="px-5 py-3 w-20 text-right"></th>
-                                </tr>
-                            </thead>
-                            <tbody className={`divide-y ${divider}`}>
-                                {filtered.map((o, idx) => (
-                                    <tr key={o.id} className={`transition-colors ${rowHov}`}>
-                                        <td className={`px-5 py-3 text-center text-xs tabular-nums ${muted}`}>
-                                            {page * PAGE_SIZE + idx + 1}
-                                        </td>
-                                        <td className="px-5 py-3">
-                                            <p className={`truncate font-semibold ${head}`}>{o.customerName || '—'}</p>
-                                            {o.summary && (
-                                                <p className={`truncate max-w-xs text-xs ${muted}`}>{o.summary}</p>
-                                            )}
-                                        </td>
-                                        <td className={`px-5 py-3 text-xs font-semibold ${muted}`}>
-                                            <span className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 ${isDark ? 'bg-white/5' : 'bg-slate-100'}`}>
-                                                <LuPackage size={13} /> {o.items?.length ?? 0} ta
-                                            </span>
-                                        </td>
-                                        <td className={`px-5 py-3 text-right font-bold tabular-nums ${head}`}>
-                                            {formatNumber(o.totalAmount ?? 0)} so&apos;m
-                                        </td>
-                                        <td className="px-5 py-3">
-                                            <span
-                                                className={`inline-flex whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-bold ${STAFF_STATUS_CX[o.status] ?? 'bg-slate-500/10 text-slate-500 border-slate-500/30'}`}
-                                            >
-                                                {STAFF_STATUS_LABEL[o.status] ?? o.status}
-                                            </span>
-                                        </td>
-                                        <td className={`whitespace-nowrap px-5 py-3 text-xs ${muted}`}>
-                                            {o.createdAt
-                                                ? new Date(o.createdAt).toLocaleString('uz-UZ')
-                                                : '—'}
-                                        </td>
-                                        <td className="px-5 py-3">
-                                            <div className="flex items-center justify-end gap-1">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => navigate(`/staff/orders/${o.id}`)}
-                                                    aria-label="Ko'rish"
-                                                    title="Ko'rish"
-                                                    className={iconBtn}
-                                                >
-                                                    <LuEye size={16} />
-                                                </button>
-                                            </div>
-                                        </td>
+                    <>
+                        {/* ── Desktop table ── */}
+                        <div className="hidden md:block overflow-x-auto">
+                            <table className="w-full min-w-[900px] text-sm">
+                                <thead>
+                                    <tr
+                                        className={`text-left text-xs font-semibold uppercase tracking-wide ${muted} ${
+                                            isDark ? 'bg-[#0f172a]/30' : 'bg-[#f8fafc]/80'
+                                        }`}
+                                    >
+                                        <th className="px-5 py-3 w-14 text-center">№</th>
+                                        <th className="px-5 py-3 min-w-[220px]">Mijoz</th>
+                                        <th className="px-5 py-3 w-36">Mahsulot</th>
+                                        <th className="px-5 py-3 w-44 text-right">Jami summa</th>
+                                        <th className="px-5 py-3 w-40">Holat</th>
+                                        <th className="px-5 py-3 w-48">Sana</th>
+                                        <th className="px-5 py-3 w-20 text-right"></th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                                </thead>
+                                <tbody className={`divide-y ${divider}`}>
+                                    {filtered.map((o, idx) => (
+                                        <tr key={o.id} className={`transition-colors ${rowHov}`}>
+                                            <td className={`px-5 py-3 text-center text-xs tabular-nums ${muted}`}>
+                                                {page * PAGE_SIZE + idx + 1}
+                                            </td>
+                                            <td className="px-5 py-3">
+                                                <p className={`truncate font-semibold ${head}`}>{o.customerName || '—'}</p>
+                                                {o.summary && (
+                                                    <p className={`truncate max-w-xs text-xs ${muted}`}>{o.summary}</p>
+                                                )}
+                                            </td>
+                                            <td className={`px-5 py-3 text-xs font-semibold ${muted}`}>
+                                                <span className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 ${isDark ? 'bg-white/5' : 'bg-slate-100'}`}>
+                                                    <LuPackage size={13} /> {o.items?.length ?? 0} ta
+                                                </span>
+                                            </td>
+                                            <td className={`px-5 py-3 text-right font-bold tabular-nums ${head}`}>
+                                                {formatNumber(o.totalAmount ?? 0)} so&apos;m
+                                            </td>
+                                            <td className="px-5 py-3">
+                                                <span
+                                                    className={`inline-flex whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-bold ${STAFF_STATUS_CX[o.status] ?? 'bg-slate-500/10 text-slate-500 border-slate-500/30'}`}
+                                                >
+                                                    {STAFF_STATUS_LABEL[o.status] ?? o.status}
+                                                </span>
+                                            </td>
+                                            <td className={`whitespace-nowrap px-5 py-3 text-xs ${muted}`}>
+                                                {o.createdAt
+                                                    ? new Date(o.createdAt).toLocaleString('uz-UZ')
+                                                    : '—'}
+                                            </td>
+                                            <td className="px-5 py-3">
+                                                <div className="flex items-center justify-end gap-1">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => navigate(`/staff/orders/${o.id}`)}
+                                                        aria-label="Ko'rish"
+                                                        title="Ko'rish"
+                                                        className={iconBtn}
+                                                    >
+                                                        <LuEye size={16} />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* ── Mobile card list ── */}
+                        <div className={`flex flex-col divide-y md:hidden ${divider}`}>
+                            {filtered.map((o, idx) => (
+                                <div
+                                    key={o.id}
+                                    className={`px-4 py-3.5 transition-colors ${rowHov}`}
+                                >
+                                    {/* Top row: index + customer + status */}
+                                    <div className="flex items-start justify-between gap-2 mb-2">
+                                        <div className="flex items-center gap-2 min-w-0">
+                                            <span className={`text-[11px] tabular-nums shrink-0 ${muted}`}>
+                                                #{page * PAGE_SIZE + idx + 1}
+                                            </span>
+                                            <p className={`font-semibold text-sm truncate ${head}`}>
+                                                {o.customerName || '—'}
+                                            </p>
+                                        </div>
+                                        <span
+                                            className={`shrink-0 inline-flex whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-bold ${STAFF_STATUS_CX[o.status] ?? 'bg-slate-500/10 text-slate-500 border-slate-500/30'}`}
+                                        >
+                                            {STAFF_STATUS_LABEL[o.status] ?? o.status}
+                                        </span>
+                                    </div>
+
+                                    {/* Middle row: summary */}
+                                    {o.summary && (
+                                        <p className={`text-xs mb-2 line-clamp-1 ${muted}`}>{o.summary}</p>
+                                    )}
+
+                                    {/* Bottom row: items count + amount + date + view */}
+                                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-semibold ${isDark ? 'bg-white/5 text-slate-300' : 'bg-slate-100 text-slate-600'}`}>
+                                                <LuPackage size={12} /> {o.items?.length ?? 0} ta
+                                            </span>
+                                            <span className={`font-bold text-sm tabular-nums ${head}`}>
+                                                {formatNumber(o.totalAmount ?? 0)} so&apos;m
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className={`text-[11px] ${muted}`}>
+                                                {o.createdAt
+                                                    ? new Date(o.createdAt).toLocaleDateString('uz-UZ')
+                                                    : '—'}
+                                            </span>
+                                            <button
+                                                type="button"
+                                                onClick={() => navigate(`/staff/orders/${o.id}`)}
+                                                aria-label="Ko'rish"
+                                                className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
+                                                    isDark
+                                                        ? 'bg-amber-400/10 text-amber-400 hover:bg-amber-400/20'
+                                                        : 'bg-amber-50 text-amber-600 hover:bg-amber-100'
+                                                }`}
+                                            >
+                                                <LuEye size={15} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </>
                 )}
 
                 {pagination.totalPages > 1 && (
