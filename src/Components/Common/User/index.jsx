@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
     Box, Button, Dialog, Field, HStack, Heading,
@@ -8,8 +8,8 @@ import {
     LuPlus, LuSearch, LuTrash2, LuUserRound, LuX,
     LuShieldCheck, LuCrown, LuCalculator, LuShoppingCart,
     LuTruck, LuWarehouse, LuHeadset, LuClipboardList,
-    LuBriefcase, LuUserCog, LuUsers, LuPackageOpen,
-    LuFactory, LuBlend, LuReceipt, LuBoxes, LuCoins,
+    LuBriefcase, LuUserCog, LuUsers,
+    LuFactory, LuBlend, LuReceipt, LuCoins,
 } from 'react-icons/lu';
 import { useGetUsersQuery, useRegisterUserMutation, useDeleteUserMutation } from '../../../store/services/user.api';
 import { useGetDevicesQuery } from '../../../store/services/device.api';
@@ -38,8 +38,8 @@ const ROLE_LABELS = {
 
     /* Ombor / ishlab chiqarish */
     WAREHOUSE:                { uz: 'Omborchi',               Icon: LuWarehouse,     color: 'yellow' },
-    RAW_MATERIAL_STOREKEEPER: { uz: 'Xom ashyo omborchisi',   Icon: LuPackageOpen,   color: 'amber' },
-    PRODUCT_STOREKEEPER:      { uz: 'Mahsulot omborchisi',    Icon: LuBoxes,         color: 'lime' },
+    RAW_MATERIAL_STOREKEEPER: { uz: 'Omborchi',               Icon: LuWarehouse,     color: 'yellow' },
+    PRODUCT_STOREKEEPER:      { uz: 'Omborchi',               Icon: LuWarehouse,     color: 'yellow' },
     STANOKCHI:                { uz: 'Stanokchi',              Icon: LuFactory,       color: 'indigo' },
     MIKSERCHI:                { uz: 'Mikserchi',              Icon: LuBlend,         color: 'fuchsia' },
 
@@ -127,12 +127,20 @@ function CreateUser({ devices, onDone }) {
     const { data: roles = [], isLoading: rolesLoading } = useGetRolesQuery();
     const { isDark, cardBg, cardBorder, textColor, subtitleColor, accentColor } = useAppTheme();
     const update = (key) => (e) => setForm({ ...form, [key]: e.target.value });
+    const assignableRoles = useMemo(() => {
+        const warehouseRole = roles.find((role) => normalizeRoleKey(role.roleName) === 'PRODUCT_STOREKEEPER')
+            || roles.find((role) => normalizeRoleKey(role.roleName) === 'RAW_MATERIAL_STOREKEEPER');
+        return [
+            ...roles.filter((role) => !['PRODUCT_STOREKEEPER', 'RAW_MATERIAL_STOREKEEPER'].includes(normalizeRoleKey(role.roleName))),
+            ...(warehouseRole ? [warehouseRole] : []),
+        ];
+    }, [roles]);
 
     useEffect(() => {
-        if (roles.length > 0 && !form.roleId) {
-            setForm((prev) => ({ ...prev, roleId: String(roles[0].id) }));
+        if (assignableRoles.length > 0 && !form.roleId) {
+            setForm((prev) => ({ ...prev, roleId: String(assignableRoles[0].id) }));
         }
-    }, [roles]);
+    }, [assignableRoles, form.roleId]);
 
     const submit = async () => {
         if (!form.username.trim() || !/^\d{6}$/.test(form.code) || !form.deviceId || !form.roleId) {
@@ -143,13 +151,13 @@ function CreateUser({ devices, onDone }) {
             Alert('Foydalanuvchi yaratildi', 'success');
             onClose();
             onDone();
-            setForm({ username: '', code: '', roleId: roles[0] ? String(roles[0].id) : '', deviceId: '' });
+            setForm({ username: '', code: '', roleId: assignableRoles[0] ? String(assignableRoles[0].id) : '', deviceId: '' });
         } catch (error) {
             Alert(error?.data?.message || 'Foydalanuvchi yaratishda xatolik', 'error');
         }
     };
 
-    const selectedRole = roles.find((r) => String(r.id) === String(form.roleId));
+    const selectedRole = assignableRoles.find((r) => String(r.id) === String(form.roleId));
     const selectedMeta = selectedRole ? getRoleMeta(selectedRole.roleName) : null;
 
     return (
@@ -211,7 +219,7 @@ function CreateUser({ devices, onDone }) {
                                         <FormControl as="select" value={form.roleId} onChange={update('roleId')}>
                                             {rolesLoading
                                                 ? <option value="">Yuklanmoqda...</option>
-                                                : roles.map((r) => {
+                                                : assignableRoles.map((r) => {
                                                     const meta = getRoleMeta(r.roleName);
                                                     return (
                                                         <option key={r.id} value={r.id}>

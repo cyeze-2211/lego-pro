@@ -1,5 +1,5 @@
 // navigation/sidebar.config.js
-import { ROLES, PRODUCT_WAREHOUSE_ROLES, RAW_WAREHOUSE_ROLES, ZAYAVKACHI_ROLES, BUXGALTER_ROLES, KASSIR_ROLES } from '../permissions/roles';
+import { ROLES, WAREHOUSE_ROLES, ZAYAVKACHI_ROLES, BUXGALTER_ROLES, KASSIR_ROLES } from '../permissions/roles';
 import {
     Boxes, ClipboardList, Cog, History, LayoutDashboard, LogIn, LogOut,
     CalendarClock, Layers3, MonitorCog, Package, Palette, ReceiptText, ShieldCheck, UserRound, Users, Wallet, Warehouse, FileSpreadsheet, UserCheck,
@@ -36,33 +36,37 @@ export const SIDEBAR_GROUPS = [
     { label: 'Userlar', items: SIDEBAR_CONFIG.filter((i) => ['/customers', '/customer-agents', '/orders', '/users', '/roles', '/devices'].includes(i.path)) },
 ];
 
-// ── Product Storekeeper ────────────────────────────────────────────────────
-export const STAFF_SIDEBAR_CONFIG = [
-    { label: 'Dashboard', path: '/staff', icon: LayoutDashboard, roles: PRODUCT_WAREHOUSE_ROLES },
-    { label: 'Buyurtmalar', path: '/staff/orders', icon: ClipboardList, roles: PRODUCT_WAREHOUSE_ROLES },
-    { label: 'Kirim', path: '/staff/income', icon: LogIn, roles: PRODUCT_WAREHOUSE_ROLES },
-    { label: 'Ombor', path: '/staff/warehouse', icon: Warehouse, roles: PRODUCT_WAREHOUSE_ROLES },
-    { label: 'Tarix', path: '/staff/history', icon: History, roles: PRODUCT_WAREHOUSE_ROLES },
+// ── Unified Storekeeper ────────────────────────────────────────────────────
+const PRODUCT_STOREKEEPER_ITEMS = [
+    { label: 'Buyurtmalar', path: '/staff/orders', icon: ClipboardList, roles: WAREHOUSE_ROLES },
+    { label: 'Kirim', path: '/staff/income', icon: LogIn, roles: WAREHOUSE_ROLES },
+    { label: 'Chiqim', path: '/staff/outcome', icon: LogOut, roles: WAREHOUSE_ROLES },
+    { label: 'Ombor', path: '/staff/warehouse', icon: Warehouse, roles: WAREHOUSE_ROLES },
+    { label: 'Tarix', path: '/staff/history', icon: History, roles: WAREHOUSE_ROLES },
 ];
 
-export const STAFF_SIDEBAR_GROUPS = [
-    { label: 'Asosiy', items: STAFF_SIDEBAR_CONFIG.filter((i) => i.path === '/staff') },
-    { label: 'Buyurtma', items: STAFF_SIDEBAR_CONFIG.filter((i) => i.path === '/staff/orders') },
-    { label: 'Ombor', items: STAFF_SIDEBAR_CONFIG.filter((i) => ['/staff/income', '/staff/warehouse', '/staff/history'].includes(i.path)) },
+const RAW_STOREKEEPER_ITEMS = [
+    { label: 'Kirim', path: '/raw-staff/income', icon: LogIn, roles: WAREHOUSE_ROLES },
+    { label: 'Chiqim', path: '/raw-staff/outcome', icon: LogOut, roles: WAREHOUSE_ROLES },
+    { label: 'Ombor', path: '/raw-staff/warehouse', icon: Warehouse, roles: WAREHOUSE_ROLES },
+    { label: 'Tarix', path: '/raw-staff/history', icon: History, roles: WAREHOUSE_ROLES },
 ];
 
-// ── Raw Material Storekeeper ───────────────────────────────────────────────
-export const RAW_STAFF_SIDEBAR_CONFIG = [
-    { label: 'Dashboard', path: '/raw-staff', icon: LayoutDashboard, roles: RAW_WAREHOUSE_ROLES },
-    { label: 'Kirim', path: '/raw-staff/income', icon: LogIn, roles: RAW_WAREHOUSE_ROLES },
-    { label: 'Chiqim', path: '/raw-staff/outcome', icon: LogOut, roles: RAW_WAREHOUSE_ROLES },
-    { label: 'Ombor', path: '/raw-staff/warehouse', icon: Warehouse, roles: RAW_WAREHOUSE_ROLES },
-    { label: 'Tarix', path: '/raw-staff/history', icon: History, roles: RAW_WAREHOUSE_ROLES },
-];
-
-export const RAW_STAFF_SIDEBAR_GROUPS = [
-    { label: 'Asosiy', items: RAW_STAFF_SIDEBAR_CONFIG.filter((i) => i.path === '/raw-staff') },
-    { label: 'Xom ashyo', items: RAW_STAFF_SIDEBAR_CONFIG.filter((i) => ['/raw-staff/income', '/raw-staff/outcome', '/raw-staff/warehouse', '/raw-staff/history'].includes(i.path)) },
+export const WAREHOUSE_SIDEBAR_GROUPS = [
+    {
+        label: 'Asosiy',
+        items: [
+            { label: 'Dashboard', path: '/staff', icon: LayoutDashboard, roles: WAREHOUSE_ROLES },
+        ],
+    },
+    {
+        label: 'Tovar ombori',
+        items: PRODUCT_STOREKEEPER_ITEMS,
+    },
+    {
+        label: 'Xom ashyo ombori',
+        items: RAW_STOREKEEPER_ITEMS,
+    },
 ];
 
 // ── Zayavkachi ─────────────────────────────────────────────────────────────

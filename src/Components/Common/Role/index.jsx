@@ -11,8 +11,8 @@ import {
     LuTrash2, LuUsers, LuX, LuLock,
     LuCrown, LuCalculator, LuShoppingCart,
     LuTruck, LuWarehouse, LuHeadset, LuClipboardList,
-    LuBriefcase, LuUserCog, LuUserRound, LuPackageOpen,
-    LuFactory, LuBlend, LuReceipt, LuBoxes, LuCoins,
+    LuBriefcase, LuUserCog, LuUserRound,
+    LuFactory, LuBlend, LuReceipt, LuCoins,
 } from 'react-icons/lu';
 import {
     useGetRolesQuery,
@@ -45,8 +45,8 @@ const ROLE_LABELS = {
 
     /* Ombor / ishlab chiqarish */
     WAREHOUSE:                { uz: 'Omborchi',               Icon: LuWarehouse,     color: 'yellow' },
-    RAW_MATERIAL_STOREKEEPER: { uz: 'Xom ashyo omborchisi',   Icon: LuPackageOpen,   color: 'amber' },
-    PRODUCT_STOREKEEPER:      { uz: 'Mahsulot omborchisi',    Icon: LuBoxes,         color: 'lime' },
+    RAW_MATERIAL_STOREKEEPER: { uz: 'Omborchi',               Icon: LuWarehouse,     color: 'yellow' },
+    PRODUCT_STOREKEEPER:      { uz: 'Omborchi',               Icon: LuWarehouse,     color: 'yellow' },
     STANOKCHI:                { uz: 'Stanokchi',              Icon: LuFactory,       color: 'indigo' },
     MIKSERCHI:                { uz: 'Mikserchi',              Icon: LuBlend,         color: 'fuchsia' },
 

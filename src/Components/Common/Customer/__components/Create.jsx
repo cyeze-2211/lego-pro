@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import {
     Box,
@@ -14,7 +14,6 @@ import {
 } from '@chakra-ui/react';
 import { Check, User, X } from 'lucide-react';
 import {
-    LuDollarSign,
     LuPhone,
     LuPlus,
     LuStickyNote,
@@ -28,6 +27,7 @@ import {
 } from 'react-icons/lu';
 import { useCreateCustomerMutation } from '../../../../store/services/customer.api';
 import { useGetCustomerAgentsQuery } from '../../../../store/services/customerAgent.api';
+import { useGetRegionsQuery } from '../../../../store/services/region.api';
 import { Alert } from '../../../Other/UI/Alert/Alert';
 import { useAppTheme } from '../../../../theme/tokens';
 import FormControl from '../../../ui/FormControl';
@@ -82,6 +82,7 @@ const initialForm = {
     agentId: '',
     agentName: '',
     telegramChatId: '',
+    regionId: '',
 };
 
 const numberInputSx = {
@@ -94,18 +95,34 @@ const numberInputSx = {
     },
 };
 
-export default function Create({ onCreated, compact = false, onBeforeOpen }) {
+export default function Create({
+    onCreated,
+    compact = false,
+    onBeforeOpen,
+    openOnMount = false,
+    hideTrigger = false,
+    onClosed,
+}) {
     const { open, onOpen, onClose } = useDisclosure();
     const [form, setForm] = useState(initialForm);
     const [createCustomer, { isLoading }] = useCreateCustomerMutation();
     const { isDark, accentColor, cardBg, cardBorder, textColor, subtitleColor } = useAppTheme();
     const modalBorder = isDark ? cardBorder : '#94A3B8';
 
+    useEffect(() => {
+        if (openOnMount) onOpen();
+    }, [openOnMount, onOpen]);
+
     const { data: agentsData } = useGetCustomerAgentsQuery(
         { size: 200 },
         { skip: !open }
     );
+    const { data: regions = [], isError: regionsError } = useGetRegionsQuery(undefined, { skip: !open });
     const agents = agentsData?.items ?? [];
+
+    useEffect(() => {
+        if (regionsError) Alert('Viloyatlar ro‘yxatini yuklashda xatolik', 'error');
+    }, [regionsError]);
 
     // Agent tanlanganda agentName va telegramChatId ni avtomatik to'ldirish
     const handleAgentChange = (agentId) => {
@@ -223,8 +240,9 @@ export default function Create({ onCreated, compact = false, onBeforeOpen }) {
                 balance,
                 address: form.address.trim() || null,
                 inn: form.inn.trim() || null,
-                agentName: form.agentName.trim() || null,
+                agentId: form.agentId || null,
                 telegramChatId: form.telegramChatId.trim() || null,
+                regionId: form.regionId ? Number(form.regionId) : null,
             }).unwrap();
 
             Alert('Mijoz muvaffaqiyatli yaratildi', 'success');
@@ -240,7 +258,7 @@ export default function Create({ onCreated, compact = false, onBeforeOpen }) {
 
     return (
         <>
-            {compact ? (
+            {hideTrigger ? null : compact ? (
                 <Button
                     type="button"
                     onClick={handleOpen}
@@ -278,7 +296,13 @@ export default function Create({ onCreated, compact = false, onBeforeOpen }) {
 
             <Dialog.Root
                 open={open}
-                onOpenChange={(event) => (event.open ? handleOpen() : onClose())}
+                onOpenChange={(event) => {
+                    if (event.open) handleOpen();
+                    else {
+                        onClose();
+                        onClosed?.();
+                    }
+                }}
                 size="2xl"
                 placement="center"
             >
@@ -384,6 +408,23 @@ export default function Create({ onCreated, compact = false, onBeforeOpen }) {
                                                     placeholder="302123456"
                                                     minH="52px"
                                                 />
+                                            </Field.Root>
+
+                                            <Field.Root>
+                                                <Field.Label color={textColor} fontWeight="medium">
+                                                    <HStack gap={2}><LuMapPin size={16} /><span>Viloyat</span></HStack>
+                                                </Field.Label>
+                                                <FormControl
+                                                    as="select"
+                                                    value={form.regionId}
+                                                    onChange={(e) => setField('regionId', e.target.value)}
+                                                    minH="52px"
+                                                >
+                                                    <option value="">Viloyatni tanlang (ixtiyoriy)</option>
+                                                    {regions.map((region) => (
+                                                        <option key={region.id} value={region.id}>{region.name}</option>
+                                                    ))}
+                                                </FormControl>
                                             </Field.Root>
 
                                             {/* === Boshlang'ich balans — hammasi bitta qatorda, full width === */}
@@ -647,4 +688,7 @@ Create.propTypes = {
     onCreated: PropTypes.func,
     compact: PropTypes.bool,
     onBeforeOpen: PropTypes.func,
+    openOnMount: PropTypes.bool,
+    hideTrigger: PropTypes.bool,
+    onClosed: PropTypes.func,
 };

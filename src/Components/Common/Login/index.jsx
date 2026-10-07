@@ -129,15 +129,12 @@ export default function Login() {
                 role: userRole,
             }));
 
-            // Ombor rollari /staff ga, raw material /raw-staff ga, zayavkachi /zayavkachi ga
-            const warehouseRoles = ["product_storekeeper"];
-            const rawRoles = ["raw_material_storekeeper"];
+            // Har ikki ombor roli yagona omborchi ish maydoniga kiradi.
+            const warehouseRoles = ["product_storekeeper", "raw_material_storekeeper"];
             const zayavkachiRoles = ["zayavkachi"];
 
             if (userRole && warehouseRoles.includes(userRole)) {
                 navigate("/staff");
-            } else if (userRole && rawRoles.includes(userRole)) {
-                navigate("/raw-staff");
             } else if (userRole && zayavkachiRoles.includes(userRole)) {
                 navigate("/zayavkachi");
             } else if (userRole === "stanokchi") {

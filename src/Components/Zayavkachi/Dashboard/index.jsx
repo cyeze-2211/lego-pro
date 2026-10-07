@@ -74,7 +74,6 @@ export default function ZayavkachiDashboard() {
     const totalRejected = dashboard?.rejected ?? 0;
 
     /* ── Shortages aggregated ── */
-    const shortageProductsCount = shortages.length;
     const totalShortageUnits = shortages.reduce(
         (sum, s) => sum + (Number(s.shortageQuantity) || 0),
         0
@@ -162,8 +161,8 @@ export default function ZayavkachiDashboard() {
                 </div>
             </div>
 
-            {/* Stats — 6 cards */}
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            {/* Stats — 5 cards */}
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
                 {statCards.map(({ label, value, icon: Icon, cls, loading }) => (
                     <div key={label} className={`flex flex-col gap-3 rounded-2xl border p-4 shadow-md ${panel}`}>
                         <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${cls}`}>
@@ -188,10 +187,10 @@ export default function ZayavkachiDashboard() {
 
             {/* Today's expected payment reminder total */}
             <div className={`relative overflow-hidden rounded-2xl border p-4 sm:p-5 shadow-md ${panel}`}>
-                <div className="absolute right-0 top-0 h-full w-1/2 bg-gradient-to-l from-emerald-400/8 to-transparent" />
+                <div className="absolute right-0 top-0 h-full w-1/2 bg-gradient-to-l from-green-400/8 to-transparent" />
                 <div className="relative flex flex-wrap items-center justify-between gap-4">
                     <div className="flex min-w-0 items-center gap-3">
-                        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500">
+                        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-green-500/10 text-green-500">
                             <LuWallet size={20} />
                         </span>
                         <div className="min-w-0">
@@ -216,12 +215,12 @@ export default function ZayavkachiDashboard() {
                             <Link
                                 to="/reminders"
                                 aria-label="To‘lov eslatmalarini ochish"
-                                className={`group rounded-lg text-right focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 ${isDark ? 'focus-visible:ring-offset-[#141C2B]' : 'focus-visible:ring-offset-white'}`}
+                                className={`group rounded-lg text-right focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 ${isDark ? 'focus-visible:ring-offset-[#141C2B]' : 'focus-visible:ring-offset-white'}`}
                             >
                                 <p className={`text-2xl sm:text-3xl font-bold ${head}`}>
                                     {formatNumber(Math.round(Number(paymentReminderDashboard?.totalPrice) || 0))} so‘m
                                 </p>
-                                <span className={`mt-1 inline-flex items-center justify-end gap-1.5 text-xs ${muted} group-hover:text-emerald-500`}>
+                                <span className={`mt-1 inline-flex items-center justify-end gap-1.5 text-xs ${muted} group-hover:text-green-500`}>
                                     {formatNumber(paymentReminderDashboard?.reminderCount ?? 0)} ta eslatma · Batafsil
                                     <LuArrowRight size={12} className="transition-transform group-hover:translate-x-0.5" />
                                 </span>
@@ -347,23 +346,55 @@ export default function ZayavkachiDashboard() {
     );
 }
 
-/* ── Row for a single shortage product ── */
+/* ════════════════════════════════════════════════════════════════════ */
+/*  Shortage row — yashil faqat 90%+ da ko'rinadi                       */
+/*  Tailwind: green-* (emerald emas)                                    */
+/* ════════════════════════════════════════════════════════════════════ */
 function ShortageRow({ item, isDark, head, muted }) {
     const shortage = Number(item.shortageQuantity) || 0;
     const available = Number(item.availableQuantity) || 0;
     const ordered = Number(item.orderedQuantity) || 0;
-    const percent = ordered > 0 ? Math.min(100, (available / ordered) * 100) : 0;
+
+    /* Точный процент */
+    const rawPercent = ordered > 0 ? (available / ordered) * 100 : 0;
+    const percent = Math.max(0, Math.min(100, rawPercent));
+    const shortagePercent = 100 - percent;
+
+    /* Уровни:
+     *   < 30%        → qizil (kritik)
+     *   30% – 89.9%  → sariq (ogohlantirish)
+     *   >= 90%       → yashil (yaxshi)
+     */
     const isCritical = percent < 30;
+    const isWarning = percent >= 30 && percent < 90;
+    const isGood = percent >= 90;
+
+    /* Цвета через green-* — уже есть в проекте */
+    const barColor = isCritical ? 'bg-red-500' : isWarning ? 'bg-amber-500' : 'bg-green-500';
+    const barTextColor = isCritical
+        ? (isDark ? 'text-red-300' : 'text-red-600')
+        : isWarning
+        ? (isDark ? 'text-amber-300' : 'text-amber-600')
+        : (isDark ? 'text-green-300' : 'text-green-600');
+
+    const iconBg = isCritical
+        ? 'bg-red-500/10 text-red-500'
+        : isWarning
+        ? 'bg-amber-400/10 text-amber-500'
+        : 'bg-green-500/10 text-green-500';
+
+    const formatPercent = (p) => {
+        if (!Number.isFinite(p)) return '0%';
+        const rounded = Math.round(p * 10) / 10;
+        return Number.isInteger(rounded) ? `${rounded}%` : `${rounded.toFixed(1)}%`;
+    };
 
     return (
         <div className="px-5 py-4 transition-colors hover:bg-red-500/[0.02]">
             <div className="flex flex-wrap items-start justify-between gap-4">
                 {/* Left: product info */}
                 <div className="flex min-w-0 flex-1 items-start gap-3">
-                    <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${isCritical
-                            ? 'bg-red-500/10 text-red-500'
-                            : 'bg-amber-400/10 text-amber-500'
-                        }`}>
+                    <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${iconBg}`}>
                         <LuPackage size={18} />
                     </span>
                     <div className="min-w-0 flex-1">
@@ -414,8 +445,7 @@ function ShortageRow({ item, isDark, head, muted }) {
                         <p className={`text-[10px] font-semibold uppercase tracking-wide ${muted}`}>
                             Mavjud
                         </p>
-                        <p className={`text-sm font-bold ${isDark ? 'text-emerald-300' : 'text-emerald-600'
-                            }`}>
+                        <p className={`text-sm font-bold ${isDark ? 'text-green-300' : 'text-green-600'}`}>
                             {formatNumber(available)}
                         </p>
                     </div>
@@ -423,8 +453,7 @@ function ShortageRow({ item, isDark, head, muted }) {
                         <p className={`text-[10px] font-semibold uppercase tracking-wide ${muted}`}>
                             Yetishmaydi
                         </p>
-                        <p className={`text-base font-bold ${isDark ? 'text-red-300' : 'text-red-600'
-                            }`}>
+                        <p className={`text-base font-bold ${isDark ? 'text-red-300' : 'text-red-600'}`}>
                             {formatNumber(shortage)}
                         </p>
                     </div>
@@ -432,24 +461,30 @@ function ShortageRow({ item, isDark, head, muted }) {
             </div>
 
             {/* Progress bar */}
-            <div className="mt-3">
-                <div className={`h-1.5 w-full overflow-hidden rounded-full ${isDark ? 'bg-white/[0.06]' : 'bg-slate-100'
-                    }`}>
-                    <div
-                        className={`h-full rounded-full transition-all ${isCritical ? 'bg-red-500' : 'bg-emerald-500'
-                            }`}
-                        style={{ width: `${percent}%` }}
-                    />
-                </div>
-                <div className={`mt-1 flex items-center justify-between text-[10px] ${muted}`}>
-                    <span>{percent.toFixed(0)}% mavjud</span>
-                    {percent < 100 && (
-                        <span className={isCritical ? (isDark ? 'text-red-300' : 'text-red-600') : ''}>
-                            {100 - percent.toFixed(0)}% kamomad
+            {ordered > 0 && (
+                <div className="mt-3">
+                    <div className={`relative h-2 w-full overflow-hidden rounded-full ${isDark ? 'bg-white/[0.06]' : 'bg-slate-100'}`}>
+                        <div
+                            className={`absolute left-0 top-0 h-full rounded-full ${barColor} transition-all duration-500`}
+                            style={{ width: `${percent}%` }}
+                        />
+                    </div>
+
+                    <div className="mt-1.5 flex items-center justify-between gap-3 text-[11px] font-semibold">
+                        <span className={`inline-flex items-center gap-1.5 ${barTextColor}`}>
+                            <span className={`inline-block h-2 w-2 rounded-full ${barColor}`} />
+                            <span>{formatPercent(percent)} mavjud</span>
                         </span>
-                    )}
+
+                        {shortage > 0 && (
+                            <span className={`inline-flex items-center gap-1.5 ${isDark ? 'text-red-300' : 'text-red-600'}`}>
+                                <span className={`inline-block h-2 w-2 rounded-full ${isDark ? 'bg-red-400/60' : 'bg-red-400'}`} />
+                                <span>{formatPercent(shortagePercent)} kamomad</span>
+                            </span>
+                        )}
+                    </div>
                 </div>
-            </div>
+            )}
 
             {/* Warehouses breakdown */}
             {Array.isArray(item.warehouses) && item.warehouses.length > 0 && (
@@ -459,27 +494,40 @@ function ShortageRow({ item, isDark, head, muted }) {
                     }`}>
                     <div className={`mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide ${muted}`}>
                         <LuWarehouse size={11} />
-                        <span>Ombоrlar bo&apos;yicha taqsimot</span>
+                        <span>Ombоrlar bo‘yicha taqsimot</span>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                        {item.warehouses.map((wh) => (
-                            <span
-                                key={wh.warehouseId}
-                                className={`inline-flex items-center gap-2 rounded-lg border px-2.5 py-1 text-xs ${isDark
-                                        ? 'border-white/[0.08] bg-white/[0.03] text-slate-300'
-                                        : 'border-[#e2e8f0] bg-white text-[#475569]'
-                                    }`}
-                            >
-                                <span className="font-semibold">{wh.warehouseName}</span>
-                                <span className={muted}>·</span>
-                                <span className={isDark ? 'text-red-300' : 'text-red-600'}>
-                                    −{formatNumber(wh.shortageQuantity)}
+                        {item.warehouses.map((wh) => {
+                            const whAvailable = Number(wh.availableQuantity) || 0;
+                            const whOrdered = Number(wh.orderedQuantity) || 0;
+                            const whPercent = whOrdered > 0
+                                ? Math.max(0, Math.min(100, (whAvailable / whOrdered) * 100))
+                                : 0;
+                            const whCritical = whPercent < 30;
+
+                            return (
+                                <span
+                                    key={wh.warehouseId}
+                                    className={`inline-flex items-center gap-2 rounded-lg border px-2.5 py-1 text-xs ${isDark
+                                            ? 'border-white/[0.08] bg-white/[0.03] text-slate-300'
+                                            : 'border-[#e2e8f0] bg-white text-[#475569]'
+                                        }`}
+                                >
+                                    <span className="font-semibold">{wh.warehouseName}</span>
+                                    <span className={muted}>·</span>
+                                    <span className={isDark ? 'text-red-300' : 'text-red-600'}>
+                                        −{formatNumber(wh.shortageQuantity)}
+                                    </span>
+                                    <span className={`text-[10px] font-semibold ${
+                                        whCritical
+                                            ? (isDark ? 'text-red-300' : 'text-red-600')
+                                            : muted
+                                    }`}>
+                                        ({formatNumber(whAvailable)}/{formatNumber(whOrdered)})
+                                    </span>
                                 </span>
-                                <span className={`text-[10px] ${muted}`}>
-                                    ({formatNumber(wh.availableQuantity)}/{formatNumber(wh.orderedQuantity)})
-                                </span>
-                            </span>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
             )}

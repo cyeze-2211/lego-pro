@@ -25,6 +25,7 @@ import {
 } from 'react-icons/lu';
 import { useUpdateCustomerMutation } from '../../../../store/services/customer.api';
 import { useGetCustomerAgentsQuery } from '../../../../store/services/customerAgent.api';
+import { useGetRegionsQuery } from '../../../../store/services/region.api';
 import { Alert } from '../../../Other/UI/Alert/Alert';
 import { useAppTheme } from '../../../../theme/tokens';
 import FormControl from '../../../ui/FormControl';
@@ -40,20 +41,30 @@ const buildInitial = (customer) => ({
     agentId:       customer.agentId       || '',
     agentName:     customer.agentName     || '',
     telegramChatId: customer.telegramChatId ? String(customer.telegramChatId) : '',
+    regionId:      customer.regionId == null ? '' : String(customer.regionId),
 });
 
-export default function Edit({ customer }) {
+export default function Edit({ customer, openOnMount = false, hideTrigger = false, onClosed }) {
     const { open, onOpen, onClose } = useDisclosure();
     const [form, setForm] = useState(() => buildInitial(customer));
     const [updateCustomer, { isLoading }] = useUpdateCustomerMutation();
     const { isDark, accentColor, cardBg, cardBorder, textColor, subtitleColor } = useAppTheme();
     const modalBorder = isDark ? cardBorder : '#94A3B8';
 
+    useEffect(() => {
+        if (openOnMount) onOpen();
+    }, [openOnMount, onOpen]);
+
     const { data: agentsData } = useGetCustomerAgentsQuery(
         { size: 200 },
         { skip: !open }
     );
+    const { data: regions = [], isError: regionsError } = useGetRegionsQuery(undefined, { skip: !open });
     const agents = agentsData?.items ?? [];
+
+    useEffect(() => {
+        if (regionsError) Alert('Viloyatlar ro‘yxatini yuklashda xatolik', 'error');
+    }, [regionsError]);
 
     // Agent tanlanganda agentName va telegramChatId ni avtomatik to'ldirish
     const handleAgentChange = (agentId) => {
@@ -94,11 +105,13 @@ export default function Edit({ customer }) {
                     summary: form.summary.trim() || null,
                     address: form.address.trim() || null,
                     inn: form.inn.trim() || null,
-                    agentName: form.agentName.trim() || null,
+                    agentId: form.agentId || null,
                     telegramChatId: form.telegramChatId.trim() || null,
+                    regionId: form.regionId ? Number(form.regionId) : null,
                 },
             }).unwrap();
             Alert('Mijoz yangilandi', 'success');
+            onClosed?.();
             onClose();
         } catch (error) {
             Alert(error?.data?.message || 'Mijozni yangilashda xatolik', 'error');
@@ -115,22 +128,30 @@ export default function Edit({ customer }) {
 
     return (
         <>
-            <Button
-                onClick={onOpen}
-                variant="ghost"
-                size="sm"
-                color={accentColor}
-                borderRadius="xl"
-                px={3}
-                aria-label="Tahrirlash"
-                _hover={{ bg: isDark ? 'rgba(250, 204, 21, 0.16)' : 'yellow.50', color: isDark ? 'yellow.200' : 'yellow.700' }}
-            >
-                <LuPen size={16} />
-            </Button>
+            {!hideTrigger && (
+                <Button
+                    onClick={onOpen}
+                    variant="ghost"
+                    size="sm"
+                    color={accentColor}
+                    borderRadius="xl"
+                    px={3}
+                    aria-label="Tahrirlash"
+                    _hover={{ bg: isDark ? 'rgba(250, 204, 21, 0.16)' : 'yellow.50', color: isDark ? 'yellow.200' : 'yellow.700' }}
+                >
+                    <LuPen size={16} />
+                </Button>
+            )}
 
             <Dialog.Root
                 open={open}
-                onOpenChange={(event) => (event.open ? onOpen() : onClose())}
+                onOpenChange={(event) => {
+                    if (event.open) onOpen();
+                    else {
+                        onClose();
+                        onClosed?.();
+                    }
+                }}
                 size="2xl"
                 placement="center"
             >
@@ -232,6 +253,23 @@ export default function Edit({ customer }) {
                                                     placeholder="302123456"
                                                     minH="52px"
                                                 />
+                                            </Field.Root>
+
+                                            <Field.Root>
+                                                <Field.Label color={textColor} fontWeight="medium">
+                                                    <HStack gap={2}><LuMapPin size={16} /><span>Viloyat</span></HStack>
+                                                </Field.Label>
+                                                <FormControl
+                                                    as="select"
+                                                    value={form.regionId}
+                                                    onChange={(e) => setField('regionId', e.target.value)}
+                                                    minH="52px"
+                                                >
+                                                    <option value="">Viloyatni tanlang (ixtiyoriy)</option>
+                                                    {regions.map((region) => (
+                                                        <option key={region.id} value={region.id}>{region.name}</option>
+                                                    ))}
+                                                </FormControl>
                                             </Field.Root>
 
                                             <Field.Root gridColumn={{ base: 'auto', md: 'span 2' }}>
@@ -371,4 +409,7 @@ Edit.propTypes = {
         agentName: PropTypes.string,
         telegramChatId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     }).isRequired,
+    openOnMount: PropTypes.bool,
+    hideTrigger: PropTypes.bool,
+    onClosed: PropTypes.func,
 };

@@ -4,9 +4,8 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import {
     LuClipboardList, LuSearch, LuChevronLeft, LuChevronRight,
     LuPlus, LuX, LuEye, LuPencil, LuPackage,
-    LuSlidersHorizontal, LuChevronDown, LuHistory,
-    LuUser, LuCalendar, LuCheck, LuCircleX, LuFileText,
-    LuWallet, LuCircleCheckBig, LuBan, LuChevronUp,
+    LuSlidersHorizontal, LuChevronDown,
+    LuCircleX, LuCircleCheckBig, LuBan, LuChevronUp,
     LuInbox, LuCircleDashed, LuPackageCheck,
 } from 'react-icons/lu';
 import { useAppTheme } from '../../../theme/tokens';
@@ -25,7 +24,7 @@ import { Alert } from '../../Other/UI/Alert/Alert';
 
 const PAGE_SIZE = 20;
 
-/* ── Status configs (локально, если не экспортируются из statusBadge) ── */
+/* ── Status configs ── */
 const LOCAL_LABELS = {
     CREATED:    'Yaratilgan',
     LOADED:     'Ortildi',
@@ -33,17 +32,15 @@ const LOCAL_LABELS = {
     REJECTED:   'Rad etilgan',
 };
 
-/* Разрешённые переходы между статусами */
 const NEXT_STATUS = {
     CREATED:    ['LOADED', 'REJECTED'],
     LOADED:     ['CONFIRMED'],
-    CONFIRMED:  [],   // финальный
-    REJECTED:   [],   // финальный
+    CONFIRMED:  [],
+    REJECTED:   [],
 };
 
 const FINAL_STATUSES = ['CONFIRMED', 'REJECTED'];
 
-/* ── Иконки для статусов ── */
 const STATUS_ICON = {
     CREATED:    LuCircleDashed,
     LOADED:     LuPackageCheck,
@@ -51,7 +48,7 @@ const STATUS_ICON = {
     REJECTED:   LuCircleX,
 };
 
-/* ── Tab konfiguratsiyasi ── */
+/* ── Tabs ── */
 const TABS = [
     {
         key: 'active',
@@ -83,7 +80,6 @@ const TABS = [
 ];
 
 const ACTIVE_STATUSES = TABS[0].statuses;
-const STATUS_FLOW = ['CREATED', 'LOADED', 'CONFIRMED'];
 
 const labelOf = (status) => {
     if (!status) return '—';
@@ -145,6 +141,19 @@ function OrderListStatusControl({ order, isDark }) {
     const isFinal = isFinalStatus(order.status);
     const nextStatuses = effectiveNextStatuses(order.status);
 
+    if (role === ROLES.ZAYAVKACHI) {
+        const Icon = STATUS_ICON[order.status];
+        return (
+            <span
+                className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-bold whitespace-nowrap"
+                style={{ backgroundColor: style.bg, color: style.color, borderColor: style.border }}
+            >
+                {Icon && <Icon size={13} />}
+                {labelOf(order.status)}
+            </span>
+        );
+    }
+
     const changeStatus = async (nextStatus) => {
         if (!nextStatus || nextStatus === order.status) return;
         setAction(nextStatus);
@@ -177,17 +186,6 @@ function OrderListStatusControl({ order, isDark }) {
         );
     }
 
-    if (role === ROLES.ZAYAVKACHI && nextStatuses.length === 0) {
-        return (
-            <span
-                className="inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-bold whitespace-nowrap"
-                style={{ backgroundColor: style.bg, color: style.color, borderColor: style.border }}
-            >
-                {labelOf(order.status)}
-            </span>
-        );
-    }
-
     return (
         <select
             value={action || order.status || ''}
@@ -215,72 +213,7 @@ OrderListStatusControl.propTypes = {
 };
 
 /* ──────────────────────────────────────────────────────────────── */
-/*  Status timeline                                                 */
-/* ──────────────────────────────────────────────────────────────── */
-function StatusTimeline({ status, isDark }) {
-    const isRejected = status === 'REJECTED';
-    const currentIndex = STATUS_FLOW.indexOf(status);
-
-    const idleBorder = isDark ? '#334155' : '#e2e8f0';
-    const doneLine = '#22c55e';
-
-    return (
-        <div>
-            <div className="flex items-center justify-between gap-1">
-                {STATUS_FLOW.map((step, idx) => {
-                    const done = !isRejected && idx <= currentIndex;
-                    const active = !isRejected && idx === currentIndex;
-                    return (
-                        <Fragment key={step}>
-                            <div className="flex flex-col items-center gap-2 min-w-0">
-                                <div
-                                    className="flex h-10 w-10 items-center justify-center rounded-full border-2 transition-all duration-300"
-                                    style={{
-                                        borderColor: done ? doneLine : idleBorder,
-                                        backgroundColor: done ? doneLine : (isDark ? 'transparent' : '#fff'),
-                                        color: done ? '#fff' : (isDark ? '#64748b' : '#94a3b8'),
-                                        boxShadow: active ? `0 0 0 4px ${isDark ? 'rgba(34,197,94,.18)' : 'rgba(34,197,94,.15)'}` : 'none',
-                                    }}
-                                >
-                                    {done ? <LuCheck size={18} strokeWidth={3} /> : <span className="text-xs font-bold">{idx + 1}</span>}
-                                </div>
-                                <span
-                                    className="text-[11px] font-semibold text-center leading-tight"
-                                    style={{ color: done ? doneLine : (isDark ? '#64748b' : '#94a3b8') }}
-                                >
-                                    {labelOf(step)}
-                                </span>
-                            </div>
-                            {idx < STATUS_FLOW.length - 1 && (
-                                <div
-                                    className="mb-6 h-0.5 flex-1 rounded-full transition-colors duration-300"
-                                    style={{
-                                        backgroundColor: (!isRejected && idx < currentIndex) ? doneLine : idleBorder,
-                                    }}
-                                />
-                            )}
-                        </Fragment>
-                    );
-                })}
-            </div>
-
-            {isRejected && (
-                <div className="mt-5 flex items-center justify-center gap-2 rounded-xl border border-red-400/30 bg-red-400/10 px-4 py-3 text-sm font-semibold text-red-500">
-                    <LuCircleX size={18} />
-                    Buyurtma bekor qilingan
-                </div>
-            )}
-        </div>
-    );
-}
-
-StatusTimeline.propTypes = {
-    status: PropTypes.string,
-    isDark: PropTypes.bool.isRequired,
-};
-
-/* ──────────────────────────────────────────────────────────────── */
-/*  Tugallangan / Bekor qilingan — qator ostidagi panel             */
+/*  Tugallangan / Rad etilgan — qator ostidagi panel                */
 /* ──────────────────────────────────────────────────────────────── */
 function OrderUnderPanel({ order, isDark }) {
     const isCancelled = order?.status === 'REJECTED';
@@ -381,156 +314,6 @@ OrderUnderPanel.propTypes = {
 };
 
 /* ──────────────────────────────────────────────────────────────── */
-/*  History modal                                                   */
-/* ──────────────────────────────────────────────────────────────── */
-function OrderHistoryModal({ order, isDark, onClose }) {
-    if (!order) return null;
-
-    const panel = isDark ? 'bg-[#141C2B] border-white/10' : 'bg-white border-[#e2e8f0]';
-    const head = isDark ? 'text-white' : 'text-[#0f172a]';
-    const muted = isDark ? 'text-[#94a3b8]' : 'text-[#64748b]';
-    const line = isDark ? 'border-[#334155]/60' : 'border-[#f1f5f9]';
-    const innerCard = isDark ? 'bg-[#0f172a]/50 border-[#334155]/60' : 'bg-[#f8fafc] border-[#e2e8f0]';
-    const items = Array.isArray(order?.items) ? order.items : [];
-
-    return (
-        <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
-            style={{ backgroundColor: isDark ? 'rgba(0,0,0,.7)' : 'rgba(15,23,42,.45)', backdropFilter: 'blur(6px)' }}
-            onClick={onClose}
-        >
-            <div
-                className={`relative w-full max-w-2xl overflow-hidden rounded-2xl border shadow-2xl ${panel}`}
-                onClick={(e) => e.stopPropagation()}
-            >
-                <div className="absolute left-0 right-0 top-0 h-1 bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400" />
-
-                <div className={`flex items-start justify-between gap-3 border-b px-6 pb-5 pt-6 ${line}`}>
-                    <div className="flex items-start gap-3">
-                        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-amber-400/30 bg-amber-400/10 text-amber-500">
-                            <LuHistory size={20} />
-                        </span>
-                        <div>
-                            <h2 className={`text-lg font-bold leading-tight ${head}`}>Buyurtma tarixi</h2>
-                            <p className={`mt-0.5 text-sm ${muted}`}>
-                                {order?.customerName || '—'}
-                                {order?.id ? <> · <span className="font-mono text-xs">#{String(order.id).slice(0, 8)}</span></> : null}
-                            </p>
-                        </div>
-                    </div>
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        aria-label="Yopish"
-                        className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors ${muted} ${isDark ? 'hover:bg-[#1e293b]' : 'hover:bg-[#f1f5f9]'}`}
-                    >
-                        <LuX size={18} />
-                    </button>
-                </div>
-
-                <div className="max-h-[70vh] overflow-y-auto px-6 py-6">
-                    <div className="mb-7">
-                        <p className={`mb-4 text-xs font-bold uppercase tracking-wider ${muted}`}>Holat bosqichlari</p>
-                        <StatusTimeline status={order?.status} isDark={isDark} />
-                    </div>
-
-                    <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        <div className={`flex items-center gap-3 rounded-xl border px-4 py-3 ${innerCard}`}>
-                            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-400/10 text-amber-500">
-                                <LuUser size={16} />
-                            </span>
-                            <div className="min-w-0">
-                                <p className={`text-[11px] font-semibold uppercase tracking-wide ${muted}`}>Mijoz</p>
-                                <p className={`truncate text-sm font-bold ${head}`}>{order?.customerName || '—'}</p>
-                            </div>
-                        </div>
-
-                        <div className={`flex items-center gap-3 rounded-xl border px-4 py-3 ${innerCard}`}>
-                            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-400/10 text-amber-500">
-                                <LuCalendar size={16} />
-                            </span>
-                            <div className="min-w-0">
-                                <p className={`text-[11px] font-semibold uppercase tracking-wide ${muted}`}>Yaratilgan</p>
-                                <p className={`truncate text-sm font-bold ${head}`}>{formatDate(order?.createdAt)}</p>
-                            </div>
-                        </div>
-
-                        <div className={`flex items-center gap-3 rounded-xl border px-4 py-3 ${innerCard}`}>
-                            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-400/10 text-amber-500">
-                                <LuPackage size={16} />
-                            </span>
-                            <div className="min-w-0">
-                                <p className={`text-[11px] font-semibold uppercase tracking-wide ${muted}`}>Mahsulotlar</p>
-                                <p className={`truncate text-sm font-bold ${head}`}>{items.length} ta</p>
-                            </div>
-                        </div>
-
-                        <div className={`flex items-center gap-3 rounded-xl border px-4 py-3 ${innerCard}`}>
-                            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-400/10 text-amber-500">
-                                <LuWallet size={16} />
-                            </span>
-                            <div className="min-w-0">
-                                <p className={`text-[11px] font-semibold uppercase tracking-wide ${muted}`}>Jami summa</p>
-                                <p className={`truncate text-sm font-bold ${head}`}>
-                                    {formatNumber(order?.totalAmount ?? 0)} so&apos;m
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-
-                    {items.length > 0 && (
-                        <div className="mb-6">
-                            <p className={`mb-3 text-xs font-bold uppercase tracking-wider ${muted}`}>Mahsulotlar ro&apos;yxati</p>
-                            <div className={`overflow-hidden rounded-xl border ${innerCard}`}>
-                                <ul className={`divide-y ${isDark ? 'divide-[#334155]/60' : 'divide-[#e2e8f0]'}`}>
-                                    {items.map((it, idx) => (
-                                        <li key={it?.id ?? idx} className="flex items-center justify-between gap-3 px-4 py-3">
-                                            <div className="flex items-center gap-3 min-w-0">
-                                                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-400/10 text-xs font-bold text-amber-500">
-                                                    {idx + 1}
-                                                </span>
-                                                <div className="min-w-0">
-                                                    <p className={`truncate text-sm font-semibold ${head}`}>
-                                                        {it?.productName || it?.name || '—'}
-                                                    </p>
-                                                    {it?.sku && <p className={`truncate text-[11px] ${muted}`}>SKU: {it.sku}</p>}
-                                                </div>
-                                            </div>
-                                            <div className="text-right shrink-0">
-                                                <p className={`text-sm font-bold ${head}`}>
-                                                    {formatNumber(it?.price ?? it?.amount ?? 0)} so&apos;m
-                                                </p>
-                                                <p className={`text-[11px] ${muted}`}>x {it?.quantity ?? 1}</p>
-                                            </div>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        </div>
-                    )}
-
-                    {order?.summary && (
-                        <div>
-                            <p className={`mb-2 text-xs font-bold uppercase tracking-wider ${muted}`}>Izoh</p>
-                            <div className={`flex items-start gap-3 rounded-xl border px-4 py-3 ${innerCard}`}>
-                                <LuFileText size={16} className={`mt-0.5 shrink-0 ${muted}`} />
-                                <p className={`text-sm ${head}`}>{order.summary}</p>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            </div>
-        </div>
-    );
-}
-
-OrderHistoryModal.propTypes = {
-    order: PropTypes.object,
-    isDark: PropTypes.bool.isRequired,
-    onClose: PropTypes.func.isRequired,
-};
-
-/* ──────────────────────────────────────────────────────────────── */
 /*  Main page                                                       */
 /* ──────────────────────────────────────────────────────────────── */
 export default function ZayavkachiOrders() {
@@ -551,7 +334,6 @@ export default function ZayavkachiOrders() {
     const [dateTo, setDateTo]             = useState('');
     const [search, setSearch]             = useState('');
     const [filtersOpen, setFiltersOpen]   = useState(false);
-    const [historyOrder, setHistoryOrder] = useState(null);
     const [expandedId, setExpandedId]     = useState(null);
 
     const currentTab = TABS.find((t) => t.key === tab) ?? TABS[0];
@@ -563,7 +345,7 @@ export default function ZayavkachiOrders() {
         setExpandedId(null);
     };
 
-    /* ── API so'rovi ── */
+    /* ── API ── */
     const queryArgs = (() => {
         const base = {
             dateFrom: dateFrom || undefined,
@@ -602,7 +384,7 @@ export default function ZayavkachiOrders() {
           )
         : tabFiltered;
 
-    /* ── Счётчики для табов (по загруженным) ── */
+    /* ── Tab counts ── */
     const tabCounts = {
         active: orders.filter((o) => ACTIVE_STATUSES.includes(o?.status)).length,
         completed: orders.filter((o) => o?.status === 'CONFIRMED').length,
@@ -624,6 +406,11 @@ export default function ZayavkachiOrders() {
 
     const toggleExpand = (id) => {
         setExpandedId((prev) => (prev === id ? null : id));
+    };
+
+    const goToOrder = (id) => {
+        if (!id) return;
+        navigate(`${ordersPath}/${id}`);
     };
 
     /* ── theme ── */
@@ -676,7 +463,7 @@ export default function ZayavkachiOrders() {
                 </div>
             </div>
 
-            {/* ── Tabs with counts ── */}
+            {/* ── Tabs ── */}
             <div className={`flex items-center gap-1 overflow-x-auto rounded-2xl border p-1.5 ${panel}`}>
                 {TABS.map(({ key, label, Icon }) => {
                     const isActive = tab === key;
@@ -833,7 +620,7 @@ export default function ZayavkachiOrders() {
                                     <th className="px-5 py-3 w-44 text-right">Jami summa</th>
                                     <th className="px-5 py-3 w-40">Holat</th>
                                     <th className="px-5 py-3 w-44">Sana</th>
-                                    <th className="px-5 py-3 w-36"></th>
+                                    <th className="px-5 py-3 w-40"></th>
                                 </tr>
                             </thead>
                             <tbody className={`divide-y ${divider}`}>
@@ -844,8 +631,8 @@ export default function ZayavkachiOrders() {
                                     return (
                                         <Fragment key={o?.id ?? idx}>
                                             <tr
-                                                onClick={() => setHistoryOrder(o)}
-                                                title="Tarixni ko'rish uchun bosing"
+                                                onClick={() => goToOrder(o?.id)}
+                                                title="Batafsil ko'rish uchun bosing"
                                                 className={`cursor-pointer transition-colors ${rowHov}`}
                                             >
                                                 <td className={`px-5 py-3 text-xs ${muted}`}>{page * PAGE_SIZE + idx + 1}</td>
@@ -878,18 +665,19 @@ export default function ZayavkachiOrders() {
                                                                 {isExpanded ? <LuChevronUp size={16} /> : <LuChevronDown size={16} />}
                                                             </button>
                                                         )}
-                                                        <button type="button" onClick={() => setHistoryOrder(o)}
-                                                            aria-label="Tarix" title="Tarix" className={iconBtn}>
-                                                            <LuHistory size={16} />
-                                                        </button>
-                                                        <button type="button" onClick={() => navigate(`${ordersPath}/${o.id}`)}
-                                                            aria-label="Ko'rish" title="Ko'rish" className={iconBtn}>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => goToOrder(o?.id)}
+                                                            aria-label="Ko'rish"
+                                                            title="Ko'rish"
+                                                            className={iconBtn}
+                                                        >
                                                             <LuEye size={16} />
                                                         </button>
                                                         <button type="button" onClick={() => navigate(`${ordersPath}/${o.id}/edit`)}
                                                             disabled={!editable}
                                                             aria-label="Tahrirlash"
-                                                            title={editable ? 'Tahrirlash' : "Faqat “Kutilmoqda” holatidagi buyurtma tahrirlanadi"}
+                                                            title={editable ? 'Tahrirlash' : "Faqat “Yaratilgan” holatidagi buyurtma tahrirlanadi"}
                                                             className={`${iconBtn} disabled:cursor-not-allowed disabled:opacity-30`}>
                                                             <LuPencil size={16} />
                                                         </button>
@@ -927,12 +715,6 @@ export default function ZayavkachiOrders() {
                     </div>
                 )}
             </div>
-
-            <OrderHistoryModal
-                order={historyOrder}
-                isDark={isDark}
-                onClose={() => setHistoryOrder(null)}
-            />
         </div>
     );
 }

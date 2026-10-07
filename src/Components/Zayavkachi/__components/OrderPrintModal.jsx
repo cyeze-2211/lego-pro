@@ -2,6 +2,7 @@ import { useState } from 'react';
 import PropTypes from 'prop-types';
 import { LuX, LuPrinter, LuBuilding2, LuCheck } from 'react-icons/lu';
 import { useAppTheme } from '../../../theme/tokens';
+import { Alert } from '../../Other/UI/Alert/Alert';
 
 // Logo import
 import logo1 from '../../../Images/logocopy/Lettered Logo (1).png';
@@ -29,7 +30,7 @@ const STATUS_LABEL_MAP = {
     REJECTED:   'Rad etilgan',
 };
 
-export default function OrderPrintModal({ order, onClose }) {
+export default function OrderPrintModal({ order, onClose, showPrices = true }) {
     const { isDark } = useAppTheme();
     const [selectedLogo, setSelectedLogo] = useState(LOGOS[0]);
 
@@ -39,12 +40,16 @@ export default function OrderPrintModal({ order, onClose }) {
 
     const handlePrint = () => {
         const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+            Alert('Chop etish oynasini ochib bo‘lmadi. Brauzerda pop-up oynalarga ruxsat bering', 'error');
+            return;
+        }
         printWindow.document.write(generatePrintContent());
-        printWindow.document.close();
         printWindow.onload = () => {
             printWindow.print();
             printWindow.close();
         };
+        printWindow.document.close();
         onClose();
     };
 
@@ -69,28 +74,31 @@ export default function OrderPrintModal({ order, onClose }) {
         const emptyRows = Array.from({ length: Math.max(0, 8 - items.length) })
             .map(() => `
                 <tr style="border-bottom:1px solid #e2e8f0;background:#fff;">
-                    <td style="background:#fff;padding:7px 8px;border-right:1px solid #e2e8f0;">&nbsp;</td>
-                    <td style="background:#fff;padding:7px 8px;border-right:1px solid #e2e8f0;">&nbsp;</td>
-                    <td style="background:#fff;padding:7px 8px;border-right:1px solid #e2e8f0;">&nbsp;</td>
-                    <td style="background:#fff;padding:7px 8px;border-right:1px solid #e2e8f0;">&nbsp;</td>
-                    <td style="background:#fff;padding:7px 8px;border-right:1px solid #e2e8f0;">&nbsp;</td>
-                    <td style="background:#fff;padding:7px 8px;">&nbsp;</td>
+                    <td style="padding:7px 8px;border-right:1px solid #e2e8f0;">&nbsp;</td>
+                    <td style="padding:7px 8px;border-right:1px solid #e2e8f0;">&nbsp;</td>
+                    <td style="padding:7px 8px;border-right:1px solid #e2e8f0;">&nbsp;</td>
+                    <td style="padding:7px 8px;${showPrices ? 'border-right:1px solid #e2e8f0;' : ''}">&nbsp;</td>
+                    ${showPrices ? '<td style="padding:7px 8px;border-right:1px solid #e2e8f0;">&nbsp;</td><td style="padding:7px 8px;">&nbsp;</td>' : ''}
                 </tr>
             `).join('');
 
-        const itemRows = items.map((item, idx) => `
+        const itemRows = items.map((item, idx) => {
+            const piecesPerPack = Number(item.productPiecesPerPack ?? item.piecesPerPack) || 0;
+            const packs = piecesPerPack ? Number(item.quantity ?? 0) / piecesPerPack : null;
+            return `
             <tr style="border-bottom:1px solid #e2e8f0;background:#fff;">
                 <td style="background:#fff;padding:7px 8px;text-align:center;font-size:10px;color:#374151;border-right:1px solid #e2e8f0;">${idx + 1}</td>
                 <td style="background:#fff;padding:7px 8px;font-size:10px;border-right:1px solid #e2e8f0;">
                     <div style="font-weight:600;color:#0f172a;">${item.productName || '—'}</div>
                     ${item.productBarcode ? `<div style="font-size:8.5px;color:#94a3b8;font-family:monospace;margin-top:1px;">${item.productBarcode}</div>` : ''}
                 </td>
-                <td style="background:#fff;padding:7px 8px;text-align:center;font-size:10px;color:#374151;border-right:1px solid #e2e8f0;">${item.quantity}</td>
-                <td style="background:#fff;padding:7px 8px;text-align:center;font-size:10px;color:#374151;border-right:1px solid #e2e8f0;">6</td>
-                <td style="background:#fff;padding:7px 8px;text-align:right;font-size:10px;color:#374151;border-right:1px solid #e2e8f0;">${fmtNum(item.unitPrice)}</td>
-                <td style="background:#fff;padding:7px 8px;text-align:right;font-size:10px;font-weight:700;color:#0f172a;">${fmtNum(item.lineTotal)}</td>
+                <td style="background:#fff;padding:7px 8px;text-align:center;font-size:10px;color:#374151;border-right:1px solid #e2e8f0;">${packs === null ? '—' : fmtNum(packs)}</td>
+                <td style="background:#fff;padding:7px 8px;text-align:center;font-size:10px;color:#374151;${showPrices ? 'border-right:1px solid #e2e8f0;' : ''}">${fmtNum(item.quantity)}</td>
+                ${showPrices ? `<td style="background:#fff;padding:7px 8px;text-align:right;font-size:10px;color:#374151;border-right:1px solid #e2e8f0;">${fmtNum(item.unitPrice)}</td>
+                <td style="background:#fff;padding:7px 8px;text-align:right;font-size:10px;font-weight:700;color:#0f172a;">${fmtNum(item.lineTotal)}</td>` : ''}
             </tr>
-        `).join('');
+        `;
+        }).join('');
 
         return `<!DOCTYPE html>
 <html lang="uz">
@@ -168,15 +176,15 @@ export default function OrderPrintModal({ order, onClose }) {
         <td style="padding:0;width:52px;border-right:1px solid #334155;">
           <div style="background:#1e293b;color:#fff;padding:8px 8px;text-align:center;font-size:9.5px;font-weight:700;letter-spacing:0.5px;">PACHKA</div>
         </td>
-        <td style="padding:0;width:48px;border-right:1px solid #334155;">
+        <td style="padding:0;width:48px;${showPrices ? 'border-right:1px solid #334155;' : ''}">
           <div style="background:#1e293b;color:#fff;padding:8px 8px;text-align:center;font-size:9.5px;font-weight:700;letter-spacing:0.5px;">DONA</div>
         </td>
-        <td style="padding:0;width:92px;border-right:1px solid #334155;">
+        ${showPrices ? `<td style="padding:0;width:92px;border-right:1px solid #334155;">
           <div style="background:#1e293b;color:#fff;padding:8px 10px;text-align:right;font-size:9.5px;font-weight:700;letter-spacing:0.5px;">NARXI</div>
         </td>
         <td style="padding:0;width:108px;">
           <div style="background:#1e293b;color:#fff;padding:8px 10px;text-align:right;font-size:9.5px;font-weight:700;letter-spacing:0.5px;">JAMI</div>
-        </td>
+        </td>` : ''}
       </tr>
     </thead>
     <tbody>
@@ -186,7 +194,7 @@ export default function OrderPrintModal({ order, onClose }) {
   </table>
 
   <!-- ═══ TO'LOV + JAMI ═══ -->
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-top:16px;margin-bottom:14px;">
+  ${showPrices ? `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-top:16px;margin-bottom:14px;">
     <div style="flex:1;">
       <div style="font-size:9px;font-weight:700;color:#94a3b8;letter-spacing:1px;margin-bottom:5px;">TO'LOV MA'LUMOTLARI</div>
       <div style="font-size:9.5px;color:#374151;line-height:1.8;">
@@ -208,15 +216,15 @@ export default function OrderPrintModal({ order, onClose }) {
         <span style="font-size:12px;font-weight:900;color:#fff;white-space:nowrap;">${fmtNum(order.remainingDebt)} so'm</span>
       </div>
     </div>
-  </div>
+  </div>` : ''}
 
   <!-- ═══ SHARTLAR + IMZO ═══ -->
   <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-bottom:16px;">
     <div style="flex:1;">
-      <div style="font-size:10px;font-weight:700;color:#0f172a;margin-bottom:4px;letter-spacing:0.3px;">SHARTLAR VA QOIDALAR:</div>
-      <div style="font-size:9px;color:#64748b;line-height:1.6;">
+      <div style="font-size:10px;font-weight:700;color:#0f172a;margin-bottom:4px;letter-spacing:0.3px;">${showPrices ? 'SHARTLAR VA QOIDALAR:' : 'YUKLASH VA QABUL QILISH:'}</div>
+      ${showPrices ? `<div style="font-size:9px;color:#64748b;line-height:1.6;">
         To'lov shartnomaga muvofiq 5 bank ish kuni ichida amalga oshirilishi lozim.
-      </div>
+      </div>` : '<div style="font-size:9px;color:#64748b;line-height:1.6;">Mahsulot miqdorini qabul qilish vaqtida tekshiring.</div>'}
     </div>
     <div style="text-align:center;min-width:200px;">
       <div style="font-size:9px;color:#64748b;margin-bottom:22px;letter-spacing:0.3px;">IMZO / AUTHORISED SIGN</div>
@@ -295,7 +303,9 @@ export default function OrderPrintModal({ order, onClose }) {
                         </span>
                         <div>
                             <h3 className={`text-lg font-bold ${head}`}>Buyurtmani chop etish</h3>
-                            <p className={`text-xs ${muted}`}>Logotipni tanlang va chop etish</p>
+                            <p className={`text-xs ${muted}`}>
+                                {showPrices ? 'Logotipni tanlang va chop etish' : 'Narxlarsiz yuklash hujjati'}
+                            </p>
                         </div>
                     </div>
                     <button
@@ -388,7 +398,7 @@ export default function OrderPrintModal({ order, onClose }) {
                                             INVOICE
                                         </h3>
                                         <p className="text-[10px] font-semibold tracking-widest text-[#94a3b8]">
-                                            HISOB-FAKTURA
+                                            {showPrices ? 'HISOB-FAKTURA' : 'YUKLASH HUJJATI'}
                                         </p>
                                     </div>
                                 </div>
@@ -404,14 +414,18 @@ export default function OrderPrintModal({ order, onClose }) {
                                             {order.customerName || '—'}
                                         </p>
                                     </div>
-                                    <div className="text-right">
+                                    {showPrices ? <div className="text-right">
                                         <p className="text-[10px] font-bold tracking-widest" style={{ color: selectedLogo.textColor, opacity: 0.7 }}>
                                             SUMMA
                                         </p>
                                         <p className="mt-0.5 text-sm font-black" style={{ color: selectedLogo.color }}>
                                             {Number(order.totalAmount || 0).toLocaleString('ru-RU').replace(/\u00A0/g, ' ')} so&apos;m
                                         </p>
-                                    </div>
+                                    </div> : (
+                                        <p className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-bold text-slate-600">
+                                            Narxlarsiz nusxa
+                                        </p>
+                                    )}
                                 </div>
 
                                 <div className="mt-4 flex items-center justify-between border-t pt-3" style={{ borderColor: '#e2e8f0' }}>
@@ -458,4 +472,5 @@ export default function OrderPrintModal({ order, onClose }) {
 OrderPrintModal.propTypes = {
     order: PropTypes.object.isRequired,
     onClose: PropTypes.func.isRequired,
+    showPrices: PropTypes.bool,
 };

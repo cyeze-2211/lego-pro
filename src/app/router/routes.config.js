@@ -1,5 +1,5 @@
 import { lazy } from 'react';
-import { ROLES, PRODUCT_WAREHOUSE_ROLES, RAW_WAREHOUSE_ROLES, WAREHOUSE_ROLES, ZAYAVKACHI_ROLES, BUXGALTER_ROLES, KASSIR_ROLES } from '../permissions/roles';
+import { ROLES, WAREHOUSE_ROLES, ZAYAVKACHI_ROLES, BUXGALTER_ROLES, KASSIR_ROLES } from '../permissions/roles';
 
 export const STANOKCHI_ROLES = [ROLES.STANOKCHI];
 export const MIKSERCHI_ROLES = [ROLES.MIKSERCHI];
@@ -20,7 +20,7 @@ export const ROUTES = [
     {
         path: '/profile',
         component: lazy(() => import('../../Components/Common/Profile')),
-        roles: [ROLES.MANAGER, ...PRODUCT_WAREHOUSE_ROLES, ...RAW_WAREHOUSE_ROLES, ...ZAYAVKACHI_ROLES, ...BUXGALTER_ROLES, ...KASSIR_ROLES],
+        roles: [ROLES.MANAGER, ...WAREHOUSE_ROLES, ...ZAYAVKACHI_ROLES, ...BUXGALTER_ROLES, ...KASSIR_ROLES],
     },
     {
         path: '/warehouses',
@@ -192,37 +192,37 @@ export const ROUTES = [
     {
         path: '/staff',
         component: lazy(() => import('../../Components/Staff/Dashboard')),
-        roles: PRODUCT_WAREHOUSE_ROLES,
+        roles: WAREHOUSE_ROLES,
     },
     {
         path: '/staff/orders',
         component: lazy(() => import('../../Components/Staff/Orders')),
-        roles: PRODUCT_WAREHOUSE_ROLES,
+        roles: WAREHOUSE_ROLES,
     },
     {
         path: '/staff/orders/:id',
         component: lazy(() => import('../../Components/Staff/OrderDetail')),
-        roles: PRODUCT_WAREHOUSE_ROLES,
+        roles: WAREHOUSE_ROLES,
     },
     {
         path: '/staff/income',
         component: lazy(() => import('../../Components/Staff/Income')),
-        roles: PRODUCT_WAREHOUSE_ROLES,
+        roles: WAREHOUSE_ROLES,
     },
     {
         path: '/staff/outcome',
         component: lazy(() => import('../../Components/Staff/Outcome')),
-        roles: PRODUCT_WAREHOUSE_ROLES,
+        roles: WAREHOUSE_ROLES,
     },
     {
         path: '/staff/warehouse',
         component: lazy(() => import('../../Components/Staff/StockWarehouse')),
-        roles: PRODUCT_WAREHOUSE_ROLES,
+        roles: WAREHOUSE_ROLES,
     },
     {
         path: '/staff/history',
         component: lazy(() => import('../../Components/Staff/History')),
-        roles: PRODUCT_WAREHOUSE_ROLES,
+        roles: WAREHOUSE_ROLES,
     },
 
     // ── Stanokchi routes ─────────────────────────────────────────────────
@@ -258,33 +258,33 @@ export const ROUTES = [
     // ── Raw Staff (Raw Material Storekeeper) routes ──────────────────────
     {
         path: '/raw-staff',
-        component: lazy(() => import('../../Components/RawStaff/Dashboard')),
-        roles: RAW_WAREHOUSE_ROLES,
+        component: lazy(() => import('../../Components/Staff/Dashboard')),
+        roles: WAREHOUSE_ROLES,
     },
     {
         path: '/raw-staff/income',
         component: lazy(() => import('../../Components/RawStaff/Income')),
-        roles: RAW_WAREHOUSE_ROLES,
+        roles: WAREHOUSE_ROLES,
     },
     {
         path: '/raw-staff/outcome',
         component: lazy(() => import('../../Components/RawStaff/Outcome')),
-        roles: RAW_WAREHOUSE_ROLES,
+        roles: WAREHOUSE_ROLES,
     },
     {
         path: '/raw-staff/warehouse',
         component: lazy(() => import('../../Components/RawStaff/StockWarehouse')),
-        roles: RAW_WAREHOUSE_ROLES,
+        roles: WAREHOUSE_ROLES,
     },
     {
         path: '/raw-staff/history',
         component: lazy(() => import('../../Components/RawStaff/History')),
-        roles: RAW_WAREHOUSE_ROLES,
+        roles: WAREHOUSE_ROLES,
     },
     {
         path: '/raw-staff/history/:id',
         component: lazy(() => import('../../Components/RawStaff/HistoryDetail')),
-        roles: RAW_WAREHOUSE_ROLES,
+        roles: WAREHOUSE_ROLES,
     },
 
     // ── Zayavkachi routes ────────────────────────────────────────────────

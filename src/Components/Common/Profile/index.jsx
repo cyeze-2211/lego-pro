@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useAppTheme } from "../../../theme/tokens";
 import { useGetUserByIdQuery } from "../../../store/services/user.api";
 import { useAppSelector } from "../../../store/hooks";
-import { PRODUCT_WAREHOUSE_ROLES, RAW_WAREHOUSE_ROLES } from "../../../app/permissions/roles";
+import { WAREHOUSE_ROLES } from "../../../app/permissions/roles";
 
 export default function Profile() {
     const navigate = useNavigate();
@@ -17,8 +17,7 @@ export default function Profile() {
     const roleName = user?.roleName || user?.role || role || "No role";
 
     const goBack = () => {
-        if (PRODUCT_WAREHOUSE_ROLES.includes(role)) return navigate("/staff");
-        if (RAW_WAREHOUSE_ROLES.includes(role))     return navigate("/raw-staff");
+        if (WAREHOUSE_ROLES.includes(role)) return navigate("/staff");
         navigate("/");
     };
 

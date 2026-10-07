@@ -1,6 +1,7 @@
 import { Navigate, Outlet } from 'react-router-dom';
+import PropTypes from 'prop-types';
 import { useAppSelector } from '../../store/hooks';
-import { ROLES, PRODUCT_WAREHOUSE_ROLES, RAW_WAREHOUSE_ROLES, ZAYAVKACHI_ROLES, BUXGALTER_ROLES, KASSIR_ROLES } from '../permissions/roles';
+import { ROLES, WAREHOUSE_ROLES, ZAYAVKACHI_ROLES, BUXGALTER_ROLES, KASSIR_ROLES } from '../permissions/roles';
 
 
 export default function RoleGuard({ allow }) {
@@ -15,8 +16,7 @@ export default function RoleGuard({ allow }) {
 
     if (!role || !allowedRoles.includes(role)) {
         // Role ga qarab to'g'ri sahifaga yo'naltir
-        if (PRODUCT_WAREHOUSE_ROLES.includes(role)) return <Navigate to="/staff" replace />;
-        if (RAW_WAREHOUSE_ROLES.includes(role))     return <Navigate to="/raw-staff" replace />;
+        if (WAREHOUSE_ROLES.includes(role))         return <Navigate to="/staff" replace />;
         if (ZAYAVKACHI_ROLES.includes(role))        return <Navigate to="/zayavkachi" replace />;
         if (BUXGALTER_ROLES.includes(role))         return <Navigate to="/zayavkachi" replace />;
         if (KASSIR_ROLES.includes(role))            return <Navigate to="/kassir" replace />;
@@ -28,3 +28,10 @@ export default function RoleGuard({ allow }) {
 
     return <Outlet />;
 }
+
+RoleGuard.propTypes = {
+    allow: PropTypes.oneOfType([
+        PropTypes.string,
+        PropTypes.arrayOf(PropTypes.string),
+    ]),
+};

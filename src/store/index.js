@@ -27,6 +27,7 @@ import { productColorApi } from './services/productColor.api';
 import { productCategoryApi } from './services/productCategory.api';
 import { expenseCategoryApi } from './services/expenseCategory.api';
 import { paymentReminderApi } from './services/paymentReminder.api';
+import { regionApi } from './services/region.api';
 
 export const store = configureStore({
     reducer: {
@@ -56,9 +57,10 @@ export const store = configureStore({
         [productCategoryApi.reducerPath]: productCategoryApi.reducer,
         [expenseCategoryApi.reducerPath]: expenseCategoryApi.reducer,
         [paymentReminderApi.reducerPath]: paymentReminderApi.reducer,
+        [regionApi.reducerPath]: regionApi.reducer,
     },
     middleware: (getDefaultMiddleware) =>
-        getDefaultMiddleware().concat(authApi.middleware, warehouseApi.middleware, productApi.middleware, rawMaterialApi.middleware, machineApi.middleware, customerApi.middleware, recipeApi.middleware, userApi.middleware, cashboxApi.middleware, expenseApi.middleware, deviceApi.middleware, productStockApi.middleware, roleApi.middleware, rawMaterialStockApi.middleware, salesOrderApi.middleware, productionTaskApi.middleware, auditApi.middleware, paymentApi.middleware, machineOutputApi.middleware, brandApi.middleware, customerAgentApi.middleware, productColorApi.middleware, productCategoryApi.middleware, expenseCategoryApi.middleware, paymentReminderApi.middleware),
+        getDefaultMiddleware().concat(authApi.middleware, warehouseApi.middleware, productApi.middleware, rawMaterialApi.middleware, machineApi.middleware, customerApi.middleware, recipeApi.middleware, userApi.middleware, cashboxApi.middleware, expenseApi.middleware, deviceApi.middleware, productStockApi.middleware, roleApi.middleware, rawMaterialStockApi.middleware, salesOrderApi.middleware, productionTaskApi.middleware, auditApi.middleware, paymentApi.middleware, machineOutputApi.middleware, brandApi.middleware, customerAgentApi.middleware, productColorApi.middleware, productCategoryApi.middleware, expenseCategoryApi.middleware, paymentReminderApi.middleware, regionApi.middleware),
 });
 
 setupListeners(store.dispatch);

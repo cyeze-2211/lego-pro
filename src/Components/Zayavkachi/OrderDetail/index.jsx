@@ -9,7 +9,7 @@ import {
 } from 'react-icons/lu';
 import { useAppTheme } from '../../../theme/tokens';
 import { useAppSelector } from '../../../store/hooks';
-import { ROLES } from '../../../app/permissions/roles';
+import { BUXGALTER_ROLES, ROLES } from '../../../app/permissions/roles';
 import {
     useGetSalesOrderByIdQuery,
     useUpdateSalesOrderStatusMutation,
@@ -53,6 +53,14 @@ function OrderStatusControl({ order, isDark }) {
     const isFinal = FINAL_STATUSES.includes(order.status);
     const nextStatuses = NEXT_STATUS[order.status] || [];
 
+    if (role === ROLES.ZAYAVKACHI) {
+        return (
+            <span className={`rounded-full border px-3 py-1.5 text-xs font-bold ${statusCx(order.status)}`}>
+                {STATUS_LABEL[order.status] ?? order.status}
+            </span>
+        );
+    }
+
     const changeStatus = async (nextStatus) => {
         if (!nextStatus || nextStatus === order.status) return;
         setAction(nextStatus);
@@ -86,14 +94,6 @@ function OrderStatusControl({ order, isDark }) {
     };
 
     if (isFinal) {
-        return (
-            <span className={`rounded-full border px-3 py-1.5 text-xs font-bold ${statusCx(order.status)}`}>
-                {STATUS_LABEL[order.status] ?? order.status}
-            </span>
-        );
-    }
-
-    if (role === ROLES.ZAYAVKACHI && nextStatuses.length === 0) {
         return (
             <span className={`rounded-full border px-3 py-1.5 text-xs font-bold ${statusCx(order.status)}`}>
                 {STATUS_LABEL[order.status] ?? order.status}
@@ -137,6 +137,7 @@ export default function ZayavkachiOrderDetail() {
     const { id }       = useParams();
     const navigate     = useNavigate();
     const { pathname } = useLocation();
+    const role = useAppSelector((state) => state.auth.role);
     const ordersPath   = pathname.startsWith('/orders')
         ? '/orders'
         : pathname.startsWith('/kassir/orders')
@@ -257,6 +258,7 @@ export default function ZayavkachiOrderDetail() {
             {showPrintModal && (
                 <OrderPrintModal
                     order={order}
+                    showPrices
                     onClose={() => setShowPrintModal(false)}
                 />
             )}
@@ -285,10 +287,12 @@ export default function ZayavkachiOrderDetail() {
                         <div className="flex flex-wrap items-center gap-2">
                             <OrderStatusControl order={order} isDark={isDark} />
 
+                            {BUXGALTER_ROLES.includes(role) && order.status === 'LOADED' && (
                             <button type="button" onClick={() => setShowPrintModal(true)} title="Chop etish"
                                 className={`flex h-12 items-center gap-2 rounded-xl border px-5 text-sm font-bold transition-colors hover:border-amber-400/60 hover:text-amber-500 ${ghostBtn}`}>
                                 <LuPrinter size={16} /> Chop etish
                             </button>
+                            )}
 
                             <button type="button" onClick={() => navigate(`${ordersPath}/${order.id}/edit`)}
                                 disabled={!editable}

@@ -5,9 +5,9 @@ import { ChevronDown, X } from "lucide-react";
 import { useAppTheme } from "../../../theme/tokens";
 import YellowLogo from "../../../Images/Yellow Unified Lego Outlined.svg";
 import { Box } from "@chakra-ui/react";
-import { SIDEBAR_GROUPS, STAFF_SIDEBAR_GROUPS, RAW_STAFF_SIDEBAR_GROUPS, ZAYAVKACHI_SIDEBAR_GROUPS, BUXGALTER_SIDEBAR_GROUPS, KASSIR_SIDEBAR_GROUPS } from "../../../app/navigation/sidebar.config";
+import { SIDEBAR_GROUPS, WAREHOUSE_SIDEBAR_GROUPS, ZAYAVKACHI_SIDEBAR_GROUPS, BUXGALTER_SIDEBAR_GROUPS, KASSIR_SIDEBAR_GROUPS } from "../../../app/navigation/sidebar.config";
 import { useAppSelector } from "../../../store/hooks";
-import { PRODUCT_WAREHOUSE_ROLES, RAW_WAREHOUSE_ROLES, ZAYAVKACHI_ROLES, BUXGALTER_ROLES, KASSIR_ROLES } from "../../../app/permissions/roles";
+import { WAREHOUSE_ROLES, ZAYAVKACHI_ROLES, BUXGALTER_ROLES, KASSIR_ROLES } from "../../../app/permissions/roles";
 
 const ACTIVE_LINK_CSS = `
     html body aside.sidebar a.sidebar-link-active,
@@ -28,22 +28,19 @@ export default function Sidebar({ open, mobileOpen, onMobileClose }) {
     const { pathname } = useLocation();
     const role = useAppSelector((state) => state.auth.role);
 
-    const isProductStaff = PRODUCT_WAREHOUSE_ROLES.includes(role);
-    const isRawStaff = RAW_WAREHOUSE_ROLES.includes(role);
+    const isWarehouseStaff = WAREHOUSE_ROLES.includes(role);
     const isZayavkachi = ZAYAVKACHI_ROLES.includes(role);
     const isBuxgalter = BUXGALTER_ROLES.includes(role);
     const isKassir = KASSIR_ROLES.includes(role);
-    const groups = isProductStaff
-        ? STAFF_SIDEBAR_GROUPS
-        : isRawStaff
-            ? RAW_STAFF_SIDEBAR_GROUPS
-            : isZayavkachi
-                ? ZAYAVKACHI_SIDEBAR_GROUPS
-                : isBuxgalter
-                    ? BUXGALTER_SIDEBAR_GROUPS
-                    : isKassir
-                        ? KASSIR_SIDEBAR_GROUPS
-                        : SIDEBAR_GROUPS;
+    const groups = isWarehouseStaff
+        ? WAREHOUSE_SIDEBAR_GROUPS
+        : isZayavkachi
+            ? ZAYAVKACHI_SIDEBAR_GROUPS
+            : isBuxgalter
+                ? BUXGALTER_SIDEBAR_GROUPS
+                : isKassir
+                    ? KASSIR_SIDEBAR_GROUPS
+                    : SIDEBAR_GROUPS;
 
     const [expandedGroups, setExpandedGroups] = useState(() =>
         groups.map((g) => g.label).filter((l) => l !== "Asosiy")
@@ -51,7 +48,7 @@ export default function Sidebar({ open, mobileOpen, onMobileClose }) {
 
     useEffect(() => {
         const activeGroup = groups.find((group) =>
-            group.items.some((item) => item.path === pathname)
+            group.items.some((item) => pathname === item.path || pathname.startsWith(`${item.path}/`))
         );
         if (activeGroup && activeGroup.label !== "Asosiy") {
             setExpandedGroups((prev) =>
@@ -188,7 +185,7 @@ function SidebarContent({ groups, showLabels, expandedGroups, toggleGroup, pathn
                     {groups.map((group) => {
                         const isBasic = group.label === "Asosiy";
                         const expanded = expandedGroups.includes(group.label);
-                        const hasActiveItem = group.items.some((item) => item.path === pathname);
+                        const hasActiveItem = group.items.some((item) => pathname === item.path || pathname.startsWith(`${item.path}/`));
 
                         return (
                             <div key={group.label} className={isBasic ? "" : "pt-2"}>
@@ -230,7 +227,16 @@ function SidebarContent({ groups, showLabels, expandedGroups, toggleGroup, pathn
                                                 className={`space-y-1.5 px-1 pt-1 transition-all duration-300 ease-out ${expanded ? "translate-y-0 opacity-100" : "-translate-y-2 opacity-0"
                                                     }`}
                                             >
-                                                {group.items.map(renderLink)}
+                                                {group.sections
+                                                    ? group.sections.map((section) => (
+                                                        <div key={section.label} className="space-y-1.5 pt-2 first:pt-0">
+                                                            <div className={`px-3 pb-1 text-[10px] font-bold uppercase tracking-wider ${isDark ? "text-slate-500" : "text-slate-400"}`}>
+                                                                {section.label}
+                                                            </div>
+                                                            {section.items.map(renderLink)}
+                                                        </div>
+                                                    ))
+                                                    : group.items.map(renderLink)}
                                             </div>
                                         </div>
                                     </div>
@@ -243,6 +249,29 @@ function SidebarContent({ groups, showLabels, expandedGroups, toggleGroup, pathn
         </div>
     );
 }
+
+const sidebarItemPropType = PropTypes.shape({
+    label: PropTypes.string.isRequired,
+    path: PropTypes.string.isRequired,
+    icon: PropTypes.elementType.isRequired,
+});
+
+SidebarContent.propTypes = {
+    groups: PropTypes.arrayOf(PropTypes.shape({
+        label: PropTypes.string.isRequired,
+        items: PropTypes.arrayOf(sidebarItemPropType).isRequired,
+        sections: PropTypes.arrayOf(PropTypes.shape({
+            label: PropTypes.string.isRequired,
+            items: PropTypes.arrayOf(sidebarItemPropType).isRequired,
+        })),
+    })).isRequired,
+    showLabels: PropTypes.bool.isRequired,
+    expandedGroups: PropTypes.arrayOf(PropTypes.string).isRequired,
+    toggleGroup: PropTypes.func.isRequired,
+    pathname: PropTypes.string.isRequired,
+    renderLink: PropTypes.func.isRequired,
+    isDark: PropTypes.bool.isRequired,
+};
 
 Sidebar.propTypes = {
     open: PropTypes.bool.isRequired,

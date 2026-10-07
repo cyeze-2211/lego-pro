@@ -165,7 +165,7 @@ export default function StockTransactionForm({ action }) {
                 productBarcode:  stock.productBarcode,
                 piecesPerPack:   stock.productPiecesPerPack ?? null,
                 quantity:        1,
-                unit:            'PIECE',
+                unit:            'PACK',   // ← DEFAULT: pachka
             }];
         });
     }, []);
@@ -250,7 +250,7 @@ export default function StockTransactionForm({ action }) {
                     <div className="flex gap-2">
                         {items.length > 0 && (
                             <span className={`inline-flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-sm font-bold ${badge}`}>
-                                <LuPackage size={14} /> {items.length} ta · {totalQty} {items.some(i => i.unit === 'PACK') ? 'blok/dona' : 'dona'}
+                                <LuPackage size={14} /> {items.length} ta · {totalQty} {items.some(i => i.unit === 'PACK') ? 'pachka' : 'dona'}
                             </span>
                         )}
                         <button type="submit" form={formId}
@@ -478,7 +478,7 @@ export default function StockTransactionForm({ action }) {
                                                                 <span className="flex items-center gap-1"><LuBarcode size={11} />{st.productBarcode || '—'}</span>
                                                                 {st.productPiecesPerPack && (
                                                                     <span className="flex items-center gap-1">
-                                                                        <LuBoxes size={11} />1 blok = {st.productPiecesPerPack} dona
+                                                                        <LuBoxes size={11} />1 pachka = {st.productPiecesPerPack} dona
                                                                     </span>
                                                                 )}
                                                             </p>
@@ -591,7 +591,7 @@ export default function StockTransactionForm({ action }) {
                                                     <div>
                                                         <span className={`font-semibold ${head}`}>{item.productName}</span>
                                                         {item.piecesPerPack && (
-                                                            <p className={`text-xs mt-0.5 ${muted}`}>1 blok = {item.piecesPerPack} dona</p>
+                                                            <p className={`text-xs mt-0.5 ${muted}`}>1 pachka = {item.piecesPerPack} dona</p>
                                                         )}
                                                     </div>
                                                 </div>
@@ -600,9 +600,19 @@ export default function StockTransactionForm({ action }) {
                                                 <span className="flex items-center gap-1.5"><LuBarcode size={13} />{item.productBarcode}</span>
                                             </td>
 
-                                            {/* Unit toggle — PIECE | PACK */}
+                                            {/* Unit toggle — PACHKA | DONA */}
                                             <td className="px-5 py-3">
                                                 <div className={`inline-flex rounded-xl border overflow-hidden text-xs font-bold ${isDark ? 'border-[#334155]' : 'border-[#e2e8f0]'}`}>
+                                                    <button type="button" onClick={() => updateUnit(item.productId, 'PACK')}
+                                                        disabled={!item.piecesPerPack}
+                                                        title={!item.piecesPerPack ? 'Bu mahsulotda pachka ma\'lumoti yo\'q' : `1 pachka = ${item.piecesPerPack} dona`}
+                                                        className={`px-3 py-2 transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                                                            item.unit === 'PACK'
+                                                                ? 'bg-amber-400 text-[#0f172a]'
+                                                                : isDark ? 'bg-[#1e293b] text-[#94a3b8] hover:bg-[#334155]' : 'bg-[#f8fafc] text-[#64748b] hover:bg-[#f1f5f9]'
+                                                        }`}>
+                                                        Pachka
+                                                    </button>
                                                     <button type="button" onClick={() => updateUnit(item.productId, 'PIECE')}
                                                         className={`px-3 py-2 transition-colors ${
                                                             item.unit === 'PIECE'
@@ -610,16 +620,6 @@ export default function StockTransactionForm({ action }) {
                                                                 : isDark ? 'bg-[#1e293b] text-[#94a3b8] hover:bg-[#334155]' : 'bg-[#f8fafc] text-[#64748b] hover:bg-[#f1f5f9]'
                                                         }`}>
                                                         Dona
-                                                    </button>
-                                                    <button type="button" onClick={() => updateUnit(item.productId, 'PACK')}
-                                                        disabled={!item.piecesPerPack}
-                                                        title={!item.piecesPerPack ? 'Bu mahsulotda blok ma\'lumoti yo\'q' : `1 blok = ${item.piecesPerPack} dona`}
-                                                        className={`px-3 py-2 transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
-                                                            item.unit === 'PACK'
-                                                                ? 'bg-amber-400 text-[#0f172a]'
-                                                                : isDark ? 'bg-[#1e293b] text-[#94a3b8] hover:bg-[#334155]' : 'bg-[#f8fafc] text-[#64748b] hover:bg-[#f1f5f9]'
-                                                        }`}>
-                                                        Blok
                                                     </button>
                                                 </div>
                                             </td>
@@ -642,7 +642,7 @@ export default function StockTransactionForm({ action }) {
                                                         </button>
                                                     </div>
                                                     <span className={`text-xs font-medium ${muted}`}>
-                                                        {item.unit === 'PACK' ? 'blok' : 'dona'}
+                                                        {item.unit === 'PACK' ? 'pachka' : 'dona'}
                                                         {item.unit === 'PACK' && item.piecesPerPack && (
                                                             <span className="ml-1 text-amber-400">= {item.quantity * item.piecesPerPack} dona</span>
                                                         )}

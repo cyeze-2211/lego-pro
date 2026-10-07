@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from 'react-router-dom';
-import CustomerForm from '../__components/CustomerForm';
+import CustomerCreateModal from '../../Common/Customer/__components/Create';
 
 export default function ZayavkachiCustomerCreate() {
     const navigate = useNavigate();
@@ -7,5 +7,12 @@ export default function ZayavkachiCustomerCreate() {
     const base = pathname.startsWith('/kassir') ? '/kassir' : '/zayavkachi';
     const backToList = () => navigate(`${base}/customers`);
 
-    return <CustomerForm customer={null} onCancel={backToList} onSaved={backToList} />;
+    return (
+        <CustomerCreateModal
+            openOnMount
+            hideTrigger
+            onCreated={backToList}
+            onClosed={backToList}
+        />
+    );
 }

@@ -316,7 +316,7 @@ export default function StanokchiMachineDetail() {
             await createStockTransaction({
                 action: 'PRODUCE',
                 machineId: id,
-                items: [{ productId: machine.currentRun.productId, quantity: 1 }],
+                items: [{ productId: machine.currentRun.productId, quantity: 1, unit: 'PIECE' }],
             }).unwrap();
             showToast(`1 dona qayd etildi — ${machine.currentRun.productName}`);
             refetchHistory();

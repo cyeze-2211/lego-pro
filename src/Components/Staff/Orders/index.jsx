@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     LuClipboardList, LuSearch, LuChevronLeft, LuChevronRight,
-    LuX, LuEye, LuPackage, LuSlidersHorizontal, LuChevronDown, LuInbox,
+    LuX, LuEye, LuPackage, LuSlidersHorizontal, LuChevronDown,
+    LuInbox, LuCircleDashed, LuPackageCheck,
+    LuCircleCheckBig, LuBan, LuCircleX,
 } from 'react-icons/lu';
 import { useAppTheme } from '../../../theme/tokens';
 import { formatNumber } from '../../ui/number-format';
@@ -10,21 +12,72 @@ import { useGetSalesOrdersQuery } from '../../../store/services/salesOrder.api';
 import { useGetWarehousesQuery } from '../../../store/services/warehouse.api';
 
 const PAGE_SIZE = 20;
-const STATUSES = ['PENDING', 'APPROVED', 'REJECTED'];
+
+/* ── Status labels ── */
 const STAFF_STATUS_LABEL = {
-    PENDING: 'Kutilmoqda',
-    APPROVED: 'Tasdiqlangan',
-    REJECTED: 'Rad etilgan',
+    CREATED:   'Kutilmoqda',
+    LOADED:    'Ortildi',
+    CONFIRMED: 'Tugallangan',
+    REJECTED:  'Rad etilgan',
 };
+
 const STAFF_STATUS_CX = {
-    PENDING: 'bg-amber-400/10 text-amber-500 border-amber-400/30',
-    APPROVED: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30',
-    REJECTED: 'bg-rose-500/10 text-rose-500 border-rose-500/30',
+    CREATED:   'bg-amber-400/10 text-amber-500 border-amber-400/30',
+    LOADED:    'bg-violet-500/10 text-violet-500 border-violet-500/30',
+    CONFIRMED: 'bg-green-500/10 text-green-600 border-green-500/30',
+    REJECTED:  'bg-rose-500/10 text-rose-500 border-rose-500/30',
+};
+
+/* ── Tabs ── */
+const TABS = [
+    {
+        key: 'active',
+        label: 'Faol buyurtmalar',
+        Icon: LuClipboardList,
+        statuses: ['CREATED', 'LOADED'],
+        hasStatusFilter: true,
+        emptyText: "Faol buyurtmalar yo'q",
+    },
+    {
+        key: 'completed',
+        label: 'Tugallangan',
+        Icon: LuCircleCheckBig,
+        statuses: ['CONFIRMED'],
+        hasStatusFilter: false,
+        emptyText: "Hali tugallangan buyurtma yo'q",
+    },
+    {
+        key: 'cancelled',
+        label: 'Rad etilgan',
+        Icon: LuBan,
+        statuses: ['REJECTED'],
+        hasStatusFilter: false,
+        emptyText: "Hali rad etilgan buyurtma yo'q",
+    },
+];
+
+const ACTIVE_STATUSES = TABS[0].statuses;
+
+const formatDate = (value) => {
+    if (!value) return '—';
+    try {
+        const d = new Date(value);
+        if (Number.isNaN(d.getTime())) return '—';
+        return d.toLocaleString('uz-UZ', {
+            day: '2-digit', month: '2-digit', year: 'numeric',
+            hour: '2-digit', minute: '2-digit',
+        });
+    } catch {
+        return '—';
+    }
 };
 
 export default function StaffOrders() {
     const { isDark } = useAppTheme();
     const navigate = useNavigate();
+
+    /* ── State ── */
+    const [tab, setTab] = useState('active');
     const [page, setPage] = useState(0);
     const [statusFilter, setStatusFilter] = useState('');
     const [warehouseFilter, setWarehouseFilter] = useState('');
@@ -36,25 +89,70 @@ export default function StaffOrders() {
     const { data: warehousesData } = useGetWarehousesQuery('PRODUCT');
     const warehouses = warehousesData || [];
 
-    const { data, isFetching, isError, error } = useGetSalesOrdersQuery({
-        status: statusFilter || undefined,
-        warehouseId: warehouseFilter || undefined,
-        dateFrom: dateFrom || undefined,
-        dateTo: dateTo || undefined,
-        page,
-        size: PAGE_SIZE,
-    });
+    const currentTab = TABS.find((t) => t.key === tab) ?? TABS[0];
+
+    /* ── Reset on tab change ── */
+    const handleTabChange = (newTab) => {
+        if (newTab === tab) return;
+        setTab(newTab);
+        setPage(0);
+        setStatusFilter('');
+    };
+
+    /* ── API query ── */
+    const queryArgs = (() => {
+        const base = {
+            warehouseId: warehouseFilter || undefined,
+            dateFrom: dateFrom || undefined,
+            dateTo: dateTo || undefined,
+            page,
+            size: PAGE_SIZE,
+        };
+        if (tab === 'active') {
+            return { ...base, status: statusFilter || undefined };
+        }
+        if (tab === 'completed') return { ...base, status: 'CONFIRMED' };
+        if (tab === 'cancelled') return { ...base, status: 'REJECTED' };
+        return base;
+    })();
+
+    const { data, isFetching, isError, error } = useGetSalesOrdersQuery(queryArgs);
 
     const orders = data?.items ?? [];
     const pagination = data?.pagination ?? {};
-    const filtered = search
-        ? orders.filter((o) => o.customerName?.toLowerCase().includes(search.toLowerCase()))
+
+    const totalPages = Number.isFinite(pagination?.totalPages) ? pagination.totalPages : 0;
+    const totalElements = Number.isFinite(pagination?.totalElements) ? pagination.totalElements : 0;
+
+    /* ── Client-side filter: active tab → только CREATED/LOADED ── */
+    const restrictToActive = tab === 'active' && !statusFilter;
+    const tabFiltered = restrictToActive
+        ? orders.filter((o) => ACTIVE_STATUSES.includes(o?.status))
         : orders;
 
-    const activeFilterCount = [statusFilter, warehouseFilter, dateFrom, dateTo, search].filter(Boolean).length;
+    const filtered = search
+        ? tabFiltered.filter((o) =>
+              (o?.customerName ?? '').toLowerCase().includes(search.toLowerCase())
+          )
+        : tabFiltered;
+
+    /* ── Tab counts (по загруженным) ── */
+    const tabCounts = {
+        active: orders.filter((o) => ACTIVE_STATUSES.includes(o?.status)).length,
+        completed: orders.filter((o) => o?.status === 'CONFIRMED').length,
+        cancelled: orders.filter((o) => o?.status === 'REJECTED').length,
+    };
+
+    const activeFilterCount =
+        (tab === 'active' && statusFilter ? 1 : 0) +
+        (warehouseFilter ? 1 : 0) +
+        (dateFrom ? 1 : 0) +
+        (dateTo ? 1 : 0) +
+        (search ? 1 : 0);
     const hasFilters = activeFilterCount > 0;
+
     const resetFilters = () => {
-        setStatusFilter('');
+        if (tab === 'active') setStatusFilter('');
         setWarehouseFilter('');
         setDateFrom('');
         setDateTo('');
@@ -62,7 +160,12 @@ export default function StaffOrders() {
         setPage(0);
     };
 
-    /* ── theme ─────────────────────────────────────────────────────── */
+    const goToOrder = (id) => {
+        if (!id) return;
+        navigate(`/staff/orders/${id}`);
+    };
+
+    /* ── Theme ── */
     const panel = isDark ? 'border-white/10 bg-[#141C2B]' : 'border-[#e2e8f0] bg-white';
     const muted = isDark ? 'text-[#94a3b8]' : 'text-[#64748b]';
     const head = isDark ? 'text-white' : 'text-[#0f172a]';
@@ -76,12 +179,23 @@ export default function StaffOrders() {
             : 'border-[#e2e8f0] bg-white text-[#0f172a] placeholder:text-[#94a3b8] focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20',
     ].join(' ');
     const iconBtn = isDark
-        ? 'flex h-10 w-10 items-center justify-center rounded-lg transition-colors text-[#64748b] hover:bg-[#1e293b] hover:text-amber-400'
-        : 'flex h-10 w-10 items-center justify-center rounded-lg transition-colors text-[#94a3b8] hover:bg-amber-50 hover:text-amber-500';
+        ? 'flex h-9 w-9 items-center justify-center rounded-lg transition-colors text-[#64748b] hover:bg-[#1e293b] hover:text-amber-400'
+        : 'flex h-9 w-9 items-center justify-center rounded-lg transition-colors text-[#94a3b8] hover:bg-amber-50 hover:text-amber-500';
+
+    const renderLoading = () => (
+        <div className={`flex items-center justify-center gap-2 py-14 text-sm ${muted}`}>
+            <svg className="h-4 w-4 animate-spin text-amber-400" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+            </svg>
+            Yuklanmoqda...
+        </div>
+    );
 
     return (
         <div className="flex w-full flex-col gap-4 py-2">
-            {/* ── Header ────────────────────────────────────────────────── */}
+
+            {/* ═══ Header ═══ */}
             <div className={`relative overflow-hidden rounded-2xl border px-5 py-4 shadow-md ${panel}`}>
                 <div className="absolute right-0 top-0 h-full w-1/2 bg-gradient-to-l from-amber-400/6 to-transparent" />
                 <div className="relative flex flex-wrap items-center justify-between gap-3">
@@ -90,15 +204,52 @@ export default function StaffOrders() {
                             <LuClipboardList size={20} />
                         </span>
                         <div>
-                            <h1 className={`text-xl font-bold tracking-tight leading-tight ${head}`}>Buyurtmalar</h1>
-                            <p className={`text-sm mt-0.5 ${muted}`}>Buyurtmalar ro&apos;yxati</p>
+                            <h1 className={`text-xl font-bold tracking-tight leading-tight ${head}`}>
+                                Buyurtmalar
+                            </h1>
+                            <p className={`text-sm mt-0.5 ${muted}`}>
+                                Barcha xodimlarning buyurtmalar ro&apos;yxati
+                            </p>
                         </div>
                     </div>
                 </div>
             </div>
 
-            {/* ── Ro'yxat ───────────────────────────────────────────────── */}
+            {/* ═══ Tabs ═══ */}
+            <div className={`flex items-center gap-1 overflow-x-auto rounded-2xl border p-1.5 ${panel}`}>
+                {TABS.map(({ key, label, Icon }) => {
+                    const isActive = tab === key;
+                    const count = tabCounts[key] || 0;
+                    return (
+                        <button
+                            key={key}
+                            type="button"
+                            onClick={() => handleTabChange(key)}
+                            className={`flex flex-1 min-w-[160px] items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all duration-200 ${
+                                isActive
+                                    ? 'bg-[#FACC15] text-[#0F172A] shadow-sm shadow-[#FACC15]/30'
+                                    : `${muted} hover:bg-amber-400/10 hover:text-amber-500`
+                            }`}
+                        >
+                            <Icon size={16} />
+                            <span className="whitespace-nowrap">{label}</span>
+                            {count > 0 && (
+                                <span className={`inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-bold ${
+                                    isActive
+                                        ? 'bg-[#0F172A]/15 text-[#0F172A]'
+                                        : isDark ? 'bg-white/10 text-slate-300' : 'bg-slate-100 text-slate-600'
+                                }`}>
+                                    {count}
+                                </span>
+                            )}
+                        </button>
+                    );
+                })}
+            </div>
+
+            {/* ═══ Ro'yxat ═══ */}
             <div className={`rounded-2xl border shadow-md ${panel}`}>
+
                 {/* Filtrlar */}
                 <div className={`border-b ${line}`}>
                     <button
@@ -119,51 +270,94 @@ export default function StaffOrders() {
                                     </span>
                                 )}
                             </div>
-                            {!filtersOpen && statusFilter && (
+                            {!filtersOpen && statusFilter && tab === 'active' && (
                                 <span className={`hidden text-xs sm:inline ${muted}`}>
-                                    · Holat: <span className="font-semibold text-amber-500">{STAFF_STATUS_LABEL[statusFilter]}</span>
+                                    · Holat:{' '}
+                                    <span className="font-semibold text-amber-500">
+                                        {STAFF_STATUS_LABEL[statusFilter]}
+                                    </span>
                                 </span>
                             )}
                         </div>
-                        <LuChevronDown size={18} className={`shrink-0 transition-transform duration-300 ${filtersOpen ? 'rotate-180' : ''} ${muted}`} />
+                        <LuChevronDown
+                            size={18}
+                            className={`shrink-0 transition-transform duration-300 ${filtersOpen ? 'rotate-180' : ''} ${muted}`}
+                        />
                     </button>
 
                     <div className={`grid transition-all duration-300 ease-in-out ${filtersOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
                         <div className="overflow-hidden">
                             <div className="grid grid-cols-1 gap-3 px-4 pb-4 sm:grid-cols-2 lg:flex lg:flex-row lg:items-end lg:px-5 lg:pb-5">
-                                <div className="lg:w-48 lg:shrink-0">
-                                    <label className={`mb-1.5 block text-xs font-semibold ${muted}`}>Holat</label>
-                                    <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }} className={inputCx}>
-                                        <option value="">Barchasi</option>
-                                        {STATUSES.map((status) => <option key={status} value={status}>{STAFF_STATUS_LABEL[status]}</option>)}
-                                    </select>
-                                </div>
+                                {currentTab.hasStatusFilter && (
+                                    <div className="lg:w-48 lg:shrink-0">
+                                        <label className={`mb-1.5 block text-xs font-semibold ${muted}`}>Holat</label>
+                                        <select
+                                            value={statusFilter}
+                                            onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
+                                            className={inputCx}
+                                        >
+                                            <option value="">Barchasi</option>
+                                            {currentTab.statuses.map((s) => (
+                                                <option key={s} value={s}>{STAFF_STATUS_LABEL[s]}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
 
                                 <div className="lg:w-48 lg:shrink-0">
                                     <label className={`mb-1.5 block text-xs font-semibold ${muted}`}>Ombor</label>
-                                    <select value={warehouseFilter} onChange={(e) => { setWarehouseFilter(e.target.value); setPage(0); }} className={inputCx}>
+                                    <select
+                                        value={warehouseFilter}
+                                        onChange={(e) => { setWarehouseFilter(e.target.value); setPage(0); }}
+                                        className={inputCx}
+                                    >
                                         <option value="">Barcha omborlar</option>
-                                        {warehouses.map((warehouse) => <option key={warehouse.id} value={warehouse.id}>{warehouse.name}</option>)}
+                                        {warehouses.map((warehouse) => (
+                                            <option key={warehouse.id} value={warehouse.id}>{warehouse.name}</option>
+                                        ))}
                                     </select>
                                 </div>
 
                                 <div className="lg:w-44 lg:shrink-0">
                                     <label className={`mb-1.5 block text-xs font-semibold ${muted}`}>Sanadan</label>
-                                    <input type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPage(0); }} className={inputCx} />
+                                    <input
+                                        type="date"
+                                        value={dateFrom}
+                                        max={dateTo || undefined}
+                                        onChange={(e) => { setDateFrom(e.target.value); setPage(0); }}
+                                        className={inputCx}
+                                    />
                                 </div>
 
                                 <div className="lg:w-44 lg:shrink-0">
                                     <label className={`mb-1.5 block text-xs font-semibold ${muted}`}>Sanagacha</label>
-                                    <input type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPage(0); }} className={inputCx} />
+                                    <input
+                                        type="date"
+                                        value={dateTo}
+                                        min={dateFrom || undefined}
+                                        onChange={(e) => { setDateTo(e.target.value); setPage(0); }}
+                                        className={inputCx}
+                                    />
                                 </div>
 
                                 <div className="sm:col-span-2 lg:flex-1">
                                     <label className={`mb-1.5 block text-xs font-semibold ${muted}`}>Mijoz bo&apos;yicha qidirish</label>
                                     <div className="relative">
                                         <LuSearch className={`pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 ${muted}`} />
-                                        <input type="text" placeholder="Mijoz nomini yozing" value={search} onChange={(e) => setSearch(e.target.value)} className={`${inputCx} pl-11 pr-10`} />
+                                        <input
+                                            type="text"
+                                            placeholder="Mijoz nomini yozing"
+                                            value={search}
+                                            onChange={(e) => setSearch(e.target.value)}
+                                            className={`${inputCx} pl-11 pr-10`}
+                                        />
                                         {search && (
-                                            <button type="button" onClick={() => setSearch('')} aria-label="Qidiruvni tozalash" className={`absolute right-3 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-lg ${muted} hover:text-[#f43f5e]`}>
+                                            <button
+                                                type="button"
+                                                onClick={() => setSearch('')}
+                                                aria-label="Qidiruvni tozalash"
+                                                className={`absolute right-3 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-lg ${muted} hover:text-[#f43f5e]`}
+                                            >
                                                 <LuX size={15} />
                                             </button>
                                         )}
@@ -171,7 +365,15 @@ export default function StaffOrders() {
                                 </div>
 
                                 {hasFilters && (
-                                    <button type="button" onClick={resetFilters} className={`flex h-11 w-full items-center justify-center rounded-xl border px-4 text-xs font-semibold transition-colors lg:w-auto lg:shrink-0 ${isDark ? 'border-[#334155] text-[#94a3b8] hover:bg-[#1e293b]' : 'border-[#e2e8f0] text-[#64748b] hover:bg-[#f1f5f9]'}`}>
+                                    <button
+                                        type="button"
+                                        onClick={resetFilters}
+                                        className={`flex h-11 w-full items-center justify-center rounded-xl border px-4 text-xs font-semibold transition-colors lg:w-auto lg:shrink-0 ${
+                                            isDark
+                                                ? 'border-[#334155] text-[#94a3b8] hover:bg-[#1e293b]'
+                                                : 'border-[#e2e8f0] text-[#64748b] hover:bg-[#f1f5f9]'
+                                        }`}
+                                    >
                                         Tozalash
                                     </button>
                                 )}
@@ -181,24 +383,7 @@ export default function StaffOrders() {
                 </div>
 
                 {isFetching ? (
-                    <div className={`flex items-center justify-center gap-2 py-14 text-sm ${muted}`}>
-                        <svg className="h-4 w-4 animate-spin text-amber-400" viewBox="0 0 24 24" fill="none">
-                            <circle
-                                className="opacity-25"
-                                cx="12"
-                                cy="12"
-                                r="10"
-                                stroke="currentColor"
-                                strokeWidth="4"
-                            />
-                            <path
-                                className="opacity-75"
-                                fill="currentColor"
-                                d="M4 12a8 8 0 018-8v8H4z"
-                            />
-                        </svg>
-                        Yuklanmoqda...
-                    </div>
+                    renderLoading()
                 ) : isError ? (
                     <div className={`flex flex-col items-center gap-2 py-14 ${muted}`}>
                         <LuPackage size={34} strokeWidth={1.5} />
@@ -208,7 +393,7 @@ export default function StaffOrders() {
                 ) : filtered.length === 0 ? (
                     <div className={`flex flex-col items-center gap-2 py-14 ${muted}`}>
                         <LuInbox size={34} strokeWidth={1.5} />
-                        <p className="text-sm font-semibold">Buyurtmalar topilmadi</p>
+                        <p className="text-sm font-semibold">{currentTab.emptyText}</p>
                     </div>
                 ) : (
                     <>
@@ -216,11 +401,7 @@ export default function StaffOrders() {
                         <div className="hidden md:block overflow-x-auto">
                             <table className="w-full min-w-[900px] text-sm">
                                 <thead>
-                                    <tr
-                                        className={`text-left text-xs font-semibold uppercase tracking-wide ${muted} ${
-                                            isDark ? 'bg-[#0f172a]/30' : 'bg-[#f8fafc]/80'
-                                        }`}
-                                    >
+                                    <tr className={`text-left text-xs font-semibold uppercase tracking-wide ${muted} ${isDark ? 'bg-[#0f172a]/30' : 'bg-[#f8fafc]/80'}`}>
                                         <th className="px-5 py-3 w-14 text-center">№</th>
                                         <th className="px-5 py-3 min-w-[220px]">Mijoz</th>
                                         <th className="px-5 py-3 w-36">Mahsulot</th>
@@ -232,7 +413,12 @@ export default function StaffOrders() {
                                 </thead>
                                 <tbody className={`divide-y ${divider}`}>
                                     {filtered.map((o, idx) => (
-                                        <tr key={o.id} className={`transition-colors ${rowHov}`}>
+                                        <tr
+                                            key={o.id}
+                                            onClick={() => goToOrder(o.id)}
+                                            title="Batafsil ko'rish uchun bosing"
+                                            className={`cursor-pointer transition-colors ${rowHov}`}
+                                        >
                                             <td className={`px-5 py-3 text-center text-xs tabular-nums ${muted}`}>
                                                 {page * PAGE_SIZE + idx + 1}
                                             </td>
@@ -252,21 +438,21 @@ export default function StaffOrders() {
                                             </td>
                                             <td className="px-5 py-3">
                                                 <span
-                                                    className={`inline-flex whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-bold ${STAFF_STATUS_CX[o.status] ?? 'bg-slate-500/10 text-slate-500 border-slate-500/30'}`}
+                                                    className={`inline-flex whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-bold ${
+                                                        STAFF_STATUS_CX[o.status] ?? 'bg-slate-500/10 text-slate-500 border-slate-500/30'
+                                                    }`}
                                                 >
                                                     {STAFF_STATUS_LABEL[o.status] ?? o.status}
                                                 </span>
                                             </td>
                                             <td className={`whitespace-nowrap px-5 py-3 text-xs ${muted}`}>
-                                                {o.createdAt
-                                                    ? new Date(o.createdAt).toLocaleString('uz-UZ')
-                                                    : '—'}
+                                                {formatDate(o.createdAt)}
                                             </td>
-                                            <td className="px-5 py-3">
+                                            <td className="px-5 py-3" onClick={(e) => e.stopPropagation()}>
                                                 <div className="flex items-center justify-end gap-1">
                                                     <button
                                                         type="button"
-                                                        onClick={() => navigate(`/staff/orders/${o.id}`)}
+                                                        onClick={() => goToOrder(o.id)}
                                                         aria-label="Ko'rish"
                                                         title="Ko'rish"
                                                         className={iconBtn}
@@ -286,7 +472,8 @@ export default function StaffOrders() {
                             {filtered.map((o, idx) => (
                                 <div
                                     key={o.id}
-                                    className={`px-4 py-3.5 transition-colors ${rowHov}`}
+                                    onClick={() => goToOrder(o.id)}
+                                    className={`cursor-pointer px-4 py-3.5 transition-colors ${rowHov}`}
                                 >
                                     {/* Top row: index + customer + status */}
                                     <div className="flex items-start justify-between gap-2 mb-2">
@@ -299,7 +486,9 @@ export default function StaffOrders() {
                                             </p>
                                         </div>
                                         <span
-                                            className={`shrink-0 inline-flex whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-bold ${STAFF_STATUS_CX[o.status] ?? 'bg-slate-500/10 text-slate-500 border-slate-500/30'}`}
+                                            className={`shrink-0 inline-flex whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-bold ${
+                                                STAFF_STATUS_CX[o.status] ?? 'bg-slate-500/10 text-slate-500 border-slate-500/30'
+                                            }`}
                                         >
                                             {STAFF_STATUS_LABEL[o.status] ?? o.status}
                                         </span>
@@ -310,7 +499,7 @@ export default function StaffOrders() {
                                         <p className={`text-xs mb-2 line-clamp-1 ${muted}`}>{o.summary}</p>
                                     )}
 
-                                    {/* Bottom row: items count + amount + date + view */}
+                                    {/* Bottom row: items + amount + date + view */}
                                     <div className="flex items-center justify-between gap-2 flex-wrap">
                                         <div className="flex items-center gap-2 flex-wrap">
                                             <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-semibold ${isDark ? 'bg-white/5 text-slate-300' : 'bg-slate-100 text-slate-600'}`}>
@@ -328,7 +517,7 @@ export default function StaffOrders() {
                                             </span>
                                             <button
                                                 type="button"
-                                                onClick={() => navigate(`/staff/orders/${o.id}`)}
+                                                onClick={(e) => { e.stopPropagation(); goToOrder(o.id); }}
                                                 aria-label="Ko'rish"
                                                 className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
                                                     isDark
@@ -346,17 +535,17 @@ export default function StaffOrders() {
                     </>
                 )}
 
-                {pagination.totalPages > 1 && (
+                {totalPages > 1 && (
                     <div className={`flex items-center justify-between gap-3 border-t px-5 py-3.5 ${line}`}>
                         <p className={`text-xs ${muted}`}>
-                            {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, pagination.totalElements)} /{' '}
-                            {pagination.totalElements}
+                            {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, totalElements)} /{' '}
+                            {totalElements}
                         </p>
                         <div className="flex items-center gap-1.5">
                             <button
                                 type="button"
-                                disabled={pagination.first}
-                                onClick={() => setPage((p) => p - 1)}
+                                disabled={page === 0}
+                                onClick={() => setPage((p) => Math.max(0, p - 1))}
                                 className={`flex h-8 w-8 items-center justify-center rounded-lg border transition-colors disabled:opacity-40 ${
                                     isDark
                                         ? 'border-[#334155] hover:bg-[#334155]'
@@ -366,11 +555,11 @@ export default function StaffOrders() {
                                 <LuChevronLeft size={14} />
                             </button>
                             <span className={`px-3 text-sm font-semibold ${head}`}>
-                                {page + 1} / {pagination.totalPages}
+                                {page + 1} / {totalPages}
                             </span>
                             <button
                                 type="button"
-                                disabled={pagination.last}
+                                disabled={page >= totalPages - 1}
                                 onClick={() => setPage((p) => p + 1)}
                                 className={`flex h-8 w-8 items-center justify-center rounded-lg border transition-colors disabled:opacity-40 ${
                                     isDark

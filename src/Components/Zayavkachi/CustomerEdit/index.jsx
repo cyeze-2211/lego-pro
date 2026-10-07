@@ -2,7 +2,7 @@ import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { LuArrowLeft, LuCircleAlert } from 'react-icons/lu';
 import { useGetCustomerByIdQuery } from '../../../store/services/customer.api';
 import Loading from '../../Other/UI/Loadings/Loading';
-import CustomerForm from '../__components/CustomerForm';
+import CustomerEditModal from '../../Common/Customer/__components/Edit';
 
 export default function ZayavkachiCustomerEdit() {
     const { id } = useParams();
@@ -30,5 +30,12 @@ export default function ZayavkachiCustomerEdit() {
         );
     }
 
-    return <CustomerForm customer={customer} onCancel={backToDetail} onSaved={backToDetail} />;
+    return (
+        <CustomerEditModal
+            customer={customer}
+            openOnMount
+            hideTrigger
+            onClosed={backToDetail}
+        />
+    );
 }
