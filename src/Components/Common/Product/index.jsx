@@ -725,7 +725,6 @@ export default function Product() {
                                     <Table.ColumnHeader {...headerCell} minW="170px">
                                         Ombor
                                     </Table.ColumnHeader>
-                                    {sortableHeader('Shtrix-kod', 'barcode', '150px')}
                                     <Table.ColumnHeader {...headerCell} textAlign="center" w="140px">
                                         Amal
                                     </Table.ColumnHeader>
@@ -1079,23 +1078,7 @@ export default function Product() {
                                                 )}
                                             </Table.Cell>
 
-                                            {/* Shtrix-kod */}
-                                            <Table.Cell {...cellBorder}>
-                                                {product.barcode ? (
-                                                    <Text
-                                                        fontSize="xs"
-                                                        color={subtitleColor}
-                                                        fontFamily="mono"
-                                                        whiteSpace="nowrap"
-                                                    >
-                                                        {product.barcode}
-                                                    </Text>
-                                                ) : (
-                                                    <Text fontSize="sm" color={subtitleColor}>
-                                                        —
-                                                    </Text>
-                                                )}
-                                            </Table.Cell>
+                                     
 
                                             {/* Amallar */}
                                             <Table.Cell

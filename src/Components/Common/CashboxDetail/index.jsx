@@ -28,7 +28,11 @@ function formatOperationDate(str) {
 export default function CashboxDetail() {
     const { id } = useParams();
     const { pathname } = useLocation();
-    const backTo = pathname.startsWith('/kassir') ? '/kassir/cashboxes' : '/cashboxes';
+    const backTo = pathname.startsWith('/kassir')
+        ? '/kassir/cashboxes'
+        : pathname.startsWith('/zayavkachi')
+            ? '/zayavkachi/cashboxes'
+            : '/cashboxes';
     const { isDark, cardBg, cardBorder, textColor, subtitleColor } = useAppTheme();
 
     const { data: cashbox, isLoading, isError } = useGetCashboxByIdQuery(id, { skip: !id });

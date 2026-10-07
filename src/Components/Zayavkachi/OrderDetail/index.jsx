@@ -8,9 +8,13 @@ import {
     LuBoxes, LuPencilLine, LuPrinter,
 } from 'react-icons/lu';
 import { useAppTheme } from '../../../theme/tokens';
+import { useAppSelector } from '../../../store/hooks';
+import { ROLES } from '../../../app/permissions/roles';
 import {
     useGetSalesOrderByIdQuery,
     useUpdateSalesOrderStatusMutation,
+    useRejectSalesOrderMutation,
+    useLoadSalesOrderMutation,
     useUpdateSalesOrderPricesMutation,
 } from '../../../store/services/salesOrder.api';
 import { useGetProductStocksQuery } from '../../../store/services/productStock.api';
@@ -32,12 +36,14 @@ import logoSvg from '../../../Images/Yellow Unified Lego Outlined.svg';
 /* ──────────────────────────────────────────────────────────────── */
 function OrderStatusControl({ order, isDark }) {
     const [action, setAction] = useState(null);
+    const role = useAppSelector((state) => state.auth.role);
     const [updateStatus] = useUpdateSalesOrderStatusMutation();
+    const [rejectOrder] = useRejectSalesOrderMutation();
+    const [loadOrder] = useLoadSalesOrderMutation();
     const [updatePrices] = useUpdateSalesOrderPricesMutation();
 
     const statusStyles = {
         CREATED:    { bg: isDark ? 'rgba(148,163,184,.16)' : '#E2E8F0', color: isDark ? '#cbd5e1' : '#334155', border: isDark ? '#64748b' : '#94a3b8' },
-        DISPATCHED: { bg: isDark ? 'rgba(56,189,248,.16)'  : '#E0F2FE', color: isDark ? '#7dd3fc' : '#075985', border: isDark ? '#0ea5e9' : '#0284c7' },
         LOADED:     { bg: isDark ? 'rgba(167,139,250,.16)' : '#EDE9FE', color: isDark ? '#c4b5fd' : '#5B21B6', border: isDark ? '#8b5cf6' : '#7c3aed' },
         CONFIRMED:  { bg: isDark ? 'rgba(34,197,94,.16)'   : '#DCFCE7', color: isDark ? '#86efac' : '#15803d', border: '#16a34a' },
         REJECTED:   { bg: isDark ? 'rgba(239,68,68,.16)'   : '#FEE2E2', color: isDark ? '#fca5a5' : '#b91c1c', border: '#dc2626' },
@@ -59,19 +65,35 @@ function OrderStatusControl({ order, isDark }) {
                 }));
                 await updatePrices({ id: order.id, data: { items: priceItems } }).unwrap();
             }
-            await updateStatus({ id: order.id, status: nextStatus }).unwrap();
+            if (nextStatus === 'LOADED') {
+                await loadOrder(order.id).unwrap();
+            } else if (nextStatus === 'REJECTED') {
+                await rejectOrder({ id: order.id }).unwrap();
+            } else {
+                await updateStatus({ id: order.id, status: nextStatus }).unwrap();
+            }
             Alert(
                 `Buyurtma holati "${STATUS_LABEL[nextStatus] ?? nextStatus}" ga o'zgartirildi`,
                 'success',
             );
+            return true;
         } catch (error) {
             Alert(error?.data?.message || "Statusni o'zgartirishda xatolik", 'error');
+            return false;
         } finally {
             setAction(null);
         }
     };
 
     if (isFinal) {
+        return (
+            <span className={`rounded-full border px-3 py-1.5 text-xs font-bold ${statusCx(order.status)}`}>
+                {STATUS_LABEL[order.status] ?? order.status}
+            </span>
+        );
+    }
+
+    if (role === ROLES.ZAYAVKACHI && nextStatuses.length === 0) {
         return (
             <span className={`rounded-full border px-3 py-1.5 text-xs font-bold ${statusCx(order.status)}`}>
                 {STATUS_LABEL[order.status] ?? order.status}
@@ -218,7 +240,7 @@ export default function ZayavkachiOrderDetail() {
 
     const items    = order.items ?? [];
     const editable = order.status === 'CREATED';
-    const showStockComparison = order.status === 'CREATED' || order.status === 'DISPATCHED';
+    const showStockComparison = order.status === 'CREATED' || order.status === 'LOADED';
 
     const fmtDate     = (v) => v ? new Date(v).toLocaleDateString('uz-UZ') : '—';
     const fmtDateTime = (v) => v ? new Date(v).toLocaleString('uz-UZ') : '—';
@@ -364,7 +386,7 @@ export default function ZayavkachiOrderDetail() {
                     </div>
                 </div>
 
-                {/* ── Ombor qoldiqlari taqqoslov — faqat CREATED / DISPATCHED ── */}
+                {/* ── Ombor qoldiqlari taqqoslov — CREATED / LOADED ── */}
                 {showStockComparison && (
                 <div className={`rounded-2xl border shadow-md ${panel}`}>
                     <div className={`flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4 ${line}`}>

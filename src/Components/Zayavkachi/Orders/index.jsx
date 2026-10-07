@@ -7,24 +7,49 @@ import {
     LuSlidersHorizontal, LuChevronDown, LuHistory,
     LuUser, LuCalendar, LuCheck, LuCircleX, LuFileText,
     LuWallet, LuCircleCheckBig, LuBan, LuChevronUp,
-    LuTruck, LuInbox,
+    LuInbox, LuCircleDashed, LuPackageCheck,
 } from 'react-icons/lu';
 import { useAppTheme } from '../../../theme/tokens';
 import { formatNumber } from '../../ui/number-format';
+import { useAppSelector } from '../../../store/hooks';
+import { ROLES } from '../../../app/permissions/roles';
 import {
     useGetSalesOrdersQuery,
     useUpdateSalesOrderStatusMutation,
+    useRejectSalesOrderMutation,
+    useLoadSalesOrderMutation,
 } from '../../../store/services/salesOrder.api';
 import DeleteOrder from '../__components/DeleteOrder';
-import {
-    STATUS_LABEL,
-    statusCx,
-    NEXT_STATUS,
-    FINAL_STATUSES,
-} from '../__components/statusBadge';
+import { STATUS_LABEL, statusCx } from '../__components/statusBadge';
 import { Alert } from '../../Other/UI/Alert/Alert';
 
 const PAGE_SIZE = 20;
+
+/* ── Status configs (локально, если не экспортируются из statusBadge) ── */
+const LOCAL_LABELS = {
+    CREATED:    'Yaratilgan',
+    LOADED:     'Ortildi',
+    CONFIRMED:  'Tugallangan',
+    REJECTED:   'Rad etilgan',
+};
+
+/* Разрешённые переходы между статусами */
+const NEXT_STATUS = {
+    CREATED:    ['LOADED', 'REJECTED'],
+    LOADED:     ['CONFIRMED'],
+    CONFIRMED:  [],   // финальный
+    REJECTED:   [],   // финальный
+};
+
+const FINAL_STATUSES = ['CONFIRMED', 'REJECTED'];
+
+/* ── Иконки для статусов ── */
+const STATUS_ICON = {
+    CREATED:    LuCircleDashed,
+    LOADED:     LuPackageCheck,
+    CONFIRMED:  LuCircleCheckBig,
+    REJECTED:   LuCircleX,
+};
 
 /* ── Tab konfiguratsiyasi ── */
 const TABS = [
@@ -32,7 +57,7 @@ const TABS = [
         key: 'active',
         label: 'Faol buyurtmalar',
         Icon: LuClipboardList,
-        statuses: ['CREATED', 'DISPATCHED', 'LOADED'],
+        statuses: ['CREATED', 'LOADED'],
         hasStatusFilter: true,
         emptyText: "Faol buyurtmalar yo'q",
         emptyHint: "Yangi buyurtma qo'shish uchun yuqoridagi tugmani bosing",
@@ -48,26 +73,17 @@ const TABS = [
     },
     {
         key: 'cancelled',
-        label: 'Bekor qilingan',
+        label: 'Rad etilgan',
         Icon: LuBan,
         statuses: ['REJECTED'],
         hasStatusFilter: false,
-        emptyText: "Hali bekor qilingan buyurtma yo'q",
+        emptyText: "Hali rad etilgan buyurtma yo'q",
         emptyHint: "Rad etilgan buyurtmalar shu yerda ko'rinadi",
     },
 ];
 
 const ACTIVE_STATUSES = TABS[0].statuses;
-const STATUS_FLOW = ['CREATED', 'DISPATCHED', 'LOADED', 'CONFIRMED'];
-
-/* ── Mahalliy status yorliqlari ── */
-const LOCAL_LABELS = {
-    CREATED:    'Kutilmoqda',
-    DISPATCHED: "Yo'lda",
-    LOADED:     'Yuklandi',
-    CONFIRMED:  'Tugallangan',
-    REJECTED:   'Bekor qilingan',
-};
+const STATUS_FLOW = ['CREATED', 'LOADED', 'CONFIRMED'];
 
 const labelOf = (status) => {
     if (!status) return '—';
@@ -113,11 +129,13 @@ const formatDate = (value) => {
 /* ──────────────────────────────────────────────────────────────── */
 function OrderListStatusControl({ order, isDark }) {
     const [action, setAction] = useState(null);
+    const role = useAppSelector((state) => state.auth.role);
     const [updateStatus] = useUpdateSalesOrderStatusMutation();
+    const [rejectOrder] = useRejectSalesOrderMutation();
+    const [loadOrder] = useLoadSalesOrderMutation();
 
     const statusStyles = {
-        CREATED:    { bg: isDark ? 'rgba(148,163,184,.16)' : '#E2E8F0', color: isDark ? '#cbd5e1' : '#334155', border: isDark ? '#64748b' : '#94a3b8' },
-        DISPATCHED: { bg: isDark ? 'rgba(56,189,248,.16)'  : '#E0F2FE', color: isDark ? '#7dd3fc' : '#075985', border: isDark ? '#0ea5e9' : '#0284c7' },
+        CREATED:    { bg: isDark ? 'rgba(250,204,21,.16)'  : '#FEF3C7', color: isDark ? '#fde68a' : '#92400E', border: isDark ? '#ca8a04' : '#d97706' },
         LOADED:     { bg: isDark ? 'rgba(167,139,250,.16)' : '#EDE9FE', color: isDark ? '#c4b5fd' : '#5B21B6', border: isDark ? '#8b5cf6' : '#7c3aed' },
         CONFIRMED:  { bg: isDark ? 'rgba(34,197,94,.16)'   : '#DCFCE7', color: isDark ? '#86efac' : '#15803d', border: '#16a34a' },
         REJECTED:   { bg: isDark ? 'rgba(239,68,68,.16)'   : '#FEE2E2', color: isDark ? '#fca5a5' : '#b91c1c', border: '#dc2626' },
@@ -131,7 +149,13 @@ function OrderListStatusControl({ order, isDark }) {
         if (!nextStatus || nextStatus === order.status) return;
         setAction(nextStatus);
         try {
-            await updateStatus({ id: order.id, status: nextStatus }).unwrap();
+            if (nextStatus === 'LOADED') {
+                await loadOrder(order.id).unwrap();
+            } else if (nextStatus === 'REJECTED') {
+                await rejectOrder({ id: order.id }).unwrap();
+            } else {
+                await updateStatus({ id: order.id, status: nextStatus }).unwrap();
+            }
             Alert(`Buyurtma holati "${labelOf(nextStatus)}" ga o'zgartirildi`, 'success');
         } catch (error) {
             Alert(error?.data?.message || "Statusni o'zgartirishda xatolik", 'error');
@@ -141,13 +165,24 @@ function OrderListStatusControl({ order, isDark }) {
     };
 
     if (isFinal) {
+        const Icon = STATUS_ICON[order.status];
         return (
             <span
-                className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-bold"
+                className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-bold whitespace-nowrap"
                 style={{ backgroundColor: style.bg, color: style.color, borderColor: style.border }}
             >
-                {order.status === 'CONFIRMED' && <LuCircleCheckBig size={13} />}
-                {order.status === 'REJECTED' && <LuCircleX size={13} />}
+                {Icon && <Icon size={13} />}
+                {labelOf(order.status)}
+            </span>
+        );
+    }
+
+    if (role === ROLES.ZAYAVKACHI && nextStatuses.length === 0) {
+        return (
+            <span
+                className="inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-bold whitespace-nowrap"
+                style={{ backgroundColor: style.bg, color: style.color, borderColor: style.border }}
+            >
                 {labelOf(order.status)}
             </span>
         );
@@ -280,11 +315,11 @@ function OrderUnderPanel({ order, isDark }) {
                             </span>
                             <div>
                                 <p className={`text-sm font-bold leading-tight ${head}`}>
-                                    {isCancelled ? 'Bekor qilingan' : 'Tugallangan'}
+                                    {isCancelled ? 'Rad etilgan' : 'Tugallangan'}
                                 </p>
                                 <p className={`text-xs ${muted}`}>
                                     {isCancelled
-                                        ? `Bekor qilingan sana: ${formatDate(finishDate)}`
+                                        ? `Rad etilgan sana: ${formatDate(finishDate)}`
                                         : `Tugallangan sana: ${formatDate(finishDate)}`}
                                 </p>
                             </div>
@@ -511,7 +546,7 @@ export default function ZayavkachiOrders() {
 
     const [tab, setTab]                   = useState('active');
     const [page, setPage]                 = useState(0);
-    const [statusFilter, setStatusFilter] = useState('CREATED');
+    const [statusFilter, setStatusFilter] = useState('');
     const [dateFrom, setDateFrom]         = useState('');
     const [dateTo, setDateTo]             = useState('');
     const [search, setSearch]             = useState('');
@@ -521,7 +556,6 @@ export default function ZayavkachiOrders() {
 
     const currentTab = TABS.find((t) => t.key === tab) ?? TABS[0];
 
-    /* Tab o'zgarganda sahifani va expand holatini reset qilamiz */
     const handleTabChange = (newTab) => {
         if (newTab === tab) return;
         setTab(newTab);
@@ -538,7 +572,6 @@ export default function ZayavkachiOrders() {
             size: PAGE_SIZE,
         };
         if (tab === 'active') {
-            // statusFilter bo'sh bo'lsa — Barchasi, client-side filter qilamiz
             return { ...base, status: statusFilter || undefined };
         }
         if (tab === 'completed') return { ...base, status: 'CONFIRMED' };
@@ -557,9 +590,7 @@ export default function ZayavkachiOrders() {
     const totalPages = Number.isFinite(pagination?.totalPages) ? pagination.totalPages : 0;
     const totalElements = Number.isFinite(pagination?.totalElements) ? pagination.totalElements : 0;
 
-    /* Tab bo'yicha client-side filtr (faqat active va statusFilter yo'q bo'lsa) */
     const restrictToActive = tab === 'active' && !statusFilter;
-    const restrictToStatuses = tab === 'active' ? ACTIVE_STATUSES : currentTab.statuses;
 
     const tabFiltered = restrictToActive
         ? orders.filter((o) => ACTIVE_STATUSES.includes(o?.status))
@@ -571,14 +602,20 @@ export default function ZayavkachiOrders() {
           )
         : tabFiltered;
 
-    /* Filtrlar soni */
+    /* ── Счётчики для табов (по загруженным) ── */
+    const tabCounts = {
+        active: orders.filter((o) => ACTIVE_STATUSES.includes(o?.status)).length,
+        completed: orders.filter((o) => o?.status === 'CONFIRMED').length,
+        cancelled: orders.filter((o) => o?.status === 'REJECTED').length,
+    };
+
     const activeFilterCount = tab === 'active'
         ? [statusFilter, dateFrom, dateTo, search].filter(Boolean).length
         : [dateFrom, dateTo, search].filter(Boolean).length;
     const hasFilters = activeFilterCount > 0;
 
     const resetFilters = () => {
-        if (tab === 'active') setStatusFilter('CREATED');
+        if (tab === 'active') setStatusFilter('');
         setDateFrom('');
         setDateTo('');
         setSearch('');
@@ -639,16 +676,17 @@ export default function ZayavkachiOrders() {
                 </div>
             </div>
 
-            {/* ── Tabs ── */}
+            {/* ── Tabs with counts ── */}
             <div className={`flex items-center gap-1 overflow-x-auto rounded-2xl border p-1.5 ${panel}`}>
                 {TABS.map(({ key, label, Icon }) => {
                     const isActive = tab === key;
+                    const count = tabCounts[key] || 0;
                     return (
                         <button
                             key={key}
                             type="button"
                             onClick={() => handleTabChange(key)}
-                            className={`flex flex-1 min-w-[140px] items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all duration-200 ${
+                            className={`flex flex-1 min-w-[160px] items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all duration-200 ${
                                 isActive
                                     ? 'bg-[#FACC15] text-[#0F172A] shadow-sm shadow-[#FACC15]/30'
                                     : `${muted} hover:bg-amber-400/10 hover:text-amber-500`
@@ -656,6 +694,15 @@ export default function ZayavkachiOrders() {
                         >
                             <Icon size={16} />
                             <span className="whitespace-nowrap">{label}</span>
+                            {count > 0 && (
+                                <span className={`inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-bold ${
+                                    isActive
+                                        ? 'bg-[#0F172A]/15 text-[#0F172A]'
+                                        : isDark ? 'bg-white/10 text-slate-300' : 'bg-slate-100 text-slate-600'
+                                }`}>
+                                    {count}
+                                </span>
+                            )}
                         </button>
                     );
                 })}
@@ -703,7 +750,6 @@ export default function ZayavkachiOrders() {
                     >
                         <div className="overflow-hidden">
                             <div className="flex flex-col gap-3 px-5 pb-5 sm:flex-row sm:items-end">
-                                {/* Status filter — faqat "Faol buyurtmalar" tabida */}
                                 {currentTab.hasStatusFilter && (
                                     <div className="sm:w-48 shrink-0">
                                         <label className={`mb-1.5 block text-xs font-semibold ${muted}`}>Holat</label>
@@ -719,15 +765,15 @@ export default function ZayavkachiOrders() {
                                 )}
 
                                 <div className="sm:w-44 shrink-0">
-                                    <label className={`mb-1.5 block text-xs font-semibold ${muted}`}>Sanadan</label>
-                                    <input type="date" value={dateFrom}
+                                    <label className={`mb-1.5 block text-xs font-semibold ${muted}`}>Yaratilgan sana (dan)</label>
+                                    <input type="date" value={dateFrom} max={dateTo || undefined}
                                         onChange={(e) => { setDateFrom(e.target.value); setPage(0); }}
                                         className={inputCx} />
                                 </div>
 
                                 <div className="sm:w-44 shrink-0">
-                                    <label className={`mb-1.5 block text-xs font-semibold ${muted}`}>Sanagacha</label>
-                                    <input type="date" value={dateTo}
+                                    <label className={`mb-1.5 block text-xs font-semibold ${muted}`}>Yaratilgan sana (gacha)</label>
+                                    <input type="date" value={dateTo} min={dateFrom || undefined}
                                         onChange={(e) => { setDateTo(e.target.value); setPage(0); }}
                                         className={inputCx} />
                                 </div>

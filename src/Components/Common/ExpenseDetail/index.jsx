@@ -15,6 +15,7 @@ export default function ExpenseDetail() {
             <DetailSection title="Xarajat ma’lumotlari" icon={LuReceiptText}>
                 <DetailRow label="Nomi" value={expense.name} emphasize />
                 <DetailRow label="Tavsifi" value={expense.summary} />
+                <DetailRow label="Kategoriya" value={expense.categoryName} />
                 <DetailRow label="Sana" value={expense.expenseDate} />
                 <DetailRow label="Summa" value={`-${formatNumber(expense.amount)} so‘m`} emphasize />
             </DetailSection>

@@ -20,26 +20,29 @@ import { Alert } from '../../Other/UI/Alert/Alert';
 
 /* ── helpers ─────────────────────────────────────────────────────────────── */
 const ORDER_STATUS_LABELS = {
-    PENDING:  'Kutilmoqda',
-    APPROVED: 'Tasdiqlangan',
-    REJECTED: 'Rad etilgan',
+    CREATED:    'Kutilmoqda',
+    LOADED:     'Ortildi',
+    CONFIRMED:  'Tugallangan',
+    REJECTED:   'Rad etilgan',
 };
 
 const ORDER_STATUS_COLORS = {
-    PENDING:  { bg: 'rgba(250,204,21,.15)', color: '#b45309', border: '#d97706' },
-    APPROVED: { bg: 'rgba(34,197,94,.15)',  color: '#15803d', border: '#16a34a' },
-    REJECTED: { bg: 'rgba(239,68,68,.15)',  color: '#b91c1c', border: '#dc2626' },
+    CREATED:    { bg: 'rgba(250,204,21,.15)',  color: '#b45309', border: '#d97706' },
+    LOADED:     { bg: 'rgba(168,85,247,.15)',  color: '#7e22ce', border: '#9333ea' },
+    CONFIRMED:  { bg: 'rgba(34,197,94,.15)',   color: '#15803d', border: '#16a34a' },
+    REJECTED:   { bg: 'rgba(239,68,68,.15)',   color: '#b91c1c', border: '#dc2626' },
 };
 
 const ORDER_STATUS_COLORS_DARK = {
-    PENDING:  { bg: 'rgba(250,204,21,.14)', color: '#fde68a', border: '#ca8a04' },
-    APPROVED: { bg: 'rgba(34,197,94,.14)',  color: '#86efac', border: '#16a34a' },
-    REJECTED: { bg: 'rgba(239,68,68,.14)',  color: '#fca5a5', border: '#dc2626' },
+    CREATED:    { bg: 'rgba(250,204,21,.14)',  color: '#fde68a', border: '#ca8a04' },
+    LOADED:     { bg: 'rgba(168,85,247,.14)',  color: '#d8b4fe', border: '#9333ea' },
+    CONFIRMED:  { bg: 'rgba(34,197,94,.14)',   color: '#86efac', border: '#16a34a' },
+    REJECTED:   { bg: 'rgba(239,68,68,.14)',   color: '#fca5a5', border: '#dc2626' },
 };
 
 function statusPill(status, isDark) {
     const map = isDark ? ORDER_STATUS_COLORS_DARK : ORDER_STATUS_COLORS;
-    const s = map[status] || map.PENDING;
+    const s = map[status] || map.CREATED;
     return (
         <span style={{
             display: 'inline-flex', alignItems: 'center', gap: 4,
@@ -173,7 +176,6 @@ export default function CustomerReconciliation() {
     const totalOrdersCount   = orderPagination?.totalElements   ?? 0;
     const totalPaymentsCount = paymentPagination?.totalElements ?? 0;
 
-    // These come from the current page only; for accurate totals we rely on the current page sums
     const ordersTotalSum    = orders.reduce((s, o) => s + (o.totalAmount  ?? 0), 0);
     const paymentsSum       = payments.reduce((s, p) => s + (p.amount     ?? 0), 0);
     const remainingDebtSum  = orders.reduce((s, o) => s + (o.remainingDebt ?? 0), 0);
@@ -208,10 +210,6 @@ export default function CustomerReconciliation() {
         }
         setExporting(true);
         try {
-            // fetch ALL orders and payments for export (no pagination)
-            const { useGetSalesOrdersQuery: _, useGetPaymentsQuery: __, ...rest } = {};
-            void rest;
-
             const wb = XLSX.utils.book_new();
             const customerName = selectedCustomer?.label ?? 'Mijoz';
             const period = dateFrom && dateTo
@@ -222,7 +220,6 @@ export default function CustomerReconciliation() {
                 ? `${dateTo} gacha`
                 : 'Barcha vaqt';
 
-            // ── Cover / Info sheet ──────────────────────────────────────
             const infoRows = [
                 ['MIJOZ SVERKA HISOBOTI'],
                 [],
@@ -239,7 +236,6 @@ export default function CustomerReconciliation() {
             infoWs['!cols'] = [{ wch: 22 }, { wch: 40 }];
             XLSX.utils.book_append_sheet(wb, infoWs, 'Ma\'lumot');
 
-            // ── Orders sheet ────────────────────────────────────────────
             const orderHeaders = ['№', 'Mahsulotlar soni', 'Jami summa (so\'m)', 'Qolgan qarz (so\'m)', 'Holat', 'Izoh', 'Sana'];
             const orderRows = orders.map((o, i) => [
                 i + 1,
@@ -257,7 +253,6 @@ export default function CustomerReconciliation() {
             ];
             XLSX.utils.book_append_sheet(wb, ordersWs, 'Buyurtmalar');
 
-            // ── Payments sheet ──────────────────────────────────────────
             const payHeaders = ['№', 'Kassa', 'Summa (so\'m)', 'Taqsimlangan (so\'m)', 'Avans (so\'m)', 'Holat', 'Izoh', 'Sana'];
             const payRows = payments.map((p, i) => [
                 i + 1,
@@ -276,7 +271,6 @@ export default function CustomerReconciliation() {
             ];
             XLSX.utils.book_append_sheet(wb, paymentsWs, 'To\'lovlar');
 
-            // ── Summary sheet ───────────────────────────────────────────
             const summaryRows = [
                 ['XULOSA'],
                 [],
@@ -394,12 +388,7 @@ export default function CustomerReconciliation() {
         <Box my={2} bg={pageBg} color={textColor} minH="100%">
 
             {/* ── Page Header ───────────────────────────────────────────── */}
-            <Box
-                className={panel}
-                mb={5}
-                position="relative"
-                overflow="hidden"
-            >
+            <Box className={panel} mb={5} position="relative" overflow="hidden">
                 <Box
                     position="absolute" top={0} right={0}
                     w="40%" h="100%"
@@ -474,7 +463,6 @@ export default function CustomerReconciliation() {
                 </HStack>
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    {/* Customer selector */}
                     <div className="lg:col-span-2">
                         <label className={`mb-1.5 block text-xs font-semibold ${muted}`}>
                             <HStack as="span" gap={1.5} display="inline-flex">
@@ -497,7 +485,6 @@ export default function CustomerReconciliation() {
                         />
                     </div>
 
-                    {/* Date from */}
                     <div>
                         <label className={`mb-1.5 block text-xs font-semibold ${muted}`}>
                             <HStack as="span" gap={1.5} display="inline-flex">
@@ -513,7 +500,6 @@ export default function CustomerReconciliation() {
                         />
                     </div>
 
-                    {/* Date to */}
                     <div>
                         <label className={`mb-1.5 block text-xs font-semibold ${muted}`}>
                             <HStack as="span" gap={1.5} display="inline-flex">
@@ -530,7 +516,6 @@ export default function CustomerReconciliation() {
                     </div>
                 </div>
 
-                {/* Selected customer info bar */}
                 {selectedCustomer && (
                     <Box
                         mt={4}
@@ -617,7 +602,6 @@ export default function CustomerReconciliation() {
             {/* ── Data view ─────────────────────────────────────────────── */}
             {hasCustomer && (
                 <>
-                    {/* Summary cards */}
                     <HStack gap={4} mb={5} flexWrap="wrap" align="stretch">
                         <SummaryCard
                             icon={LuClipboardList}
@@ -671,9 +655,7 @@ export default function CustomerReconciliation() {
                         />
                     </HStack>
 
-                    {/* Tabs */}
                     <Box className={panel}>
-                        {/* Tab header */}
                         <HStack
                             gap={0}
                             borderBottomWidth="1px"
@@ -716,7 +698,6 @@ export default function CustomerReconciliation() {
                         {activeTab === 'summary' && (
                             <Box p={6}>
                                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                                    {/* Balance block */}
                                     <Box
                                         p={5}
                                         borderRadius="xl"
@@ -773,7 +754,6 @@ export default function CustomerReconciliation() {
                                         </Text>
                                     </Box>
 
-                                    {/* Stats block */}
                                     <Box
                                         p={5} borderRadius="xl"
                                         bg={isDark ? 'rgba(255,255,255,.03)' : '#F8FAFC'}
@@ -800,7 +780,6 @@ export default function CustomerReconciliation() {
                                     </Box>
                                 </div>
 
-                                {/* Export hint */}
                                 <Box
                                     mt={5} p={4} borderRadius="xl"
                                     bg={isDark ? 'rgba(250,204,21,.06)' : '#FFFBEB'}
@@ -915,7 +894,6 @@ export default function CustomerReconciliation() {
                                                         </tr>
                                                     ))}
                                                 </tbody>
-                                                {/* Totals row */}
                                                 <tfoot>
                                                     <tr className={isDark ? 'bg-[#0f172a]/50' : 'bg-[#f8fafc]'}>
                                                         <td colSpan={2} className={`${tdCx} font-bold ${head}`}>
@@ -933,7 +911,6 @@ export default function CustomerReconciliation() {
                                                 </tfoot>
                                             </table>
                                         </Box>
-                                        {/* Pagination */}
                                         <HStack justify="space-between" align="center" px={5} py={4} flexWrap="wrap" gap={3}
                                             borderTopWidth="1px" borderColor={cardBorder}>
                                             <Text color={subtitleColor} fontSize="sm">
@@ -1065,7 +1042,6 @@ export default function CustomerReconciliation() {
                                                         );
                                                     })}
                                                 </tbody>
-                                                {/* Totals row */}
                                                 <tfoot>
                                                     <tr className={isDark ? 'bg-[#0f172a]/50' : 'bg-[#f8fafc]'}>
                                                         <td colSpan={2} className={`${tdCx} font-bold ${head}`}>
@@ -1080,7 +1056,6 @@ export default function CustomerReconciliation() {
                                                 </tfoot>
                                             </table>
                                         </Box>
-                                        {/* Pagination */}
                                         <HStack justify="space-between" align="center" px={5} py={4} flexWrap="wrap" gap={3}
                                             borderTopWidth="1px" borderColor={cardBorder}>
                                             <Text color={subtitleColor} fontSize="sm">

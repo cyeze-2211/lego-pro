@@ -7,6 +7,7 @@ import { useAppTheme } from '../../../theme/tokens';
 import { formatNumber } from '../../ui/number-format';
 import { useGetCustomerByIdQuery } from '../../../store/services/customer.api';
 import { useGetSalesOrdersQuery } from '../../../store/services/salesOrder.api';
+import PaymentReminders from './PaymentReminders';
 import Loading from '../../Other/UI/Loadings/Loading';
 import DeleteCustomer from '../__components/DeleteCustomer';
 import { STATUS_LABEL, statusCx } from '../__components/statusBadge';
@@ -136,7 +137,6 @@ export default function ZayavkachiCustomerDetail() {
                 )}
             </div>
 
-            {/* ── Mijoz buyurtmalari ────────────────────────────────────── */}
             <div className={`rounded-2xl border shadow-md ${panel}`}>
                 <div className={`flex flex-wrap items-center justify-between gap-3 border-b px-5 py-3.5 ${line}`}>
                     <div className="flex items-center gap-2.5">
@@ -215,6 +215,9 @@ export default function ZayavkachiCustomerDetail() {
                     </div>
                 )}
             </div>
+            <PaymentReminders customerId={customer.id} />
+
+            {/* ── Mijoz buyurtmalari ────────────────────────────────────── */}
         </div>
     );
 }

@@ -143,6 +143,11 @@ export const ROUTES = [
         roles: ROLES.MANAGER,
     },
     {
+        path: '/reminders',
+        component: lazy(() => import('../../Components/Common/Reminder')),
+        roles: [ROLES.MANAGER, ...ZAYAVKACHI_ROLES, ...BUXGALTER_ROLES],
+    },
+    {
         path: '/expense-categories',
         component: lazy(() => import('../../Components/Common/ExpenseCategory')),
         roles: ROLES.MANAGER,
@@ -289,6 +294,26 @@ export const ROUTES = [
         roles: [...ZAYAVKACHI_ROLES, ...BUXGALTER_ROLES],
     },
     {
+        path: '/zayavkachi/warehouse',
+        component: lazy(() => import('../../Components/Staff/StockWarehouse')),
+        roles: ZAYAVKACHI_ROLES,
+    },
+    {
+        path: '/zayavkachi/raw-warehouse',
+        component: lazy(() => import('../../Components/RawStaff/StockWarehouse')),
+        roles: ZAYAVKACHI_ROLES,
+    },
+    {
+        path: '/zayavkachi/cashboxes',
+        component: lazy(() => import('../../Components/Common/Cashbox')),
+        roles: ZAYAVKACHI_ROLES,
+    },
+    {
+        path: '/zayavkachi/cashboxes/:id',
+        component: lazy(() => import('../../Components/Common/CashboxDetail')),
+        roles: ZAYAVKACHI_ROLES,
+    },
+    {
         path: '/zayavkachi/orders',
         component: lazy(() => import('../../Components/Zayavkachi/Orders')),
         roles: [...ZAYAVKACHI_ROLES, ...BUXGALTER_ROLES],
@@ -302,6 +327,11 @@ export const ROUTES = [
         path: '/zayavkachi/orders/:id',
         component: lazy(() => import('../../Components/Zayavkachi/OrderDetail')),
         roles: [...ZAYAVKACHI_ROLES, ...BUXGALTER_ROLES],
+    },
+        {
+        path: '/zayavkachi/reconciliation',
+        component: lazy(() => import('../../Components/Common/CustomerReconciliation')),
+        roles: ZAYAVKACHI_ROLES,
     },
     {
         path: '/zayavkachi/orders/:id/edit',

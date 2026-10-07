@@ -4,7 +4,7 @@ import { axiosBaseQuery } from '../baseQuary/axiosBaseQuery';
 export const salesOrderApi = createApi({
   reducerPath: 'salesOrderApi',
   baseQuery: axiosBaseQuery(),
-  tagTypes: ['SalesOrder'],
+  tagTypes: ['SalesOrder', 'ProductShortages', 'SalesOrderDashboard'],
   endpoints: (builder) => ({
     getSalesOrders: builder.query({
       query: ({ customerId, status, productId, warehouseId, dateFrom, dateTo, page = 0, size = 20, sort = ['createdAt,DESC', 'id,DESC'] } = {}) => ({
@@ -39,10 +39,48 @@ export const salesOrderApi = createApi({
       providesTags: (result, error, id) => [{ type: 'SalesOrder', id }],
     }),
 
+    /* ── Dashboard: zayavkalar soni holatlar bo'yicha ── */
+    /* GET /api/v1/sales-orders/dashboard
+     * Qaytaradi: { total, created, loaded, confirmed, rejected }
+     * Har doim barcha xodimlarning zayavkalari sanaladi. */
+    getSalesOrderDashboard: builder.query({
+      query: () => ({
+        url: '/sales-orders/dashboard',
+        method: 'GET',
+      }),
+      transformResponse: (response) =>
+        response.data || {
+          total: 0,
+          created: 0,
+          loaded: 0,
+          confirmed: 0,
+          rejected: 0,
+        },
+      providesTags: [{ type: 'SalesOrderDashboard', id: 'LIST' }],
+    }),
+
+    /* ── Yangi: Zayavkalar bo'yicha yetishmayotgan mahsulotlar ── */
+    /* GET /api/v1/sales-orders/product-shortages
+     * CREATED holatdagi barcha zayavkalar qatorlarini jamlab,
+     * ombordagi qoldiq bilan solishtiradi (har bir mahsulot+ombor juftligi uchun).
+     * Sahifalanmaydi — to'liq massiv qaytadi. */
+    getProductShortages: builder.query({
+      query: () => ({
+        url: '/sales-orders/product-shortages',
+        method: 'GET',
+      }),
+      transformResponse: (response) => response.data || [],
+      providesTags: [{ type: 'ProductShortages', id: 'LIST' }],
+    }),
+
     createSalesOrder: builder.mutation({
       query: (data) => ({ url: '/sales-orders', method: 'POST', data }),
       transformResponse: (response) => response.data,
-      invalidatesTags: [{ type: 'SalesOrder', id: 'LIST' }],
+      invalidatesTags: [
+        { type: 'SalesOrder', id: 'LIST' },
+        { type: 'SalesOrderDashboard', id: 'LIST' },
+        { type: 'ProductShortages', id: 'LIST' },
+      ],
     }),
 
     updateSalesOrder: builder.mutation({
@@ -51,6 +89,8 @@ export const salesOrderApi = createApi({
       invalidatesTags: (result, error, { id }) => [
         { type: 'SalesOrder', id },
         { type: 'SalesOrder', id: 'LIST' },
+        { type: 'SalesOrderDashboard', id: 'LIST' },
+        { type: 'ProductShortages', id: 'LIST' },
       ],
     }),
 
@@ -60,6 +100,8 @@ export const salesOrderApi = createApi({
       invalidatesTags: (result, error, id) => [
         { type: 'SalesOrder', id },
         { type: 'SalesOrder', id: 'LIST' },
+        { type: 'SalesOrderDashboard', id: 'LIST' },
+        { type: 'ProductShortages', id: 'LIST' },
       ],
     }),
 
@@ -74,6 +116,8 @@ export const salesOrderApi = createApi({
       invalidatesTags: (result, error, { id }) => [
         { type: 'SalesOrder', id },
         { type: 'SalesOrder', id: 'LIST' },
+        { type: 'SalesOrderDashboard', id: 'LIST' },
+        { type: 'ProductShortages', id: 'LIST' },
       ],
     }),
 
@@ -84,6 +128,8 @@ export const salesOrderApi = createApi({
       invalidatesTags: (result, error, id) => [
         { type: 'SalesOrder', id },
         { type: 'SalesOrder', id: 'LIST' },
+        { type: 'SalesOrderDashboard', id: 'LIST' },
+        { type: 'ProductShortages', id: 'LIST' },
       ],
     }),
 
@@ -97,6 +143,19 @@ export const salesOrderApi = createApi({
       invalidatesTags: (result, error, { id }) => [
         { type: 'SalesOrder', id },
         { type: 'SalesOrder', id: 'LIST' },
+        { type: 'SalesOrderDashboard', id: 'LIST' },
+        { type: 'ProductShortages', id: 'LIST' },
+      ],
+    }),
+
+    loadSalesOrder: builder.mutation({
+      query: (id) => ({ url: `/sales-orders/${id}/load`, method: 'POST' }),
+      transformResponse: (response) => response.data,
+      invalidatesTags: (result, error, id) => [
+        { type: 'SalesOrder', id },
+        { type: 'SalesOrder', id: 'LIST' },
+        { type: 'SalesOrderDashboard', id: 'LIST' },
+        { type: 'ProductShortages', id: 'LIST' },
       ],
     }),
 
@@ -110,6 +169,8 @@ export const salesOrderApi = createApi({
       invalidatesTags: (result, error, { id }) => [
         { type: 'SalesOrder', id },
         { type: 'SalesOrder', id: 'LIST' },
+        { type: 'SalesOrderDashboard', id: 'LIST' },
+        { type: 'ProductShortages', id: 'LIST' },
       ],
     }),
   }),
@@ -118,11 +179,14 @@ export const salesOrderApi = createApi({
 export const {
   useGetSalesOrdersQuery,
   useGetSalesOrderByIdQuery,
+  useGetSalesOrderDashboardQuery,
+  useGetProductShortagesQuery,
   useCreateSalesOrderMutation,
   useUpdateSalesOrderMutation,
   useDeleteSalesOrderMutation,
   useUpdateSalesOrderStatusMutation,
   useApproveSalesOrderMutation,
   useRejectSalesOrderMutation,
+  useLoadSalesOrderMutation,
   useUpdateSalesOrderPricesMutation,
 } = salesOrderApi;

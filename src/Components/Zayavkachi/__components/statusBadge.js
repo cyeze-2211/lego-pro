@@ -2,8 +2,7 @@
 
 export const STATUS_LABEL = {
     CREATED:    'Yaratilgan',
-    DISPATCHED: "Jo'natilgan",
-    LOADED:     'Yuklangan',
+    LOADED:     'Ortildi',
     CONFIRMED:  'Tasdiqlangan',
     REJECTED:   'Rad etilgan',
 };
@@ -12,8 +11,6 @@ export const statusCx = (status) => {
     switch (status) {
         case 'CREATED':
             return 'bg-[#94a3b8]/10 text-[#94a3b8] border-[#94a3b8]/30';
-        case 'DISPATCHED':
-            return 'bg-[#0ea5e9]/10 text-[#0ea5e9] border-[#0ea5e9]/30';
         case 'LOADED':
             return 'bg-[#8b5cf6]/10 text-[#8b5cf6] border-[#8b5cf6]/30';
         case 'CONFIRMED':
@@ -27,9 +24,8 @@ export const statusCx = (status) => {
 
 // Ruxsat etilgan status o'tishlari (state machine)
 export const NEXT_STATUS = {
-    CREATED:    ['DISPATCHED', 'REJECTED'],
-    DISPATCHED: ['LOADED',     'REJECTED'],
-    LOADED:     ['CONFIRMED',  'REJECTED'],
+    CREATED:    ['LOADED', 'REJECTED'],
+    LOADED:     ['CONFIRMED'],
     CONFIRMED:  [],
     REJECTED:   [],
 };

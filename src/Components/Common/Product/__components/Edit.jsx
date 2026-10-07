@@ -22,8 +22,10 @@ import {
     LuRuler,
     LuTriangleAlert,
     LuBoxes,
+    LuWarehouse,
 } from 'react-icons/lu';
 import { useUpdateProductMutation } from '../../../../store/services/product.api';
+import { useGetWarehousesQuery } from '../../../../store/services/warehouse.api';
 import { useGetBrandsQuery } from '../../../../store/services/brand.api';
 import { useGetProductColorsQuery } from '../../../../store/services/productColor.api';
 import { useGetProductCategoriesQuery } from '../../../../store/services/productCategory.api';
@@ -48,10 +50,12 @@ const parseNumber = (raw) => {
 const buildInitial = (product) => ({
     name: toStr(product?.name),
     price: toStr(product?.price),
+    warehouseId: product?.warehouseId || '',
     article: toStr(product?.article),
     size: toStr(product?.size),
     minimumLine: toStr(product?.minimumLine),
     piecesPerPack: toStr(product?.piecesPerPack),
+    lowProductAlert: Boolean(product?.lowProductAlert),
     brandId: product?.brand?.id || product?.brandId || '',
     colorId: product?.color?.id || product?.colorId || '',
     categoryId: product?.category?.id || product?.categoryId || '',
@@ -61,6 +65,11 @@ export default function Edit({ product }) {
     const { open, onOpen, onClose } = useDisclosure();
     const [form, setForm] = useState(() => buildInitial(product));
     const [updateProduct, { isLoading }] = useUpdateProductMutation();
+    const {
+        data: warehouses = [],
+        isLoading: warehousesLoading,
+        isError: warehousesError,
+    } = useGetWarehousesQuery('PRODUCT', { skip: !open });
 
     const {
         data: brandsData,
@@ -114,6 +123,10 @@ export default function Edit({ product }) {
             Alert('Narx 0 dan katta bo‘lishi kerak', 'error');
             return;
         }
+        if (!form.warehouseId) {
+            Alert('Omborni tanlang', 'error');
+            return;
+        }
         if (!form.colorId) {
             Alert('Mahsulot rangini tanlang', 'error');
             return;
@@ -123,10 +136,10 @@ export default function Edit({ product }) {
             return;
         }
 
-        /* ── Собираем payload без lowProductAlert ── */
         const payload = {
             name: trimmedName,
             price: priceNum,
+            warehouseId: form.warehouseId,
             article: toStr(form.article).trim(),
             size: toStr(form.size).trim(),
             minimumLine: Number.isNaN(minLineNum) ? 0 : minLineNum,
@@ -134,12 +147,8 @@ export default function Edit({ product }) {
             brandId: form.brandId || null,
             colorId: form.colorId,
             categoryId: form.categoryId,
+            lowProductAlert: Boolean(form.lowProductAlert),
         };
-
-        if (payload.brandId === null) delete payload.brandId;
-
-        // piecesPerPack может быть null — оставляем как есть,
-        // если бэк не принимает null — замените на: delete payload.piecesPerPack;
 
         try {
             await updateProduct({ id: product.id, data: payload }).unwrap();
@@ -437,25 +446,59 @@ export default function Edit({ product }) {
                                     {/* ═══ Narx ═══ */}
                                     <Box>
                                         {sectionHeader(<LuDollarSign size={16} />, 'Narx')}
-                                        <Field.Root required>
-                                            <Field.Label color={textColor} fontWeight="medium">
-                                                <HStack gap={2}>
-                                                    <LuDollarSign size={16} />
-                                                    <span>Narxi (so‘m)</span>
-                                                </HStack>
-                                                <Field.RequiredIndicator />
-                                            </Field.Label>
-                                            <FormattedNumberInput
-                                                value={form.price}
-                                                onChange={(v) => setField('price', v)}
-                                                placeholder="25 000"
-                                                size="lg"
-                                                min="0.01"
-                                                step="0.01"
-                                                minH="52px"
-                                                disabled={isLoading}
-                                            />
-                                        </Field.Root>
+                                        <SimpleGrid columns={{ base: 1, md: 2 }} gap={5}>
+                                            <Field.Root required>
+                                                <Field.Label color={textColor} fontWeight="medium">
+                                                    <HStack gap={2}>
+                                                        <LuDollarSign size={16} />
+                                                        <span>Narxi (so‘m)</span>
+                                                    </HStack>
+                                                    <Field.RequiredIndicator />
+                                                </Field.Label>
+                                                <FormattedNumberInput
+                                                    value={form.price}
+                                                    onChange={(v) => setField('price', v)}
+                                                    placeholder="25 000"
+                                                    size="lg"
+                                                    min="0.01"
+                                                    step="0.01"
+                                                    minH="52px"
+                                                    disabled={isLoading}
+                                                />
+                                            </Field.Root>
+                                            <Field.Root required>
+                                                <Field.Label color={textColor} fontWeight="medium">
+                                                    <HStack gap={2}>
+                                                        <LuWarehouse size={16} />
+                                                        <span>Ombor</span>
+                                                    </HStack>
+                                                    <Field.RequiredIndicator />
+                                                </Field.Label>
+                                                <FormControl
+                                                    as="select"
+                                                    value={form.warehouseId}
+                                                    onChange={(event) => setField('warehouseId', event.target.value)}
+                                                    minH="52px"
+                                                    disabled={isLoading || warehousesLoading || warehousesError}
+                                                >
+                                                    <option value="">
+                                                        {warehousesLoading
+                                                            ? 'Omborlar yuklanmoqda...'
+                                                            : warehousesError
+                                                            ? 'Omborlarni yuklashda xatolik'
+                                                            : 'Omborni tanlang'}
+                                                    </option>
+                                                    {form.warehouseId && !warehouses.some((warehouse) => warehouse.id === form.warehouseId) && (
+                                                        <option value={form.warehouseId}>Joriy ombor</option>
+                                                    )}
+                                                    {warehouses.map((warehouse) => (
+                                                        <option key={warehouse.id} value={warehouse.id}>
+                                                            {warehouse.name}
+                                                        </option>
+                                                    ))}
+                                                </FormControl>
+                                            </Field.Root>
+                                        </SimpleGrid>
                                     </Box>
 
                                     {/* ═══ Qadoq ═══ */}
@@ -506,6 +549,37 @@ export default function Edit({ product }) {
                                                 </Field.HelperText>
                                             </Field.Root>
                                         </SimpleGrid>
+                                    </Box>
+
+                                    <Box>
+                                        {sectionHeader(<LuTriangleAlert size={16} />, 'Kam qoldiq ogohlantirishi')}
+                                        <HStack
+                                            as="label"
+                                            align="center"
+                                            gap={3}
+                                            p={4}
+                                            borderWidth="1px"
+                                            borderColor={modalBorder}
+                                            borderRadius="xl"
+                                            cursor={isLoading ? 'not-allowed' : 'pointer'}
+                                            opacity={isLoading ? 0.65 : 1}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={form.lowProductAlert}
+                                                onChange={(event) => setField('lowProductAlert', event.target.checked)}
+                                                disabled={isLoading}
+                                                style={{ accentColor, width: 18, height: 18 }}
+                                            />
+                                            <VStack align="start" gap={0}>
+                                                <Text color={textColor} fontWeight="medium">
+                                                    Kam qoldiq haqida ogohlantirish
+                                                </Text>
+                                                <Text color={subtitleColor} fontSize="sm">
+                                                    Qoldiq minimum miqdorga yetganda ogohlantirish yuboriladi.
+                                                </Text>
+                                            </VStack>
+                                        </HStack>
                                     </Box>
 
                                     <Text fontSize="sm" color={subtitleColor}>
@@ -586,6 +660,7 @@ Edit.propTypes = {
         id: PropTypes.string.isRequired,
         name: PropTypes.string.isRequired,
         price: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+        warehouseId: PropTypes.string,
         article: PropTypes.string,
         size: PropTypes.string,
         minimumLine: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),

@@ -22,7 +22,8 @@ import { formatNumber } from '../../ui/number-format';
 
 export default function Cashbox() {
     const { pathname } = useLocation();
-    const base = pathname.startsWith('/kassir') ? '/kassir' : '';
+    const isZayavkachi = pathname.startsWith('/zayavkachi');
+    const base = pathname.startsWith('/kassir') ? '/kassir' : isZayavkachi ? '/zayavkachi' : '';
     const [search, setSearch] = useState('');
     const [query, setQuery] = useState('');
     const { data: cashboxes = [], isLoading, error } = useGetCashboxesQuery();
@@ -70,7 +71,7 @@ export default function Cashbox() {
                 <Box>
                     <Heading className="text-[35px] font-semibold" color={textColor}>Kassalar</Heading>
                 </Box>
-                <Create />
+                {!isZayavkachi && <Create />}
             </HStack>
 
             <HStack
@@ -135,8 +136,8 @@ export default function Cashbox() {
             ) : filteredCashboxes.length === 0 ? (
                 <EmptyData
                     text={query ? 'Qidiruv bo‘yicha kassa topilmadi' : 'Hozircha kassalar yo‘q'}
-                    description="Yangi kassa qo‘shib ma’lumotnomani to‘ldiring."
-                    action={<Create />}
+                    description={isZayavkachi ? 'Kassa ma’lumotlari topilmadi.' : 'Yangi kassa qo‘shib ma’lumotnomani to‘ldiring.'}
+                    action={!isZayavkachi && <Create />}
                 />
             ) : (
                 <Box overflowX="auto" bg={tableBg} borderWidth="0.5px" borderColor={tableBorder} borderRadius="10px" boxShadow={isDark ? '0 16px 40px rgba(0, 0, 0, 0.22)' : '0 8px 24px rgba(15, 23, 42, 0.10)'}>
@@ -147,7 +148,7 @@ export default function Cashbox() {
                                 <Table.ColumnHeader bg={tableHeaderBg} borderWidth="0.5px" borderColor={tableBorder} color={subtitleColor}>Kassa</Table.ColumnHeader>
                                 <Table.ColumnHeader bg={tableHeaderBg} borderWidth="0.5px" borderColor={tableBorder} color={subtitleColor}>Izoh</Table.ColumnHeader>
                                 <Table.ColumnHeader bg={tableHeaderBg} borderWidth="0.5px" borderColor={tableBorder} color={subtitleColor}>Qoldiq</Table.ColumnHeader>
-                                <Table.ColumnHeader textAlign="center" bg={tableHeaderBg} borderWidth="0.5px" borderColor={tableBorder} color={subtitleColor}>Amallar</Table.ColumnHeader>
+                                {!isZayavkachi && <Table.ColumnHeader textAlign="center" bg={tableHeaderBg} borderWidth="0.5px" borderColor={tableBorder} color={subtitleColor}>Amallar</Table.ColumnHeader>}
                             </Table.Row>
                         </Table.Header>
                         <Table.Body bg={tableBg}>
@@ -162,9 +163,11 @@ export default function Cashbox() {
                                     </Table.Cell>
                                     <Table.Cell borderWidth="0.5px" borderColor={tableBorder} color={subtitleColor} maxW="260px">{cashbox.summary || '—'}</Table.Cell>
                                     <Table.Cell borderWidth="0.5px" borderColor={tableBorder}>{renderBalance(cashbox.balance)}</Table.Cell>
-                                    <Table.Cell borderWidth="0.5px" borderColor={tableBorder}>
-                                        <HStack justify="center" gap={1}><Edit cashbox={cashbox} /><Delete cashbox={cashbox} /></HStack>
-                                    </Table.Cell>
+                                    {!isZayavkachi && (
+                                        <Table.Cell borderWidth="0.5px" borderColor={tableBorder}>
+                                            <HStack justify="center" gap={1}><Edit cashbox={cashbox} /><Delete cashbox={cashbox} /></HStack>
+                                        </Table.Cell>
+                                    )}
                                 </Table.Row>
                             ))}
                         </Table.Body>

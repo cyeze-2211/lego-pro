@@ -1,27 +1,127 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
     LuArrowRight, LuClock3, LuClipboardList,
     LuCircleCheck, LuCircleDashed, LuUsers,
+    LuTriangleAlert, LuPackage, LuWarehouse, LuTag, LuWallet,
+    LuRefreshCw, LuRuler, LuBoxes,
+    LuPackageCheck, LuCircleX,
 } from 'react-icons/lu';
+import {
+    Box, HStack, VStack, Text, Spinner, Button,
+} from '@chakra-ui/react';
+import {
+    useGetProductShortagesQuery,
+    useGetSalesOrderDashboardQuery,
+} from '../../../store/services/salesOrder.api';
+import { useGetPaymentReminderDashboardQuery } from '../../../store/services/paymentReminder.api';
 import { useAppTheme } from '../../../theme/tokens';
+import { formatNumber } from '../../ui/number-format';
 
 export default function ZayavkachiDashboard() {
     const { isDark } = useAppTheme();
+    const [dashboardDate] = useState(() => {
+        const date = new Date();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${date.getFullYear()}-${month}-${day}`;
+    });
 
-    const panel   = isDark ? 'border-white/10 bg-[#141C2B]' : 'border-[#e2e8f0] bg-white';
-    const muted   = isDark ? 'text-[#94a3b8]' : 'text-[#64748b]';
-    const head    = isDark ? 'text-white' : 'text-[#0f172a]';
+    /* ── Dashboard: zayavkalar soni holatlar bo'yicha ── */
+    const {
+        data: dashboard,
+        isLoading: dashboardLoading,
+        isFetching: dashboardFetching,
+        error: dashboardError,
+        refetch: refetchDashboard,
+    } = useGetSalesOrderDashboardQuery(undefined, {
+        refetchOnMountOrArgChange: true,
+    });
+
+    /* ── Yetishmayotgan mahsulotlar ── */
+    const {
+        data: shortages = [],
+        isLoading: shortagesLoading,
+        isFetching: shortagesFetching,
+        error: shortagesError,
+        refetch: refetchShortages,
+    } = useGetProductShortagesQuery(undefined, {
+        refetchOnMountOrArgChange: true,
+    });
+
+    const {
+        data: paymentReminderDashboard,
+        isLoading: paymentReminderLoading,
+        isFetching: paymentReminderFetching,
+        isError: paymentReminderError,
+        refetch: refetchPaymentReminders,
+    } = useGetPaymentReminderDashboardQuery(
+        { date: dashboardDate },
+        { refetchOnMountOrArgChange: true }
+    );
+
+    const panel = isDark ? 'border-white/10 bg-[#141C2B]' : 'border-[#e2e8f0] bg-white';
+    const muted = isDark ? 'text-[#94a3b8]' : 'text-[#64748b]';
+    const head = isDark ? 'text-white' : 'text-[#0f172a]';
     const divider = isDark ? 'divide-[#334155]/50' : 'divide-[#f1f5f9]';
-    const line    = isDark ? 'border-[#334155]/60' : 'border-[#f1f5f9]';
+    const line = isDark ? 'border-[#334155]/60' : 'border-[#f1f5f9]';
 
-    const orders      = [];
-    const totalOrders = 0;
-    const totalNew    = 0;
-    const totalDone   = 0;
+    /* ── Counters from dashboard ── */
+    const totalOrders = dashboard?.total ?? 0;
+    const totalCreated = dashboard?.created ?? 0;
+    const totalLoaded = dashboard?.loaded ?? 0;
+    const totalConfirmed = dashboard?.confirmed ?? 0;
+    const totalRejected = dashboard?.rejected ?? 0;
+
+    /* ── Shortages aggregated ── */
+    const shortageProductsCount = shortages.length;
+    const totalShortageUnits = shortages.reduce(
+        (sum, s) => sum + (Number(s.shortageQuantity) || 0),
+        0
+    );
 
     const quickLinks = [
         { label: 'Buyurtmalar', path: '/zayavkachi/orders', icon: LuClipboardList, badge: 'bg-amber-400/10 text-amber-500 border-amber-400/20' },
-        { label: 'Profil',      path: '/profile',           icon: LuUsers,         badge: 'bg-[#0ea5e9]/10 text-[#0ea5e9] border-[#0ea5e9]/20' },
+        { label: 'Profil', path: '/profile', icon: LuUsers, badge: 'bg-[#0ea5e9]/10 text-[#0ea5e9] border-[#0ea5e9]/20' },
+    ];
+
+    /* ── Stat cards config ── */
+    const statCards = [
+        {
+            label: 'Jami buyurtmalar',
+            value: totalOrders,
+            icon: LuClipboardList,
+            cls: 'bg-amber-400/10 text-amber-500',
+            loading: dashboardLoading,
+        },
+        {
+            label: 'Kutilmoqda',
+            value: totalCreated,
+            icon: LuCircleDashed,
+            cls: 'bg-amber-400/10 text-amber-500',
+            loading: dashboardLoading,
+        },
+        {
+            label: 'Ortildi',
+            value: totalLoaded,
+            icon: LuPackageCheck,
+            cls: 'bg-[#a855f7]/10 text-[#a855f7]',
+            loading: dashboardLoading,
+        },
+        {
+            label: 'Tugallangan',
+            value: totalConfirmed,
+            icon: LuCircleCheck,
+            cls: 'bg-[#10b981]/10 text-[#10b981]',
+            loading: dashboardLoading,
+        },
+        {
+            label: 'Rad etilgan',
+            value: totalRejected,
+            icon: LuCircleX,
+            cls: 'bg-[#ef4444]/10 text-[#ef4444]',
+            loading: dashboardLoading,
+        },
     ];
 
     return (
@@ -36,74 +136,353 @@ export default function ZayavkachiDashboard() {
                         <h1 className={`text-xl font-bold ${head}`}>Xayrli kun!</h1>
                         <p className={`mt-0.5 text-xs ${muted}`}>Mijozlardan kelgan buyurtmalarni qabul qiling va kuzatib boring.</p>
                     </div>
-                    <div className={`flex items-center gap-2.5 rounded-xl border px-3.5 py-2.5 text-sm ${isDark ? 'border-amber-400/20 bg-amber-400/10' : 'border-amber-200 bg-amber-50'}`}>
-                        <LuClock3 className="text-amber-500 shrink-0" size={16} />
-                        <span className={`font-semibold ${head}`}>
-                            {new Date().toLocaleDateString('uz-UZ', { day: '2-digit', month: 'long', year: 'numeric' })}
-                        </span>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                refetchDashboard();
+                                refetchPaymentReminders();
+                            }}
+                            disabled={dashboardFetching || paymentReminderFetching}
+                            className={`flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold transition-all hover:-translate-y-0.5 ${isDark
+                                    ? 'border-white/10 bg-white/[0.03] text-slate-300 hover:border-amber-400/30 hover:text-amber-400'
+                                    : 'border-[#e2e8f0] bg-white text-[#475569] hover:border-amber-400 hover:text-amber-600'
+                                } ${dashboardFetching ? 'opacity-50 cursor-wait' : ''}`}
+                        >
+                            <LuRefreshCw size={13} className={dashboardFetching ? 'animate-spin' : ''} />
+                            <span>Yangilash</span>
+                        </button>
+                        <div className={`flex items-center gap-2.5 rounded-xl border px-3.5 py-2.5 text-sm ${isDark ? 'border-amber-400/20 bg-amber-400/10' : 'border-amber-200 bg-amber-50'}`}>
+                            <LuClock3 className="text-amber-500 shrink-0" size={16} />
+                            <span className={`font-semibold ${head}`}>
+                                {dashboardDate.split('-').reverse().join('.')}
+                            </span>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            {/* Stats */}
-            <div className="grid grid-cols-3 gap-3">
-                {[
-                    { label: 'Jami buyurtmalar', value: totalOrders, icon: LuClipboardList, cls: 'bg-amber-400/10 text-amber-500'      },
-                    { label: 'Yangi buyurtmalar', value: totalNew,   icon: LuCircleDashed,  cls: 'bg-[#0ea5e9]/10 text-[#0ea5e9]'     },
-                    { label: 'Bajarilgan',        value: totalDone,  icon: LuCircleCheck,   cls: 'bg-[#10b981]/10 text-[#10b981]'     },
-                ].map(({ label, value, icon: Icon, cls }) => (
+            {/* Stats — 6 cards */}
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                {statCards.map(({ label, value, icon: Icon, cls, loading }) => (
                     <div key={label} className={`flex flex-col gap-3 rounded-2xl border p-4 shadow-md ${panel}`}>
                         <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${cls}`}>
                             <Icon size={17} />
                         </span>
                         <div>
-                            <p className={`text-2xl font-bold ${head}`}>{value}</p>
+                            {loading ? (
+                                <div className="flex items-center gap-2">
+                                    <svg className="h-5 w-5 animate-spin text-amber-400" viewBox="0 0 24 24" fill="none">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                                    </svg>
+                                </div>
+                            ) : (
+                                <p className={`text-2xl font-bold ${head}`}>{formatNumber(value)}</p>
+                            )}
                             <p className={`mt-0.5 text-xs leading-snug ${muted}`}>{label}</p>
                         </div>
                     </div>
                 ))}
             </div>
 
-            {/* Quick links */}
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                {quickLinks.map(({ label, path, icon: Icon, badge }) => (
-                    <Link key={path} to={path}
-                        className={`group flex items-center gap-3 rounded-2xl border p-4 shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${panel}`}>
-                        <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition-colors ${badge}`}>
-                            <Icon size={18} />
+            {/* Today's expected payment reminder total */}
+            <div className={`relative overflow-hidden rounded-2xl border p-4 sm:p-5 shadow-md ${panel}`}>
+                <div className="absolute right-0 top-0 h-full w-1/2 bg-gradient-to-l from-emerald-400/8 to-transparent" />
+                <div className="relative flex flex-wrap items-center justify-between gap-4">
+                    <div className="flex min-w-0 items-center gap-3">
+                        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500">
+                            <LuWallet size={20} />
                         </span>
-                        <span className={`font-semibold text-sm ${head}`}>{label}</span>
-                        <LuArrowRight size={14} className={`ml-auto shrink-0 transition-transform group-hover:translate-x-0.5 ${muted}`} />
-                    </Link>
-                ))}
-            </div>
-
-            {/* Recent orders */}
-            <div className={`rounded-2xl border shadow-md ${panel}`}>
-                <div className={`flex items-center justify-between border-b px-5 py-3.5 ${line}`}>
-                    <div className="flex items-center gap-2.5">
-                        <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-400/10 text-amber-500">
-                            <LuClipboardList size={15} />
-                        </span>
-                        <div>
-                            <p className={`text-sm font-bold ${head}`}>So&apos;nggi buyurtmalar</p>
-                            <p className={`text-xs ${muted}`}>Oxirgi 5 ta buyurtma</p>
+                        <div className="min-w-0">
+                            <p className={`text-sm font-semibold ${muted}`}>Bugun kutilayotgan to‘lovlar</p>
+                            <p className={`mt-0.5 text-xs ${muted}`}>
+                                {dashboardDate.split('-').reverse().join('.')}
+                            </p>
                         </div>
                     </div>
-                    <Link to="/zayavkachi/orders" className="flex items-center gap-1 text-xs font-semibold text-amber-500 hover:text-amber-600">
-                        Barchasi <LuArrowRight size={12} />
-                    </Link>
-                </div>
-                <div className={`divide-y ${divider}`}>
-                    {orders.length === 0 ? (
-                        <p className={`py-8 text-center text-sm ${muted}`}>Buyurtmalar topilmadi</p>
-                    ) : orders.map((order) => (
-                        <div key={order.id} className="flex items-center justify-between px-5 py-3">
-                            <p className={`truncate text-sm font-semibold ${head}`}>{order.customerName}</p>
-                        </div>
-                    ))}
+                    <div className="relative flex flex-col items-end">
+                        {paymentReminderLoading ? (
+                            <Spinner size="sm" color="green.500" />
+                        ) : paymentReminderError ? (
+                            <button
+                                type="button"
+                                onClick={() => refetchPaymentReminders()}
+                                className={`text-xs font-semibold underline ${isDark ? 'text-red-300' : 'text-red-600'}`}
+                            >
+                                Yuklashda xatolik · qayta urinish
+                            </button>
+                        ) : (
+                            <Link
+                                to="/reminders"
+                                aria-label="To‘lov eslatmalarini ochish"
+                                className={`group rounded-lg text-right focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 ${isDark ? 'focus-visible:ring-offset-[#141C2B]' : 'focus-visible:ring-offset-white'}`}
+                            >
+                                <p className={`text-2xl sm:text-3xl font-bold ${head}`}>
+                                    {formatNumber(Math.round(Number(paymentReminderDashboard?.totalPrice) || 0))} so‘m
+                                </p>
+                                <span className={`mt-1 inline-flex items-center justify-end gap-1.5 text-xs ${muted} group-hover:text-emerald-500`}>
+                                    {formatNumber(paymentReminderDashboard?.reminderCount ?? 0)} ta eslatma · Batafsil
+                                    <LuArrowRight size={12} className="transition-transform group-hover:translate-x-0.5" />
+                                </span>
+                            </Link>
+                        )}
+                    </div>
                 </div>
             </div>
+
+            {/* Dashboard error banner */}
+            {dashboardError && !dashboardLoading && (
+                <div className={`rounded-2xl border px-5 py-3 text-sm ${isDark
+                        ? 'border-red-500/20 bg-red-500/[0.06] text-red-300'
+                        : 'border-red-200 bg-red-50 text-red-600'
+                    }`}>
+                    <div className="flex items-center justify-between gap-3">
+                        <span>Statistikani yuklashda xatolik yuz berdi.</span>
+                        <button
+                            type="button"
+                            onClick={() => refetchDashboard()}
+                            className="font-semibold underline hover:no-underline"
+                        >
+                            Qayta urinish
+                        </button>
+                    </div>
+                </div>
+            )}
+
+
+            {/* ═══ Yetishmayotgan mahsulotlar ═══ */}
+            <div className={`rounded-2xl border shadow-md ${panel}`}>
+                <div className={`flex flex-wrap items-center justify-between gap-3 border-b px-5 py-3.5 ${line}`}>
+                    <div className="flex items-center gap-2.5">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-red-500/10 text-red-500">
+                            <LuTriangleAlert size={15} />
+                        </span>
+                        <div>
+                            <p className={`text-sm font-bold ${head}`}>Yetishmayotgan mahsulotlar</p>
+                            <p className={`text-xs ${muted}`}>
+                                Zayavkalar bo&apos;yicha omborda yetishmayotgan mahsulotlar
+                                {!shortagesLoading && shortages.length > 0 && (
+                                    <> · Jami <strong>{formatNumber(totalShortageUnits)}</strong> dona</>
+                                )}
+                            </p>
+                        </div>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => refetchShortages()}
+                        disabled={shortagesFetching}
+                        className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition-all hover:-translate-y-0.5 ${isDark
+                                ? 'border-white/10 bg-white/[0.03] text-slate-300 hover:border-amber-400/30 hover:text-amber-400'
+                                : 'border-[#e2e8f0] bg-white text-[#475569] hover:border-amber-400 hover:text-amber-600'
+                            } ${shortagesFetching ? 'opacity-50 cursor-wait' : ''}`}
+                    >
+                        <LuRefreshCw size={13} className={shortagesFetching ? 'animate-spin' : ''} />
+                        <span>Yangilash</span>
+                    </button>
+                </div>
+
+                <div className={`divide-y ${divider}`}>
+                    {/* Loading */}
+                    {shortagesLoading ? (
+                        <Box py={10} display="flex" alignItems="center" justifyContent="center" gap={3}>
+                            <Spinner size="sm" color="red.400" />
+                            <Text fontSize="sm" color={isDark ? '#94a3b8' : '#64748b'}>
+                                Yuklanmoqda...
+                            </Text>
+                        </Box>
+                    ) : shortagesError ? (
+                        <Box py={10} textAlign="center">
+                            <Text fontSize="sm" color={isDark ? 'red.300' : 'red.600'}>
+                                Ma&apos;lumotlarni yuklashda xatolik
+                            </Text>
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                mt={2}
+                                onClick={() => refetchShortages()}
+                                color={isDark ? 'red.300' : 'red.600'}
+                            >
+                                Qayta urinish
+                            </Button>
+                        </Box>
+                    ) : shortages.length === 0 ? (
+                        /* Empty — всё в порядке */
+                        <Box py={12} display="flex" flexDirection="column" alignItems="center" gap={3}>
+                            <Box
+                                p={4}
+                                borderRadius="2xl"
+                                bg={isDark ? 'rgba(16,185,129,.08)' : '#ECFDF5'}
+                                color="#10b981"
+                                display="flex"
+                                alignItems="center"
+                                justifyContent="center"
+                            >
+                                <LuCircleCheck size={30} strokeWidth={1.5} />
+                            </Box>
+                            <VStack gap={1} textAlign="center">
+                                <Text fontSize="sm" fontWeight="bold" color={isDark ? 'white' : '#0f172a'}>
+                                    Yetishmovchilik yo&apos;q
+                                </Text>
+                                <Text fontSize="xs" color={isDark ? '#94a3b8' : '#64748b'} maxW="320px">
+                                    Barcha CREATED holatdagi zayavkalar uchun ombor qoldig&apos;i yetarli
+                                </Text>
+                            </VStack>
+                        </Box>
+                    ) : (
+                        shortages.map((item) => (
+                            <ShortageRow
+                                key={item.productId}
+                                item={item}
+                                isDark={isDark}
+                                head={head}
+                                muted={muted}
+                            />
+                        ))
+                    )}
+                </div>
+            </div>
+
+        </div>
+    );
+}
+
+/* ── Row for a single shortage product ── */
+function ShortageRow({ item, isDark, head, muted }) {
+    const shortage = Number(item.shortageQuantity) || 0;
+    const available = Number(item.availableQuantity) || 0;
+    const ordered = Number(item.orderedQuantity) || 0;
+    const percent = ordered > 0 ? Math.min(100, (available / ordered) * 100) : 0;
+    const isCritical = percent < 30;
+
+    return (
+        <div className="px-5 py-4 transition-colors hover:bg-red-500/[0.02]">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+                {/* Left: product info */}
+                <div className="flex min-w-0 flex-1 items-start gap-3">
+                    <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${isCritical
+                            ? 'bg-red-500/10 text-red-500'
+                            : 'bg-amber-400/10 text-amber-500'
+                        }`}>
+                        <LuPackage size={18} />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                        <p className={`truncate text-sm font-bold ${head}`}>{item.productName}</p>
+                        <div className={`mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs ${muted}`}>
+                            {item.productArticle && (
+                                <span className="inline-flex items-center gap-1">
+                                    <LuTag size={11} />
+                                    <span className="font-mono">{item.productArticle}</span>
+                                </span>
+                            )}
+                            {item.productSize && (
+                                <span className="inline-flex items-center gap-1">
+                                    <LuRuler size={11} />
+                                    <span>{item.productSize}</span>
+                                </span>
+                            )}
+                            {item.productPiecesPerPack && (
+                                <span className="inline-flex items-center gap-1">
+                                    <LuBoxes size={11} />
+                                    <span>{item.productPiecesPerPack} dona/qadoq</span>
+                                </span>
+                            )}
+                            {item.brand?.name && (
+                                <span className="inline-flex items-center gap-1">
+                                    <LuTag size={11} />
+                                    <span>{item.brand.name}</span>
+                                </span>
+                            )}
+                            {item.productBarcode && (
+                                <span className="font-mono opacity-70">{item.productBarcode}</span>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Right: numbers */}
+                <div className="flex shrink-0 items-center gap-4">
+                    <div className="text-right">
+                        <p className={`text-[10px] font-semibold uppercase tracking-wide ${muted}`}>
+                            Buyurtma
+                        </p>
+                        <p className={`text-sm font-bold ${head}`}>
+                            {formatNumber(ordered)}
+                        </p>
+                    </div>
+                    <div className="text-right">
+                        <p className={`text-[10px] font-semibold uppercase tracking-wide ${muted}`}>
+                            Mavjud
+                        </p>
+                        <p className={`text-sm font-bold ${isDark ? 'text-emerald-300' : 'text-emerald-600'
+                            }`}>
+                            {formatNumber(available)}
+                        </p>
+                    </div>
+                    <div className="text-right">
+                        <p className={`text-[10px] font-semibold uppercase tracking-wide ${muted}`}>
+                            Yetishmaydi
+                        </p>
+                        <p className={`text-base font-bold ${isDark ? 'text-red-300' : 'text-red-600'
+                            }`}>
+                            {formatNumber(shortage)}
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            {/* Progress bar */}
+            <div className="mt-3">
+                <div className={`h-1.5 w-full overflow-hidden rounded-full ${isDark ? 'bg-white/[0.06]' : 'bg-slate-100'
+                    }`}>
+                    <div
+                        className={`h-full rounded-full transition-all ${isCritical ? 'bg-red-500' : 'bg-emerald-500'
+                            }`}
+                        style={{ width: `${percent}%` }}
+                    />
+                </div>
+                <div className={`mt-1 flex items-center justify-between text-[10px] ${muted}`}>
+                    <span>{percent.toFixed(0)}% mavjud</span>
+                    {percent < 100 && (
+                        <span className={isCritical ? (isDark ? 'text-red-300' : 'text-red-600') : ''}>
+                            {100 - percent.toFixed(0)}% kamomad
+                        </span>
+                    )}
+                </div>
+            </div>
+
+            {/* Warehouses breakdown */}
+            {Array.isArray(item.warehouses) && item.warehouses.length > 0 && (
+                <div className={`mt-3 rounded-xl border px-3 py-2.5 ${isDark
+                        ? 'border-white/[0.06] bg-white/[0.02]'
+                        : 'border-[#f1f5f9] bg-[#f8fafc]'
+                    }`}>
+                    <div className={`mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide ${muted}`}>
+                        <LuWarehouse size={11} />
+                        <span>Ombоrlar bo&apos;yicha taqsimot</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                        {item.warehouses.map((wh) => (
+                            <span
+                                key={wh.warehouseId}
+                                className={`inline-flex items-center gap-2 rounded-lg border px-2.5 py-1 text-xs ${isDark
+                                        ? 'border-white/[0.08] bg-white/[0.03] text-slate-300'
+                                        : 'border-[#e2e8f0] bg-white text-[#475569]'
+                                    }`}
+                            >
+                                <span className="font-semibold">{wh.warehouseName}</span>
+                                <span className={muted}>·</span>
+                                <span className={isDark ? 'text-red-300' : 'text-red-600'}>
+                                    −{formatNumber(wh.shortageQuantity)}
+                                </span>
+                                <span className={`text-[10px] ${muted}`}>
+                                    ({formatNumber(wh.availableQuantity)}/{formatNumber(wh.orderedQuantity)})
+                                </span>
+                            </span>
+                        ))}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

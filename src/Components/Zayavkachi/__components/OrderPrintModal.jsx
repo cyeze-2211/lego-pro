@@ -24,8 +24,7 @@ const LOGOS = [
 
 const STATUS_LABEL_MAP = {
     CREATED:    'Yaratilgan',
-    DISPATCHED: "Jo'natilgan",
-    LOADED:     'Yuklangan',
+    LOADED:     'Ortildi',
     CONFIRMED:  'Tasdiqlangan',
     REJECTED:   'Rad etilgan',
 };
@@ -460,5 +459,3 @@ OrderPrintModal.propTypes = {
     order: PropTypes.object.isRequired,
     onClose: PropTypes.func.isRequired,
 };
-
-
