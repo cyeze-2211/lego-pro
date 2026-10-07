@@ -6,21 +6,17 @@ import {
     HStack,
     Heading,
     Spinner,
-    Switch,
     Table,
     Text,
     VStack,
 } from '@chakra-ui/react';
 import {
-    LuChevronLeft,
-    LuChevronRight,
     LuPackage,
     LuSearch,
     LuX,
     LuTag,
     LuRuler,
     LuWarehouse,
-    LuTriangleAlert,
     LuCopy,
     LuCheck,
 } from 'react-icons/lu';
@@ -40,7 +36,7 @@ const PAGE_SIZE = 12;
 const CLIPBOARD_EVENT = 'product-clipboard-changed';
 const SEARCH_DEBOUNCE_MS = 500;
 
-/* ── Clipboard helpers (faqat xotirada, refresh'da tozalanadi) ── */
+/* ── Clipboard helpers ── */
 const saveToClipboard = (product) => {
     window.__productClipboard = {
         name: product.name || '',
@@ -58,7 +54,7 @@ const saveToClipboard = (product) => {
     window.dispatchEvent(new Event(CLIPBOARD_EVENT));
 };
 
-/* ── Copy button (inline komponent) ── */
+/* ── Copy button ── */
 function CopyButton({ product }) {
     const { isDark } = useAppTheme();
     const [done, setDone] = useState(false);
@@ -99,34 +95,45 @@ export default function Product() {
     const [search, setSearch] = useState('');
     const [query, setQuery] = useState('');
     const [page, setPage] = useState(0);
+    const [products, setProducts] = useState([]);
+    const [hasMore, setHasMore] = useState(true);
     const isFirstRender = useRef(true);
+    const loadMoreRef = useRef(null);
+    const isFetchingNextRef = useRef(false);
 
-    // Debounced qidiruv — yozish to'xtagach 500ms o'tib so'rov yuboriladi
+    /* ── Debounced qidiruv ── */
     useEffect(() => {
         if (isFirstRender.current) {
             isFirstRender.current = false;
             return;
         }
-
         const handler = setTimeout(() => {
             const next = search.trim();
             setQuery((prev) => {
                 if (prev !== next) {
                     setPage(0);
+                    setProducts([]);
+                    setHasMore(true);
                     return next;
                 }
                 return prev;
             });
         }, SEARCH_DEBOUNCE_MS);
-
         return () => clearTimeout(handler);
     }, [search]);
 
-    const { data: productResult, isLoading, error, refetch } = useGetProductsQuery({
+    const {
+        data: productResult,
+        isLoading,
+        isFetching,
+        error,
+        refetch,
+    } = useGetProductsQuery({
         name: query || undefined,
         page,
         size: PAGE_SIZE,
     });
+
     const { data: warehouses = [] } = useGetWarehousesQuery('PRODUCT');
     const [updateProduct] = useUpdateProductMutation();
 
@@ -140,17 +147,68 @@ export default function Product() {
         accentColor,
     } = useAppTheme();
 
-    const products = productResult?.items || [];
     const pagination = productResult?.pagination;
-    const totalPages = pagination?.totalPages || 0;
     const totalElements = pagination?.totalElements ?? 0;
 
     const tableBg = isDark ? BRAND_COLORS.darkCardBg : cardBg;
     const tableHeaderBg = isDark ? tableBg : '#F8FAFC';
     const tableBorder = isDark ? cardBorder : '#CBD5E1';
 
-    // Foydalanuvchi hali yozayaptimi? (query hali yangilanmagan)
     const isDebouncing = search.trim() !== query;
+
+    /* ── Yangi sahifa kelganda ro'yxatga qo'shamiz ── */
+    useEffect(() => {
+        if (!productResult?.items) return;
+
+        if (page === 0) {
+            setProducts(productResult.items);
+        } else {
+            setProducts((prev) => {
+                const existing = new Set(prev.map((p) => p.id));
+                const fresh = productResult.items.filter((p) => !existing.has(p.id));
+                return fresh.length ? [...prev, ...fresh] : prev;
+            });
+        }
+
+        // hasMore aniqlash
+        const totalPages = pagination?.totalPages ?? 0;
+        if (totalPages > 0) {
+            setHasMore(page < totalPages - 1);
+        } else {
+            setHasMore(productResult.items.length === PAGE_SIZE);
+        }
+
+        isFetchingNextRef.current = false;
+    }, [productResult, page, pagination]);
+
+    /* ── Infinite scroll: pastga yetganda avtomatik GET ── */
+    useEffect(() => {
+        const node = loadMoreRef.current;
+        if (!node) return;
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                const entry = entries[0];
+                if (
+                    entry.isIntersecting &&
+                    hasMore &&
+                    !isFetching &&
+                    !isFetchingNextRef.current
+                ) {
+                    isFetchingNextRef.current = true;
+                    setPage((p) => p + 1);
+                }
+            },
+            {
+                root: null,
+                rootMargin: '400px 0px', // 400px oldin boshlanadi — silliq yuklanadi
+                threshold: 0,
+            }
+        );
+
+        observer.observe(node);
+        return () => observer.disconnect();
+    }, [hasMore, isFetching, products.length]);
 
     const cellBorder = {
         borderWidth: '0.5px',
@@ -169,25 +227,25 @@ export default function Product() {
         letterSpacing: 'wider',
     };
 
-    // Tozalash — darhol (debounce kutmasdan)
     const clearSearch = () => {
         setSearch('');
         setQuery('');
         setPage(0);
+        setProducts([]);
+        setHasMore(true);
+        isFetchingNextRef.current = false;
     };
 
     useEffect(() => {
         if (error) Alert(error?.data?.message || 'Mahsulotlarni yuklashda xatolik', 'error');
     }, [error]);
 
-    // Ombor nomi — warehouseId orqali topamiz
     const getWarehouseName = (warehouseId) => {
         if (!warehouseId) return null;
         const found = warehouses.find((w) => w.id === warehouseId);
         return found?.name || null;
     };
 
-    // lowProductAlert toggle
     const handleToggleAlert = async (e, product) => {
         e.stopPropagation();
         try {
@@ -226,7 +284,7 @@ export default function Product() {
                 <Create warehouses={warehouses} />
             </HStack>
 
-            {/* ── Search (auto / debounced) ── */}
+            {/* ── Search ── */}
             <HStack
                 w="100%"
                 gap={3}
@@ -260,7 +318,6 @@ export default function Product() {
                         minH="40px"
                     />
 
-                    {/* Debounce jarayonida kichik spinner */}
                     {isDebouncing && (
                         <Box
                             position="absolute"
@@ -304,7 +361,7 @@ export default function Product() {
             </HStack>
 
             {/* ── Content ── */}
-            {isLoading ? (
+            {isLoading && products.length === 0 ? (
                 <Loading />
             ) : error ? (
                 <Box p={8} textAlign="center" color={isDark ? 'red.300' : 'red.600'}>
@@ -335,7 +392,7 @@ export default function Product() {
                             interactive
                             bg={tableBg}
                             borderCollapse="collapse"
-                            minW="1400px"
+                            minW="1500px"
                         >
                             <Table.Header bg={tableHeaderBg}>
                                 <Table.Row bg={tableHeaderBg}>
@@ -344,6 +401,9 @@ export default function Product() {
                                     </Table.ColumnHeader>
                                     <Table.ColumnHeader {...headerCell} minW="240px">
                                         Mahsulot
+                                    </Table.ColumnHeader>
+                                    <Table.ColumnHeader {...headerCell} minW="130px">
+                                        Artikul
                                     </Table.ColumnHeader>
                                     <Table.ColumnHeader {...headerCell} minW="160px">
                                         Brend
@@ -359,9 +419,6 @@ export default function Product() {
                                     </Table.ColumnHeader>
                                     <Table.ColumnHeader {...headerCell} minW="130px" textAlign="center">
                                         Qadoqdagi dona
-                                    </Table.ColumnHeader>
-                                    <Table.ColumnHeader {...headerCell} minW="130px" textAlign="center">
-                                        Ogohlantirish
                                     </Table.ColumnHeader>
                                     <Table.ColumnHeader {...headerCell} minW="170px">
                                         Ombor
@@ -406,10 +463,9 @@ export default function Product() {
                                                 color={subtitleColor}
                                                 fontSize="sm"
                                             >
-                                                {page * PAGE_SIZE + index + 1}
+                                                {index + 1}
                                             </Table.Cell>
 
-                                            {/* Mahsulot nomi + artikul */}
                                             <Table.Cell {...cellBorder}>
                                                 <HStack gap={2.5}>
                                                     <Box
@@ -442,28 +498,32 @@ export default function Product() {
                                                         >
                                                             {product.name}
                                                         </Text>
-                                                        {product.article ? (
-                                                            <Text
-                                                                fontSize="10px"
-                                                                color={subtitleColor}
-                                                                fontFamily="mono"
-                                                            >
-                                                                {product.article}
-                                                            </Text>
-                                                        ) : (
-                                                            <Text
-                                                                fontSize="10px"
-                                                                color={subtitleColor}
-                                                                fontStyle="italic"
-                                                            >
-                                                                artikulsiz
-                                                            </Text>
-                                                        )}
                                                     </VStack>
                                                 </HStack>
                                             </Table.Cell>
 
-                                            {/* Brend */}
+                                            {/* Artikul — alohida ustun */}
+                                            <Table.Cell {...cellBorder}>
+                                                {product.article ? (
+                                                    <Text
+                                                        fontSize="sm"
+                                                        color={textColor}
+                                                        fontFamily="mono"
+                                                        noOfLines={1}
+                                                    >
+                                                        {product.article}
+                                                    </Text>
+                                                ) : (
+                                                    <Text
+                                                        fontSize="sm"
+                                                        color={subtitleColor}
+                                                        fontStyle="italic"
+                                                    >
+                                                        —
+                                                    </Text>
+                                                )}
+                                            </Table.Cell>
+
                                             <Table.Cell {...cellBorder}>
                                                 {brand?.name ? (
                                                     <HStack gap={1.5}>
@@ -504,7 +564,6 @@ export default function Product() {
                                                 )}
                                             </Table.Cell>
 
-                                            {/* O'lcham */}
                                             <Table.Cell {...cellBorder}>
                                                 {product.size ? (
                                                     <HStack gap={1.5}>
@@ -528,7 +587,6 @@ export default function Product() {
                                                 )}
                                             </Table.Cell>
 
-                                            {/* Narxi */}
                                             <Table.Cell
                                                 {...cellBorder}
                                                 textAlign="right"
@@ -551,7 +609,6 @@ export default function Product() {
                                                 </Text>
                                             </Table.Cell>
 
-                                            {/* Minimum qoldiq */}
                                             <Table.Cell
                                                 {...cellBorder}
                                                 textAlign="right"
@@ -581,7 +638,6 @@ export default function Product() {
                                                 )}
                                             </Table.Cell>
 
-                                            {/* Qadoqdagi dona */}
                                             <Table.Cell {...cellBorder} textAlign="center" whiteSpace="nowrap">
                                                 {product.piecesPerPack !== null && product.piecesPerPack !== undefined ? (
                                                     <HStack gap={1.5} justify="center">
@@ -606,66 +662,6 @@ export default function Product() {
                                                 )}
                                             </Table.Cell>
 
-                                            {/* Kam qoldiqda ogohlantirish */}
-                                            <Table.Cell {...cellBorder} textAlign="center"
-                                                onClick={(e) => e.stopPropagation()}
-                                                onKeyDown={(e) => e.stopPropagation()}
-                                            >
-                                                <Box
-                                                    display="inline-flex"
-                                                    alignItems="center"
-                                                    gap={2.5}
-                                                    px={3}
-                                                    py={2}
-                                                    borderRadius="xl"
-                                                    borderWidth="1px"
-                                                    borderColor={
-                                                        product.lowProductAlert
-                                                            ? (isDark ? 'rgba(250,204,21,0.35)' : '#FDE68A')
-                                                            : (isDark ? cardBorder : '#E2E8F0')
-                                                    }
-                                                    bg={
-                                                        product.lowProductAlert
-                                                            ? (isDark ? 'rgba(250,204,21,0.08)' : '#FEFCE8')
-                                                            : 'transparent'
-                                                    }
-                                                    transition="all 0.2s"
-                                                    cursor="pointer"
-                                                    onClick={(e) => handleToggleAlert(e, product)}
-                                                >
-                                                    <Box
-                                                        p={1.5}
-                                                        borderRadius="md"
-                                                        bg={
-                                                            product.lowProductAlert
-                                                                ? (isDark ? 'rgba(250,204,21,0.15)' : '#FEF3C7')
-                                                                : (isDark ? 'rgba(148,163,184,0.12)' : 'rgba(148,163,184,0.15)')
-                                                        }
-                                                        color={product.lowProductAlert ? accentColor : subtitleColor}
-                                                        transition="all 0.2s"
-                                                        display="inline-flex"
-                                                        alignItems="center"
-                                                        justifyContent="center"
-                                                        flexShrink={0}
-                                                    >
-                                                        <LuTriangleAlert size={14} />
-                                                    </Box>
-                                                    <Switch.Root
-                                                        checked={product.lowProductAlert}
-                                                        onCheckedChange={(e) => handleToggleAlert({ stopPropagation: () => {} }, product)}
-                                                        colorPalette="yellow"
-                                                        size="sm"
-                                                        flexShrink={0}
-                                                    >
-                                                        <Switch.HiddenInput />
-                                                        <Switch.Control>
-                                                            <Switch.Thumb />
-                                                        </Switch.Control>
-                                                    </Switch.Root>
-                                                </Box>
-                                            </Table.Cell>
-
-                                            {/* Ombor */}
                                             <Table.Cell {...cellBorder}>
                                                 {warehouseName ? (
                                                     <HStack gap={1.5}>
@@ -693,7 +689,6 @@ export default function Product() {
                                                 )}
                                             </Table.Cell>
 
-                                            {/* Shtrix-kod */}
                                             <Table.Cell {...cellBorder}>
                                                 {product.barcode ? (
                                                     <Text
@@ -711,7 +706,6 @@ export default function Product() {
                                                 )}
                                             </Table.Cell>
 
-                                            {/* Amallar */}
                                             <Table.Cell
                                                 {...cellBorder}
                                                 textAlign="center"
@@ -731,31 +725,44 @@ export default function Product() {
                         </Table.Root>
                     </Box>
 
-                    {/* ── Pagination ── */}
-                    {totalPages > 1 && (
-                        <HStack justify="center" mt={6} gap={3}>
-                            <Button
-                                size="sm"
-                                variant="outline"
-                                borderRadius="lg"
-                                disabled={page === 0}
-                                onClick={() => setPage((value) => value - 1)}
+                    {/* ── AUTO-LOAD SENTINEL: pastga yetganda avtomatik GET ── */}
+                    {hasMore ? (
+                        <Box
+                            ref={loadMoreRef}
+                            display="flex"
+                            justifyContent="center"
+                            alignItems="center"
+                            py={8}
+                            minH="60px"
+                        >
+                            {isFetching ? (
+                                <HStack gap={3}>
+                                    <Spinner size="sm" color={accentColor} />
+                                    <Text color={subtitleColor} fontSize="sm">
+                                        Yuklanmoqda...
+                                    </Text>
+                                </HStack>
+                            ) : (
+                                <Text color={subtitleColor} fontSize="sm" opacity={0.6}>
+                                    ↓ Yana yuklash uchun pastga suring
+                                </Text>
+                            )}
+                        </Box>
+                    ) : (
+                        products.length > 0 && (
+                            <HStack
+                                justify="center"
+                                align="center"
+                                py={6}
+                                gap={2}
+                                color={subtitleColor}
                             >
-                                <LuChevronLeft size={14} />
-                            </Button>
-                            <Text color={subtitleColor} fontSize="sm" fontWeight="medium">
-                                {page + 1} / {totalPages}
-                            </Text>
-                            <Button
-                                size="sm"
-                                variant="outline"
-                                borderRadius="lg"
-                                disabled={page >= totalPages - 1}
-                                onClick={() => setPage((value) => value + 1)}
-                            >
-                                <LuChevronRight size={14} />
-                            </Button>
-                        </HStack>
+                                <LuCheck size={16} />
+                                <Text fontSize="sm">
+                                    Barcha mahsulotlar yuklandi ({products.length} ta)
+                                </Text>
+                            </HStack>
+                        )
                     )}
                 </>
             )}

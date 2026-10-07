@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import {
     Box,
@@ -32,22 +32,18 @@ import { useAppTheme } from '../../../../theme/tokens';
 import FormattedNumberInput from '../../../ui/FormattedNumberInput';
 import FormControl from '../../../ui/FormControl';
 
+const toStr = (v) => (v === null || v === undefined ? '' : String(v));
+
 const buildInitial = (product) => ({
-    name: product.name || '',
-    price: String(product.price ?? ''),
-    article: product.article || '',
-    size: product.size || '',
-    minimumLine:
-        product.minimumLine !== null && product.minimumLine !== undefined
-            ? String(product.minimumLine)
-            : '',
-    piecesPerPack:
-        product.piecesPerPack !== null && product.piecesPerPack !== undefined
-            ? String(product.piecesPerPack)
-            : '',
+    name: toStr(product?.name),
+    price: toStr(product?.price),
+    article: toStr(product?.article),
+    size: toStr(product?.size),
+    minimumLine: toStr(product?.minimumLine),
+    piecesPerPack: toStr(product?.piecesPerPack),
     lowProductAlert:
-        typeof product.lowProductAlert === 'boolean' ? product.lowProductAlert : true,
-    brandId: product.brand?.id || product.brandId || '',
+        typeof product?.lowProductAlert === 'boolean' ? product.lowProductAlert : true,
+    brandId: product?.brand?.id || product?.brandId || '',
 });
 
 export default function Edit({ product }) {
@@ -65,9 +61,18 @@ export default function Edit({ product }) {
     const modalBorder = isDark ? cardBorder : '#94A3B8';
     const brands = brandsData?.items ?? [];
 
+    // ✅ Сбрасываем форму ТОЛЬКО при открытии диалога.
+    // `product` держим в ref, чтобы не тянуть его в deps.
+    const productRef = useRef(product);
+    productRef.current = product;
+
+    const wasOpenRef = useRef(false);
     useEffect(() => {
-        if (open) setForm(buildInitial(product));
-    }, [open, product]);
+        if (open && !wasOpenRef.current) {
+            setForm(buildInitial(productRef.current));
+        }
+        wasOpenRef.current = open;
+    }, [open]);
 
     const setField = (key, value) =>
         setForm((prev) => ({ ...prev, [key]: value }));
@@ -75,30 +80,36 @@ export default function Edit({ product }) {
     const handleSubmit = async () => {
         if (isLoading) return;
 
-        const trimmedName = form.name.trim();
+        const trimmedName = toStr(form.name).trim();
+        const priceNum = Number(form.price);
+
         if (!trimmedName) {
             Alert('Mahsulot nomi majburiy', 'error');
             return;
         }
-        if (!form.price || Number(form.price) <= 0) {
+        if (!form.price || Number.isNaN(priceNum) || priceNum <= 0) {
             Alert('Narx 0 dan katta bo‘lishi kerak', 'error');
             return;
         }
 
         const payload = {
-            name: trimmedName,
-            price: Number(form.price),
+            name: trimmedName,                       // ✅ всегда явная строка
+            price: priceNum,
             lowProductAlert: Boolean(form.lowProductAlert),
         };
 
-        // Ixtiyoriy maydonlar — faqat to'ldirilgan bo'lsa
-        if (form.article.trim()) payload.article = form.article.trim();
-        if (form.size.trim()) payload.size = form.size.trim();
-        if (form.minimumLine !== '' && !Number.isNaN(Number(form.minimumLine))) {
-            payload.minimumLine = Number(form.minimumLine);
+        const article = toStr(form.article).trim();
+        const size = toStr(form.size).trim();
+        const minLine = toStr(form.minimumLine).trim();
+        const piecesPerPack = toStr(form.piecesPerPack).trim();
+
+        if (article) payload.article = article;
+        if (size) payload.size = size;
+        if (minLine !== '' && !Number.isNaN(Number(minLine))) {
+            payload.minimumLine = Number(minLine);
         }
-        if (form.piecesPerPack !== '' && !Number.isNaN(Number(form.piecesPerPack))) {
-            payload.piecesPerPack = Number(form.piecesPerPack);
+        if (piecesPerPack !== '' && !Number.isNaN(Number(piecesPerPack))) {
+            payload.piecesPerPack = Number(piecesPerPack);
         }
         if (form.brandId) payload.brandId = form.brandId;
 
@@ -495,7 +506,7 @@ export default function Edit({ product }) {
                                 </Button>
                                 <Button
                                     onClick={handleSubmit}
-                                    disabled={isLoading || !form.name.trim() || !form.price}
+                                    disabled={isLoading || !toStr(form.name).trim() || !form.price}
                                     bg={accentColor}
                                     color="black"
                                     size="lg"
