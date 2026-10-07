@@ -23,6 +23,8 @@ import { paymentApi } from './services/payment.api';
 import { machineOutputApi } from './services/machineOutput.api';
 import { brandApi } from './services/brand.api';
 import { customerAgentApi } from './services/customerAgent.api';
+import { productColorApi } from './services/productColor.api';
+import { productCategoryApi } from './services/productCategory.api';
 
 export const store = configureStore({
     reducer: {
@@ -48,9 +50,11 @@ export const store = configureStore({
         [machineOutputApi.reducerPath]: machineOutputApi.reducer,
         [brandApi.reducerPath]: brandApi.reducer,
         [customerAgentApi.reducerPath]: customerAgentApi.reducer,
+        [productColorApi.reducerPath]: productColorApi.reducer,
+        [productCategoryApi.reducerPath]: productCategoryApi.reducer,
     },
     middleware: (getDefaultMiddleware) =>
-        getDefaultMiddleware().concat(authApi.middleware, warehouseApi.middleware, productApi.middleware, rawMaterialApi.middleware, machineApi.middleware, customerApi.middleware, recipeApi.middleware, userApi.middleware, cashboxApi.middleware, expenseApi.middleware, deviceApi.middleware, productStockApi.middleware, roleApi.middleware, rawMaterialStockApi.middleware, salesOrderApi.middleware, productionTaskApi.middleware, auditApi.middleware, paymentApi.middleware, machineOutputApi.middleware, brandApi.middleware, customerAgentApi.middleware),
+        getDefaultMiddleware().concat(authApi.middleware, warehouseApi.middleware, productApi.middleware, rawMaterialApi.middleware, machineApi.middleware, customerApi.middleware, recipeApi.middleware, userApi.middleware, cashboxApi.middleware, expenseApi.middleware, deviceApi.middleware, productStockApi.middleware, roleApi.middleware, rawMaterialStockApi.middleware, salesOrderApi.middleware, productionTaskApi.middleware, auditApi.middleware, paymentApi.middleware, machineOutputApi.middleware, brandApi.middleware, customerAgentApi.middleware, productColorApi.middleware, productCategoryApi.middleware),
 });
 
 setupListeners(store.dispatch);

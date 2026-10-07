@@ -9,12 +9,11 @@ import {
     Portal,
     Spinner,
     SimpleGrid,
-    Switch,
     Text,
     VStack,
     useDisclosure,
 } from '@chakra-ui/react';
-import { Check, Package, X } from 'lucide-react';
+import { Check, Layers3, Package, Palette, X } from 'lucide-react';
 import {
     LuDollarSign,
     LuPen,
@@ -23,10 +22,11 @@ import {
     LuRuler,
     LuTriangleAlert,
     LuBoxes,
-    LuBellRing,
 } from 'react-icons/lu';
 import { useUpdateProductMutation } from '../../../../store/services/product.api';
 import { useGetBrandsQuery } from '../../../../store/services/brand.api';
+import { useGetProductColorsQuery } from '../../../../store/services/productColor.api';
+import { useGetProductCategoriesQuery } from '../../../../store/services/productCategory.api';
 import { Alert } from '../../../Other/UI/Alert/Alert';
 import { useAppTheme } from '../../../../theme/tokens';
 import FormattedNumberInput from '../../../ui/FormattedNumberInput';
@@ -52,9 +52,9 @@ const buildInitial = (product) => ({
     size: toStr(product?.size),
     minimumLine: toStr(product?.minimumLine),
     piecesPerPack: toStr(product?.piecesPerPack),
-    lowProductAlert:
-        typeof product?.lowProductAlert === 'boolean' ? product.lowProductAlert : true,
     brandId: product?.brand?.id || product?.brandId || '',
+    colorId: product?.color?.id || product?.colorId || '',
+    categoryId: product?.category?.id || product?.categoryId || '',
 });
 
 export default function Edit({ product }) {
@@ -67,10 +67,22 @@ export default function Edit({ product }) {
         isLoading: brandsLoading,
         isError: brandsError,
     } = useGetBrandsQuery({ page: 0, size: 200 }, { skip: !open });
+    const {
+        data: colorsData,
+        isLoading: colorsLoading,
+        isError: colorsError,
+    } = useGetProductColorsQuery({ page: 0, size: 200 }, { skip: !open });
+    const {
+        data: categoriesData,
+        isLoading: categoriesLoading,
+        isError: categoriesError,
+    } = useGetProductCategoriesQuery({ page: 0, size: 200 }, { skip: !open });
 
     const { isDark, accentColor, cardBg, cardBorder, textColor, subtitleColor } = useAppTheme();
     const modalBorder = isDark ? cardBorder : '#94A3B8';
     const brands = brandsData?.items ?? [];
+    const colors = colorsData?.items ?? [];
+    const categories = categoriesData?.items ?? [];
 
     /* Сброс формы только при открытии */
     const productRef = useRef(product);
@@ -102,26 +114,32 @@ export default function Edit({ product }) {
             Alert('Narx 0 dan katta bo‘lishi kerak', 'error');
             return;
         }
+        if (!form.colorId) {
+            Alert('Mahsulot rangini tanlang', 'error');
+            return;
+        }
+        if (!form.categoryId) {
+            Alert('Mahsulot kategoriyasini tanlang', 'error');
+            return;
+        }
 
-        /* ── Собираем payload со ВСЕМИ полями ── */
+        /* ── Собираем payload без lowProductAlert ── */
         const payload = {
             name: trimmedName,
             price: priceNum,
-            lowProductAlert: Boolean(form.lowProductAlert),
             article: toStr(form.article).trim(),
             size: toStr(form.size).trim(),
             minimumLine: Number.isNaN(minLineNum) ? 0 : minLineNum,
             piecesPerPack: Number.isNaN(piecesNum) ? null : piecesNum,
             brandId: form.brandId || null,
+            colorId: form.colorId,
+            categoryId: form.categoryId,
         };
 
-        // Убираем только brandId:null — остальные шлём всегда
         if (payload.brandId === null) delete payload.brandId;
 
         // piecesPerPack может быть null — оставляем как есть,
-        // но если бэк не принимает null — замените на: delete payload.piecesPerPack;
-
-        console.log('🚀 EDIT payload:', payload); // отладка — удалить после проверки
+        // если бэк не принимает null — замените на: delete payload.piecesPerPack;
 
         try {
             await updateProduct({ id: product.id, data: payload }).unwrap();
@@ -341,6 +359,78 @@ export default function Edit({ product }) {
                                                     ))}
                                                 </FormControl>
                                             </Field.Root>
+                                            <Field.Root required>
+                                                <Field.Label color={textColor} fontWeight="medium">
+                                                    <HStack gap={2}>
+                                                        <Palette size={16} />
+                                                        <span>Mahsulot rangi</span>
+                                                    </HStack>
+                                                </Field.Label>
+                                                <FormControl
+                                                    as="select"
+                                                    value={form.colorId}
+                                                    onChange={(e) => setField('colorId', e.target.value)}
+                                                    minH="52px"
+                                                    disabled={isLoading || colorsLoading || colorsError || colors.length === 0}
+                                                >
+                                                    <option value="">
+                                                        {colorsLoading
+                                                            ? 'Ranglar yuklanmoqda...'
+                                                            : colorsError
+                                                            ? 'Ranglarni yuklashda xatolik'
+                                                            : colors.length === 0
+                                                            ? 'Avval rang qo‘shing'
+                                                            : 'Rangni tanlang'}
+                                                    </option>
+                                                    {form.colorId && !colors.some((color) => color.id === form.colorId) && (
+                                                        <option value={form.colorId}>{product.color?.name || 'Mavjud mahsulot rangi'}</option>
+                                                    )}
+                                                    {colors.map((color) => (
+                                                        <option key={color.id} value={color.id}>{color.name}</option>
+                                                    ))}
+                                                </FormControl>
+                                                {!colorsLoading && !colorsError && colors.length === 0 && (
+                                                    <Field.HelperText color={subtitleColor}>
+                                                        Tahrirlashdan oldin ranglar bo‘limida rang qo‘shing.
+                                                    </Field.HelperText>
+                                                )}
+                                            </Field.Root>
+                                            <Field.Root required>
+                                                <Field.Label color={textColor} fontWeight="medium">
+                                                    <HStack gap={2}>
+                                                        <Layers3 size={16} />
+                                                        <span>Mahsulot kategoriyasi</span>
+                                                    </HStack>
+                                                </Field.Label>
+                                                <FormControl
+                                                    as="select"
+                                                    value={form.categoryId}
+                                                    onChange={(e) => setField('categoryId', e.target.value)}
+                                                    minH="52px"
+                                                    disabled={isLoading || categoriesLoading || categoriesError || categories.length === 0}
+                                                >
+                                                    <option value="">
+                                                        {categoriesLoading
+                                                            ? 'Kategoriyalar yuklanmoqda...'
+                                                            : categoriesError
+                                                            ? 'Kategoriyalarni yuklashda xatolik'
+                                                            : categories.length === 0
+                                                            ? 'Avval kategoriya qo‘shing'
+                                                            : 'Kategoriyani tanlang'}
+                                                    </option>
+                                                    {form.categoryId && !categories.some((category) => category.id === form.categoryId) && (
+                                                        <option value={form.categoryId}>{product.category?.name || 'Mavjud mahsulot kategoriyasi'}</option>
+                                                    )}
+                                                    {categories.map((category) => (
+                                                        <option key={category.id} value={category.id}>{category.name}</option>
+                                                    ))}
+                                                </FormControl>
+                                                {!categoriesLoading && !categoriesError && categories.length === 0 && (
+                                                    <Field.HelperText color={subtitleColor}>
+                                                        Tahrirlashdan oldin kategoriyalar bo‘limida kategoriya qo‘shing.
+                                                    </Field.HelperText>
+                                                )}
+                                            </Field.Root>
                                         </VStack>
                                     </Box>
 
@@ -368,9 +458,9 @@ export default function Edit({ product }) {
                                         </Field.Root>
                                     </Box>
 
-                                    {/* ═══ Qadoq va ogohlantirish ═══ */}
+                                    {/* ═══ Qadoq ═══ */}
                                     <Box>
-                                        {sectionHeader(<LuBoxes size={16} />, 'Qadoq va ogohlantirish')}
+                                        {sectionHeader(<LuBoxes size={16} />, 'Qadoq')}
                                         <SimpleGrid columns={{ base: 1, md: 2 }} gap={5}>
                                             <Field.Root>
                                                 <Field.Label color={textColor} fontWeight="medium">
@@ -416,71 +506,6 @@ export default function Edit({ product }) {
                                                 </Field.HelperText>
                                             </Field.Root>
                                         </SimpleGrid>
-
-                                        {/* ── Low product alert toggle ── */}
-                                        <Box
-                                            mt={5}
-                                            p={4}
-                                            borderRadius="xl"
-                                            borderWidth="1px"
-                                            borderColor={
-                                                form.lowProductAlert
-                                                    ? (isDark ? 'rgba(250, 204, 21, 0.35)' : '#FDE68A')
-                                                    : modalBorder
-                                            }
-                                            bg={
-                                                form.lowProductAlert
-                                                    ? (isDark ? 'rgba(250, 204, 21, 0.08)' : '#FEFCE8')
-                                                    : 'transparent'
-                                            }
-                                            transition="all 0.2s"
-                                        >
-                                            <HStack justify="space-between" gap={4} align="center">
-                                                <HStack gap={3} minW={0}>
-                                                    <Box
-                                                        p={2}
-                                                        borderRadius="lg"
-                                                        bg={
-                                                            form.lowProductAlert
-                                                                ? (isDark ? 'rgba(250, 204, 21, 0.15)' : '#FEF3C7')
-                                                                : (isDark ? 'rgba(148, 163, 184, 0.12)' : 'gray.100')
-                                                        }
-                                                        color={form.lowProductAlert ? accentColor : subtitleColor}
-                                                        flexShrink={0}
-                                                        transition="all 0.2s"
-                                                    >
-                                                        <LuBellRing size={18} />
-                                                    </Box>
-                                                    <VStack align="start" gap={0} minW={0}>
-                                                        <Text
-                                                            fontWeight="semibold"
-                                                            fontSize="sm"
-                                                            color={textColor}
-                                                        >
-                                                            Kam qoldiqda ogohlantirish
-                                                        </Text>
-                                                        <Text fontSize="xs" color={subtitleColor}>
-                                                            Qoldiq minimum chegaradan tushsa — xabar yuboriladi
-                                                        </Text>
-                                                    </VStack>
-                                                </HStack>
-
-                                                <Switch.Root
-                                                    checked={form.lowProductAlert}
-                                                    onCheckedChange={(e) =>
-                                                        setField('lowProductAlert', e.checked)
-                                                    }
-                                                    disabled={isLoading}
-                                                    colorPalette="yellow"
-                                                    flexShrink={0}
-                                                >
-                                                    <Switch.HiddenInput />
-                                                    <Switch.Control>
-                                                        <Switch.Thumb />
-                                                    </Switch.Control>
-                                                </Switch.Root>
-                                            </HStack>
-                                        </Box>
                                     </Box>
 
                                     <Text fontSize="sm" color={subtitleColor}>
@@ -568,6 +593,16 @@ Edit.propTypes = {
         lowProductAlert: PropTypes.bool,
         brandId: PropTypes.string,
         brand: PropTypes.shape({
+            id: PropTypes.string,
+            name: PropTypes.string,
+        }),
+        colorId: PropTypes.string,
+        color: PropTypes.shape({
+            id: PropTypes.string,
+            name: PropTypes.string,
+        }),
+        categoryId: PropTypes.string,
+        category: PropTypes.shape({
             id: PropTypes.string,
             name: PropTypes.string,
         }),

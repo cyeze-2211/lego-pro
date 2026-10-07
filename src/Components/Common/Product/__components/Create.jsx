@@ -10,12 +10,11 @@ import {
     Portal,
     Spinner,
     SimpleGrid,
-    Switch,
     Text,
     VStack,
     useDisclosure,
 } from '@chakra-ui/react';
-import { Check, Package, X } from 'lucide-react';
+import { Check, Layers3, Package, Palette, X } from 'lucide-react';
 import {
     LuDollarSign,
     LuPlus,
@@ -26,10 +25,11 @@ import {
     LuTag,
     LuClipboardPaste,
     LuBoxes,
-    LuBellRing,
 } from 'react-icons/lu';
 import { useCreateProductMutation } from '../../../../store/services/product.api';
 import { useGetBrandsQuery } from '../../../../store/services/brand.api';
+import { useGetProductColorsQuery } from '../../../../store/services/productColor.api';
+import { useGetProductCategoriesQuery } from '../../../../store/services/productCategory.api';
 import { Alert } from '../../../Other/UI/Alert/Alert';
 import { useAppTheme } from '../../../../theme/tokens';
 import FormattedNumberInput from '../../../ui/FormattedNumberInput';
@@ -45,8 +45,9 @@ const EMPTY_FORM = {
     size: '',
     minimumLine: '',
     piecesPerPack: '',
-    lowProductAlert: true,
     brandId: '',
+    colorId: '',
+    categoryId: '',
 };
 
 /* ── Clipboard helpers (faqat xotirada) ── */
@@ -75,10 +76,20 @@ const buildFromClipboard = (clip) => ({
         clip.piecesPerPack !== ''
             ? String(clip.piecesPerPack)
             : '',
-    lowProductAlert:
-        typeof clip.lowProductAlert === 'boolean' ? clip.lowProductAlert : true,
     brandId: clip.brandId || '',
+    colorId: clip.colorId || '',
+    categoryId: clip.categoryId || '',
 });
+
+/* "25 000" → 25000 ; "" / "abc" → NaN */
+const parseNumber = (raw) => {
+    const cleaned = String(raw ?? '')
+        .replace(/\s+/g, '')
+        .replace(/,/g, '')
+        .replace(/[^\d.-]/g, '');
+    if (cleaned === '' || cleaned === '-' || cleaned === '.') return NaN;
+    return Number(cleaned);
+};
 
 export default function Create({ warehouses }) {
     const { open, onOpen, onClose } = useDisclosure();
@@ -93,6 +104,16 @@ export default function Create({ warehouses }) {
         isLoading: brandsLoading,
         isError: brandsError,
     } = useGetBrandsQuery({ page: 0, size: 200 }, { skip: !open });
+    const {
+        data: colorsData,
+        isLoading: colorsLoading,
+        isError: colorsError,
+    } = useGetProductColorsQuery({ page: 0, size: 200 }, { skip: !open });
+    const {
+        data: categoriesData,
+        isLoading: categoriesLoading,
+        isError: categoriesError,
+    } = useGetProductCategoriesQuery({ page: 0, size: 200 }, { skip: !open });
 
     const {
         isDark,
@@ -105,6 +126,8 @@ export default function Create({ warehouses }) {
 
     const modalBorder = isDark ? cardBorder : '#94A3B8';
     const brands = brandsData?.items ?? [];
+    const colors = colorsData?.items ?? [];
+    const categories = categoriesData?.items ?? [];
 
     // Clipboard o'zgarishlarini kuzatish (faqat shu sahifa ichida)
     useEffect(() => {
@@ -155,21 +178,37 @@ export default function Create({ warehouses }) {
             Alert('Mahsulot nomi majburiy', 'error');
             return;
         }
-        if (!form.price || Number(form.price) <= 0) {
-            Alert('Narx 0 dan katta bo‘lishi kerak', 'error');
-            return;
-        }
         if (!form.warehouseId) {
             Alert('Omborni tanlang', 'error');
+            return;
+        }
+        if (!form.colorId) {
+            Alert('Mahsulot rangini tanlang', 'error');
+            return;
+        }
+        if (!form.categoryId) {
+            Alert('Mahsulot kategoriyasini tanlang', 'error');
+            return;
+        }
+
+        /* ── Narx — ixtiyoriy ── */
+        const priceNum = parseNumber(form.price);
+        if (form.price !== '' && !Number.isNaN(priceNum) && priceNum < 0) {
+            Alert('Narx manfiy bo‘lishi mumkin emas', 'error');
             return;
         }
 
         const payload = {
             name: trimmedName,
-            price: Number(form.price),
             warehouseId: form.warehouseId,
-            lowProductAlert: Boolean(form.lowProductAlert),
+            colorId: form.colorId,
+            categoryId: form.categoryId,
         };
+
+        // Narx faqat kiritilgan bo'lsa yuboriladi
+        if (form.price !== '' && !Number.isNaN(priceNum)) {
+            payload.price = priceNum;
+        }
 
         if (form.article.trim()) payload.article = form.article.trim();
         if (form.size.trim()) payload.size = form.size.trim();
@@ -490,6 +529,78 @@ export default function Create({ warehouses }) {
                                                     </Field.HelperText>
                                                 )}
                                             </Field.Root>
+                                            <Field.Root required>
+                                                <Field.Label color={textColor} fontWeight="medium">
+                                                    <HStack gap={2}>
+                                                        <Palette size={16} />
+                                                        <span>Mahsulot rangi</span>
+                                                    </HStack>
+                                                </Field.Label>
+                                                <FormControl
+                                                    as="select"
+                                                    value={form.colorId}
+                                                    onChange={(e) => setField('colorId', e.target.value)}
+                                                    minH="52px"
+                                                    disabled={isLoading || colorsLoading || colorsError || colors.length === 0}
+                                                >
+                                                    <option value="">
+                                                        {colorsLoading
+                                                            ? 'Ranglar yuklanmoqda...'
+                                                            : colorsError
+                                                            ? 'Ranglarni yuklashda xatolik'
+                                                            : colors.length === 0
+                                                            ? 'Avval rang qo‘shing'
+                                                            : 'Rangni tanlang'}
+                                                    </option>
+                                                    {form.colorId && !colors.some((color) => color.id === form.colorId) && (
+                                                        <option value={form.colorId}>Mavjud mahsulot rangi</option>
+                                                    )}
+                                                    {colors.map((color) => (
+                                                        <option key={color.id} value={color.id}>{color.name}</option>
+                                                    ))}
+                                                </FormControl>
+                                                {!colorsLoading && !colorsError && colors.length === 0 && (
+                                                    <Field.HelperText color={subtitleColor}>
+                                                        Mahsulot yaratishdan oldin ranglar bo‘limida rang qo‘shing.
+                                                    </Field.HelperText>
+                                                )}
+                                            </Field.Root>
+                                            <Field.Root required>
+                                                <Field.Label color={textColor} fontWeight="medium">
+                                                    <HStack gap={2}>
+                                                        <Layers3 size={16} />
+                                                        <span>Mahsulot kategoriyasi</span>
+                                                    </HStack>
+                                                </Field.Label>
+                                                <FormControl
+                                                    as="select"
+                                                    value={form.categoryId}
+                                                    onChange={(e) => setField('categoryId', e.target.value)}
+                                                    minH="52px"
+                                                    disabled={isLoading || categoriesLoading || categoriesError || categories.length === 0}
+                                                >
+                                                    <option value="">
+                                                        {categoriesLoading
+                                                            ? 'Kategoriyalar yuklanmoqda...'
+                                                            : categoriesError
+                                                            ? 'Kategoriyalarni yuklashda xatolik'
+                                                            : categories.length === 0
+                                                            ? 'Avval kategoriya qo‘shing'
+                                                            : 'Kategoriyani tanlang'}
+                                                    </option>
+                                                    {form.categoryId && !categories.some((category) => category.id === form.categoryId) && (
+                                                        <option value={form.categoryId}>Mavjud mahsulot kategoriyasi</option>
+                                                    )}
+                                                    {categories.map((category) => (
+                                                        <option key={category.id} value={category.id}>{category.name}</option>
+                                                    ))}
+                                                </FormControl>
+                                                {!categoriesLoading && !categoriesError && categories.length === 0 && (
+                                                    <Field.HelperText color={subtitleColor}>
+                                                        Mahsulot yaratishdan oldin kategoriyalar bo‘limida kategoriya qo‘shing.
+                                                    </Field.HelperText>
+                                                )}
+                                            </Field.Root>
                                         </VStack>
                                     </Box>
 
@@ -497,24 +608,27 @@ export default function Create({ warehouses }) {
                                     <Box>
                                         {sectionHeader(<LuDollarSign size={16} />, 'Narx va ombor')}
                                         <SimpleGrid columns={{ base: 1, md: 2 }} gap={5}>
-                                            <Field.Root required>
+                                            {/* Narx — ixtiyoriy */}
+                                            <Field.Root>
                                                 <Field.Label color={textColor} fontWeight="medium">
                                                     <HStack gap={2}>
                                                         <LuDollarSign size={16} />
                                                         <span>Narxi (so‘m)</span>
                                                     </HStack>
-                                                    <Field.RequiredIndicator />
                                                 </Field.Label>
                                                 <FormattedNumberInput
                                                     value={form.price}
                                                     onChange={(v) => setField('price', v)}
-                                                    placeholder="25 000"
+                                                    placeholder="25 000 (ixtiyoriy)"
                                                     size="lg"
-                                                    min="0.01"
+                                                    min="0"
                                                     step="0.01"
                                                     minH="52px"
                                                     disabled={isLoading}
                                                 />
+                                                <Field.HelperText color={subtitleColor}>
+                                                    Bo‘sh qoldirsangiz ham bo‘ladi
+                                                </Field.HelperText>
                                             </Field.Root>
 
                                             <Field.Root required>
@@ -544,9 +658,9 @@ export default function Create({ warehouses }) {
                                         </SimpleGrid>
                                     </Box>
 
-                                    {/* ═══ Qadoq va ogohlantirish ═══ */}
+                                    {/* ═══ Qadoq ═══ */}
                                     <Box>
-                                        {sectionHeader(<LuBoxes size={16} />, 'Qadoq va ogohlantirish')}
+                                        {sectionHeader(<LuBoxes size={16} />, 'Qadoq')}
                                         <SimpleGrid columns={{ base: 1, md: 2 }} gap={5}>
                                             <Field.Root>
                                                 <Field.Label color={textColor} fontWeight="medium">
@@ -592,71 +706,6 @@ export default function Create({ warehouses }) {
                                                 </Field.HelperText>
                                             </Field.Root>
                                         </SimpleGrid>
-
-                                        {/* ── Low product alert toggle ── */}
-                                        <Box
-                                            mt={5}
-                                            p={4}
-                                            borderRadius="xl"
-                                            borderWidth="1px"
-                                            borderColor={
-                                                form.lowProductAlert
-                                                    ? (isDark ? 'rgba(250, 204, 21, 0.35)' : '#FDE68A')
-                                                    : modalBorder
-                                            }
-                                            bg={
-                                                form.lowProductAlert
-                                                    ? (isDark ? 'rgba(250, 204, 21, 0.08)' : '#FEFCE8')
-                                                    : 'transparent'
-                                            }
-                                            transition="all 0.2s"
-                                        >
-                                            <HStack justify="space-between" gap={4} align="center">
-                                                <HStack gap={3} minW={0}>
-                                                    <Box
-                                                        p={2}
-                                                        borderRadius="lg"
-                                                        bg={
-                                                            form.lowProductAlert
-                                                                ? (isDark ? 'rgba(250, 204, 21, 0.15)' : '#FEF3C7')
-                                                                : (isDark ? 'rgba(148, 163, 184, 0.12)' : 'gray.100')
-                                                        }
-                                                        color={form.lowProductAlert ? accentColor : subtitleColor}
-                                                        flexShrink={0}
-                                                        transition="all 0.2s"
-                                                    >
-                                                        <LuBellRing size={18} />
-                                                    </Box>
-                                                    <VStack align="start" gap={0} minW={0}>
-                                                        <Text
-                                                            fontWeight="semibold"
-                                                            fontSize="sm"
-                                                            color={textColor}
-                                                        >
-                                                            Kam qoldiqda ogohlantirish
-                                                        </Text>
-                                                        <Text fontSize="xs" color={subtitleColor}>
-                                                            Qoldiq minimum chegaradan tushsa — xabar yuboriladi
-                                                        </Text>
-                                                    </VStack>
-                                                </HStack>
-
-                                                <Switch.Root
-                                                    checked={form.lowProductAlert}
-                                                    onCheckedChange={(e) =>
-                                                        setField('lowProductAlert', e.checked)
-                                                    }
-                                                    disabled={isLoading}
-                                                    colorPalette="yellow"
-                                                    flexShrink={0}
-                                                >
-                                                    <Switch.HiddenInput />
-                                                    <Switch.Control>
-                                                        <Switch.Thumb />
-                                                    </Switch.Control>
-                                                </Switch.Root>
-                                            </HStack>
-                                        </Box>
                                     </Box>
 
                                     <Text fontSize="sm" color={subtitleColor}>
@@ -714,8 +763,9 @@ export default function Create({ warehouses }) {
                                     disabled={
                                         isLoading ||
                                         !form.name.trim() ||
-                                        !form.price ||
-                                        !form.warehouseId
+                                        !form.warehouseId ||
+                                        !form.colorId ||
+                                        !form.categoryId
                                     }
                                     bg={accentColor}
                                     color="black"

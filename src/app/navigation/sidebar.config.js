@@ -2,7 +2,7 @@
 import { ROLES, PRODUCT_WAREHOUSE_ROLES, RAW_WAREHOUSE_ROLES, ZAYAVKACHI_ROLES, BUXGALTER_ROLES, KASSIR_ROLES } from '../permissions/roles';
 import {
     Boxes, ClipboardList, Cog, History, LayoutDashboard, LogIn, LogOut,
-    MonitorCog, Package, ReceiptText, ShieldCheck, UserRound, Users, Wallet, Warehouse, FileSpreadsheet, UserCheck,
+    Layers3, MonitorCog, Package, Palette, ReceiptText, ShieldCheck, UserRound, Users, Wallet, Warehouse, FileSpreadsheet, UserCheck,
 } from 'lucide-react';
 
 // ── Manager ────────────────────────────────────────────────────────────────
@@ -12,6 +12,8 @@ export const SIDEBAR_CONFIG = [
     { label: 'Brendlar', path: '/brand', icon: Boxes, roles: [ROLES.MANAGER] },
     { label: 'Omborlar', path: '/warehouses', icon: Warehouse, roles: [ROLES.MANAGER] },
     { label: 'Maxsulotlar', path: '/products', icon: Package, roles: [ROLES.MANAGER] },
+    { label: 'Mahsulot ranglari', path: '/product-colors', icon: Palette, roles: [ROLES.MANAGER] },
+    { label: 'Mahsulot kategoriyalari', path: '/product-categories', icon: Layers3, roles: [ROLES.MANAGER] },
     { label: 'Xom ashyo', path: '/raw', icon: Package, roles: [ROLES.MANAGER] },
     { label: 'Retseptlar', path: '/recipes', icon: Boxes, roles: [ROLES.MANAGER] },
     { label: 'Stanoklar', path: '/machines', icon: Cog, roles: [ROLES.MANAGER] },
@@ -27,7 +29,7 @@ export const SIDEBAR_CONFIG = [
 
 export const SIDEBAR_GROUPS = [
     { label: 'Asosiy', items: SIDEBAR_CONFIG.filter((i) => i.path === '/') },
-    { label: 'Ishlab chiqarish', items: SIDEBAR_CONFIG.filter((i) => ['/warehouses', '/products', '/raw', '/recipes', '/machines', '/brand'].includes(i.path)) },
+    { label: 'Ishlab chiqarish', items: SIDEBAR_CONFIG.filter((i) => ['/warehouses', '/products', '/product-colors', '/product-categories', '/raw', '/recipes', '/machines', '/brand'].includes(i.path)) },
     { label: 'Moliya', items: SIDEBAR_CONFIG.filter((i) => ['/cashboxes', '/expenses', '/reconciliation'].includes(i.path)) },
     { label: 'Userlar', items: SIDEBAR_CONFIG.filter((i) => ['/customers', '/customer-agents', '/orders', '/users', '/roles', '/devices'].includes(i.path)) },
 ];

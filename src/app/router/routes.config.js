@@ -38,6 +38,16 @@ export const ROUTES = [
         roles: ROLES.MANAGER,
     },
     {
+        path: '/product-colors',
+        component: lazy(() => import('../../Components/Common/ProductColor')),
+        roles: ROLES.MANAGER,
+    },
+    {
+        path: '/product-categories',
+        component: lazy(() => import('../../Components/Common/ProductCategory')),
+        roles: ROLES.MANAGER,
+    },
+    {
         path: '/raw',
         component: lazy(() => import('../../Components/Common/Raw')),
         roles: ROLES.MANAGER,

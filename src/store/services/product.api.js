@@ -6,17 +6,30 @@ export const productApi = createApi({
   baseQuery: axiosBaseQuery(),
   tagTypes: ['Product'],
   endpoints: (builder) => ({
-    // GET /api/v1/products – список товаров с пагинацией и фильтром по имени
+    // GET /api/v1/products – список товаров с пагинацией и фильтрами
     getProducts: builder.query({
-      query: ({ name, page = 0, size = 20, sort = ['createdAt,DESC', 'id,DESC'] }) => ({
+      query: ({
+        query,
+        name,
+        brandId,
+        categoryId,
+        colorId,
+        page = 0,
+        size = 20,
+        sort = ['createdAt,DESC', 'id,DESC'],
+      }) => ({
         url: '/products',
         method: 'GET',
         params: {
-          name,
+          query: query ?? name,
+          brandId,
+          categoryId,
+          colorId,
           page,
           size,
           sort,
         },
+        paramsSerializer: { indexes: null },
       }),
       transformResponse: (response) => ({
         items: response.data || [],

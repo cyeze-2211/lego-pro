@@ -19,9 +19,20 @@ import {
     LuWarehouse,
     LuCopy,
     LuCheck,
+    LuPalette,
+    LuFolder,
+    LuSlidersHorizontal,
+    LuChevronDown,
+    LuArrowDownUp,
+    LuArrowDown,
+    LuArrowUp,
+    LuPlus,
 } from 'react-icons/lu';
 import { useGetProductsQuery, useUpdateProductMutation } from '../../../store/services/product.api';
 import { useGetWarehousesQuery } from '../../../store/services/warehouse.api';
+import { useGetBrandsQuery } from '../../../store/services/brand.api';
+import { useGetProductCategoriesQuery } from '../../../store/services/productCategory.api';
+import { useGetProductColorsQuery } from '../../../store/services/productColor.api';
 import { BRAND_COLORS, useAppTheme } from '../../../theme/tokens';
 import { Alert } from '../../Other/UI/Alert/Alert';
 import Create from './__components/Create';
@@ -35,6 +46,23 @@ import { formatNumber } from '../../ui/number-format';
 const PAGE_SIZE = 12;
 const CLIPBOARD_EVENT = 'product-clipboard-changed';
 const SEARCH_DEBOUNCE_MS = 500;
+const DEFAULT_SORT = ['createdAt,DESC', 'id,DESC'];
+const SORT_FIELDS = [
+    ['name', 'Mahsulot nomi'],
+    ['price', 'Narxi'],
+    ['barcode', 'Shtrix-kod'],
+    ['article', 'Artikul'],
+    ['size', 'O‘lcham'],
+    ['minimumLine', 'Minimal qoldiq'],
+    ['piecesPerPack', 'Qadoqdagi dona'],
+    ['lowProductAlert', 'Kam qoldiq ogohlantirishi'],
+    ['createdAt', 'Yaratilgan vaqt'],
+    ['lastModifiedAt', 'O‘zgartirilgan vaqt'],
+    ['id', 'ID'],
+    ['brand.name', 'Brend nomi'],
+    ['category.name', 'Kategoriya nomi'],
+    ['color.name', 'Rang nomi'],
+];
 
 /* ── Clipboard helpers ── */
 const saveToClipboard = (product) => {
@@ -47,7 +75,13 @@ const saveToClipboard = (product) => {
             product.minimumLine !== null && product.minimumLine !== undefined
                 ? product.minimumLine
                 : '',
+        piecesPerPack:
+            product.piecesPerPack !== null && product.piecesPerPack !== undefined
+                ? product.piecesPerPack
+                : '',
         brandId: product.brand?.id || product.brandId || '',
+        colorId: product.color?.id || product.colorId || '',
+        categoryId: product.category?.id || product.categoryId || '',
         warehouseId: product.warehouseId || '',
         sourceName: product.name || '',
     };
@@ -94,6 +128,9 @@ export default function Product() {
     const navigate = useNavigate();
     const [search, setSearch] = useState('');
     const [query, setQuery] = useState('');
+    const [filters, setFilters] = useState({ brandId: '', categoryId: '', colorId: '' });
+    const [sort, setSort] = useState(DEFAULT_SORT);
+    const [filtersOpen, setFiltersOpen] = useState(false);
     const [page, setPage] = useState(0);
     const [products, setProducts] = useState([]);
     const [hasMore, setHasMore] = useState(true);
@@ -123,18 +160,34 @@ export default function Product() {
     }, [search]);
 
     const {
-        data: productResult,
+        currentData: productResult,
         isLoading,
         isFetching,
         error,
         refetch,
     } = useGetProductsQuery({
-        name: query || undefined,
+        query: query || undefined,
+        brandId: filters.brandId || undefined,
+        categoryId: filters.categoryId || undefined,
+        colorId: filters.colorId || undefined,
         page,
         size: PAGE_SIZE,
+        sort,
     });
 
     const { data: warehouses = [] } = useGetWarehousesQuery('PRODUCT');
+    const { data: brandsResult, error: brandsError } = useGetBrandsQuery({
+        page: 0,
+        size: 200,
+    });
+    const { data: categoriesResult, error: categoriesError } = useGetProductCategoriesQuery({
+        page: 0,
+        size: 200,
+    });
+    const { data: colorsResult, error: colorsError } = useGetProductColorsQuery({
+        page: 0,
+        size: 200,
+    });
     const [updateProduct] = useUpdateProductMutation();
 
     const {
@@ -155,6 +208,77 @@ export default function Product() {
     const tableBorder = isDark ? cardBorder : '#CBD5E1';
 
     const isDebouncing = search.trim() !== query;
+    const brands = brandsResult?.items ?? [];
+    const categories = categoriesResult?.items ?? [];
+    const colors = colorsResult?.items ?? [];
+    const activeFilterCount = Object.values(filters).filter(Boolean).length;
+
+    const resetList = () => {
+        setPage(0);
+        setProducts([]);
+        setHasMore(true);
+        isFetchingNextRef.current = false;
+    };
+
+    const resetPageForSort = () => {
+        setPage(0);
+        setHasMore(true);
+        isFetchingNextRef.current = false;
+    };
+
+    const applyFilters = (nextFilters) => {
+        setFilters(nextFilters);
+        resetList();
+    };
+
+    const changeSort = (field, direction) => {
+        const [activeField, activeDirection] = sort[0]?.split(',') ?? [];
+        const nextDirection =
+            direction ??
+            (activeField === field && activeDirection?.toLowerCase() === 'asc' ? 'desc' : 'asc');
+        const normalizedDirection = nextDirection.toUpperCase();
+        setSort(
+            field === 'id'
+                ? [`${field},${normalizedDirection}`]
+                : [`${field},${normalizedDirection}`, 'id,DESC'],
+        );
+        resetPageForSort();
+    };
+
+    const updateSortRule = (index, field, direction) => {
+        const nextSort = [...sort];
+        const [currentField, currentDirection] = nextSort[index].split(',');
+        const nextField = field ?? currentField;
+        const nextDirection = (direction ?? currentDirection).toUpperCase();
+        const duplicateIndex = nextSort.findIndex(
+            (rule, ruleIndex) => ruleIndex !== index && rule.split(',')[0] === nextField,
+        );
+        if (duplicateIndex !== -1) {
+            nextSort.splice(duplicateIndex, 1);
+        }
+        const adjustedIndex = duplicateIndex !== -1 && duplicateIndex < index ? index - 1 : index;
+        nextSort[adjustedIndex] = `${nextField},${nextDirection}`;
+        setSort(nextSort);
+        resetList();
+    };
+
+    const addSortRule = () => {
+        const usedFields = new Set(sort.map((rule) => rule.split(',')[0]));
+        const nextField = SORT_FIELDS.find(([field]) => !usedFields.has(field))?.[0];
+        if (!nextField) return;
+        setSort((current) => {
+            const next = [...current];
+            const idIndex = next.findIndex((rule) => rule.split(',')[0] === 'id');
+            next.splice(idIndex === -1 ? next.length : idIndex, 0, `${nextField},ASC`);
+            return next;
+        });
+        resetList();
+    };
+
+    const removeSortRule = (index) => {
+        setSort((current) => current.filter((_, ruleIndex) => ruleIndex !== index));
+        resetList();
+    };
 
     /* ── Yangi sahifa kelganda ro'yxatga qo'shamiz ── */
     useEffect(() => {
@@ -170,7 +294,6 @@ export default function Product() {
             });
         }
 
-        // hasMore aniqlash
         const totalPages = pagination?.totalPages ?? 0;
         if (totalPages > 0) {
             setHasMore(page < totalPages - 1);
@@ -181,7 +304,7 @@ export default function Product() {
         isFetchingNextRef.current = false;
     }, [productResult, page, pagination]);
 
-    /* ── Infinite scroll: pastga yetganda avtomatik GET ── */
+    /* ── Infinite scroll ── */
     useEffect(() => {
         const node = loadMoreRef.current;
         if (!node) return;
@@ -201,7 +324,7 @@ export default function Product() {
             },
             {
                 root: null,
-                rootMargin: '400px 0px', // 400px oldin boshlanadi — silliq yuklanadi
+                rootMargin: '400px 0px',
                 threshold: 0,
             }
         );
@@ -230,43 +353,89 @@ export default function Product() {
     const clearSearch = () => {
         setSearch('');
         setQuery('');
-        setPage(0);
-        setProducts([]);
-        setHasMore(true);
-        isFetchingNextRef.current = false;
+        resetList();
+    };
+
+    const clearFilters = () => {
+        setFilters({ brandId: '', categoryId: '', colorId: '' });
+        setSort(DEFAULT_SORT);
+        resetList();
+    };
+
+    const sortableHeader = (label, field, minW, textAlign) => {
+        const [activeField, activeDirection] = sort[0]?.split(',') ?? [];
+        const isActive = activeField === field;
+        const justifyContent =
+            textAlign === 'right'
+                ? 'flex-end'
+                : textAlign === 'center'
+                  ? 'center'
+                  : 'flex-start';
+        return (
+            <Table.ColumnHeader {...headerCell} minW={minW} textAlign={textAlign}>
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="xs"
+                    minW={0}
+                    w="100%"
+                    h="auto"
+                    px={0}
+                    py={0}
+                    fontSize="inherit"
+                    fontWeight="inherit"
+                    color={isActive ? accentColor : 'inherit'}
+                    justifyContent={justifyContent}
+                    onClick={() => changeSort(field)}
+                    _hover={{ color: accentColor, bg: 'transparent' }}
+                    aria-label={`${label} bo‘yicha ${isActive && activeDirection?.toLowerCase() === 'asc' ? 'kamayish' : 'o‘sish'} tartibida saralash`}
+                >
+                    <HStack gap={1.5}>
+                        <Text>{label}</Text>
+                        {isActive ? (
+                            activeDirection?.toLowerCase() === 'asc' ? (
+                                <LuArrowUp size={14} aria-hidden="true" />
+                            ) : (
+                                <LuArrowDown size={14} aria-hidden="true" />
+                            )
+                        ) : (
+                            <LuArrowDownUp size={12} />
+                        )}
+                    </HStack>
+                </Button>
+            </Table.ColumnHeader>
+        );
     };
 
     useEffect(() => {
         if (error) Alert(error?.data?.message || 'Mahsulotlarni yuklashda xatolik', 'error');
     }, [error]);
 
+    useEffect(() => {
+        if (brandsError) {
+            Alert(brandsError?.data?.message || 'Brendlar ro‘yxatini yuklashda xatolik', 'error');
+        }
+    }, [brandsError]);
+
+    useEffect(() => {
+        if (categoriesError) {
+            Alert(
+                categoriesError?.data?.message || 'Kategoriyalar ro‘yxatini yuklashda xatolik',
+                'error',
+            );
+        }
+    }, [categoriesError]);
+
+    useEffect(() => {
+        if (colorsError) {
+            Alert(colorsError?.data?.message || 'Ranglar ro‘yxatini yuklashda xatolik', 'error');
+        }
+    }, [colorsError]);
+
     const getWarehouseName = (warehouseId) => {
         if (!warehouseId) return null;
         const found = warehouses.find((w) => w.id === warehouseId);
         return found?.name || null;
-    };
-
-    const handleToggleAlert = async (e, product) => {
-        e.stopPropagation();
-        try {
-            await updateProduct({
-                id: product.id,
-                data: {
-                    name: product.name,
-                    price: product.price,
-                    warehouseId: product.warehouseId,
-                    lowProductAlert: !product.lowProductAlert,
-                    ...(product.article && { article: product.article }),
-                    ...(product.size && { size: product.size }),
-                    ...(product.minimumLine !== null && product.minimumLine !== undefined && { minimumLine: product.minimumLine }),
-                    ...(product.piecesPerPack !== null && product.piecesPerPack !== undefined && { piecesPerPack: product.piecesPerPack }),
-                    ...(product.brand?.id && { brandId: product.brand.id }),
-                },
-            }).unwrap();
-            refetch();
-        } catch (err) {
-            Alert(err?.data?.message || 'Yangilashda xatolik', 'error');
-        }
     };
 
     return (
@@ -311,7 +480,7 @@ export default function Product() {
                     <FormControl
                         value={search}
                         onChange={(event) => setSearch(event.target.value)}
-                        placeholder="Mahsulot nomi bo‘yicha qidiring..."
+                        placeholder="Mahsulot nomi yoki artikuli bo‘yicha qidiring..."
                         aria-label="Mahsulot qidirish"
                         pl={11}
                         pr={search ? 22 : 4}
@@ -358,10 +527,155 @@ export default function Product() {
                         </Button>
                     )}
                 </Box>
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    h="40px"
+                    flexShrink={0}
+                    onClick={() => setFiltersOpen((open) => !open)}
+                    aria-expanded={filtersOpen}
+                    borderColor={activeFilterCount ? accentColor : cardBorder}
+                    color={activeFilterCount ? accentColor : textColor}
+                >
+                    <LuSlidersHorizontal size={16} />
+                    Filtrlar{activeFilterCount ? ` (${activeFilterCount})` : ''}
+                    <LuChevronDown
+                        size={15}
+                        style={{
+                            transform: filtersOpen ? 'rotate(180deg)' : undefined,
+                            transition: 'transform 160ms ease',
+                        }}
+                    />
+                </Button>
             </HStack>
 
+            {filtersOpen && (
+                <Box
+                    id="product-filters"
+                    mb={4}
+                    p={{ base: 4, md: 6 }}
+                    bg={isDark ? tableBg : '#FFFFFF'}
+                    borderWidth="1px"
+                    borderColor={cardBorder}
+                    borderRadius="2xl"
+                    boxShadow={
+                        isDark
+                            ? '0 12px 32px rgba(0, 0, 0, 0.18)'
+                            : '0 12px 32px rgba(15, 23, 42, 0.08)'
+                    }
+                >
+                    <HStack justify="space-between" align="center" mb={4} flexWrap="wrap" gap={2}>
+                        <HStack gap={3}>
+                            <Box
+                                p={2.5}
+                                borderRadius="xl"
+                                bg={isDark ? 'rgba(250, 204, 21, 0.14)' : '#FEF3C7'}
+                                color={accentColor}
+                                display="inline-flex"
+                            >
+                                <LuSlidersHorizontal size={19} />
+                            </Box>
+                            <Box>
+                                <Text fontSize="lg" fontWeight="bold" color={textColor}>
+                                    Filtrlar va saralash
+                                </Text>
+                                <Text fontSize="sm" color={subtitleColor}>
+                                    Barcha tanlangan filtrlar birgalikda qo‘llanadi
+                                </Text>
+                            </Box>
+                        </HStack>
+                        {(activeFilterCount > 0 || sort.join('|') !== DEFAULT_SORT.join('|')) && (
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={clearFilters}
+                                color={accentColor}
+                            >
+                                Tozalash
+                            </Button>
+                        )}
+                    </HStack>
+                    <Box
+                        display="grid"
+                        gridTemplateColumns={{
+                            base: '1fr',
+                            sm: 'repeat(2, minmax(0, 1fr))',
+                            xl: 'repeat(3, minmax(0, 1fr))',
+                        }}
+                        gap={4}
+                    >
+                        {[
+                            {
+                                key: 'brandId',
+                                label: 'Brend',
+                                placeholder: 'Barcha brendlar',
+                                options: brands,
+                            },
+                            {
+                                key: 'categoryId',
+                                label: 'Kategoriya',
+                                placeholder: 'Barcha kategoriyalar',
+                                options: categories,
+                            },
+                            {
+                                key: 'colorId',
+                                label: 'Rang',
+                                placeholder: 'Barcha ranglar',
+                                options: colors,
+                            },
+                        ].map(({ key, label, placeholder, options }) => (
+                            <Box key={key} minW={0}>
+                                <Text
+                                    as="label"
+                                    htmlFor={`product-filter-${key}`}
+                                    fontSize="sm"
+                                    fontWeight="semibold"
+                                    mb={2}
+                                    display="block"
+                                >
+                                    {label}
+                                </Text>
+                                <Box
+                                    as="select"
+                                    id={`product-filter-${key}`}
+                                    value={filters[key]}
+                                    onChange={(event) =>
+                                        applyFilters({ ...filters, [key]: event.target.value })
+                                    }
+                                    w="100%"
+                                    h="46px"
+                                    px={4}
+                                    borderWidth="1px"
+                                    borderColor={cardBorder}
+                                    borderRadius="xl"
+                                    bg={tableBg}
+                                    color={textColor}
+                                    fontSize="sm"
+                                    outline="none"
+                                    transition="border-color 0.16s, box-shadow 0.16s"
+                                    _focus={{
+                                        borderColor: accentColor,
+                                        boxShadow: `0 0 0 1px ${accentColor}`,
+                                    }}
+                                >
+                                    <option value="">{placeholder}</option>
+                                    {options.map((option) => (
+                                        <option key={option.id} value={option.id}>
+                                            {option.name}
+                                        </option>
+                                    ))}
+                                </Box>
+                            </Box>
+                        ))}
+                    </Box>
+
+                </Box>
+            )}
+
             {/* ── Content ── */}
-            {isLoading && products.length === 0 ? (
+            {(isLoading || isFetching) && products.length === 0 ? (
                 <Loading />
             ) : error ? (
                 <Box p={8} textAlign="center" color={isDark ? 'red.300' : 'red.600'}>
@@ -392,40 +706,26 @@ export default function Product() {
                             interactive
                             bg={tableBg}
                             borderCollapse="collapse"
-                            minW="1500px"
+                            minW="1750px"
                         >
                             <Table.Header bg={tableHeaderBg}>
                                 <Table.Row bg={tableHeaderBg}>
                                     <Table.ColumnHeader {...headerCell} textAlign="center" w="50px">
                                         №
                                     </Table.ColumnHeader>
-                                    <Table.ColumnHeader {...headerCell} minW="240px">
-                                        Mahsulot
-                                    </Table.ColumnHeader>
-                                    <Table.ColumnHeader {...headerCell} minW="130px">
-                                        Artikul
-                                    </Table.ColumnHeader>
-                                    <Table.ColumnHeader {...headerCell} minW="160px">
-                                        Brend
-                                    </Table.ColumnHeader>
-                                    <Table.ColumnHeader {...headerCell} minW="110px">
-                                        O‘lcham
-                                    </Table.ColumnHeader>
-                                    <Table.ColumnHeader {...headerCell} minW="130px" textAlign="right">
-                                        Narxi
-                                    </Table.ColumnHeader>
-                                    <Table.ColumnHeader {...headerCell} minW="110px" textAlign="right">
-                                        Min. qoldiq
-                                    </Table.ColumnHeader>
-                                    <Table.ColumnHeader {...headerCell} minW="130px" textAlign="center">
-                                        Qadoqdagi dona
-                                    </Table.ColumnHeader>
+                                    {sortableHeader('Mahsulot', 'name', '240px')}
+                                    {sortableHeader('Artikul', 'article', '130px')}
+                                    {sortableHeader('Brend', 'brand.name', '160px')}
+                                    {sortableHeader('Kategoriya', 'category.name', '140px')}
+                                    {sortableHeader('Rang', 'color.name', '130px')}
+                                    {sortableHeader('O‘lcham', 'size', '110px')}
+                                    {sortableHeader('Narxi', 'price', '130px', 'right')}
+                                    {sortableHeader('Min. qoldiq', 'minimumLine', '110px', 'right')}
+                                    {sortableHeader('Qadoqdagi dona', 'piecesPerPack', '130px', 'center')}
                                     <Table.ColumnHeader {...headerCell} minW="170px">
                                         Ombor
                                     </Table.ColumnHeader>
-                                    <Table.ColumnHeader {...headerCell} minW="150px">
-                                        Shtrix-kod
-                                    </Table.ColumnHeader>
+                                    {sortableHeader('Shtrix-kod', 'barcode', '150px')}
                                     <Table.ColumnHeader {...headerCell} textAlign="center" w="140px">
                                         Amal
                                     </Table.ColumnHeader>
@@ -435,6 +735,8 @@ export default function Product() {
                                 {products.map((product, index) => {
                                     const warehouseName = getWarehouseName(product.warehouseId);
                                     const brand = product.brand;
+                                    const color = product.color;
+                                    const category = product.category;
                                     return (
                                         <Table.Row
                                             key={product.id}
@@ -502,7 +804,7 @@ export default function Product() {
                                                 </HStack>
                                             </Table.Cell>
 
-                                            {/* Artikul — alohida ustun */}
+                                            {/* Artikul */}
                                             <Table.Cell {...cellBorder}>
                                                 {product.article ? (
                                                     <Text
@@ -524,6 +826,7 @@ export default function Product() {
                                                 )}
                                             </Table.Cell>
 
+                                            {/* Brend */}
                                             <Table.Cell {...cellBorder}>
                                                 {brand?.name ? (
                                                     <HStack gap={1.5}>
@@ -564,6 +867,89 @@ export default function Product() {
                                                 )}
                                             </Table.Cell>
 
+                                            {/* Kategoriya */}
+                                            <Table.Cell {...cellBorder}>
+                                                {category?.name ? (
+                                                    <HStack gap={1.5}>
+                                                        <Box
+                                                            p={1}
+                                                            borderRadius="md"
+                                                            bg={
+                                                                isDark
+                                                                    ? 'rgba(168, 85, 247, 0.15)'
+                                                                    : '#F3E8FF'
+                                                            }
+                                                            color={
+                                                                isDark ? 'purple.300' : 'purple.600'
+                                                            }
+                                                            display="inline-flex"
+                                                            alignItems="center"
+                                                            justifyContent="center"
+                                                            flexShrink={0}
+                                                        >
+                                                            <LuFolder size={12} />
+                                                        </Box>
+                                                        <Text
+                                                            fontSize="sm"
+                                                            color={textColor}
+                                                            noOfLines={1}
+                                                        >
+                                                            {category.name}
+                                                        </Text>
+                                                    </HStack>
+                                                ) : (
+                                                    <Text
+                                                        fontSize="sm"
+                                                        color={subtitleColor}
+                                                        fontStyle="italic"
+                                                    >
+                                                        —
+                                                    </Text>
+                                                )}
+                                            </Table.Cell>
+
+                                            {/* Rang */}
+                                            <Table.Cell {...cellBorder}>
+                                                {color?.name ? (
+                                                    <HStack gap={1.5}>
+                                                        <Box
+                                                            p={1}
+                                                            borderRadius="md"
+                                                            bg={
+                                                                isDark
+                                                                    ? 'rgba(236, 72, 153, 0.15)'
+                                                                    : '#FCE7F3'
+                                                            }
+                                                            color={
+                                                                isDark ? 'pink.300' : 'pink.600'
+                                                            }
+                                                            display="inline-flex"
+                                                            alignItems="center"
+                                                            justifyContent="center"
+                                                            flexShrink={0}
+                                                        >
+                                                            <LuPalette size={12} />
+                                                        </Box>
+                                                        <Text
+                                                            fontSize="sm"
+                                                            color={textColor}
+                                                            noOfLines={1}
+                                                        >
+                                                            {color.name}
+                                                        </Text>
+                                                    </HStack>
+                                                ) : (
+                                                    <Text
+                                                        fontSize="sm"
+                                                        color={subtitleColor}
+                                                        fontStyle="italic"
+                                                    >
+                                                        —
+                                                    </Text>
+                                                )}
+                                            </Table.Cell>
+
+                                            {/* O'lcham */}
                                             <Table.Cell {...cellBorder}>
                                                 {product.size ? (
                                                     <HStack gap={1.5}>
@@ -587,6 +973,7 @@ export default function Product() {
                                                 )}
                                             </Table.Cell>
 
+                                            {/* Narxi */}
                                             <Table.Cell
                                                 {...cellBorder}
                                                 textAlign="right"
@@ -609,6 +996,7 @@ export default function Product() {
                                                 </Text>
                                             </Table.Cell>
 
+                                            {/* Minimum qoldiq */}
                                             <Table.Cell
                                                 {...cellBorder}
                                                 textAlign="right"
@@ -638,6 +1026,7 @@ export default function Product() {
                                                 )}
                                             </Table.Cell>
 
+                                            {/* Qadoqdagi dona */}
                                             <Table.Cell {...cellBorder} textAlign="center" whiteSpace="nowrap">
                                                 {product.piecesPerPack !== null && product.piecesPerPack !== undefined ? (
                                                     <HStack gap={1.5} justify="center">
@@ -662,6 +1051,7 @@ export default function Product() {
                                                 )}
                                             </Table.Cell>
 
+                                            {/* Ombor */}
                                             <Table.Cell {...cellBorder}>
                                                 {warehouseName ? (
                                                     <HStack gap={1.5}>
@@ -689,6 +1079,7 @@ export default function Product() {
                                                 )}
                                             </Table.Cell>
 
+                                            {/* Shtrix-kod */}
                                             <Table.Cell {...cellBorder}>
                                                 {product.barcode ? (
                                                     <Text
@@ -706,6 +1097,7 @@ export default function Product() {
                                                 )}
                                             </Table.Cell>
 
+                                            {/* Amallar */}
                                             <Table.Cell
                                                 {...cellBorder}
                                                 textAlign="center"
@@ -725,7 +1117,7 @@ export default function Product() {
                         </Table.Root>
                     </Box>
 
-                    {/* ── AUTO-LOAD SENTINEL: pastga yetganda avtomatik GET ── */}
+                    {/* ── AUTO-LOAD SENTINEL ── */}
                     {hasMore ? (
                         <Box
                             ref={loadMoreRef}
