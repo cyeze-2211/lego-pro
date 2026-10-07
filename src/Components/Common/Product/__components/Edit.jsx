@@ -32,7 +32,18 @@ import { useAppTheme } from '../../../../theme/tokens';
 import FormattedNumberInput from '../../../ui/FormattedNumberInput';
 import FormControl from '../../../ui/FormControl';
 
+/* ── helpers ── */
 const toStr = (v) => (v === null || v === undefined ? '' : String(v));
+
+/** "25 000", "25,000", "25 000.50" → 25000 / 25000.5 ; "" / "abc" → NaN */
+const parseNumber = (raw) => {
+    const cleaned = toStr(raw)
+        .replace(/\s+/g, '')      // пробелы-разделители
+        .replace(/,/g, '')        // запятые-разделители
+        .replace(/[^\d.-]/g, ''); // всё остальное — прочь
+    if (cleaned === '' || cleaned === '-' || cleaned === '.') return NaN;
+    return Number(cleaned);
+};
 
 const buildInitial = (product) => ({
     name: toStr(product?.name),
@@ -61,11 +72,9 @@ export default function Edit({ product }) {
     const modalBorder = isDark ? cardBorder : '#94A3B8';
     const brands = brandsData?.items ?? [];
 
-    // ✅ Сбрасываем форму ТОЛЬКО при открытии диалога.
-    // `product` держим в ref, чтобы не тянуть его в deps.
+    /* Сброс формы только при открытии */
     const productRef = useRef(product);
     productRef.current = product;
-
     const wasOpenRef = useRef(false);
     useEffect(() => {
         if (open && !wasOpenRef.current) {
@@ -81,37 +90,38 @@ export default function Edit({ product }) {
         if (isLoading) return;
 
         const trimmedName = toStr(form.name).trim();
-        const priceNum = Number(form.price);
+        const priceNum = parseNumber(form.price);
+        const minLineNum = parseNumber(form.minimumLine);
+        const piecesNum = parseNumber(form.piecesPerPack);
 
         if (!trimmedName) {
             Alert('Mahsulot nomi majburiy', 'error');
             return;
         }
-        if (!form.price || Number.isNaN(priceNum) || priceNum <= 0) {
+        if (Number.isNaN(priceNum) || priceNum <= 0) {
             Alert('Narx 0 dan katta bo‘lishi kerak', 'error');
             return;
         }
 
+        /* ── Собираем payload со ВСЕМИ полями ── */
         const payload = {
-            name: trimmedName,                       // ✅ всегда явная строка
+            name: trimmedName,
             price: priceNum,
             lowProductAlert: Boolean(form.lowProductAlert),
+            article: toStr(form.article).trim(),
+            size: toStr(form.size).trim(),
+            minimumLine: Number.isNaN(minLineNum) ? 0 : minLineNum,
+            piecesPerPack: Number.isNaN(piecesNum) ? null : piecesNum,
+            brandId: form.brandId || null,
         };
 
-        const article = toStr(form.article).trim();
-        const size = toStr(form.size).trim();
-        const minLine = toStr(form.minimumLine).trim();
-        const piecesPerPack = toStr(form.piecesPerPack).trim();
+        // Убираем только brandId:null — остальные шлём всегда
+        if (payload.brandId === null) delete payload.brandId;
 
-        if (article) payload.article = article;
-        if (size) payload.size = size;
-        if (minLine !== '' && !Number.isNaN(Number(minLine))) {
-            payload.minimumLine = Number(minLine);
-        }
-        if (piecesPerPack !== '' && !Number.isNaN(Number(piecesPerPack))) {
-            payload.piecesPerPack = Number(piecesPerPack);
-        }
-        if (form.brandId) payload.brandId = form.brandId;
+        // piecesPerPack может быть null — оставляем как есть,
+        // но если бэк не принимает null — замените на: delete payload.piecesPerPack;
+
+        console.log('🚀 EDIT payload:', payload); // отладка — удалить после проверки
 
         try {
             await updateProduct({ id: product.id, data: payload }).unwrap();
