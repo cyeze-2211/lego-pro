@@ -21,6 +21,7 @@ export const SIDEBAR_CONFIG = [
     { label: 'Agentlar', path: '/customer-agents', icon: UserCheck, roles: [ROLES.MANAGER] },
     { label: 'Kassalar', path: '/cashboxes', icon: Wallet, roles: [ROLES.MANAGER] },
     { label: 'Xarajatlar', path: '/expenses', icon: ReceiptText, roles: [ROLES.MANAGER] },
+    { label: 'Xarajat kategoriyalari', path: '/expense-categories', icon: ReceiptText, roles: [ROLES.MANAGER] },
     { label: 'Sverka', path: '/reconciliation', icon: FileSpreadsheet, roles: [ROLES.MANAGER] },
     { label: 'Foydalanuvchilar', path: '/users', icon: UserRound, roles: [ROLES.MANAGER] },
     { label: 'Rollar', path: '/roles', icon: ShieldCheck, roles: [ROLES.MANAGER] },
@@ -30,7 +31,7 @@ export const SIDEBAR_CONFIG = [
 export const SIDEBAR_GROUPS = [
     { label: 'Asosiy', items: SIDEBAR_CONFIG.filter((i) => i.path === '/') },
     { label: 'Ishlab chiqarish', items: SIDEBAR_CONFIG.filter((i) => ['/warehouses', '/products', '/product-colors', '/product-categories', '/raw', '/recipes', '/machines', '/brand'].includes(i.path)) },
-    { label: 'Moliya', items: SIDEBAR_CONFIG.filter((i) => ['/cashboxes', '/expenses', '/reconciliation'].includes(i.path)) },
+    { label: 'Moliya', items: SIDEBAR_CONFIG.filter((i) => ['/cashboxes', '/expenses', '/expense-categories', '/reconciliation'].includes(i.path)) },
     { label: 'Userlar', items: SIDEBAR_CONFIG.filter((i) => ['/customers', '/customer-agents', '/orders', '/users', '/roles', '/devices'].includes(i.path)) },
 ];
 

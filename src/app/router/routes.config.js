@@ -143,6 +143,11 @@ export const ROUTES = [
         roles: ROLES.MANAGER,
     },
     {
+        path: '/expense-categories',
+        component: lazy(() => import('../../Components/Common/ExpenseCategory')),
+        roles: ROLES.MANAGER,
+    },
+    {
         path: '/expenses/:id',
         component: lazy(() => import('../../Components/Common/ExpenseDetail')),
         roles: ROLES.MANAGER,

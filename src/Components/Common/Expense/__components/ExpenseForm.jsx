@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import { Box, Button, Dialog, Field, HStack, Portal, Spinner, Text, VStack } from '@chakra-ui/react';
 import { Check, ReceiptText, X } from 'lucide-react';
-import { LuCalendarDays, LuDollarSign, LuStickyNote, LuTag, LuWallet } from 'react-icons/lu';
+import { LuCalendarDays, LuDollarSign, LuStickyNote, LuTag, LuWallet, LuLayers } from 'react-icons/lu';
 import { useAppTheme } from '../../../../theme/tokens';
+import { useGetExpenseCategoriesQuery } from '../../../../store/services/expenseCategory.api';
 import FormControl from '../../../ui/FormControl';
 import { Alert } from '../../../Other/UI/Alert/Alert';
 import UsdCalculator, { CalculatorToggle } from '../../../ui/UsdCalculator';
@@ -15,11 +16,15 @@ export default function ExpenseForm({ open, onClose, cashboxes, expense = null, 
     const [summary, setSummary] = useState('');
     const [amount, setAmount] = useState('');
     const [cashboxId, setCashboxId] = useState('');
+    const [categoryId, setCategoryId] = useState('');
     const [expenseDate, setExpenseDate] = useState(today());
     const [calcOpen, setCalcOpen] = useState(false);
     const { isDark, accentColor, cardBg, cardBorder, textColor, subtitleColor } = useAppTheme();
     const modalBorder = isDark ? cardBorder : '#94A3B8';
     const isEdit = Boolean(expense);
+    const { data: categoryResult, isLoading: categoriesLoading, isError: categoriesError } =
+        useGetExpenseCategoriesQuery({ page: 0, size: 200 }, { skip: !open });
+    const categories = categoryResult?.items ?? [];
 
     useEffect(() => {
         if (open) {
@@ -27,6 +32,7 @@ export default function ExpenseForm({ open, onClose, cashboxes, expense = null, 
             setSummary(expense?.summary || '');
             setAmount(expense?.amount?.toString() || '');
             setCashboxId(expense?.cashboxId || '');
+            setCategoryId(expense?.category?.id || expense?.categoryId || '');
             setExpenseDate(expense?.expenseDate || today());
             setCalcOpen(false);
         }
@@ -36,13 +42,13 @@ export default function ExpenseForm({ open, onClose, cashboxes, expense = null, 
         const trimmedName = name.trim();
         const trimmedSummary = summary.trim();
         const numericAmount = Number(String(amount).replace(/\s/g, '').replace(',', '.'));
-        if (!trimmedName || (!isEdit && !cashboxId) || !amount) return Alert('Nomi, summa va kassa majburiy', 'error');
+        if (!trimmedName || (!isEdit && !cashboxId) || !amount || !categoryId) return Alert('Nomi, summa, kategoriya va kassa majburiy', 'error');
         if (trimmedName.length > 255 || trimmedSummary.length > 500) return Alert('Nom 255, izoh esa 500 belgidan oshmasligi kerak', 'error');
         if (!/^\d+(?:[.,]\d{1,2})?$/.test(String(amount).replace(/\s/g, '')) || !Number.isFinite(numericAmount) || numericAmount <= 0) {
             return Alert('Summa 0 dan katta va 2 kasr xonagacha bo‘lishi kerak', 'error');
         }
         if (!expenseDate || expenseDate > today()) return Alert('Xarajat sanasi bugun yoki undan oldingi kun bo‘lishi kerak', 'error');
-        await onSubmit({ name: trimmedName, summary: trimmedSummary || null, amount: numericAmount, ...(isEdit ? {} : { cashboxId }), expenseDate });
+        await onSubmit({ name: trimmedName, summary: trimmedSummary || null, amount: numericAmount, categoryId, ...(isEdit ? {} : { cashboxId }), expenseDate });
     };
 
     return (
@@ -79,6 +85,24 @@ export default function ExpenseForm({ open, onClose, cashboxes, expense = null, 
                                         <Field.RequiredIndicator />
                                     </Field.Label>
                                     <FormControl value={name} onChange={(e) => setName(e.target.value)} autoFocus placeholder="Masalan, Ijara to‘lovi" maxLength={255} />
+                                </Field.Root>
+                                <Field.Root required>
+                                    <Field.Label color={textColor}>
+                                        <HStack gap={2}><LuLayers size={16} /><span>Xarajat kategoriyasi</span></HStack>
+                                        <Field.RequiredIndicator />
+                                    </Field.Label>
+                                    <FormControl as="select" value={categoryId} onChange={(event) => setCategoryId(event.target.value)} disabled={categoriesLoading || categoriesError || categories.length === 0}>
+                                        <option value="">
+                                            {categoriesLoading ? 'Kategoriyalar yuklanmoqda...' : categoriesError ? 'Kategoriyalarni yuklashda xatolik' : categories.length === 0 ? 'Avval kategoriya qo‘shing' : 'Kategoriyani tanlang'}
+                                        </option>
+                                        {categoryId && !categories.some((category) => category.id === categoryId) && (
+                                            <option value={categoryId}>{expense?.category?.name || 'Mavjud xarajat kategoriyasi'}</option>
+                                        )}
+                                        {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+                                    </FormControl>
+                                    {!categoriesLoading && !categoriesError && categories.length === 0 && (
+                                        <Text fontSize="xs" color={subtitleColor}>Xarajat kiritishdan oldin kategoriyalar bo‘limida kategoriya qo‘shing.</Text>
+                                    )}
                                 </Field.Root>
                                 <Field.Root required>
                                     <Field.Label color={textColor}>
