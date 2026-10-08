@@ -23,6 +23,7 @@ import {
     LuTriangleAlert,
     LuBoxes,
     LuWarehouse,
+    LuGift,
 } from 'react-icons/lu';
 import { useUpdateProductMutation } from '../../../../store/services/product.api';
 import { useGetWarehousesQuery } from '../../../../store/services/warehouse.api';
@@ -50,6 +51,7 @@ const parseNumber = (raw) => {
 const buildInitial = (product) => ({
     name: toStr(product?.name),
     price: toStr(product?.price),
+    bonusPrice: toStr(product?.bonusPrice),
     warehouseId: product?.warehouseId || '',
     article: toStr(product?.article),
     size: toStr(product?.size),
@@ -112,6 +114,7 @@ export default function Edit({ product }) {
 
         const trimmedName = toStr(form.name).trim();
         const priceNum = parseNumber(form.price);
+        const bonusPriceNum = parseNumber(form.bonusPrice);
         const minLineNum = parseNumber(form.minimumLine);
         const piecesNum = parseNumber(form.piecesPerPack);
 
@@ -121,6 +124,14 @@ export default function Edit({ product }) {
         }
         if (Number.isNaN(priceNum) || priceNum <= 0) {
             Alert('Narx 0 dan katta bo‘lishi kerak', 'error');
+            return;
+        }
+        if (
+            form.bonusPrice !== '' &&
+            !Number.isNaN(bonusPriceNum) &&
+            bonusPriceNum < 0
+        ) {
+            Alert('Bonus narx manfiy bo‘lishi mumkin emas', 'error');
             return;
         }
         if (!form.warehouseId) {
@@ -149,6 +160,13 @@ export default function Edit({ product }) {
             categoryId: form.categoryId,
             lowProductAlert: Boolean(form.lowProductAlert),
         };
+
+        /* Bonus narx — faqat kiritilgan bo'lsa yuboriladi,
+         * bo'sh bo'lsa null (backend tozalab qo'yishi uchun). */
+        payload.bonusPrice =
+            form.bonusPrice !== '' && !Number.isNaN(bonusPriceNum)
+                ? bonusPriceNum
+                : null;
 
         try {
             await updateProduct({ id: product.id, data: payload }).unwrap();
@@ -443,10 +461,11 @@ export default function Edit({ product }) {
                                         </VStack>
                                     </Box>
 
-                                    {/* ═══ Narx ═══ */}
+                                    {/* ═══ Narx va ombor ═══ */}
                                     <Box>
-                                        {sectionHeader(<LuDollarSign size={16} />, 'Narx')}
-                                        <SimpleGrid columns={{ base: 1, md: 2 }} gap={5}>
+                                        {sectionHeader(<LuDollarSign size={16} />, 'Narx va ombor')}
+
+                                        <SimpleGrid columns={{ base: 1, md: 2 }} gap={5} mb={5}>
                                             <Field.Root required>
                                                 <Field.Label color={textColor} fontWeight="medium">
                                                     <HStack gap={2}>
@@ -466,39 +485,63 @@ export default function Edit({ product }) {
                                                     disabled={isLoading}
                                                 />
                                             </Field.Root>
-                                            <Field.Root required>
+
+                                            {/* Bonus narx — ixtiyoriy */}
+                                            <Field.Root>
                                                 <Field.Label color={textColor} fontWeight="medium">
                                                     <HStack gap={2}>
-                                                        <LuWarehouse size={16} />
-                                                        <span>Ombor</span>
+                                                        <LuGift size={16} />
+                                                        <span>Bonus narx (so‘m)</span>
                                                     </HStack>
-                                                    <Field.RequiredIndicator />
                                                 </Field.Label>
-                                                <FormControl
-                                                    as="select"
-                                                    value={form.warehouseId}
-                                                    onChange={(event) => setField('warehouseId', event.target.value)}
+                                                <FormattedNumberInput
+                                                    value={form.bonusPrice}
+                                                    onChange={(v) => setField('bonusPrice', v)}
+                                                    placeholder="100 (ixtiyoriy)"
+                                                    size="lg"
+                                                    min="0"
+                                                    step="0.01"
                                                     minH="52px"
-                                                    disabled={isLoading || warehousesLoading || warehousesError}
-                                                >
-                                                    <option value="">
-                                                        {warehousesLoading
-                                                            ? 'Omborlar yuklanmoqda...'
-                                                            : warehousesError
-                                                            ? 'Omborlarni yuklashda xatolik'
-                                                            : 'Omborni tanlang'}
-                                                    </option>
-                                                    {form.warehouseId && !warehouses.some((warehouse) => warehouse.id === form.warehouseId) && (
-                                                        <option value={form.warehouseId}>Joriy ombor</option>
-                                                    )}
-                                                    {warehouses.map((warehouse) => (
-                                                        <option key={warehouse.id} value={warehouse.id}>
-                                                            {warehouse.name}
-                                                        </option>
-                                                    ))}
-                                                </FormControl>
+                                                    disabled={isLoading}
+                                                />
+                                                <Field.HelperText color={subtitleColor}>
+                                                    Bonus ball yig‘ish uchun narx
+                                                </Field.HelperText>
                                             </Field.Root>
                                         </SimpleGrid>
+
+                                        <Field.Root required>
+                                            <Field.Label color={textColor} fontWeight="medium">
+                                                <HStack gap={2}>
+                                                    <LuWarehouse size={16} />
+                                                    <span>Ombor</span>
+                                                </HStack>
+                                                <Field.RequiredIndicator />
+                                            </Field.Label>
+                                            <FormControl
+                                                as="select"
+                                                value={form.warehouseId}
+                                                onChange={(event) => setField('warehouseId', event.target.value)}
+                                                minH="52px"
+                                                disabled={isLoading || warehousesLoading || warehousesError}
+                                            >
+                                                <option value="">
+                                                    {warehousesLoading
+                                                        ? 'Omborlar yuklanmoqda...'
+                                                        : warehousesError
+                                                        ? 'Omborlarni yuklashda xatolik'
+                                                        : 'Omborni tanlang'}
+                                                </option>
+                                                {form.warehouseId && !warehouses.some((warehouse) => warehouse.id === form.warehouseId) && (
+                                                    <option value={form.warehouseId}>Joriy ombor</option>
+                                                )}
+                                                {warehouses.map((warehouse) => (
+                                                    <option key={warehouse.id} value={warehouse.id}>
+                                                        {warehouse.name}
+                                                    </option>
+                                                ))}
+                                            </FormControl>
+                                        </Field.Root>
                                     </Box>
 
                                     {/* ═══ Qadoq ═══ */}
@@ -551,36 +594,6 @@ export default function Edit({ product }) {
                                         </SimpleGrid>
                                     </Box>
 
-                                    <Box>
-                                        {sectionHeader(<LuTriangleAlert size={16} />, 'Kam qoldiq ogohlantirishi')}
-                                        <HStack
-                                            as="label"
-                                            align="center"
-                                            gap={3}
-                                            p={4}
-                                            borderWidth="1px"
-                                            borderColor={modalBorder}
-                                            borderRadius="xl"
-                                            cursor={isLoading ? 'not-allowed' : 'pointer'}
-                                            opacity={isLoading ? 0.65 : 1}
-                                        >
-                                            <input
-                                                type="checkbox"
-                                                checked={form.lowProductAlert}
-                                                onChange={(event) => setField('lowProductAlert', event.target.checked)}
-                                                disabled={isLoading}
-                                                style={{ accentColor, width: 18, height: 18 }}
-                                            />
-                                            <VStack align="start" gap={0}>
-                                                <Text color={textColor} fontWeight="medium">
-                                                    Kam qoldiq haqida ogohlantirish
-                                                </Text>
-                                                <Text color={subtitleColor} fontSize="sm">
-                                                    Qoldiq minimum miqdorga yetganda ogohlantirish yuboriladi.
-                                                </Text>
-                                            </VStack>
-                                        </HStack>
-                                    </Box>
 
                                     <Text fontSize="sm" color={subtitleColor}>
                                         Saqlashda barcha maydonlar yangilanadi.
@@ -660,6 +673,7 @@ Edit.propTypes = {
         id: PropTypes.string.isRequired,
         name: PropTypes.string.isRequired,
         price: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+        bonusPrice: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
         warehouseId: PropTypes.string,
         article: PropTypes.string,
         size: PropTypes.string,

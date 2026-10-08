@@ -5,8 +5,7 @@ import {
     LuArrowLeft, LuPackage, LuBarcode, LuUser, LuWarehouse,
     LuStickyNote, LuClock3, LuCircleAlert, LuPencil,
     LuChevronDown, LuTriangleAlert, LuCircleCheck, LuCircleX,
-    LuBoxes, LuPencilLine, LuPrinter,
-    LuHistory, LuSave, LuX,
+    LuBoxes, LuPrinter,
 } from 'react-icons/lu';
 import { useAppTheme } from '../../../theme/tokens';
 import { useAppSelector } from '../../../store/hooks';
@@ -17,7 +16,6 @@ import {
     useRejectSalesOrderMutation,
     useLoadSalesOrderMutation,
     useUpdateSalesOrderPricesMutation,
-    useGetSalesOrdersQuery,
 } from '../../../store/services/salesOrder.api';
 import { useGetProductStocksQuery } from '../../../store/services/productStock.api';
 import { useGetWarehousesQuery } from '../../../store/services/warehouse.api';
@@ -31,6 +29,7 @@ import {
 } from '../__components/statusBadge';
 import { Alert } from '../../Other/UI/Alert/Alert';
 import OrderPrintModal from '../__components/OrderPrintModal';
+import BuxgalterOrderDetailPage from '../BuxgalterOrderDetail';
 import logoSvg from '../../../Images/Yellow Unified Lego Outlined.svg';
 
 /* ──────────────────────────────────────────────────────────────── */
@@ -187,7 +186,7 @@ function groupOrderItems(items) {
 /* ──────────────────────────────────────────────────────────────── */
 /*  Detail page                                                     */
 /* ──────────────────────────────────────────────────────────────── */
-export default function ZayavkachiOrderDetail() {
+function ZayavkachiOrderDetail() {
     const { id }       = useParams();
     const navigate     = useNavigate();
     const { pathname } = useLocation();
@@ -201,13 +200,6 @@ export default function ZayavkachiOrderDetail() {
 
     const { data: order, isLoading, isError } = useGetSalesOrderByIdQuery(id, { skip: !id });
     const { data: warehouses = [] } = useGetWarehousesQuery('PRODUCT');
-    const { data: customerOrdersData, isFetching: customerOrdersFetching } = useGetSalesOrdersQuery(
-        { customerId: order?.customerId, page: 0, size: 6, sort: ['createdAt,DESC', 'id,DESC'] },
-        { skip: !order?.customerId || !BUXGALTER_ROLES.includes(role) },
-    );
-    const [updatePrices, { isLoading: isSavingPrices }] = useUpdateSalesOrderPricesMutation();
-    const [showPriceEditor, setShowPriceEditor] = useState(false);
-    const [priceDraft, setPriceDraft] = useState({});
 
     const orderWarehouseIds = useMemo(() => {
         if (!order?.items) return [];
@@ -306,33 +298,6 @@ export default function ZayavkachiOrderDetail() {
 
     const backToList   = () => navigate(ordersPath);
     const [showPrintModal, setShowPrintModal] = useState(false);
-    const customerOrders = (customerOrdersData?.items ?? []).filter((item) => item.id !== order?.id);
-
-    const openPriceEditor = () => {
-        setPriceDraft(Object.fromEntries(
-            (order.items ?? []).map((item) => [item.id, String(item.unitPrice ?? 0)]),
-        ));
-        setShowPriceEditor(true);
-    };
-
-    const savePrices = async () => {
-        const items = (order.items ?? []).map((item) => ({
-            itemId: item.id,
-            unitPrice: Number(priceDraft[item.id]),
-        }));
-        if (items.some((item) => !Number.isFinite(item.unitPrice) || item.unitPrice < 0)) {
-            Alert('Narx 0 dan kichik bo‘lmagan son bo‘lishi kerak', 'error');
-            return;
-        }
-        try {
-            await updatePrices({ id: order.id, data: { items } }).unwrap();
-            Alert('Buyurtma narxlari saqlandi', 'success');
-            setShowPriceEditor(false);
-        } catch (error) {
-            Alert(error?.data?.message || 'Narxlarni saqlashda xatolik', 'error');
-        }
-    };
-
     const printInvoice = () => {
         const invoiceEl = document.querySelector('.invoice-print-root');
         if (!invoiceEl) { window.print(); return; }
@@ -392,60 +357,6 @@ export default function ZayavkachiOrderDetail() {
 
     return (
         <>
-            {showPriceEditor && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4" role="presentation" onMouseDown={(event) => {
-                    if (event.target === event.currentTarget && !isSavingPrices) setShowPriceEditor(false);
-                }}>
-                    <section role="dialog" aria-modal="true" aria-labelledby="order-price-editor-title" className={`w-full max-w-3xl overflow-hidden rounded-2xl border shadow-2xl ${panel}`}>
-                        <div className={`flex items-center justify-between border-b px-5 py-4 ${line}`}>
-                            <div>
-                                <h2 id="order-price-editor-title" className={`text-base font-bold ${head}`}>Buyurtma narxlarini tahrirlash</h2>
-                                <p className={`mt-1 text-xs ${muted}`}>Har bir qator narxini alohida belgilang.</p>
-                            </div>
-                            <button type="button" onClick={() => setShowPriceEditor(false)} disabled={isSavingPrices} className={`rounded-lg p-2 ${ghostBtn}`} aria-label="Yopish"><LuX size={18} /></button>
-                        </div>
-                        <div className="max-h-[60vh] overflow-auto px-5">
-                            <table className="w-full text-sm">
-                                <thead><tr className={`border-b text-left text-xs ${muted}`}>
-                                    <th className="py-3 pr-3">Mahsulot / turi</th>
-                                    <th className="py-3 px-3 text-right">Miqdor</th>
-                                    <th className="py-3 pl-3 text-right">Narx (so‘m)</th>
-                                </tr></thead>
-                                <tbody className={`divide-y ${divider}`}>
-                                    {(order.items ?? []).map((item) => (
-                                        <tr key={item.id}>
-                                            <td className={`py-3 pr-3 ${head}`}>
-                                                <span className="font-semibold">{item.productName}</span>
-                                                <span className={`ml-2 text-xs ${muted}`}>{item.unit === 'PACK' ? 'Pachka' : 'Dona'}</span>
-                                            </td>
-                                            <td className={`px-3 py-3 text-right ${muted}`}>{item.enteredQuantity ?? item.quantity}</td>
-                                            <td className="py-3 pl-3">
-                                                <input
-                                                    type="number"
-                                                    min="0"
-                                                    step="any"
-                                                    inputMode="decimal"
-                                                    value={priceDraft[item.id] ?? ''}
-                                                    onChange={(event) => setPriceDraft((current) => ({ ...current, [item.id]: event.target.value }))}
-                                                    disabled={isSavingPrices}
-                                                    aria-label={`${item.productName} narxi`}
-                                                    className={`w-full min-w-32 rounded-lg border px-3 py-2 text-right outline-none focus:border-amber-400 ${inputCx}`}
-                                                />
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                        <div className={`flex justify-end gap-2 border-t px-5 py-4 ${line}`}>
-                            <button type="button" onClick={() => setShowPriceEditor(false)} disabled={isSavingPrices} className={`rounded-xl border px-4 py-2 text-sm font-semibold ${ghostBtn}`}>Bekor qilish</button>
-                            <button type="button" onClick={savePrices} disabled={isSavingPrices} className="flex items-center gap-2 rounded-xl bg-amber-400 px-4 py-2 text-sm font-bold text-slate-950 disabled:opacity-60">
-                                <LuSave size={15} /> {isSavingPrices ? 'Saqlanmoqda…' : 'Saqlash'}
-                            </button>
-                        </div>
-                    </section>
-                </div>
-            )}
             {showPrintModal && (
                 <OrderPrintModal
                     order={order}
@@ -476,12 +387,6 @@ export default function ZayavkachiOrderDetail() {
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
                             <OrderStatusControl order={order} isDark={isDark} />
-
-                            {BUXGALTER_ROLES.includes(role) && order.status === 'LOADED' && (
-                                <button type="button" onClick={openPriceEditor} className={`flex h-12 items-center gap-2 rounded-xl border px-5 text-sm font-bold transition-colors hover:border-amber-400/60 hover:text-amber-500 ${ghostBtn}`}>
-                                    <LuPencilLine size={16} /> Narxlarni o‘zgartirish
-                                </button>
-                            )}
 
                             {BUXGALTER_ROLES.includes(role) && order.status === 'LOADED' && (
                             <button type="button" onClick={() => setShowPrintModal(true)} title="Chop etish"
@@ -874,40 +779,6 @@ export default function ZayavkachiOrderDetail() {
                 </div>
                 )}
 
-                {BUXGALTER_ROLES.includes(role) && (
-                    <section className={`rounded-2xl border shadow-md ${panel}`}>
-                        <div className={`flex items-center gap-2 border-b px-5 py-4 ${line}`}>
-                            <LuHistory size={17} className="text-amber-500" />
-                            <h2 className={`text-sm font-bold ${head}`}>Shu mijozning boshqa buyurtmalari</h2>
-                            <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${muted}`}>{customerOrders.length}</span>
-                        </div>
-                        {customerOrdersFetching ? (
-                            <p className={`px-5 py-6 text-sm ${muted}`}>Buyurtmalar yuklanmoqda…</p>
-                        ) : customerOrders.length === 0 ? (
-                            <p className={`px-5 py-6 text-sm ${muted}`}>Boshqa buyurtmalar topilmadi.</p>
-                        ) : (
-                            <div className={`divide-y ${divider}`}>
-                                {customerOrders.map((relatedOrder) => (
-                                    <button
-                                        key={relatedOrder.id}
-                                        type="button"
-                                        onClick={() => navigate(`${ordersPath}/${relatedOrder.id}`)}
-                                        className={`flex w-full flex-wrap items-center justify-between gap-3 px-5 py-3 text-left transition-colors ${rowBg}`}
-                                    >
-                                        <span>
-                                            <span className={`block text-sm font-semibold ${head}`}>#{relatedOrder.id.slice(0, 8).toUpperCase()}</span>
-                                            <span className={`text-xs ${muted}`}>{fmtDateTime(relatedOrder.createdAt)} · {relatedOrder.items?.length ?? 0} ta mahsulot</span>
-                                        </span>
-                                        <span className="flex items-center gap-3">
-                                            <span className={`text-xs font-bold ${statusCx(relatedOrder.status)}`}>{STATUS_LABEL[relatedOrder.status] ?? relatedOrder.status}</span>
-                                            <span className={`text-sm font-bold ${head}`}>{fmtNum(relatedOrder.totalAmount)} so‘m</span>
-                                        </span>
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-                    </section>
-                )}
             </div>
 
             {/* ═══════════════ INVOICE — PRINT ONLY ═══════════════ */}
@@ -1147,4 +1018,12 @@ export default function ZayavkachiOrderDetail() {
             </div>
         </>
     );
+}
+
+export default function OrderDetailByRole() {
+    const role = useAppSelector((state) => state.auth.role);
+    if (BUXGALTER_ROLES.includes(role)) {
+        return <BuxgalterOrderDetailPage />;
+    }
+    return <ZayavkachiOrderDetail />;
 }

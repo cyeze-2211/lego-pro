@@ -26,9 +26,9 @@ import {
     LuArrowDownUp,
     LuArrowDown,
     LuArrowUp,
-    LuPlus,
+    LuGift,
 } from 'react-icons/lu';
-import { useGetProductsQuery, useUpdateProductMutation } from '../../../store/services/product.api';
+import { useGetProductsQuery } from '../../../store/services/product.api';
 import { useGetWarehousesQuery } from '../../../store/services/warehouse.api';
 import { useGetBrandsQuery } from '../../../store/services/brand.api';
 import { useGetProductCategoriesQuery } from '../../../store/services/productCategory.api';
@@ -52,6 +52,7 @@ const DEFAULT_SORT = ['createdAt,DESC', 'id,DESC'];
 const SORT_FIELDS = [
     ['name', 'Mahsulot nomi'],
     ['price', 'Narxi'],
+    ['bonusPrice', 'Bonus narx'],
     ['barcode', 'Shtrix-kod'],
     ['article', 'Artikul'],
     ['size', 'O‘lcham'],
@@ -71,6 +72,10 @@ const saveToClipboard = (product) => {
     window.__productClipboard = {
         name: product.name || '',
         price: product.price ?? '',
+        bonusPrice:
+            product.bonusPrice !== null && product.bonusPrice !== undefined
+                ? product.bonusPrice
+                : '',
         article: product.article || '',
         size: product.size || '',
         minimumLine:
@@ -129,7 +134,7 @@ function CopyButton({ product }) {
 export default function Product() {
     const navigate = useNavigate();
     const role = useAppSelector((state) => state.auth.role);
-    const canManageProducts = role === ROLES.MANAGER;
+    const canManageProducts = role === ROLES.MANAGER || role === ROLES.BUXGALTER;
     const [search, setSearch] = useState('');
     const [query, setQuery] = useState('');
     const [filters, setFilters] = useState({ brandId: '', categoryId: '', colorId: '' });
@@ -192,7 +197,6 @@ export default function Product() {
         page: 0,
         size: 200,
     });
-    const [updateProduct] = useUpdateProductMutation();
 
     const {
         isDark,
@@ -710,7 +714,7 @@ export default function Product() {
                             interactive
                             bg={tableBg}
                             borderCollapse="collapse"
-                            minW="1750px"
+                            minW="1880px"
                         >
                             <Table.Header bg={tableHeaderBg}>
                                 <Table.Row bg={tableHeaderBg}>
@@ -724,6 +728,7 @@ export default function Product() {
                                     {sortableHeader('Rang', 'color.name', '130px')}
                                     {sortableHeader('O‘lcham', 'size', '110px')}
                                     {sortableHeader('Narxi', 'price', '130px', 'right')}
+                                    {sortableHeader('Bonus narx', 'bonusPrice', '130px', 'right')}
                                     {sortableHeader('Min. qoldiq', 'minimumLine', '110px', 'right')}
                                     {sortableHeader('Qadoqdagi dona', 'piecesPerPack', '130px', 'center')}
                                     <Table.ColumnHeader {...headerCell} minW="170px">
@@ -1001,6 +1006,57 @@ export default function Product() {
                                                 </Text>
                                             </Table.Cell>
 
+                                            {/* Bonus narx */}
+                                            <Table.Cell
+                                                {...cellBorder}
+                                                textAlign="right"
+                                                whiteSpace="nowrap"
+                                            >
+                                                {product.bonusPrice !== null &&
+                                                product.bonusPrice !== undefined &&
+                                                product.bonusPrice !== '' ? (
+                                                    <HStack gap={1.5} justify="flex-end">
+                                                        <Box
+                                                            p={1}
+                                                            borderRadius="md"
+                                                            bg={
+                                                                isDark
+                                                                    ? 'rgba(16, 185, 129, 0.15)'
+                                                                    : '#D1FAE5'
+                                                            }
+                                                            color={
+                                                                isDark ? 'green.300' : 'green.600'
+                                                            }
+                                                            display="inline-flex"
+                                                            alignItems="center"
+                                                            justifyContent="center"
+                                                            flexShrink={0}
+                                                        >
+                                                            <LuGift size={12} />
+                                                        </Box>
+                                                        <Text
+                                                            fontWeight="bold"
+                                                            fontSize="sm"
+                                                            color={textColor}
+                                                        >
+                                                            {formatNumber(product.bonusPrice)}{' '}
+                                                            <Text
+                                                                as="span"
+                                                                fontSize="xs"
+                                                                color={subtitleColor}
+                                                                fontWeight="normal"
+                                                            >
+                                                                so‘m
+                                                            </Text>
+                                                        </Text>
+                                                    </HStack>
+                                                ) : (
+                                                    <Text fontSize="sm" color={subtitleColor}>
+                                                        —
+                                                    </Text>
+                                                )}
+                                            </Table.Cell>
+
                                             {/* Minimum qoldiq */}
                                             <Table.Cell
                                                 {...cellBorder}
@@ -1083,8 +1139,6 @@ export default function Product() {
                                                     </Text>
                                                 )}
                                             </Table.Cell>
-
-                                     
 
                                             {/* Amallar */}
                                             {canManageProducts && <Table.Cell

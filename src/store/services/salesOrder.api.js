@@ -40,9 +40,6 @@ export const salesOrderApi = createApi({
     }),
 
     /* ── Dashboard: zayavkalar soni holatlar bo'yicha ── */
-    /* GET /api/v1/sales-orders/dashboard
-     * Qaytaradi: { total, created, loaded, confirmed, rejected }
-     * Har doim barcha xodimlarning zayavkalari sanaladi. */
     getSalesOrderDashboard: builder.query({
       query: () => ({
         url: '/sales-orders/dashboard',
@@ -59,11 +56,7 @@ export const salesOrderApi = createApi({
       providesTags: [{ type: 'SalesOrderDashboard', id: 'LIST' }],
     }),
 
-    /* ── Yangi: Zayavkalar bo'yicha yetishmayotgan mahsulotlar ── */
-    /* GET /api/v1/sales-orders/product-shortages
-     * CREATED holatdagi barcha zayavkalar qatorlarini jamlab,
-     * ombordagi qoldiq bilan solishtiradi (har bir mahsulot+ombor juftligi uchun).
-     * Sahifalanmaydi — to'liq massiv qaytadi. */
+    /* ── Zayavkalar bo'yicha yetishmayotgan mahsulotlar ── */
     getProductShortages: builder.query({
       query: () => ({
         url: '/sales-orders/product-shortages',
@@ -114,6 +107,27 @@ export const salesOrderApi = createApi({
       }),
       transformResponse: (response) => response.data,
       invalidatesTags: (result, error, { id }) => [
+        { type: 'SalesOrder', id },
+        { type: 'SalesOrder', id: 'LIST' },
+        { type: 'SalesOrderDashboard', id: 'LIST' },
+        { type: 'ProductShortages', id: 'LIST' },
+      ],
+    }),
+
+    /* ── Yakuniy tasdiqlash: POST /api/v1/sales-orders/{id}/confirm ──
+     * LOADED zayavkani CONFIRMED holatiga o'tkazadi.
+     * Bitta tranzaksiyada:
+     *   - mijoz balansi totalAmount ga kamayadi (qarzga aylanadi),
+     *   - decidedAt to'ladi,
+     *   - avans bo'lsa paidAmount ga o'tadi (PARTIALLY_PAID / PAID).
+     * Tanasi yo'q. Faqat LOADED holatdan ishlaydi. */
+    confirmSalesOrder: builder.mutation({
+      query: (id) => ({
+        url: `/sales-orders/${id}/confirm`,
+        method: 'POST',
+      }),
+      transformResponse: (response) => response.data,
+      invalidatesTags: (result, error, id) => [
         { type: 'SalesOrder', id },
         { type: 'SalesOrder', id: 'LIST' },
         { type: 'SalesOrderDashboard', id: 'LIST' },
@@ -185,6 +199,7 @@ export const {
   useUpdateSalesOrderMutation,
   useDeleteSalesOrderMutation,
   useUpdateSalesOrderStatusMutation,
+  useConfirmSalesOrderMutation,
   useApproveSalesOrderMutation,
   useRejectSalesOrderMutation,
   useLoadSalesOrderMutation,

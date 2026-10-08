@@ -62,6 +62,17 @@ export const customerAgentApi = createApi({
             ],
         }),
 
+        // GET /api/v1/customer-agents/bonus — agentlar bonusini hisoblash
+        getCustomerAgentBonus: builder.query({
+            query: (params = {}) => ({
+                url: '/customer-agents/bonus',
+                method: 'GET',
+                params,
+            }),
+            transformResponse: (response) => response.data,
+            providesTags: [{ type: 'CustomerAgent', id: 'BONUS' }],
+        }),
+
         // DELETE /api/v1/customer-agents/:id — soft-delete
         deleteCustomerAgent: builder.mutation({
             query: (id) => ({
@@ -80,6 +91,7 @@ export const customerAgentApi = createApi({
 export const {
     useGetCustomerAgentsQuery,
     useGetCustomerAgentByIdQuery,
+    useGetCustomerAgentBonusQuery,
     useCreateCustomerAgentMutation,
     useUpdateCustomerAgentMutation,
     useDeleteCustomerAgentMutation,

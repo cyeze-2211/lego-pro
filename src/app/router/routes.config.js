@@ -85,12 +85,12 @@ export const ROUTES = [
     {
         path: '/suppliers',
         component: lazy(() => import('../../Components/Common/Supplier')),
-        roles: [ROLES.MANAGER, ...BUXGALTER_ROLES],
+        roles: ROLES.MANAGER,
     },
     {
         path: '/suppliers/:id',
         component: lazy(() => import('../../Components/Common/SupplierDetail')),
-        roles: [ROLES.MANAGER, ...BUXGALTER_ROLES],
+        roles: ROLES.MANAGER,
     },
     {
         path: '/users',
@@ -155,7 +155,7 @@ export const ROUTES = [
     {
         path: '/reminders',
         component: lazy(() => import('../../Components/Common/Reminder')),
-        roles: [ROLES.MANAGER, ...ZAYAVKACHI_ROLES, ...BUXGALTER_ROLES],
+        roles: [ROLES.MANAGER, ...ZAYAVKACHI_ROLES],
     },
     {
         path: '/expense-categories',
