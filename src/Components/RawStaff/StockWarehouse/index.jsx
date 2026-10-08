@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
     LuSearch, LuWarehouse, LuPackage, LuX, LuFlame,
     LuFilter, LuLayers, LuRotateCcw, LuChevronDown, LuChevronUp,
-    LuCircleX, LuCircleCheck, LuTriangleAlert, LuBoxes,
+    LuCircleX, LuCircleCheck, LuBoxes,
     LuArrowUp, LuArrowDown, LuArrowUpDown, LuStickyNote,
 } from 'react-icons/lu';
 import { useAppTheme } from '../../../theme/tokens';
@@ -10,13 +10,16 @@ import { useGetRawMaterialStocksQuery } from '../../../store/services/rawMateria
 import { useGetWarehousesQuery } from '../../../store/services/warehouse.api';
 
 const PAGE_SIZE = 20;
-const UNITS = ['GRAM', 'KG', 'TON'];
+const UNIT = 'KG';
+const MAX_WORDS = 5;
 
-const UNIT_LABEL = {
-    GRAM: 'gram',
-    KG:   'kg',
-    TON:  'tonna',
-};
+/* ── Truncate text to N words with "..." ── */
+function truncateWords(text, maxWords = MAX_WORDS) {
+    if (!text) return '';
+    const words = String(text).trim().split(/\s+/);
+    if (words.length <= maxWords) return text;
+    return words.slice(0, maxWords).join(' ') + '...';
+}
 
 export default function RawStaffStockWarehouse() {
     const { isDark } = useAppTheme();
@@ -24,7 +27,6 @@ export default function RawStaffStockWarehouse() {
     const [allStocks, setAllStocks]             = useState([]);
     const [hasMore, setHasMore]                 = useState(true);
     const [warehouseFilter, setWarehouseFilter] = useState('');
-    const [unit, setUnit]                       = useState('KG');
     const [search, setSearch]                   = useState('');
     const [onlyZero, setOnlyZero]               = useState(false);
     const [onlyWithStock, setOnlyWithStock]     = useState(false);
@@ -39,14 +41,14 @@ export default function RawStaffStockWarehouse() {
     const { data: warehouses = [] } = useGetWarehousesQuery('RAW_MATERIAL');
     const { data, isFetching }      = useGetRawMaterialStocksQuery({
         warehouseId: warehouseFilter || undefined,
-        unit,
+        unit: UNIT,
         page,
         size: PAGE_SIZE,
     });
 
     const pagination = data?.pagination ?? {};
 
-    /* ── Reset accumulated при смене склада / единицы измерения ── */
+    /* ── Reset accumulated при смене склада ── */
     useEffect(() => {
         if (isFirstRender.current) {
             isFirstRender.current = false;
@@ -56,7 +58,7 @@ export default function RawStaffStockWarehouse() {
         setPage(0);
         setHasMore(true);
         isFetchingNextRef.current = false;
-    }, [warehouseFilter, unit]);
+    }, [warehouseFilter]);
 
     /* ── Накопление страниц ── */
     useEffect(() => {
@@ -167,22 +169,20 @@ export default function RawStaffStockWarehouse() {
         return { zero, withStock };
     }, [allStocks]);
 
-    const hasFilter = Boolean(search || onlyZero || onlyWithStock || warehouseFilter || unit !== 'KG');
+    const hasFilter = Boolean(search || onlyZero || onlyWithStock || warehouseFilter);
 
     const resetFilters = () => {
         setSearch('');
         setOnlyZero(false);
         setOnlyWithStock(false);
         setWarehouseFilter('');
-        setUnit('KG');
     };
 
     const activeCount =
         (warehouseFilter ? 1 : 0) +
         (search ? 1 : 0) +
         (onlyZero ? 1 : 0) +
-        (onlyWithStock ? 1 : 0) +
-        (unit !== 'KG' ? 1 : 0);
+        (onlyWithStock ? 1 : 0);
 
     /* ── Сортировка click ── */
     const handleSort = (key) => {
@@ -272,7 +272,7 @@ export default function RawStaffStockWarehouse() {
                         <div>
                             <h1 className={`text-xl font-bold tracking-tight ${head}`}>Xom ashyo qoldiqlari</h1>
                             <p className={`text-xs mt-0.5 ${muted}`}>
-                                Omborlardagi xom ashyo qoldiqlarini kuzatish
+                                Omborlardagi xom ashyo qoldiqlarini kuzatish (kg)
                             </p>
                         </div>
                     </div>
@@ -327,7 +327,7 @@ export default function RawStaffStockWarehouse() {
                             <p className={`text-xs mt-0.5 ${muted}`}>
                                 {hasFilter
                                     ? `${activeCount} ta faol filtr qo‘llanmoqda`
-                                    : 'Ombor, birlik va qidiruv bo‘yicha filtrlang'}
+                                    : 'Ombor va qidiruv bo‘yicha filtrlang'}
                             </p>
                         </div>
                     </div>
@@ -362,7 +362,8 @@ export default function RawStaffStockWarehouse() {
                 }`}>
                     <div className="overflow-hidden">
                         <div className="p-5">
-                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            {/* Ombor + Qidiruv — рядом */}
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-[220px_1fr]">
                                 <div>
                                     <label className={`mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide ${muted}`}>
                                         <LuWarehouse size={11} /> Ombor
@@ -381,56 +382,30 @@ export default function RawStaffStockWarehouse() {
 
                                 <div>
                                     <label className={`mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide ${muted}`}>
-                                        <LuLayers size={11} /> Birlik
+                                        <LuSearch size={11} /> Qidiruv
                                     </label>
-                                    <div className={`flex h-[42px] overflow-hidden rounded-xl border ${isDark ? 'border-white/10' : 'border-[#e2e8f0]'}`}>
-                                        {UNITS.map((u) => (
+                                    <div className="relative">
+                                        <LuSearch className={`pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 ${muted}`} />
+                                        <input
+                                            type="text"
+                                            placeholder="Xom ashyo nomi yoki izohi..."
+                                            value={search}
+                                            onChange={(e) => setSearch(e.target.value)}
+                                            className={`${inputCx} pl-10 pr-10`}
+                                        />
+                                        {search && (
                                             <button
-                                                key={u}
                                                 type="button"
-                                                onClick={() => setUnit(u)}
-                                                className={`flex-1 text-sm font-semibold transition-colors ${
-                                                    unit === u
-                                                        ? (isDark
-                                                            ? 'bg-amber-400/15 text-amber-200'
-                                                            : 'bg-amber-50 text-amber-700')
-                                                        : (isDark
-                                                            ? 'bg-transparent text-slate-400 hover:text-slate-200'
-                                                            : 'bg-white text-[#64748b] hover:text-[#0f172a]')
+                                                onClick={() => setSearch('')}
+                                                className={`absolute right-3 top-1/2 -translate-y-1/2 flex h-6 w-6 items-center justify-center rounded-full transition-colors ${
+                                                    isDark ? 'text-slate-400 hover:bg-white/[0.06] hover:text-white' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-700'
                                                 }`}
+                                                aria-label="Qidiruvni tozalash"
                                             >
-                                                {UNIT_LABEL[u]}
+                                                <LuX size={13} />
                                             </button>
-                                        ))}
+                                        )}
                                     </div>
-                                </div>
-                            </div>
-
-                            <div className="mt-4">
-                                <label className={`mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide ${muted}`}>
-                                    <LuSearch size={11} /> Qidiruv
-                                </label>
-                                <div className="relative">
-                                    <LuSearch className={`pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 ${muted}`} />
-                                    <input
-                                        type="text"
-                                        placeholder="Xom ashyo nomi yoki izohi..."
-                                        value={search}
-                                        onChange={(e) => setSearch(e.target.value)}
-                                        className={`${inputCx} pl-10 pr-10`}
-                                    />
-                                    {search && (
-                                        <button
-                                            type="button"
-                                            onClick={() => setSearch('')}
-                                            className={`absolute right-3 top-1/2 -translate-y-1/2 flex h-6 w-6 items-center justify-center rounded-full transition-colors ${
-                                                isDark ? 'text-slate-400 hover:bg-white/[0.06] hover:text-white' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-700'
-                                            }`}
-                                            aria-label="Qidiruvni tozalash"
-                                        >
-                                            <LuX size={13} />
-                                        </button>
-                                    )}
                                 </div>
                             </div>
 
@@ -468,13 +443,6 @@ export default function RawStaffStockWarehouse() {
                                         <FilterChip
                                             label={`Ombor: ${warehouses.find((w) => w.id === warehouseFilter)?.name ?? ''}`}
                                             onRemove={() => setWarehouseFilter('')}
-                                            isDark={isDark}
-                                        />
-                                    )}
-                                    {unit !== 'KG' && (
-                                        <FilterChip
-                                            label={`Birlik: ${UNIT_LABEL[unit]}`}
-                                            onRemove={() => setUnit('KG')}
                                             isDark={isDark}
                                         />
                                     )}
@@ -567,10 +535,10 @@ export default function RawStaffStockWarehouse() {
                                 <thead>
                                     <tr className={isDark ? 'bg-[#0f172a]/40' : 'bg-[#f8fafc]/90'}>
                                         <th className={`px-5 py-3 w-14 text-center text-xs font-semibold uppercase tracking-wide ${muted} border-b ${cellBorder}`}>#</th>
-                                        <SortableHeader label="Xom ashyo" sortField="rawMaterialName"    className={`min-w-[280px] ${cellBorder}`} />
-                                        <SortableHeader label="Izoh"      sortField="rawMaterialSummary" className={`min-w-[280px] ${cellBorder}`} />
-                                        <SortableHeader label="Oxirgi yangilanish" sortField="lastModifiedAt" className={`w-[200px] ${cellBorder}`} />
-                                        <SortableHeader label="Qoldiq"    sortField="quantity" className="text-right w-[180px]" align="right" />
+                                        <SortableHeader label="Xom ashyo" sortField="rawMaterialName"    className={`min-w-[220px] ${cellBorder}`} />
+                                        <SortableHeader label="Izoh"      sortField="rawMaterialSummary" className={`min-w-[260px] ${cellBorder}`} />
+                                        <SortableHeader label="Oxirgi yangilanish" sortField="lastModifiedAt" className={`w-[190px] ${cellBorder}`} />
+                                        <SortableHeader label="Qoldiq (kg)"    sortField="quantity" className="text-right w-[170px]" align="right" />
                                     </tr>
                                 </thead>
                                 <tbody className={`divide-y ${divider}`}>
@@ -580,6 +548,8 @@ export default function RawStaffStockWarehouse() {
                                         const rowBg = isZero
                                             ? (isDark ? 'bg-rose-500/[0.04]' : 'bg-rose-50/40')
                                             : '';
+                                        const summaryTruncated = truncateWords(s.rawMaterialSummary, MAX_WORDS);
+                                        const isTruncated = s.rawMaterialSummary && String(s.rawMaterialSummary).trim().split(/\s+/).length > MAX_WORDS;
 
                                         return (
                                             <tr
@@ -609,9 +579,12 @@ export default function RawStaffStockWarehouse() {
 
                                                 <td className={`px-5 py-3.5 text-xs ${muted} ${cellBorder}`}>
                                                     {s.rawMaterialSummary ? (
-                                                        <span className="inline-flex items-start gap-1.5">
+                                                        <span
+                                                            className="inline-flex items-start gap-1.5"
+                                                            title={isTruncated ? s.rawMaterialSummary : undefined}
+                                                        >
                                                             <LuStickyNote size={12} className="mt-0.5 shrink-0" />
-                                                            <span className="line-clamp-2">{s.rawMaterialSummary}</span>
+                                                            <span>{summaryTruncated}</span>
                                                         </span>
                                                     ) : (
                                                         <span className="italic">—</span>
@@ -631,7 +604,7 @@ export default function RawStaffStockWarehouse() {
                                                 </td>
 
                                                 <td className="px-5 py-3.5 text-right">
-                                                    <QtyBadge qty={qty} unit={s.unit || unit} isDark={isDark} />
+                                                    <QtyBadge qty={qty} isDark={isDark} />
                                                 </td>
                                             </tr>
                                         );
@@ -679,6 +652,9 @@ export default function RawStaffStockWarehouse() {
                             {sorted.map((s) => {
                                 const qty = Number(s.quantity) || 0;
                                 const isZero = qty === 0;
+                                const summaryTruncated = truncateWords(s.rawMaterialSummary, MAX_WORDS);
+                                const isTruncated = s.rawMaterialSummary && String(s.rawMaterialSummary).trim().split(/\s+/).length > MAX_WORDS;
+
                                 return (
                                     <div
                                         key={`${s.rawMaterialId}-${s.warehouseId}`}
@@ -695,7 +671,12 @@ export default function RawStaffStockWarehouse() {
                                             <div className="min-w-0 flex-1">
                                                 <p className={`font-semibold text-sm ${head} line-clamp-2`}>{s.rawMaterialName}</p>
                                                 {s.rawMaterialSummary && (
-                                                    <p className={`text-xs mt-0.5 ${muted} line-clamp-2`}>{s.rawMaterialSummary}</p>
+                                                    <p
+                                                        className={`text-xs mt-0.5 ${muted}`}
+                                                        title={isTruncated ? s.rawMaterialSummary : undefined}
+                                                    >
+                                                        {summaryTruncated}
+                                                    </p>
                                                 )}
                                                 {s.lastModifiedAt && (
                                                     <p className={`text-[10px] mt-1 ${muted}`}>
@@ -704,7 +685,7 @@ export default function RawStaffStockWarehouse() {
                                                 )}
                                             </div>
                                         </div>
-                                        <QtyBadge qty={qty} unit={s.unit || unit} isDark={isDark} />
+                                        <QtyBadge qty={qty} isDark={isDark} />
                                     </div>
                                 );
                             })}
@@ -773,8 +754,8 @@ function FilterChip({ label, onRemove, isDark }) {
     );
 }
 
-/* ── Qty badge ── */
-function QtyBadge({ qty, unit, isDark }) {
+/* ── Qty badge: har doim kg ── */
+function QtyBadge({ qty, isDark }) {
     const isZero = qty === 0;
 
     const cls = isZero
@@ -789,13 +770,11 @@ function QtyBadge({ qty, unit, isDark }) {
         ? qty.toLocaleString('uz-UZ', { maximumFractionDigits: 3 })
         : qty;
 
-    const unitLabel = UNIT_LABEL[unit] ?? unit?.toLowerCase() ?? '';
-
     return (
         <div className="inline-flex flex-col items-end gap-0.5">
             <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm font-bold whitespace-nowrap ${cls}`}>
                 {isZero && <LuCircleX size={12} />}
-                {formatted} <span className="text-xs opacity-80">{unitLabel}</span>
+                {formatted} <span className="text-xs opacity-80">kg</span>
             </span>
         </div>
     );

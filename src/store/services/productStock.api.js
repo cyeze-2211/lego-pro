@@ -11,27 +11,37 @@ export const productStockApi = createApi({
         getProductStocks: builder.query({
             query: ({
                 productId, warehouseId, name, barcode, article, productSize, brandId,
+                colorId, categoryId,
                 lowStock, priceFrom, priceTo, pending, page = 0, size = 20, sort,
-            } = {}) => ({
-                url: '/product-stocks',
-                method: 'GET',
-                params: {
-                    ...(productId   ? { productId }   : {}),
-                    ...(warehouseId ? { warehouseId } : {}),
-                    ...(name        ? { name }        : {}),
-                    ...(barcode     ? { barcode }     : {}),
-                    ...(article     ? { article }     : {}),
-                    ...(productSize ? { productSize } : {}),
-                    ...(brandId     ? { brandId }     : {}),
-                    ...(lowStock === true ? { lowStock: true } : {}),
-                    ...(priceFrom != null ? { priceFrom } : {}),
-                    ...(priceTo   != null ? { priceTo }   : {}),
-                    ...(pending === true ? { pending: true } : {}),
-                    page,
-                    size,
-                    ...(sort ? { sort } : {}),
-                },
-            }),
+            } = {}) => {
+                const params = pending === true
+                    ? {
+                        ...(productId ? { productId } : {}),
+                        pending: true,
+                    }
+                    : {
+                        ...(productId   ? { productId }   : {}),
+                        ...(warehouseId ? { warehouseId } : {}),
+                        ...(name        ? { name }        : {}),
+                        ...(barcode     ? { barcode }     : {}),
+                        ...(article     ? { article }     : {}),
+                        ...(productSize ? { productSize } : {}),
+                        ...(brandId     ? { brandId }     : {}),
+                        ...(colorId     ? { colorId }     : {}),
+                        ...(categoryId  ? { categoryId }  : {}),
+                        ...(lowStock === true ? { lowStock: true } : {}),
+                        ...(priceFrom != null ? { priceFrom } : {}),
+                        ...(priceTo   != null ? { priceTo }   : {}),
+                        page,
+                        size,
+                        ...(sort ? { sort } : {}),
+                    };
+                return {
+                    url: '/product-stocks',
+                    method: 'GET',
+                    params,
+                };
+            },
             transformResponse: (response) => ({
                 items:      response.data       ?? [],
                 pagination: response.pagination ?? null,

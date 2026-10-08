@@ -3,30 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import {
     LuClipboardList, LuSearch, LuChevronLeft, LuChevronRight,
     LuX, LuEye, LuPackage, LuSlidersHorizontal, LuChevronDown,
-    LuInbox, LuCircleDashed, LuPackageCheck,
-    LuCircleCheckBig, LuBan, LuCircleX,
+    LuInbox, LuCircleCheckBig, LuBan,
 } from 'react-icons/lu';
 import { useAppTheme } from '../../../theme/tokens';
 import { formatNumber } from '../../ui/number-format';
 import { useGetSalesOrdersQuery } from '../../../store/services/salesOrder.api';
 import { useGetWarehousesQuery } from '../../../store/services/warehouse.api';
+import { STATUS_LABEL, statusCx } from '../../Zayavkachi/__components/statusBadge';
 
 const PAGE_SIZE = 20;
-
-/* ── Status labels ── */
-const STAFF_STATUS_LABEL = {
-    CREATED:   'Kutilmoqda',
-    LOADED:    'Ortildi',
-    CONFIRMED: 'Tugallangan',
-    REJECTED:  'Rad etilgan',
-};
-
-const STAFF_STATUS_CX = {
-    CREATED:   'bg-amber-400/10 text-amber-500 border-amber-400/30',
-    LOADED:    'bg-violet-500/10 text-violet-500 border-violet-500/30',
-    CONFIRMED: 'bg-green-500/10 text-green-600 border-green-500/30',
-    REJECTED:  'bg-rose-500/10 text-rose-500 border-rose-500/30',
-};
 
 /* ── Tabs ── */
 const TABS = [
@@ -274,7 +259,7 @@ export default function StaffOrders() {
                                 <span className={`hidden text-xs sm:inline ${muted}`}>
                                     · Holat:{' '}
                                     <span className="font-semibold text-amber-500">
-                                        {STAFF_STATUS_LABEL[statusFilter]}
+                                        {STATUS_LABEL[statusFilter]}
                                     </span>
                                 </span>
                             )}
@@ -298,7 +283,7 @@ export default function StaffOrders() {
                                         >
                                             <option value="">Barchasi</option>
                                             {currentTab.statuses.map((s) => (
-                                                <option key={s} value={s}>{STAFF_STATUS_LABEL[s]}</option>
+                                                <option key={s} value={s}>{STATUS_LABEL[s]}</option>
                                             ))}
                                         </select>
                                     </div>
@@ -438,11 +423,9 @@ export default function StaffOrders() {
                                             </td>
                                             <td className="px-5 py-3">
                                                 <span
-                                                    className={`inline-flex whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-bold ${
-                                                        STAFF_STATUS_CX[o.status] ?? 'bg-slate-500/10 text-slate-500 border-slate-500/30'
-                                                    }`}
+                                                    className={`inline-flex whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-bold ${statusCx(o.status)}`}
                                                 >
-                                                    {STAFF_STATUS_LABEL[o.status] ?? o.status}
+                                                    {STATUS_LABEL[o.status] ?? o.status}
                                                 </span>
                                             </td>
                                             <td className={`whitespace-nowrap px-5 py-3 text-xs ${muted}`}>
@@ -486,11 +469,9 @@ export default function StaffOrders() {
                                             </p>
                                         </div>
                                         <span
-                                            className={`shrink-0 inline-flex whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-bold ${
-                                                STAFF_STATUS_CX[o.status] ?? 'bg-slate-500/10 text-slate-500 border-slate-500/30'
-                                            }`}
+                                            className={`shrink-0 inline-flex whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-bold ${statusCx(o.status)}`}
                                         >
-                                            {STAFF_STATUS_LABEL[o.status] ?? o.status}
+                                            {STATUS_LABEL[o.status] ?? o.status}
                                         </span>
                                     </div>
 

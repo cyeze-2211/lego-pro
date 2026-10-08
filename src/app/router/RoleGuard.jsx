@@ -18,7 +18,7 @@ export default function RoleGuard({ allow }) {
         // Role ga qarab to'g'ri sahifaga yo'naltir
         if (WAREHOUSE_ROLES.includes(role))         return <Navigate to="/staff" replace />;
         if (ZAYAVKACHI_ROLES.includes(role))        return <Navigate to="/zayavkachi" replace />;
-        if (BUXGALTER_ROLES.includes(role))         return <Navigate to="/zayavkachi" replace />;
+        if (BUXGALTER_ROLES.includes(role))         return <Navigate to="/buxgalter" replace />;
         if (KASSIR_ROLES.includes(role))            return <Navigate to="/kassir" replace />;
 
         if (role === ROLES.STANOKCHI)               return <Navigate to="/stanokchi" replace />;

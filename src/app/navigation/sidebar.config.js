@@ -2,7 +2,7 @@
 import { ROLES, WAREHOUSE_ROLES, ZAYAVKACHI_ROLES, BUXGALTER_ROLES, KASSIR_ROLES } from '../permissions/roles';
 import {
     Boxes, ClipboardList, Cog, History, LayoutDashboard, LogIn, LogOut,
-    CalendarClock, Layers3, MonitorCog, Package, Palette, ReceiptText, ShieldCheck, UserRound, Users, Wallet, Warehouse, FileSpreadsheet, UserCheck,
+    CalendarClock, Layers3, MonitorCog, Package, Palette, ReceiptText, ShieldCheck, UserRound, Users, Wallet, Warehouse, FileSpreadsheet, UserCheck, Truck,
 } from 'lucide-react';
 
 // ── Manager ────────────────────────────────────────────────────────────────
@@ -18,6 +18,7 @@ export const SIDEBAR_CONFIG = [
     { label: 'Retseptlar', path: '/recipes', icon: Boxes, roles: [ROLES.MANAGER] },
     { label: 'Stanoklar', path: '/machines', icon: Cog, roles: [ROLES.MANAGER] },
     { label: 'Mijozlar', path: '/customers', icon: Users, roles: [ROLES.MANAGER] },
+    { label: 'Yetkazib beruvchilar', path: '/suppliers', icon: Truck, roles: [ROLES.MANAGER, ...BUXGALTER_ROLES] },
     { label: 'Agentlar', path: '/customer-agents', icon: UserCheck, roles: [ROLES.MANAGER] },
     { label: 'Kassalar', path: '/cashboxes', icon: Wallet, roles: [ROLES.MANAGER] },
     { label: 'Xarajatlar', path: '/expenses', icon: ReceiptText, roles: [ROLES.MANAGER] },
@@ -32,7 +33,7 @@ export const SIDEBAR_CONFIG = [
 export const SIDEBAR_GROUPS = [
     { label: 'Asosiy', items: SIDEBAR_CONFIG.filter((i) => i.path === '/') },
     { label: 'Ishlab chiqarish', items: SIDEBAR_CONFIG.filter((i) => ['/warehouses', '/products', '/product-colors', '/product-categories', '/raw', '/recipes', '/machines', '/brand'].includes(i.path)) },
-    { label: 'Moliya', items: SIDEBAR_CONFIG.filter((i) => ['/cashboxes', '/expenses', '/reminders', '/expense-categories', '/reconciliation'].includes(i.path)) },
+    { label: 'Moliya', items: SIDEBAR_CONFIG.filter((i) => ['/cashboxes', '/expenses', '/reminders', '/expense-categories', '/reconciliation', '/suppliers'].includes(i.path)) },
     { label: 'Userlar', items: SIDEBAR_CONFIG.filter((i) => ['/customers', '/customer-agents', '/orders', '/users', '/roles', '/devices'].includes(i.path)) },
 ];
 
@@ -40,7 +41,7 @@ export const SIDEBAR_GROUPS = [
 const PRODUCT_STOREKEEPER_ITEMS = [
     { label: 'Buyurtmalar', path: '/staff/orders', icon: ClipboardList, roles: WAREHOUSE_ROLES },
     { label: 'Kirim', path: '/staff/income', icon: LogIn, roles: WAREHOUSE_ROLES },
-    { label: 'Chiqim', path: '/staff/outcome', icon: LogOut, roles: WAREHOUSE_ROLES },
+    // { label: 'Chiqim', path: '/staff/outcome', icon: LogOut, roles: WAREHOUSE_ROLES },
     { label: 'Ombor', path: '/staff/warehouse', icon: Warehouse, roles: WAREHOUSE_ROLES },
     { label: 'Tarix', path: '/staff/history', icon: History, roles: WAREHOUSE_ROLES },
 ];
@@ -90,15 +91,22 @@ export const ZAYAVKACHI_SIDEBAR_GROUPS = [
 
 // ── Buxgalter ──────────────────────────────────────────────────────────────
 export const BUXGALTER_SIDEBAR_CONFIG = [
-    { label: 'Dashboard', path: '/zayavkachi', icon: LayoutDashboard, roles: BUXGALTER_ROLES },
+    { label: 'Dashboard', path: '/buxgalter', icon: LayoutDashboard, roles: BUXGALTER_ROLES },
     { label: 'Buyurtmalar', path: '/zayavkachi/orders', icon: ClipboardList, roles: BUXGALTER_ROLES },
-    { label: 'Mijozlar', path: '/zayavkachi/customers', icon: Users, roles: BUXGALTER_ROLES },
+    { label: 'Mijozlar', path: '/customers', icon: Users, roles: BUXGALTER_ROLES },
+    { label: 'Agentlar', path: '/customer-agents', icon: UserCheck, roles: BUXGALTER_ROLES },
+    { label: 'Mahsulot katalogi', path: '/products', icon: Package, roles: BUXGALTER_ROLES },
+    { label: 'Tovar ombori qoldiqlari', path: '/zayavkachi/warehouse', icon: Warehouse, roles: BUXGALTER_ROLES },
+    { label: 'Mijozlar sverkasi', path: '/reconciliation', icon: FileSpreadsheet, roles: BUXGALTER_ROLES },
+    { label: 'Yetkazib beruvchilar', path: '/suppliers', icon: Truck, roles: BUXGALTER_ROLES },
     { label: 'To‘lov eslatmalari', path: '/reminders', icon: CalendarClock, roles: BUXGALTER_ROLES },
 ];
 
 export const BUXGALTER_SIDEBAR_GROUPS = [
-    { label: 'Asosiy', items: BUXGALTER_SIDEBAR_CONFIG.filter((i) => i.path === '/zayavkachi') },
-    { label: 'Savdo', items: BUXGALTER_SIDEBAR_CONFIG.filter((i) => ['/zayavkachi/orders', '/zayavkachi/customers', '/reminders'].includes(i.path)) },
+    { label: 'Asosiy', items: BUXGALTER_SIDEBAR_CONFIG.filter((i) => i.path === '/buxgalter') },
+    { label: 'Savdo', items: BUXGALTER_SIDEBAR_CONFIG.filter((i) => ['/zayavkachi/orders', '/customers', '/customer-agents', '/reconciliation', '/reminders'].includes(i.path)) },
+    { label: 'Ombor va katalog', items: BUXGALTER_SIDEBAR_CONFIG.filter((i) => ['/products', '/zayavkachi/warehouse'].includes(i.path)) },
+    { label: 'Moliya', items: BUXGALTER_SIDEBAR_CONFIG.filter((i) => ['/suppliers'].includes(i.path)) },
 ];
 
 // ── Kassir ─────────────────────────────────────────────────────────────────

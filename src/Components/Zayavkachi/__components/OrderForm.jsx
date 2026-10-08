@@ -4,8 +4,8 @@ import {
     LuPlus, LuSearch, LuTrash2, LuPackage, LuSend, LuCheck,
     LuX, LuBarcode, LuArrowLeft,
     LuWarehouse, LuMinus, LuUser, LuStickyNote, LuLock,
-    LuChevronDown, LuChevronLeft, LuChevronRight, LuClipboardList, LuCalendar, LuTag, LuTrendingUp,
-    LuBoxes, LuArrowDownWideNarrow, LuSlidersHorizontal, LuRotateCcw,
+    LuChevronDown, LuClipboardList, LuCalendar, LuTag, LuTrendingUp,
+    LuBoxes, LuArrowDownWideNarrow, LuSlidersHorizontal, LuRotateCcw, LuHash,
 } from 'react-icons/lu';
 import { useAppTheme } from '../../../theme/tokens';
 import { formatNumber } from '../../ui/number-format';
@@ -13,6 +13,8 @@ import { Alert } from '../../Other/UI/Alert/Alert';
 import { useGetWarehousesQuery } from '../../../store/services/warehouse.api';
 import { useGetProductsQuery } from '../../../store/services/product.api';
 import { useGetProductStocksQuery } from '../../../store/services/productStock.api';
+import { useGetProductCategoriesQuery } from '../../../store/services/productCategory.api';
+import { useGetProductColorsQuery } from '../../../store/services/productColor.api';
 import { useGetCustomersQuery } from '../../../store/services/customer.api';
 import { useCreateSalesOrderMutation, useUpdateSalesOrderMutation, useUpdateSalesOrderPricesMutation, useGetSalesOrdersQuery } from '../../../store/services/salesOrder.api';
 import { useAppSelector } from '../../../store/hooks';
@@ -28,7 +30,7 @@ const SORTS = [
 ];
 
 const EMPTY_FILTERS = {
-    name: '', article: '', productSize: '', brandId: '',
+    name: '', article: '', productSize: '', brandId: '', categoryId: '', colorId: '',
     lowStock: false, priceFrom: '', priceTo: '', sortKey: 'recent',
 };
 
@@ -58,37 +60,81 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
     const [filters, setFilters]         = useState(EMPTY_FILTERS);
     const [filtersOpen, setFiltersOpen] = useState(false);
     const [stockPage, setStockPage]     = useState(0);
+    const [allStocks, setAllStocks]     = useState([]);
+    const [hasMoreStocks, setHasMoreStocks] = useState(true);
     const [brandMap, setBrandMap]       = useState({});
     const [stockCache, setStockCache]   = useState({});
     const debouncedFilters = useDebouncedValue(filters, 350);
     const [expandedOrders, setExpandedOrders] = useState({});
-    const [items, setItems]             = useState(() =>
-        (order?.items ?? []).map((i) => ({
-            id:              i.id,
-            productId:      i.productId,
-            productName:    i.productName,
-            productArticle: i.productArticle,
-            productBarcode: i.productBarcode,
-            warehouseId:    i.warehouseId,
-            quantity:       i.quantity,
-            unitPrice:      i.unitPrice,
-        }))
-    );
-    const customerRef = useRef(null);
-    const searchRef   = useRef(null);
-    const searchInputRef = useRef(null);
+    const [items, setItems]             = useState(() => {
+        const groupedItems = new Map();
+        for (const item of order?.items ?? []) {
+            const packQuantity = Number(item.quantity);
+            const enteredQuantity = Number(item.enteredQuantity);
+            const piecesPerPack = Number(
+                item.productPiecesPerPack
+                ?? item.piecesPerPack
+                ?? (item.unit === 'PACK' && enteredQuantity > 0
+                    ? packQuantity / enteredQuantity
+                    : 0)
+            ) || null;
+            const key = `${item.productId}-${item.warehouseId}`;
+            const existing = groupedItems.get(key) ?? {
+                id: item.id,
+                productId: item.productId,
+                productName: item.productName,
+                productArticle: item.productArticle,
+                productBarcode: item.productBarcode,
+                warehouseId: item.warehouseId,
+                piecesPerPack,
+                packs: 0,
+                pieces: 0,
+                quantity: 0,
+                unit: 'PIECE',
+                enteredQuantity: 0,
+                unitPrice: item.unitPrice,
+            };
+            if (!existing.piecesPerPack && piecesPerPack) {
+                existing.piecesPerPack = piecesPerPack;
+            }
+            if (item.unit === 'PACK') {
+                existing.packs += enteredQuantity || (
+                    piecesPerPack ? packQuantity / piecesPerPack : 0
+                );
+            } else {
+                existing.pieces += enteredQuantity || packQuantity;
+            }
+            existing.quantity = existing.packs * (piecesPerPack ?? 0) + existing.pieces;
+            existing.enteredQuantity = existing.quantity;
+            groupedItems.set(key, existing);
+        }
+        return [...groupedItems.values()];
+    });
+    const customerRef       = useRef(null);
+    const searchRef         = useRef(null);
+    const searchInputRef    = useRef(null);
+    const loadMoreRef       = useRef(null);
+    const isFetchingNextRef = useRef(false);
 
     const { data: warehouses = [] }          = useGetWarehousesQuery('PRODUCT');
+    const { data: categoriesResp } = useGetProductCategoriesQuery(
+        { page: 0, size: 200 },
+        { skip: !open }
+    );
+    const { data: colorsResp } = useGetProductColorsQuery(
+        { page: 0, size: 200 },
+        { skip: !open }
+    );
     const { data: customersResp, isFetching: isCustomerFetching } = useGetCustomersQuery(
         { name: customerSearch || undefined, size: 50 },
         { skip: isCustomerLocked }
     );
 
-    // Ombordagi joriy qoldiqlar — barcha filtrlar serverda ishlaydi
     const df = debouncedFilters;
     const term = df.name.trim();
-    const isBarcodeTerm = /^\d{8,}$/.test(term); // uzun raqam = barcode (skaner)
+    const isBarcodeTerm = /^\d{8,}$/.test(term);
     const sortParam = SORTS.find((x) => x.key === df.sortKey)?.sort;
+
     const { data: stocksResp, isFetching } = useGetProductStocksQuery(
         {
             warehouseId,
@@ -97,6 +143,8 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
             article:     df.article.trim() || undefined,
             productSize: df.productSize.trim() || undefined,
             brandId:     df.brandId || undefined,
+            categoryId:  df.categoryId || undefined,
+            colorId:     df.colorId || undefined,
             lowStock:    df.lowStock || undefined,
             priceFrom:   df.priceFrom !== '' ? Number(df.priceFrom) : undefined,
             priceTo:     df.priceTo !== '' ? Number(df.priceTo) : undefined,
@@ -104,21 +152,34 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
             size: STOCK_PAGE_SIZE,
             sort: sortParam,
         },
-        { skip: !warehouseId }
+        { skip: !warehouseId || !open }
     );
 
-    // Mahsulot standart narxi uchun (stock javobida narx yo'q)
     const { data: productsResp } = useGetProductsQuery(
         { size: 200 },
         { skip: !warehouseId }
     );
+    const {
+        data: productSearchResp,
+        isFetching: isProductSearchFetching,
+        isError: isProductSearchError,
+    } = useGetProductsQuery(
+        {
+            query: term || undefined,
+            categoryId: df.categoryId || undefined,
+            colorId: df.colorId || undefined,
+            page: 0,
+            size: 200,
+        },
+        { skip: !warehouseId || !open }
+    );
+    const isSearchingProducts = isFetching || isProductSearchFetching;
 
     const [createOrder, { isLoading: isCreating }] = useCreateSalesOrderMutation();
     const [updateOrder, { isLoading: isUpdating }] = useUpdateSalesOrderMutation();
     const [updatePrices, { isLoading: isUpdatingPrices }] = useUpdateSalesOrderPricesMutation();
     const isSending = isCreating || isUpdating || isUpdatingPrices;
 
-    // Previous orders for the selected customer (for price reference accordion)
     const prevOrdersCustomerId = customerId || null;
     const { data: prevOrdersData, isFetching: prevOrdersFetching } = useGetSalesOrdersQuery(
         { customerId: prevOrdersCustomerId, status: 'APPROVED', size: 10, sort: ['createdAt,DESC', 'id,DESC'] },
@@ -126,7 +187,6 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
     );
     const prevOrders = (prevOrdersData?.items ?? []).filter((o) => o.id !== order?.id);
 
-    // productId → last used price (from the most recent approved order)
     const lastPriceMap = useMemo(() => {
         const map = {};
         for (const o of prevOrders) {
@@ -141,33 +201,129 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
 
     const customers = customersResp?.items ?? [];
 
-    // productId → default price
     const productPriceMap = useMemo(() => {
         const map = {};
         for (const p of (productsResp?.items ?? [])) map[p.id] = p.price;
         return map;
     }, [productsResp]);
+    const selectableProducts = useMemo(() => {
+        const stocksByProduct = new Map(allStocks.map((stock) => [stock.productId, stock]));
+        const products = productSearchResp?.items ?? [];
+        const catalogProducts = products
+            .filter((product) => {
+                const productSize = product.size ?? product.productSize;
+                const brandId = product.brand?.id ?? product.brandId;
+                const categoryId = product.category?.id ?? product.categoryId;
+                const colorId = product.color?.id ?? product.colorId;
+                return (!df.productSize.trim() || String(productSize ?? '').toLowerCase().includes(df.productSize.trim().toLowerCase()))
+                    && (!df.brandId || brandId === df.brandId)
+                    && (!df.categoryId || categoryId === df.categoryId)
+                    && (!df.colorId || colorId === df.colorId);
+            })
+            .map((product) => {
+                const stock = stocksByProduct.get(product.id);
+                return {
+                    ...(stock ?? {}),
+                    productId: product.id,
+                    productName: product.name ?? stock?.productName,
+                    productArticle: product.article ?? stock?.productArticle,
+                    productBarcode: product.barcode ?? stock?.productBarcode,
+                    productSize: product.size ?? product.productSize ?? stock?.productSize,
+                    productPiecesPerPack: product.piecesPerPack ?? stock?.productPiecesPerPack,
+                    productMinimumLine: product.minimumLine ?? stock?.productMinimumLine,
+                    brand: product.brand ?? stock?.brand,
+                    warehouseId,
+                    quantity: stock?.quantity ?? stockCache[product.id] ?? 0,
+                    price: product.price ?? stock?.price,
+                };
+            });
+        const catalogIds = new Set(catalogProducts.map((product) => product.productId));
+        return [
+            ...catalogProducts,
+            ...allStocks.filter((stock) => !catalogIds.has(stock.productId)),
+        ];
+    }, [allStocks, productSearchResp, df.productSize, df.brandId, df.categoryId, df.colorId, stockCache, warehouseId]);
 
-    const stocks = useMemo(() => stocksResp?.items ?? [], [stocksResp]);
     const stockPagination = stocksResp?.pagination ?? null;
 
-    // Ko'rilgan brendlar va qoldiqlar keshi (filtr o'zgarsa ham yo'qolmasin)
+    /* ── Reset при смене фильтров/склада ── */
     useEffect(() => {
-        if (!stocks.length) return;
+        setAllStocks([]);
+        setStockPage(0);
+        setHasMoreStocks(true);
+        isFetchingNextRef.current = false;
+    }, [warehouseId, debouncedFilters.name, debouncedFilters.lowStock, debouncedFilters.sortKey,
+        debouncedFilters.article, debouncedFilters.productSize, debouncedFilters.brandId,
+        debouncedFilters.categoryId, debouncedFilters.colorId,
+        debouncedFilters.priceFrom, debouncedFilters.priceTo]);
+
+    /* ── Накопление страниц ── */
+    useEffect(() => {
+        if (!stocksResp?.items) return;
+
+        if (stockPage === 0) {
+            setAllStocks(stocksResp.items);
+        } else {
+            setAllStocks((prev) => {
+                const seen = new Set(prev.map((s) => `${s.productId}-${s.warehouseId}`));
+                const fresh = stocksResp.items.filter(
+                    (s) => !seen.has(`${s.productId}-${s.warehouseId}`)
+                );
+                return fresh.length ? [...prev, ...fresh] : prev;
+            });
+        }
+
+        const totalPages = stockPagination?.totalPages ?? 0;
+        if (totalPages > 0) {
+            setHasMoreStocks(stockPage < totalPages - 1);
+        } else {
+            setHasMoreStocks(stocksResp.items.length === STOCK_PAGE_SIZE);
+        }
+        isFetchingNextRef.current = false;
+    }, [stocksResp, stockPage, stockPagination]);
+
+    /* ── Кэш брендов и остатков ── */
+    useEffect(() => {
+        if (!allStocks.length) return;
         setBrandMap((prev) => {
             let changed = false;
             const next = { ...prev };
-            for (const st of stocks) {
+            for (const st of allStocks) {
                 if (st.brand?.id && !next[st.brand.id]) { next[st.brand.id] = st.brand; changed = true; }
             }
             return changed ? next : prev;
         });
         setStockCache((prev) => {
             const next = { ...prev };
-            for (const st of stocks) next[st.productId] = st.quantity;
+            for (const st of allStocks) next[st.productId] = st.quantity;
             return next;
         });
-    }, [stocks]);
+    }, [allStocks]);
+
+    /* ── Infinite scroll в dropdown ── */
+    useEffect(() => {
+        if (!open) return;
+        const node = loadMoreRef.current;
+        if (!node) return;
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                const entry = entries[0];
+                if (
+                    entry.isIntersecting &&
+                    hasMoreStocks &&
+                    !isFetching &&
+                    !isFetchingNextRef.current
+                ) {
+                    isFetchingNextRef.current = true;
+                    setStockPage((p) => p + 1);
+                }
+            },
+            { root: null, rootMargin: '150px 0px', threshold: 0 }
+        );
+        observer.observe(node);
+        return () => observer.disconnect();
+    }, [open, hasMoreStocks, isFetching, allStocks.length]);
 
     const stockMap = stockCache;
     const brandOptions = useMemo(
@@ -177,12 +333,15 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
 
     const advancedCount =
         (filters.article.trim() ? 1 : 0) + (filters.productSize.trim() ? 1 : 0) +
-        (filters.brandId ? 1 : 0) + (filters.lowStock ? 1 : 0) +
+        (filters.brandId ? 1 : 0) + (filters.categoryId ? 1 : 0) +
+        (filters.colorId ? 1 : 0) + (filters.lowStock ? 1 : 0) +
         (filters.priceFrom !== '' ? 1 : 0) + (filters.priceTo !== '' ? 1 : 0);
     const hasAnyFilter = advancedCount > 0 || filters.name.trim() !== '' || filters.sortKey !== 'recent';
 
     const patchFilters = (patch) => { setFilters((p) => ({ ...p, ...patch })); setStockPage(0); };
     const resetFilters = () => { setFilters(EMPTY_FILTERS); setStockPage(0); };
+    const categories = categoriesResp?.items ?? [];
+    const colors = colorsResp?.items ?? [];
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -202,7 +361,7 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
         if (open && searchInputRef.current) searchInputRef.current.focus();
     }, [open]);
 
-    /* ── theme tokens ──────────────────────────────────────────────── */
+    /* ── theme tokens ── */
     const panel   = isDark ? 'border-white/10 bg-[#141C2B]' : 'border-[#e2e8f0] bg-white';
     const muted   = isDark ? 'text-[#94a3b8]' : 'text-[#64748b]';
     const head    = isDark ? 'text-white' : 'text-[#0f172a]';
@@ -234,11 +393,15 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
         return isDark ? 'bg-green-500/10 text-green-400 border-green-500/30' : 'bg-green-50 text-green-700 border-green-200';
     };
 
-    /* ── helpers ───────────────────────────────────────────────────── */
+    /* ── helpers ── */
     const addProduct = useCallback((stock, whId) => {
+        setStockCache((previous) => ({
+            ...previous,
+            [stock.productId]: stock.quantity ?? 0,
+        }));
         setItems((prev) => {
             if (prev.find((i) => i.productId === stock.productId)) return prev;
-            const autoPrice = lastPriceMap[stock.productId] ?? productPriceMap[stock.productId] ?? 0;
+            const autoPrice = lastPriceMap[stock.productId] ?? stock.price ?? productPriceMap[stock.productId] ?? 0;
             return [...prev, {
                 productId:       stock.productId,
                 productName:     stock.productName,
@@ -247,9 +410,10 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                 piecesPerPack:   stock.productPiecesPerPack ?? null,
                 warehouseId:     whId,
                 quantity:        1,
-                packs:           stock.productPiecesPerPack > 0 && 1 % stock.productPiecesPerPack === 0
-                    ? 1 / stock.productPiecesPerPack
-                    : 0,
+                enteredQuantity: 1,
+                unit:            'PIECE',
+                packs:           0,
+                pieces:          1,
                 unitPrice:       autoPrice,
                 _fromHistory:    lastPriceMap[stock.productId] != null,
             }];
@@ -265,14 +429,12 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
     const removeItem = (id) => setItems((p) => p.filter((i) => i.productId !== id));
 
     const updateQty = (id, val) => {
-        const qty = parseInt(val, 10);
-        if (isNaN(qty) || qty < 1) return;
+        const qty = Number(val);
+        if (!Number.isInteger(qty) || qty < 0) return;
         setItems((p) => p.map((i) => {
             if (i.productId !== id) return i;
-            const packs = i.piecesPerPack > 0 && qty % i.piecesPerPack === 0
-                ? qty / i.piecesPerPack
-                : 0;
-            return { ...i, quantity: qty, packs };
+            const quantity = (i.packs ?? 0) * (i.piecesPerPack ?? 0) + qty;
+            return { ...i, pieces: qty, quantity, enteredQuantity: quantity, unit: 'PIECE' };
         }));
     };
 
@@ -296,23 +458,25 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
     const stepQty = (id, delta) => {
         setItems((p) => p.map((i) => {
             if (i.productId !== id) return i;
-            const qty = Math.max(1, i.quantity + delta);
-            const packs = i.piecesPerPack > 0 && qty % i.piecesPerPack === 0
-                ? qty / i.piecesPerPack
-                : 0;
-            return { ...i, quantity: qty, packs };
+            const pieces = Math.max(0, (i.pieces ?? 0) + delta);
+            const quantity = (i.packs ?? 0) * (i.piecesPerPack ?? 0) + pieces;
+            return { ...i, pieces, quantity, enteredQuantity: quantity, unit: 'PIECE' };
         }));
     };
 
     const updatePacks = (id, val) => {
-        const packs = parseInt(val, 10);
-        if (isNaN(packs) || packs < 0) return;
+        const packs = Number(val);
+        if (!Number.isInteger(packs) || packs < 0) return;
         setItems((p) => p.map((i) => {
             if (i.productId !== id) return i;
-            const qty = packs > 0 && i.piecesPerPack > 0
-                ? packs * i.piecesPerPack
-                : i.quantity;
-            return { ...i, packs, quantity: qty };
+            const quantity = packs * (i.piecesPerPack ?? 0) + (i.pieces ?? 0);
+            return {
+                ...i,
+                packs,
+                quantity,
+                enteredQuantity: quantity,
+                unit: 'PIECE',
+            };
         }));
     };
 
@@ -320,14 +484,19 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
         setItems((p) => p.map((i) => {
             if (i.productId !== id) return i;
             const packs = Math.max(0, (i.packs ?? 0) + delta);
-            const qty = packs > 0 && i.piecesPerPack > 0
-                ? packs * i.piecesPerPack
-                : i.quantity;
-            return { ...i, packs, quantity: qty };
+            const quantity = packs * (i.piecesPerPack ?? 0) + (i.pieces ?? 0);
+            return {
+                ...i,
+                packs,
+                quantity,
+                enteredQuantity: quantity,
+                unit: 'PIECE',
+            };
         }));
     };
 
-    const handleWarehouseChange = (value) => {        setWarehouseId(value);
+    const handleWarehouseChange = (value) => {
+        setWarehouseId(value);
         setFilters(EMPTY_FILTERS);
         setStockPage(0);
         setStockCache({});
@@ -336,15 +505,44 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!customerId || items.length === 0) return;
+        if (items.some((item) => (
+            !Number.isInteger(item.packs)
+            || !Number.isInteger(item.pieces)
+            || item.packs < 0
+            || item.pieces < 0
+            || (item.packs > 0 && !(item.piecesPerPack > 0))
+            || (item.packs === 0 && item.pieces === 0)
+        ))) {
+            Alert('Har bir mahsulot uchun musbat miqdor va to‘g‘ri qadoq sonini kiriting', 'error');
+            return;
+        }
         const data = {
             customerId,
             summary: summary.trim() || null,
-            items: items.map(({ productId, warehouseId: whId, quantity, unitPrice }) => ({
-                productId,
-                warehouseId: whId,
-                quantity: parseInt(quantity, 10),
-                unitPrice,
-            })),
+            items: items.flatMap(({ productId, warehouseId: whId, packs, pieces, unitPrice }) => {
+                const lines = [];
+                if (packs > 0) {
+                    lines.push({ productId, warehouseId: whId, quantity: packs, unit: 'PACK', unitPrice });
+                }
+                if (pieces > 0) {
+                    lines.push({ productId, warehouseId: whId, quantity: pieces, unit: 'PIECE', unitPrice });
+                }
+                return lines;
+            }),
+        };
+        const createData = {
+            customerId,
+            summary: summary.trim() || null,
+            items: items.flatMap(({ productId, warehouseId: whId, packs, pieces }) => {
+                const lines = [];
+                if (packs > 0) {
+                    lines.push({ productId, warehouseId: whId, quantity: packs, unit: 'PACK' });
+                }
+                if (pieces > 0) {
+                    lines.push({ productId, warehouseId: whId, quantity: pieces, unit: 'PIECE' });
+                }
+                return lines;
+            }),
         };
         try {
             if (isEdit) {
@@ -361,7 +559,7 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                     Alert('Buyurtma yangilandi', 'success');
                 }
             } else {
-                await createOrder(data).unwrap();
+                await createOrder(createData).unwrap();
                 Alert('Buyurtma yaratildi', 'success');
             }
             onSaved();
@@ -370,8 +568,13 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
         }
     };
 
-    const totalQty    = items.reduce((s, i) => s + i.quantity, 0);
-    const totalAmount = items.reduce((s, i) => s + i.quantity * (i.unitPrice ?? 0), 0);
+    const getItemQuantity = (item) =>
+        (Number(item.packs) || 0) * (Number(item.piecesPerPack) || 0) + (Number(item.pieces) || 0);
+    const getItemAmount = (item) => getItemQuantity(item) * (Number(item.unitPrice) || 0);
+    const getPackAmount = (item) =>
+        (Number(item.packs) || 0) * (Number(item.piecesPerPack) || 0) * (Number(item.unitPrice) || 0);
+    const totalQty    = items.reduce((sum, item) => sum + getItemQuantity(item), 0);
+    const totalAmount = items.reduce((sum, item) => sum + getItemAmount(item), 0);
     const selectedWarehouse = warehouses.find((w) => w.id === warehouseId);
 
     const toggleOrder = (id) => setExpandedOrders((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -390,10 +593,17 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
         </svg>
     );
 
+    const formatQuantityBreakdown = (item) => {
+        const quantities = [];
+        if (item.packs > 0) quantities.push(`${item.packs} pachka`);
+        if (item.pieces > 0) quantities.push(`${item.pieces} dona`);
+        return quantities.join(' + ');
+    };
+
     return (
         <div className="flex w-full flex-col gap-4 py-2">
 
-            {/* ── Header ────────────────────────────────────────────────── */}
+            {/* ── Header ── */}
             <div className={`relative overflow-hidden rounded-2xl border px-4 py-3.5 sm:px-5 sm:py-4 shadow-md ${panel}`}>
                 <div className="absolute right-0 top-0 h-full w-1/2 bg-gradient-to-l from-amber-400/6 to-transparent" />
                 <div className="relative flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
@@ -420,8 +630,9 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
             <form onSubmit={handleSubmit}>
                 <div className={`rounded-2xl border shadow-md ${panel}`}>
 
-                    {/* ── Mijoz + Ombor ───────────────────────────────── */}
-                    <div className="flex flex-col gap-3 px-4 pt-4 sm:px-5 sm:pt-5">
+                    {/* ── Mijoz + Ombor (рядом) ── */}
+                    <div className="grid grid-cols-1 gap-4 p-4 sm:p-5 lg:grid-cols-[1fr_280px]">
+                        {/* Mijoz */}
                         <div className="relative" ref={customerRef}>
                             <label className={`mb-1.5 flex items-center gap-2 text-xs font-semibold ${muted}`}>
                                 <span className={stepCx}>1</span> <LuUser size={12} /> Mijoz
@@ -436,41 +647,39 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                     <LuLock size={13} className={`ml-auto shrink-0 ${muted}`} />
                                 </div>
                             ) : (
-                            <div className="flex items-center gap-2">
-                                <CustomerCreate
-                                    compact
-                                    onBeforeOpen={() => setCustomerOpen(false)}
-                                    onCreated={(created) => {
-                                        if (created?.id) selectCustomer(created);
-                                    }}
-                                />
-                                <div className="relative flex-1">
-                                    <LuSearch className={`pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 ${muted}`} />
-                                    <input
-                                        type="text"
-                                        placeholder="Mijoz nomini yozing yoki ro'yxatdan tanlang"
-                                        value={customerSearch}
-                                        onChange={(e) => { setCustomerSearch(e.target.value); setCustomerId(''); setCustomerOpen(true); }}
-                                        onFocus={() => setCustomerOpen(true)}
-                                        className={`${inputCx} pl-11 pr-10`}
+                                <div className="flex items-center gap-2">
+                                    <CustomerCreate
+                                        compact
+                                        onBeforeOpen={() => setCustomerOpen(false)}
+                                        onCreated={(created) => {
+                                            if (created?.id) selectCustomer(created);
+                                        }}
                                     />
-                                    {customerSearch && (
-                                        <button type="button" onClick={() => { setCustomerSearch(''); setCustomerId(''); }}
-                                            className={`absolute right-3 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-lg ${muted} hover:text-[#f43f5e]`}>
-                                            <LuX size={15} />
-                                        </button>
-                                    )}
+                                    <div className="relative flex-1">
+                                        <LuSearch className={`pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 ${muted}`} />
+                                        <input
+                                            type="text"
+                                            placeholder="Mijoz nomini yozing yoki tanlang"
+                                            value={customerSearch}
+                                            onChange={(e) => { setCustomerSearch(e.target.value); setCustomerId(''); setCustomerOpen(true); }}
+                                            onFocus={() => setCustomerOpen(true)}
+                                            className={`${inputCx} pl-11 pr-10`}
+                                        />
+                                        {customerSearch && (
+                                            <button type="button" onClick={() => { setCustomerSearch(''); setCustomerId(''); }}
+                                                className={`absolute right-3 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-lg ${muted} hover:text-[#f43f5e]`}>
+                                                <LuX size={15} />
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
                             )}
 
-                            {/* Mijozlar ro'yxati */}
                             {!isCustomerLocked && customerOpen && (
                                 <div className={`absolute left-0 right-0 top-full z-30 mt-2 overflow-hidden rounded-xl border shadow-xl ${isDark ? 'border-[#334155] bg-[#0f172a]' : 'border-[#e2e8f0] bg-white'}`}>
                                     {isCustomerFetching ? (
                                         <div className={`flex items-center justify-center gap-2 py-6 text-sm ${muted}`}>
-                                            {spinner}
-                                            Qidirilmoqda...
+                                            {spinner} Qidirilmoqda...
                                         </div>
                                     ) : customers.length === 0 ? (
                                         <div className={`py-6 text-center text-sm ${muted}`}>Mijoz topilmadi</div>
@@ -504,7 +713,8 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                             )}
                         </div>
 
-                        <div className="sm:w-72 shrink-0">
+                        {/* Ombor — компактный рядом */}
+                        <div>
                             <label className={`mb-1.5 flex items-center gap-2 text-xs font-semibold ${muted}`}>
                                 <span className={stepCx}>2</span> <LuWarehouse size={12} /> Ombor
                             </label>
@@ -514,7 +724,7 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                 required
                                 className={inputCx}
                             >
-                                <option value="">Ombor tanlang</option>
+                                <option value="">Tanlang</option>
                                 {warehouses.map((w) => (
                                     <option key={w.id} value={w.id}>{w.name}</option>
                                 ))}
@@ -522,37 +732,35 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                         </div>
                     </div>
 
-                    {/* ── Mahsulot qo'shish (stock dropdown) ──────────── */}
-                    <div className="px-4 pt-3 sm:px-5 sm:pt-4">
+                    {/* ── Mahsulot qo'shish (stock dropdown) ── */}
+                    <div className="px-4 pb-4 sm:px-5 sm:pb-4">
                         <div className="relative" ref={searchRef}>
                             <label className={`mb-1.5 flex items-center gap-2 text-xs font-semibold ${muted}`}>
                                 <span className={stepCx}>3</span> Mahsulot qo&apos;shish
                             </label>
 
-                            {/* Trigger */}
                             <button
                                 type="button"
                                 disabled={!warehouseId}
                                 onClick={() => setOpen((v) => !v)}
-                                className={`${inputCx} flex items-center gap-3 text-left disabled:opacity-50 disabled:cursor-not-allowed ${open ? (isDark ? '!border-amber-400 ring-2 ring-amber-400/20' : '!border-amber-400 ring-2 ring-amber-400/20') : ''}`}
+                                className={`${inputCx} flex items-center gap-3 text-left disabled:opacity-50 disabled:cursor-not-allowed ${open ? '!border-amber-400 ring-2 ring-amber-400/20' : ''}`}
                             >
                                 <LuBoxes size={16} className={muted} />
                                 <span className={`flex-1 truncate ${muted}`}>
-                                    {warehouseId ? "Ombordagi mahsulotlardan tanlang" : 'Avval ombor tanlang'}
+                                    {warehouseId ? 'Ombordagi yoki katalogdagi mahsulotlardan tanlang' : 'Avval ombor tanlang'}
                                 </span>
-                                {warehouseId && stocks.length > 0 && (
+                                {warehouseId && stockPagination && (
                                     <span className={`rounded-full border px-2 py-0.5 text-xs font-bold ${badge}`}>
-                                        {stockPagination?.totalElements ?? stocks.length} ta
+                                        {stockPagination.totalElements} ta
                                     </span>
                                 )}
                                 <LuChevronDown size={16} className={`shrink-0 transition-transform duration-200 ${muted} ${open ? 'rotate-180' : ''}`} />
                             </button>
 
-                            {/* Dropdown panel */}
                             {open && warehouseId && (
                                 <div className={`absolute left-0 right-0 top-full z-20 mt-2 overflow-hidden rounded-2xl border shadow-2xl ${isDark ? 'border-[#334155] bg-[#0f172a]' : 'border-[#e2e8f0] bg-white'}`}>
 
-                                    {/* Search + filter toggle */}
+                                    {/* Search + filters */}
                                     <div className={`border-b p-3 ${line}`}>
                                         <div className="flex items-center gap-2">
                                             <div className="relative flex-1">
@@ -560,7 +768,7 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                                 <input
                                                     ref={searchInputRef}
                                                     type="text"
-                                                    placeholder="Nomi yoki barcode (skaner) bo'yicha qidiring"
+                                                    placeholder="Nomi, artikul yoki barcode (skaner) bo‘yicha qidiring"
                                                     value={filters.name}
                                                     onChange={(e) => patchFilters({ name: e.target.value })}
                                                     className={`w-full rounded-xl border pl-10 pr-9 h-10 text-sm outline-none transition-all duration-200 ${fieldCx}`}
@@ -587,7 +795,6 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                             </button>
                                         </div>
 
-                                        {/* Quick row: low stock + sort + reset */}
                                         <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2">
                                             <button type="button"
                                                 onClick={() => patchFilters({ lowStock: !filters.lowStock })}
@@ -619,14 +826,9 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                             </div>
                                         </div>
 
-                                        {/* Advanced filters */}
                                         {filtersOpen && (
                                             <div className={`mt-3 grid grid-cols-2 gap-2.5 rounded-xl border p-3 sm:grid-cols-4 ${isDark ? 'border-[#334155] bg-[#1e293b]/40' : 'border-[#e2e8f0] bg-[#f8fafc]'}`}>
-                                                <label className="flex flex-col gap-1">
-                                                    <span className={`text-[10px] font-bold uppercase tracking-wide ${muted}`}>Artikul</span>
-                                                    <input type="text" placeholder="SH-001" value={filters.article}
-                                                        onChange={(e) => patchFilters({ article: e.target.value })} className={miniCx} />
-                                                </label>
+
                                                 <label className="flex flex-col gap-1">
                                                     <span className={`text-[10px] font-bold uppercase tracking-wide ${muted}`}>O&apos;lcham</span>
                                                     <input type="text" placeholder="1 kg" value={filters.productSize}
@@ -640,7 +842,27 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                                         {brandOptions.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
                                                     </select>
                                                 </label>
-                                                <label className="flex flex-col gap-1 col-span-1 sm:col-span-2">
+                                                <label className="flex flex-col gap-1 col-span-2">
+                                                    <span className={`text-[10px] font-bold uppercase tracking-wide ${muted}`}>Mahsulot kategoriyasi</span>
+                                                    <select value={filters.categoryId}
+                                                        onChange={(e) => patchFilters({ categoryId: e.target.value })} className={miniCx}>
+                                                        <option value="">Barcha kategoriyalar</option>
+                                                        {categories.map((category) => (
+                                                            <option key={category.id} value={category.id}>{category.name}</option>
+                                                        ))}
+                                                    </select>
+                                                </label>
+                                                <label className="flex flex-col gap-1 col-span-2">
+                                                    <span className={`text-[10px] font-bold uppercase tracking-wide ${muted}`}>Rang</span>
+                                                    <select value={filters.colorId}
+                                                        onChange={(e) => patchFilters({ colorId: e.target.value })} className={miniCx}>
+                                                        <option value="">Barcha ranglar</option>
+                                                        {colors.map((color) => (
+                                                            <option key={color.id} value={color.id}>{color.name}</option>
+                                                        ))}
+                                                    </select>
+                                                </label>
+                                                <label className="flex flex-col gap-1 col-span-2">
                                                     <span className={`text-[10px] font-bold uppercase tracking-wide ${muted}`}>Narx (so&apos;m)</span>
                                                     <div className="flex items-center gap-1.5">
                                                         <input type="text" inputMode="numeric" placeholder="dan" value={filters.priceFrom}
@@ -654,17 +876,18 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                         )}
                                     </div>
 
-                                    {/* List */}
-                                    {isFetching && stocks.length === 0 ? (
+                                    {/* Products list — infinite scroll */}
+                                    {isSearchingProducts && selectableProducts.length === 0 ? (
                                         <div className={`flex items-center justify-center gap-2 py-10 text-sm ${muted}`}>
-                                            {spinner}
-                                            Qoldiqlar yuklanmoqda...
+                                            {spinner} Mahsulotlar yuklanmoqda...
                                         </div>
-                                    ) : stocks.length === 0 ? (
+                                    ) : selectableProducts.length === 0 ? (
                                         <div className={`flex flex-col items-center gap-2 py-10 ${muted}`}>
                                             <LuPackage size={28} strokeWidth={1.5} />
                                             <p className="text-sm">
-                                                {hasAnyFilter ? 'Filtr bo‘yicha mahsulot topilmadi' : 'Bu omborda mahsulot qoldig‘i yo‘q'}
+                                                {isProductSearchError
+                                                    ? 'Mahsulotlar ro‘yxatini yuklashda xatolik'
+                                                    : hasAnyFilter ? 'Filtr bo‘yicha mahsulot topilmadi' : 'Mahsulot topilmadi'}
                                             </p>
                                             {hasAnyFilter && (
                                                 <button type="button" onClick={resetFilters}
@@ -674,19 +897,19 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                             )}
                                         </div>
                                     ) : (
-                                        <div className={`relative max-h-80 overflow-y-auto divide-y ${divider} ${isFetching ? 'opacity-60' : ''}`}>
-                                            {stocks.map((st) => {
+                                        <div className={`max-h-[420px] overflow-y-auto divide-y ${divider}`}>
+                                            {selectableProducts.map((st) => {
                                                 const added = items.some((i) => i.productId === st.productId);
                                                 const empty = st.quantity <= 0;
                                                 const isLow = st.productMinimumLine > 0 && st.quantity <= st.productMinimumLine;
-                                                const blocked = added || empty;
+                                                const blocked = added;
                                                 const lastPrice = lastPriceMap[st.productId];
-                                                const defPrice = productPriceMap[st.productId];
+                                                const defPrice = st.price ?? productPriceMap[st.productId];
                                                 return (
                                                     <button key={`${st.productId}-${st.warehouseId}`} type="button"
                                                         onClick={() => !blocked && addProduct(st, warehouseId)}
                                                         disabled={blocked}
-                                                        className={`flex w-full items-center gap-2.5 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 text-left text-sm transition-colors ${
+                                                        className={`group flex w-full items-center gap-2.5 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 text-left text-sm transition-colors ${
                                                             blocked ? 'cursor-not-allowed opacity-50'
                                                                     : isDark ? 'hover:bg-[#1e293b]' : 'hover:bg-amber-50'
                                                         }`}
@@ -714,20 +937,19 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                                                 {defPrice ? <span>{formatNumber(defPrice)} so&apos;m</span> : null}
                                                                 {lastPrice != null && (
                                                                     <span className={`flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${isDark ? 'bg-amber-400/10 text-amber-400' : 'bg-amber-50 text-amber-700'}`}>
-                                                                        <LuTag size={9} /> Oxirgi: {formatNumber(lastPrice)} so&apos;m
+                                                                        <LuTag size={9} /> Oxirgi: {formatNumber(lastPrice)}
                                                                     </span>
                                                                 )}
                                                             </p>
                                                         </div>
 
-                                                        {/* Stock badge */}
                                                         <div className="flex shrink-0 flex-col items-end gap-0.5">
                                                             <span className={`rounded-full border px-2 py-0.5 sm:px-2.5 sm:py-1 text-[11px] font-bold ${stockTone(st.quantity, isLow)}`}>
-                                                                {empty ? 'Qolmagan' : `${formatNumber(st.quantity)}`}
+                                                                {empty ? '0 · Buyurtma mumkin' : `${formatNumber(st.quantity)} dona`}
                                                             </span>
                                                             {isLow && !empty && (
                                                                 <span className="hidden sm:block text-[10px] font-semibold text-amber-500">
-                                                                    Kam · min {formatNumber(st.productMinimumLine)}
+                                                                    min {formatNumber(st.productMinimumLine)}
                                                                 </span>
                                                             )}
                                                         </div>
@@ -737,56 +959,56 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                                                 <LuCheck size={14} />
                                                             </span>
                                                         ) : (
-                                                            <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border ${badge}`}>
+                                                            <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border transition-all group-hover:scale-110 ${badge}`}>
                                                                 <LuPlus size={14} />
                                                             </span>
                                                         )}
                                                     </button>
                                                 );
                                             })}
+
+                                            {/* Infinite scroll sentinel */}
+                                            {hasMoreStocks && (
+                                                <div
+                                                    ref={loadMoreRef}
+                                                    className={`flex items-center justify-center gap-2 py-4 text-xs ${muted}`}
+                                                >
+                                                    {isFetching ? (
+                                                        <>
+                                                            {spinner}
+                                                            <span>Yuklanmoqda...</span>
+                                                        </>
+                                                    ) : (
+                                                        <span className="opacity-60">↓ Yana yuklash uchun pastga suring</span>
+                                                    )}
+                                                </div>
+                                            )}
+                                            {!hasMoreStocks && selectableProducts.length > 0 && (
+                                                <div className={`flex items-center justify-center gap-2 py-3 text-xs ${muted}`}>
+                                                    <LuCheck size={12} className={isDark ? 'text-green-400' : 'text-green-600'} />
+                                                    <span>{selectableProducts.length} ta mahsulot</span>
+                                                </div>
+                                            )}
                                         </div>
                                     )}
 
-                                    {/* Footer: pagination + close */}
+                                    {/* Footer */}
                                     <div className={`flex items-center justify-between gap-2 border-t px-3 py-2.5 ${line} ${isDark ? 'bg-[#0f172a]/60' : 'bg-[#f8fafc]'}`}>
-                                        <span className={`flex items-center gap-2 text-xs ${muted}`}>
-                                            {isFetching && spinner}
-                                            {stockPagination
-                                                ? `${stockPagination.page + 1} / ${Math.max(stockPagination.totalPages, 1)} sahifa · jami ${stockPagination.totalElements} ta`
-                                                : `${stocks.length} ta mahsulot`}
+                                        <span className={`text-xs ${muted}`}>
+                                            {stockPagination ? `Jami ${stockPagination.totalElements} ta mahsulot` : '—'}
                                         </span>
-                                        <div className="flex items-center gap-1.5">
-                                            {stockPagination && stockPagination.totalPages > 1 && (
-                                                <>
-                                                    <button type="button"
-                                                        disabled={stockPagination.first}
-                                                        onClick={() => setStockPage((p) => Math.max(0, p - 1))}
-                                                        aria-label="Oldingi sahifa"
-                                                        className={`flex h-8 w-8 items-center justify-center rounded-lg border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${ghostBtn}`}>
-                                                        <LuChevronLeft size={15} />
-                                                    </button>
-                                                    <button type="button"
-                                                        disabled={stockPagination.last}
-                                                        onClick={() => setStockPage((p) => p + 1)}
-                                                        aria-label="Keyingi sahifa"
-                                                        className={`flex h-8 w-8 items-center justify-center rounded-lg border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${ghostBtn}`}>
-                                                        <LuChevronRight size={15} />
-                                                    </button>
-                                                </>
-                                            )}
-                                            <button type="button" onClick={() => setOpen(false)}
-                                                className="flex h-8 items-center rounded-lg bg-amber-400 px-3 text-xs font-bold text-[#0f172a] transition-colors hover:bg-amber-300">
-                                                Tayyor{items.length > 0 ? ` (${items.length})` : ''}
-                                            </button>
-                                        </div>
+                                        <button type="button" onClick={() => setOpen(false)}
+                                            className="flex h-8 items-center rounded-lg bg-amber-400 px-4 text-xs font-bold text-[#0f172a] transition-colors hover:bg-amber-300">
+                                            Tayyor{items.length > 0 ? ` (${items.length})` : ''}
+                                        </button>
                                     </div>
                                 </div>
                             )}
                         </div>
                     </div>
 
-                    {/* ── Izoh ────────────────────────────────────────── */}
-                    <div className="px-4 pb-4 pt-3 sm:px-5 sm:pb-5 sm:pt-4">
+                    {/* ── Izoh ── */}
+                    <div className="px-4 pb-4 sm:px-5 sm:pb-5">
                         <label className={`mb-1.5 flex items-center gap-2 text-xs font-semibold ${muted}`}>
                             <LuStickyNote size={12} /> Izoh <span className="font-normal">(ixtiyoriy)</span>
                         </label>
@@ -799,7 +1021,7 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                         />
                     </div>
 
-                    {/* ── Tanlanganlar ────────────────────────────────── */}
+                    {/* ── Tanlanganlar ── */}
                     <div className={`flex flex-wrap items-center justify-between gap-3 border-t px-4 py-3 sm:px-5 sm:py-3.5 ${line}`}>
                         <div className="flex items-center gap-2">
                             <span className={stepCx}>4</span>
@@ -828,13 +1050,12 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                         </div>
                     ) : (
                         <>
-                            {/* ── Desktop table ── */}
+                            {/* Desktop table */}
                             <div className="hidden md:block overflow-x-auto">
                                 <table className="w-full text-sm">
                                     <thead>
                                         <tr className={`text-left text-xs font-semibold uppercase tracking-wide ${muted} ${isDark ? 'bg-[#0f172a]/40' : 'bg-[#f8fafc]'}`}>
-                                            <th className="px-5 py-3">Mahsulot</th>
-                                            <th className="px-5 py-3 w-44">Artikul</th>
+                                            <th className="px-5 py-3 min-w-[280px]">Mahsulot</th>
                                             <th className="px-5 py-3 w-52 text-right">Narx (so&apos;m)</th>
                                             <th className="px-5 py-3 w-36">Qadoq</th>
                                             <th className="px-5 py-3 w-52">Miqdor</th>
@@ -851,14 +1072,37 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                             const overStock = stockQty != null && item.quantity > stockQty;
                                             return (
                                             <tr key={item.productId} className={`transition-colors ${rowBg}`}>
-                                                {/* Product name */}
+                                                {/* Mahsulot + Artikul + Barcode merged */}
                                                 <td className="px-5 py-3.5">
-                                                    <div className="flex items-center gap-3">
+                                                    <div className="flex items-start gap-3">
                                                         <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${isDark ? 'bg-white/5 text-slate-400' : 'bg-slate-100 text-slate-500'}`}>
                                                             {idx + 1}
                                                         </span>
-                                                        <div>
-                                                            <p className={`font-semibold leading-tight ${head}`}>{item.productName}</p>
+                                                        <div className="min-w-0 flex-1">
+                                                            <div className="flex items-center gap-2 flex-wrap">
+                                                                <p className={`font-semibold leading-tight ${head}`}>{item.productName}</p>
+                                                                {item._fromHistory && !priceChanged && (
+                                                                    <span className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${isDark ? 'bg-green-500/10 text-green-400' : 'bg-green-50 text-green-700'}`}>
+                                                                        <LuCheck size={9} /> Tarix
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            {/* Artikul + Barcode под названием */}
+                                                            <div className={`mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs ${muted}`}>
+                                                                {item.productArticle && (
+                                                                    <span className="inline-flex items-center gap-1 font-mono">
+                                                                        <LuHash size={10} />
+                                                                        {item.productArticle}
+                                                                    </span>
+                                                                )}
+                                                                {item.productBarcode && (
+                                                                    <span className="inline-flex items-center gap-1">
+                                                                        <LuBarcode size={10} />
+                                                                        {item.productBarcode}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            {/* Oxirgi narx + qoldiq */}
                                                             {hasLastPrice && (
                                                                 <p className={`text-xs mt-0.5 flex items-center gap-1 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
                                                                     <LuTag size={10} />
@@ -872,22 +1116,10 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                                                 </p>
                                                             )}
                                                         </div>
-                                                        {item._fromHistory && !priceChanged && (
-                                                            <span className={`ml-1 flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${isDark ? 'bg-green-500/10 text-green-400' : 'bg-green-50 text-green-700'}`}>
-                                                                <LuCheck size={9} /> Tarix
-                                                            </span>
-                                                        )}
                                                     </div>
                                                 </td>
 
-                                                {/* Article */}
-                                                <td className={`px-5 py-3.5 font-mono text-xs ${muted}`}>
-                                                    <span className="flex items-center gap-1.5">
-                                                        <LuTag size={13} />{item.productArticle || '—'}
-                                                    </span>
-                                                </td>
-
-                                                {/* Price input */}
+                                                {/* Narx */}
                                                 <td className="px-5 py-3.5">
                                                     <div className="flex flex-col items-end gap-1">
                                                         {canEditPrice ? (
@@ -943,17 +1175,16 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                                     </div>
                                                 </td>
 
-                                                {/* Pack count */}
+                                                {/* Qadoq */}
                                                 <td className="px-5 py-3.5">
-                                                    {item.piecesPerPack > 0 ? (
-                                                        <div className="flex items-center gap-1.5">
+                                                    <div className="flex flex-col gap-1">
                                                             <div className={`inline-flex items-center overflow-hidden rounded-xl border ${isDark ? 'border-[#334155]' : 'border-[#e2e8f0]'}`}>
                                                                 <button type="button" onClick={() => stepPacks(item.productId, -1)}
                                                                     aria-label="Qadoqni kamaytirish"
                                                                     className={`flex h-9 w-9 items-center justify-center transition-colors ${isDark ? 'bg-[#1e293b] hover:bg-[#334155] text-[#cbd5e1]' : 'bg-[#f8fafc] hover:bg-[#f1f5f9] text-[#475569]'}`}>
                                                                     <LuMinus size={14} />
                                                                 </button>
-                                                                <input type="number" min={0} value={item.packs ?? 0}
+                                                                <input type="number" min={0} step={1} value={item.packs ?? 0}
                                                                     onChange={(e) => updatePacks(item.productId, e.target.value)}
                                                                     aria-label={`Qadoq soni, ${item.productName}`}
                                                                     className={`h-9 w-14 border-x text-center text-sm font-bold outline-none ${isDark ? 'border-[#334155] bg-[#0f172a] text-white' : 'border-[#e2e8f0] bg-white text-[#0f172a]'}`}
@@ -964,11 +1195,15 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                                                     <LuPlus size={14} />
                                                                 </button>
                                                             </div>
-                                                        </div>
-                                                    ) : <span className={muted}>—</span>}
+                                                            {item.packs > 0 && item.piecesPerPack > 0 && (
+                                                                <span className={`text-[10px] ${muted}`}>
+                                                                    Pachkalar jami: {formatNumber(getPackAmount(item))} so&apos;m
+                                                                </span>
+                                                            )}
+                                                    </div>
                                                 </td>
 
-                                                {/* Qty stepper */}
+                                                {/* Miqdor */}
                                                 <td className="px-5 py-3.5">
                                                     <div className="flex items-center gap-2">
                                                         <div className={`inline-flex items-center rounded-xl border overflow-hidden ${overStock ? 'border-red-400' : isDark ? 'border-[#334155]' : 'border-[#e2e8f0]'}`}>
@@ -977,7 +1212,7 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                                                 className={`flex h-9 w-9 items-center justify-center transition-colors ${isDark ? 'bg-[#1e293b] hover:bg-[#334155] text-[#cbd5e1]' : 'bg-[#f8fafc] hover:bg-[#f1f5f9] text-[#475569]'}`}>
                                                                 <LuMinus size={14} />
                                                             </button>
-                                                            <input type="number" min={1} value={item.quantity}
+                                                            <input type="number" min={0} step={1} value={item.pieces}
                                                                 onChange={(e) => updateQty(item.productId, e.target.value)}
                                                                 className={`h-9 w-16 border-x text-center text-sm font-bold outline-none ${isDark ? 'border-[#334155] bg-[#0f172a] text-white' : 'border-[#e2e8f0] bg-white text-[#0f172a]'}`}
                                                             />
@@ -991,14 +1226,14 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                                     </div>
                                                 </td>
 
-                                                {/* Line total */}
+                                                {/* Jami */}
                                                 <td className="px-5 py-3.5 text-right">
                                                     <p className={`font-bold text-sm ${head}`}>
-                                                        {formatNumber(item.quantity * (item.unitPrice ?? 0))} so&apos;m
+                                                        {formatNumber(getItemAmount(item))} so&apos;m
                                                     </p>
-                                                    {item.quantity > 1 && (
+                                                    {getItemQuantity(item) > 1 && (
                                                         <p className={`text-xs mt-0.5 ${muted}`}>
-                                                            {item.quantity} × {formatNumber(item.unitPrice ?? 0)}
+                                                            {getItemQuantity(item)} × {formatNumber(item.unitPrice ?? 0)}
                                                         </p>
                                                     )}
                                                 </td>
@@ -1018,7 +1253,7 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                 </table>
                             </div>
 
-                            {/* ── Mobile card list ── */}
+                            {/* Mobile card list */}
                             <div className={`flex flex-col divide-y md:hidden ${divider}`}>
                                 {items.map((item, idx) => {
                                     const lastPrice = lastPriceMap[item.productId];
@@ -1028,7 +1263,6 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                     const overStock = stockQty != null && item.quantity > stockQty;
                                     return (
                                         <div key={item.productId} className={`px-4 py-3.5 transition-colors ${rowBg}`}>
-                                            {/* Top: index + name + delete */}
                                             <div className="flex items-start gap-2.5 mb-3">
                                                 <span className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${isDark ? 'bg-white/5 text-slate-400' : 'bg-slate-100 text-slate-500'}`}>
                                                     {idx + 1}
@@ -1037,6 +1271,11 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                                     <p className={`font-semibold text-sm leading-tight ${head}`}>{item.productName}</p>
                                                     {item.productArticle && (
                                                         <p className={`text-xs font-mono mt-0.5 ${muted}`}>{item.productArticle}</p>
+                                                    )}
+                                                    {item.productBarcode && (
+                                                        <p className={`text-xs font-mono mt-0.5 ${muted} flex items-center gap-1`}>
+                                                            <LuBarcode size={10} />{item.productBarcode}
+                                                        </p>
                                                     )}
                                                     {hasLastPrice && (
                                                         <p className={`text-xs mt-0.5 flex items-center gap-1 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
@@ -1057,7 +1296,6 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                                 </button>
                                             </div>
 
-                                            {/* Narx */}
                                             <div className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5 mb-2.5 ${isDark ? 'border-[#334155] bg-[#1e293b]/40' : 'border-[#e2e8f0] bg-[#f8fafc]'}`}>
                                                 <span className={`text-xs font-semibold ${muted}`}>Narx</span>
                                                 {canEditPrice ? (
@@ -1091,9 +1329,7 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                                 )}
                                             </div>
 
-                                            {/* Miqdor + Qadoq */}
                                             <div className="grid grid-cols-2 gap-2 mb-2.5">
-                                                {/* Dona */}
                                                 <div className={`flex flex-col gap-1.5 rounded-xl border px-3 py-2.5 ${overStock ? (isDark ? 'border-red-400/40 bg-red-500/5' : 'border-red-200 bg-red-50/50') : isDark ? 'border-[#334155] bg-[#1e293b]/40' : 'border-[#e2e8f0] bg-[#f8fafc]'}`}>
                                                     <span className={`text-[11px] font-semibold ${muted}`}>Dona</span>
                                                     <div className={`inline-flex items-center rounded-lg border overflow-hidden w-full ${overStock ? 'border-red-400' : isDark ? 'border-[#334155]' : 'border-[#e2e8f0]'}`}>
@@ -1102,7 +1338,7 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                                             className={`flex h-8 w-8 shrink-0 items-center justify-center transition-colors ${isDark ? 'bg-[#1e293b] hover:bg-[#334155] text-[#cbd5e1]' : 'bg-white hover:bg-[#f1f5f9] text-[#475569]'}`}>
                                                             <LuMinus size={13} />
                                                         </button>
-                                                        <input type="number" min={1} value={item.quantity}
+                                                        <input type="number" min={0} step={1} value={item.pieces}
                                                             onChange={(e) => updateQty(item.productId, e.target.value)}
                                                             className={`h-8 flex-1 min-w-0 border-x text-center text-sm font-bold outline-none ${isDark ? 'border-[#334155] bg-[#0f172a] text-white' : 'border-[#e2e8f0] bg-white text-[#0f172a]'}`}
                                                         />
@@ -1114,36 +1350,40 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                                     </div>
                                                 </div>
 
-                                                {/* Qadoq */}
-                                                <div className={`flex flex-col gap-1.5 rounded-xl border px-3 py-2.5 ${isDark ? 'border-[#334155] bg-[#1e293b]/40' : 'border-[#e2e8f0] bg-[#f8fafc]'} ${!item.piecesPerPack ? 'opacity-40' : ''}`}>
+                                                <div className={`flex flex-col gap-1.5 rounded-xl border px-3 py-2.5 ${isDark ? 'border-[#334155] bg-[#1e293b]/40' : 'border-[#e2e8f0] bg-[#f8fafc]'}`}>
                                                     <span className={`text-[11px] font-semibold ${muted}`}>
-                                                        Blok {item.piecesPerPack ? `(1=${item.piecesPerPack}d)` : ''}
+                                                        Pachka {item.piecesPerPack ? `(1=${item.piecesPerPack}d)` : ''}
                                                     </span>
-                                                    {item.piecesPerPack > 0 ? (
-                                                        <div className={`inline-flex items-center rounded-lg border overflow-hidden w-full ${isDark ? 'border-[#334155]' : 'border-[#e2e8f0]'}`}>
-                                                            <button type="button" onClick={() => stepPacks(item.productId, -1)}
-                                                                aria-label="Qadoqni kamaytirish"
-                                                                className={`flex h-8 w-8 shrink-0 items-center justify-center transition-colors ${isDark ? 'bg-[#1e293b] hover:bg-[#334155] text-[#cbd5e1]' : 'bg-white hover:bg-[#f1f5f9] text-[#475569]'}`}>
-                                                                <LuMinus size={13} />
-                                                            </button>
-                                                            <input type="number" min={0} value={item.packs ?? 0}
-                                                                onChange={(e) => updatePacks(item.productId, e.target.value)}
-                                                                aria-label={`Qadoq soni, ${item.productName}`}
-                                                                className={`h-8 flex-1 min-w-0 border-x text-center text-sm font-bold outline-none ${isDark ? 'border-[#334155] bg-[#0f172a] text-white' : 'border-[#e2e8f0] bg-white text-[#0f172a]'}`}
-                                                            />
-                                                            <button type="button" onClick={() => stepPacks(item.productId, 1)}
-                                                                aria-label="Qadoqni ko'paytirish"
-                                                                className={`flex h-8 w-8 shrink-0 items-center justify-center transition-colors ${isDark ? 'bg-[#1e293b] hover:bg-[#334155] text-[#cbd5e1]' : 'bg-white hover:bg-[#f1f5f9] text-[#475569]'}`}>
-                                                                <LuPlus size={13} />
-                                                            </button>
-                                                        </div>
-                                                    ) : (
-                                                        <span className={`text-xs ${muted}`}>Blok yo&apos;q</span>
-                                                    )}
+                                                    <div className="flex flex-col gap-1">
+                                                            <div className={`inline-flex items-center rounded-lg border overflow-hidden w-full ${isDark ? 'border-[#334155]' : 'border-[#e2e8f0]'}`}>
+                                                                <button type="button" onClick={() => stepPacks(item.productId, -1)}
+                                                                    aria-label="Qadoqni kamaytirish"
+                                                                    className={`flex h-8 w-8 shrink-0 items-center justify-center transition-colors ${isDark ? 'bg-[#1e293b] hover:bg-[#334155] text-[#cbd5e1]' : 'bg-white hover:bg-[#f1f5f9] text-[#475569]'}`}>
+                                                                    <LuMinus size={13} />
+                                                                </button>
+                                                                <input type="number" min={0} step={1} value={item.packs ?? 0}
+                                                                    onChange={(e) => updatePacks(item.productId, e.target.value)}
+                                                                    aria-label={`Qadoq soni, ${item.productName}`}
+                                                                    className={`h-8 flex-1 min-w-0 border-x text-center text-sm font-bold outline-none ${isDark ? 'border-[#334155] bg-[#0f172a] text-white' : 'border-[#e2e8f0] bg-white text-[#0f172a]'}`}
+                                                                />
+                                                                <button type="button" onClick={() => stepPacks(item.productId, 1)}
+                                                                    aria-label="Qadoqni ko'paytirish"
+                                                                    className={`flex h-8 w-8 shrink-0 items-center justify-center transition-colors ${isDark ? 'bg-[#1e293b] hover:bg-[#334155] text-[#cbd5e1]' : 'bg-white hover:bg-[#f1f5f9] text-[#475569]'}`}>
+                                                                    <LuPlus size={13} />
+                                                                </button>
+                                                            </div>
+                                                            <span className={`text-[10px] ${muted}`}>
+                                                                Buyurtma: {formatQuantityBreakdown(item)}
+                                                            </span>
+                                                            {item.packs > 0 && item.piecesPerPack > 0 && (
+                                                                <span className={`text-[10px] ${muted}`}>
+                                                                    Pachkalar jami: {formatNumber(getPackAmount(item))} so&apos;m
+                                                                </span>
+                                                            )}
+                                                    </div>
                                                 </div>
                                             </div>
 
-                                            {/* Jami summa */}
                                             <div className="flex items-center justify-between">
                                                 {item._fromHistory && !priceChanged && (
                                                     <span className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${isDark ? 'bg-green-500/10 text-green-400' : 'bg-green-50 text-green-700'}`}>
@@ -1164,7 +1404,7 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                                     </button>
                                                 )}
                                                 <span className={`ml-auto font-bold text-sm ${head}`}>
-                                                    {formatNumber(item.quantity * (item.unitPrice ?? 0))} so&apos;m
+                                                    {formatNumber(getItemAmount(item))} so&apos;m
                                                 </span>
                                             </div>
                                         </div>
@@ -1174,7 +1414,7 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                         </>
                     )}
 
-                    {/* ── Footer ──────────────────────────────────────── */}
+                    {/* ── Footer ── */}
                     <div className={`flex flex-col gap-3 border-t px-4 py-3.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:px-5 sm:py-4 ${line}`}>
                         <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
                             <span className={`text-sm ${muted}`}>
@@ -1307,7 +1547,6 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                                             <thead>
                                                                 <tr className={`text-xs font-semibold uppercase tracking-wide ${muted}`}>
                                                                     <th className="px-5 py-2.5 text-left">Mahsulot</th>
-                                                                    <th className="px-5 py-2.5 text-left w-40">Barcode</th>
                                                                     <th className="px-5 py-2.5 text-right w-36">Narx</th>
                                                                     <th className="px-5 py-2.5 text-right w-24">Miqdor</th>
                                                                     <th className="px-5 py-2.5 text-right w-40">Jami</th>
@@ -1324,13 +1563,24 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                                                                     <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${isDark ? 'bg-[#1e293b]' : 'bg-white border border-[#e2e8f0]'}`}>
                                                                                         <LuPackage size={13} className={muted} />
                                                                                     </span>
-                                                                                    <span className={`text-sm font-semibold ${head}`}>{item.productName}</span>
+                                                                                    <div className="min-w-0">
+                                                                                        <span className={`text-sm font-semibold ${head}`}>{item.productName}</span>
+                                                                                        {(item.productArticle || item.productBarcode) && (
+                                                                                            <div className={`mt-0.5 flex flex-wrap items-center gap-x-2 text-[10px] ${muted}`}>
+                                                                                                {item.productArticle && (
+                                                                                                    <span className="font-mono inline-flex items-center gap-1">
+                                                                                                        <LuHash size={9} />{item.productArticle}
+                                                                                                    </span>
+                                                                                                )}
+                                                                                                {item.productBarcode && (
+                                                                                                    <span className="font-mono inline-flex items-center gap-1">
+                                                                                                        <LuBarcode size={9} />{item.productBarcode}
+                                                                                                    </span>
+                                                                                                )}
+                                                                                            </div>
+                                                                                        )}
+                                                                                    </div>
                                                                                 </div>
-                                                                            </td>
-                                                                            <td className={`px-5 py-2.5 font-mono text-xs ${muted}`}>
-                                                                                <span className="flex items-center gap-1.5">
-                                                                                    <LuBarcode size={12} />{item.productBarcode || '—'}
-                                                                                </span>
                                                                             </td>
                                                                             <td className="px-5 py-2.5 text-right font-bold text-sm whitespace-nowrap">
                                                                                 <span className="flex items-center justify-end gap-1.5">
@@ -1372,7 +1622,7 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                                             </tbody>
                                                             <tfoot>
                                                                 <tr className={isDark ? 'bg-[#0f172a]/50' : 'bg-white'}>
-                                                                    <td colSpan={4} className={`px-5 py-2.5 text-right text-xs font-semibold ${muted}`}>
+                                                                    <td colSpan={3} className={`px-5 py-2.5 text-right text-xs font-semibold ${muted}`}>
                                                                         Jami:
                                                                     </td>
                                                                     <td className={`px-5 py-2.5 text-right font-bold text-sm ${head} whitespace-nowrap`}>

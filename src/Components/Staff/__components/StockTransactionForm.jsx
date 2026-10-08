@@ -1,27 +1,30 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import PropTypes from 'prop-types';
 import {
     LuPlus, LuSearch, LuTrash2, LuPackage, LuSend, LuCheck,
     LuX, LuBarcode, LuCircleAlert, LuCircleCheck, LuWarehouse, LuMinus,
-    LuChevronDown, LuChevronLeft, LuChevronRight, LuSlidersHorizontal,
-    LuRotateCcw, LuArrowDownWideNarrow, LuBoxes, LuTag,
+    LuChevronDown, LuSlidersHorizontal, LuRotateCcw, LuBoxes,
+    LuArrowDownWideNarrow,
 } from 'react-icons/lu';
 import { useAppTheme } from '../../../theme/tokens';
 import { useGetWarehousesQuery } from '../../../store/services/warehouse.api';
 import { useGetProductStocksQuery } from '../../../store/services/productStock.api';
 import { useCreateStockTransactionMutation } from '../../../store/services/productStock.api';
+import { useGetBrandsQuery } from '../../../store/services/brand.api';
 import { formatNumber } from '../../ui/number-format';
 
 const STOCK_PAGE_SIZE = 20;
 
 const SORTS = [
-    { key: 'recent',  label: 'Oxirgi o\'zgargan', sort: ['lastModifiedAt,DESC', 'id,DESC'] },
-    { key: 'qtyDesc', label: 'Ko\'pdan kamga',    sort: ['quantity,DESC', 'id,DESC'] },
-    { key: 'qtyAsc',  label: 'Kamdan ko\'pga',    sort: ['quantity,ASC', 'id,ASC'] },
+    { key: 'qtyDesc', label: 'Ko\'pdan kamga', sort: ['quantity,DESC', 'id,DESC'] },
+    { key: 'qtyAsc',  label: 'Kamdan ko\'pga', sort: ['quantity,ASC', 'id,ASC'] },
 ];
 
 const EMPTY_FILTERS = {
-    name: '', article: '', productSize: '', brandId: '',
-    lowStock: false, priceFrom: '', priceTo: '', sortKey: 'recent',
+    name: '',
+    productSize: '',
+    brandId: '',
+    sortKey: 'qtyDesc',
 };
 
 function useDebouncedValue(value, delay = 350) {
@@ -39,80 +42,160 @@ export default function StockTransactionForm({ action }) {
 
     const [warehouseId, setWarehouseId] = useState('');
     const [open, setOpen]               = useState(false);
-    const [filters, setFilters]         = useState(EMPTY_FILTERS);
     const [filtersOpen, setFiltersOpen] = useState(false);
-    const [stockPage, setStockPage]     = useState(0);
-    const [brandMap, setBrandMap]       = useState({});
+    const [filters, setFilters]         = useState(EMPTY_FILTERS);
+    const [page, setPage]               = useState(0);
+    const [allStocks, setAllStocks]     = useState([]);
+    const [hasMore, setHasMore]         = useState(true);
     const [items, setItems]             = useState([]);
     const [toast, setToast]             = useState(null);
-    const searchRef     = useRef(null);
-    const searchInputRef = useRef(null);
+
+    const searchRef         = useRef(null);
+    const searchInputRef    = useRef(null);
+    const loadMoreRef       = useRef(null);
+    const isFetchingNextRef = useRef(false);
 
     const debouncedFilters = useDebouncedValue(filters, 350);
 
     const { data: warehouses = [] } = useGetWarehousesQuery('PRODUCT');
+    const { data: brandsData } = useGetBrandsQuery(
+        { page: 0, size: 200 },
+        { skip: !open }
+    );
+    const brands = brandsData?.items ?? [];
 
     const df = debouncedFilters;
     const term = df.name.trim();
     const isBarcodeTerm = /^\d{8,}$/.test(term);
     const sortParam = SORTS.find((x) => x.key === df.sortKey)?.sort;
 
-    const { data: stocksResp, isFetching } = useGetProductStocksQuery(
+    const stockSearchFilters = {
+        warehouseId,
+        productSize: df.productSize.trim() || undefined,
+        brandId: df.brandId || undefined,
+        page,
+        size: STOCK_PAGE_SIZE,
+        sort: sortParam,
+    };
+    const nameStocksQuery = useGetProductStocksQuery(
         {
-            warehouseId,
-            name:        isBarcodeTerm ? undefined : (term || undefined),
-            barcode:     isBarcodeTerm ? term : undefined,
-            article:     df.article.trim()     || undefined,
-            productSize: df.productSize.trim() || undefined,
-            brandId:     df.brandId            || undefined,
-            lowStock:    df.lowStock           || undefined,
-            priceFrom:   df.priceFrom !== '' ? Number(df.priceFrom) : undefined,
-            priceTo:     df.priceTo   !== '' ? Number(df.priceTo)   : undefined,
-            page: stockPage,
-            size: STOCK_PAGE_SIZE,
-            sort: sortParam,
+            ...stockSearchFilters,
+            name: term && !isBarcodeTerm ? term : undefined,
+            barcode: isBarcodeTerm ? term : undefined,
         },
-        { skip: !warehouseId }
+        { skip: !warehouseId || !open }
     );
+    const articleStocksQuery = useGetProductStocksQuery(
+        { ...stockSearchFilters, article: term },
+        { skip: !warehouseId || !open || !term || isBarcodeTerm }
+    );
+    const stocksResp = useMemo(() => {
+        const nameResponse = nameStocksQuery.currentData;
+        const articleResponse = articleStocksQuery.currentData;
+        if (!nameResponse && !articleResponse) return undefined;
+
+        const rows = [
+            ...(nameResponse?.items ?? []),
+            ...(articleResponse?.items ?? []),
+        ];
+        const uniqueItems = [...new Map(
+            rows.map((stock) => [`${stock.productId}-${stock.warehouseId}`, stock]),
+        ).values()];
+        const pages = [
+            nameResponse?.pagination?.totalPages,
+            articleResponse?.pagination?.totalPages,
+        ].filter(Number.isFinite);
+
+        return {
+            items: uniqueItems,
+            pagination: {
+                ...(nameResponse?.pagination ?? articleResponse?.pagination ?? {}),
+                totalPages: pages.length ? Math.max(...pages) : 0,
+            },
+        };
+    }, [nameStocksQuery.currentData, articleStocksQuery.currentData]);
+    const isFetching = nameStocksQuery.isFetching || articleStocksQuery.isFetching;
+    const stocksError = nameStocksQuery.isError || articleStocksQuery.isError;
+    const stocksErrorData = nameStocksQuery.error ?? articleStocksQuery.error;
+    const refetchStocks = () => {
+        nameStocksQuery.refetch();
+        if (term && !isBarcodeTerm) articleStocksQuery.refetch();
+    };
 
     const [createTx, { isLoading: isSending }] = useCreateStockTransactionMutation();
 
-    const stocks          = useMemo(() => stocksResp?.items ?? [], [stocksResp]);
-    const stockPagination = stocksResp?.pagination ?? null;
+    const pagination = stocksResp?.pagination ?? null;
 
-    // Brendlar keshi
+    /* ── Reset при смене фильтров/склада ── */
     useEffect(() => {
-        if (!stocks.length) return;
-        setBrandMap((prev) => {
-            let changed = false;
-            const next = { ...prev };
-            for (const st of stocks) {
-                if (st.brand?.id && !next[st.brand.id]) { next[st.brand.id] = st.brand; changed = true; }
-            }
-            return changed ? next : prev;
-        });
-    }, [stocks]);
+        setAllStocks([]);
+        setPage(0);
+        setHasMore(true);
+        isFetchingNextRef.current = false;
+    }, [
+        warehouseId,
+        debouncedFilters.name,
+        debouncedFilters.productSize,
+        debouncedFilters.brandId,
+        debouncedFilters.sortKey,
+    ]);
 
-    const brandOptions = useMemo(
-        () => Object.values(brandMap).sort((a, b) => String(a.name).localeCompare(String(b.name), 'uz')),
-        [brandMap]
-    );
+    /* ── Накопление страниц ── */
+    useEffect(() => {
+        if (!stocksResp?.items) return;
 
-    const advancedCount =
-        (filters.article.trim() ? 1 : 0) + (filters.productSize.trim() ? 1 : 0) +
-        (filters.brandId ? 1 : 0) + (filters.lowStock ? 1 : 0) +
-        (filters.priceFrom !== '' ? 1 : 0) + (filters.priceTo !== '' ? 1 : 0);
-    const hasAnyFilter = advancedCount > 0 || filters.name.trim() !== '' || filters.sortKey !== 'recent';
+        if (page === 0) {
+            setAllStocks(stocksResp.items);
+        } else {
+            setAllStocks((prev) => {
+                const seen = new Set(prev.map((s) => `${s.productId}-${s.warehouseId}`));
+                const fresh = stocksResp.items.filter(
+                    (s) => !seen.has(`${s.productId}-${s.warehouseId}`)
+                );
+                return fresh.length ? [...prev, ...fresh] : prev;
+            });
+        }
 
-    const patchFilters = (patch) => { setFilters((p) => ({ ...p, ...patch })); setStockPage(0); };
-    const resetFilters = () => { setFilters(EMPTY_FILTERS); setStockPage(0); };
+        const totalPages = pagination?.totalPages ?? 0;
+        if (totalPages > 0) {
+            setHasMore(page < totalPages - 1);
+        } else {
+            setHasMore(stocksResp.items.length === STOCK_PAGE_SIZE);
+        }
+        isFetchingNextRef.current = false;
+    }, [stocksResp, page, pagination]);
 
-    // Dropdown ochilganda search inputga focus
+    /* ── Infinite scroll в dropdown ── */
+    useEffect(() => {
+        if (!open) return;
+        const node = loadMoreRef.current;
+        if (!node) return;
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                const entry = entries[0];
+                if (
+                    entry.isIntersecting &&
+                    hasMore &&
+                    !isFetching &&
+                    !isFetchingNextRef.current
+                ) {
+                    isFetchingNextRef.current = true;
+                    setPage((p) => p + 1);
+                }
+            },
+            { root: null, rootMargin: '150px 0px', threshold: 0 }
+        );
+        observer.observe(node);
+        return () => observer.disconnect();
+    }, [open, hasMore, isFetching, allStocks.length]);
+
+    /* ── Focus при открытии ── */
     useEffect(() => {
         if (open && searchInputRef.current) searchInputRef.current.focus();
     }, [open]);
 
-    // Outside click
+    /* ── Outside click ── */
     useEffect(() => {
         const handler = (e) => {
             if (searchRef.current && !searchRef.current.contains(e.target)) setOpen(false);
@@ -138,10 +221,6 @@ export default function StockTransactionForm({ action }) {
         ? 'border-[#334155] bg-[#1e293b]/80 text-white placeholder:text-[#64748b] focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20'
         : 'border-[#e2e8f0] bg-white text-[#0f172a] placeholder:text-[#94a3b8] focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20';
     const inputCx = ['w-full rounded-xl border px-4 text-sm outline-none transition-all duration-200 h-12', fieldCx].join(' ');
-    const ghostBtn = isDark
-        ? 'border-[#334155] text-[#94a3b8] hover:bg-[#1e293b]'
-        : 'border-[#e2e8f0] text-[#64748b] hover:bg-[#f1f5f9]';
-    const miniCx = `h-9 w-full rounded-lg border px-3 text-xs outline-none transition-all duration-200 ${fieldCx}`;
     const stepCx = 'flex h-5 w-5 items-center justify-center rounded-full bg-amber-400 text-[10px] font-bold text-[#0f172a]';
 
     const stockTone = (qty, isLow) => {
@@ -165,12 +244,12 @@ export default function StockTransactionForm({ action }) {
                 productBarcode:  stock.productBarcode,
                 piecesPerPack:   stock.productPiecesPerPack ?? null,
                 quantity:        1,
-                unit:            'PACK',   // ← DEFAULT: pachka
+                unit:            'PACK',
             }];
         });
     }, []);
 
-    const removeItem  = (id) => setItems((p) => p.filter((i) => i.productId !== id));
+    const removeItem = (id) => setItems((p) => p.filter((i) => i.productId !== id));
 
     const updateQty = (id, val) => {
         const qty = parseInt(val, 10);
@@ -191,8 +270,6 @@ export default function StockTransactionForm({ action }) {
     const handleWarehouseChange = (value) => {
         setWarehouseId(value);
         setFilters(EMPTY_FILTERS);
-        setStockPage(0);
-        setBrandMap({});
         setItems([]);
     };
 
@@ -217,8 +294,15 @@ export default function StockTransactionForm({ action }) {
     };
 
     const totalQty = items.reduce((s, i) => s + i.quantity, 0);
-    const selectedWarehouse = warehouses.find((w) => w.id === warehouseId);
     const formId = `stock-tx-${action}`;
+    const hasFilters = Boolean(
+        filters.name.trim() || filters.productSize.trim() || filters.brandId ||
+        filters.sortKey !== 'qtyDesc'
+    );
+    const visibleStocks = allStocks;
+
+    const resetFilters = () => setFilters(EMPTY_FILTERS);
+    const patchFilters = (patch) => setFilters((current) => ({ ...current, ...patch }));
 
     const spinner = (
         <svg className="h-4 w-4 animate-spin text-amber-400" viewBox="0 0 24 24" fill="none">
@@ -269,112 +353,102 @@ export default function StockTransactionForm({ action }) {
             <form id={formId} onSubmit={handleSubmit}>
                 <div className={`rounded-2xl border shadow-md ${panel}`}>
 
-                    {/* ── Ombor ── */}
-                    <div className="flex flex-col gap-3 p-5 sm:flex-row sm:items-end">
-                        <div className="sm:w-72 shrink-0">
-                            <label className={`mb-1.5 flex items-center gap-2 text-xs font-semibold ${muted}`}>
-                                <span className={stepCx}>1</span> <LuWarehouse size={12} /> Ombor
-                            </label>
-                            <select
-                                value={warehouseId}
-                                onChange={(e) => handleWarehouseChange(e.target.value)}
-                                required
-                                className={inputCx}
-                            >
-                                <option value="">Ombor tanlang</option>
-                                {warehouses.map((w) => (
-                                    <option key={w.id} value={w.id}>{w.name}</option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
+                    {/* ── Ombor + Mahsulot qo'shish (рядом) ── */}
+                    <div className="p-5">
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-[220px_1fr]">
+                            {/* Ombor — компактный */}
+                            <div>
+                                <label className={`mb-1.5 flex items-center gap-2 text-xs font-semibold ${muted}`}>
+                                    <span className={stepCx}>1</span> <LuWarehouse size={12} /> Ombor
+                                </label>
+                                <select
+                                    value={warehouseId}
+                                    onChange={(e) => handleWarehouseChange(e.target.value)}
+                                    required
+                                    className={`${inputCx} px-3`}
+                                >
+                                    <option value="">Tanlang</option>
+                                    {warehouses.map((w) => (
+                                        <option key={w.id} value={w.id}>{w.name}</option>
+                                    ))}
+                                </select>
+                            </div>
 
-                    {/* ── Mahsulot qo'shish (dropdown) ── */}
-                    <div className="px-5 pb-4">
-                        <div className="relative" ref={searchRef}>
-                            <label className={`mb-1.5 flex items-center gap-2 text-xs font-semibold ${muted}`}>
-                                <span className={stepCx}>2</span> Mahsulot qo&apos;shish
-                            </label>
+                            {/* Mahsulot qo'shish — рядом */}
+                            <div className="relative" ref={searchRef}>
+                                <label className={`mb-1.5 flex items-center gap-2 text-xs font-semibold ${muted}`}>
+                                    <span className={stepCx}>2</span> Mahsulot qo&apos;shish
+                                </label>
 
-                            {/* Trigger */}
-                            <button
-                                type="button"
-                                disabled={!warehouseId}
-                                onClick={() => setOpen((v) => !v)}
-                                className={`${inputCx} flex items-center gap-3 text-left disabled:opacity-50 disabled:cursor-not-allowed ${
-                                    open ? '!border-amber-400 ring-2 ring-amber-400/20' : ''
-                                }`}
-                            >
-                                <LuBoxes size={16} className={muted} />
-                                <span className={`flex-1 truncate ${muted}`}>
-                                    {warehouseId ? 'Ombordagi mahsulotlardan tanlang' : 'Avval ombor tanlang'}
-                                </span>
-                                {warehouseId && stockPagination && (
-                                    <span className={`rounded-full border px-2 py-0.5 text-xs font-bold ${badge}`}>
-                                        {stockPagination.totalElements} ta
+                                <button
+                                    type="button"
+                                    disabled={!warehouseId}
+                                    onClick={() => setOpen((v) => !v)}
+                                    className={`${inputCx} flex items-center gap-3 text-left disabled:opacity-50 disabled:cursor-not-allowed ${
+                                        open ? '!border-amber-400 ring-2 ring-amber-400/20' : ''
+                                    }`}
+                                >
+                                    <LuBoxes size={16} className={muted} />
+                                    <span className={`flex-1 truncate ${muted}`}>
+                                        {warehouseId ? 'Ombordagi mahsulotlardan tanlang' : 'Avval ombor tanlang'}
                                     </span>
-                                )}
-                                <LuChevronDown size={16} className={`shrink-0 transition-transform duration-200 ${muted} ${open ? 'rotate-180' : ''}`} />
-                            </button>
+                                    {warehouseId && pagination && (
+                                        <span className={`rounded-full border px-2 py-0.5 text-xs font-bold ${badge}`}>
+                                            {filters.name.trim()
+                                                ? `${allStocks.length} ta yuklandi`
+                                                : `${pagination.totalElements} ta`}
+                                        </span>
+                                    )}
+                                    <LuChevronDown size={16} className={`shrink-0 transition-transform duration-200 ${muted} ${open ? 'rotate-180' : ''}`} />
+                                </button>
 
-                            {/* Dropdown panel */}
-                            {open && warehouseId && (
-                                <div className={`absolute left-0 right-0 top-full z-20 mt-2 overflow-hidden rounded-2xl border shadow-2xl ${isDark ? 'border-[#334155] bg-[#0f172a]' : 'border-[#e2e8f0] bg-white'}`}>
+                                {/* Dropdown */}
+                                {open && warehouseId && (
+                                    <div className={`absolute left-0 right-0 top-full z-20 mt-2 overflow-hidden rounded-2xl border shadow-2xl ${
+                                        isDark ? 'border-[#334155] bg-[#0f172a]' : 'border-[#e2e8f0] bg-white'
+                                    }`}>
 
-                                    {/* Search + filter toggle */}
-                                    <div className={`border-b p-3 ${line}`}>
-                                        <div className="flex items-center gap-2">
-                                            <div className="relative flex-1">
+                                        {/* Search + compact filters */}
+                                        <div className={`border-b p-3 ${line}`}>
+                                            <div className="relative">
                                                 <LuSearch className={`pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 ${muted}`} />
                                                 <input
                                                     ref={searchInputRef}
                                                     type="text"
-                                                    placeholder="Nomi yoki barcode (skaner) bo'yicha qidiring"
+                                                    placeholder="Nomi, artikul yoki barcode (skaner) bo‘yicha qidiring"
                                                     value={filters.name}
                                                     onChange={(e) => patchFilters({ name: e.target.value })}
-                                                    className={`w-full rounded-xl border pl-10 pr-9 h-10 text-sm outline-none transition-all duration-200 ${fieldCx}`}
+                                                    className={`w-full rounded-xl border pl-10 pr-9 h-11 text-sm outline-none transition-all duration-200 ${fieldCx}`}
                                                 />
                                                 {filters.name && (
                                                     <button type="button" onClick={() => patchFilters({ name: '' })}
-                                                        className={`absolute right-2.5 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-md ${muted} hover:text-[#f43f5e]`}>
-                                                        <LuX size={14} />
+                                                        className={`absolute right-2.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md ${muted} hover:text-[#f43f5e]`}>
+                                                        <LuX size={15} />
                                                     </button>
                                                 )}
                                             </div>
-                                            <button type="button" onClick={() => setFiltersOpen((v) => !v)}
-                                                className={`relative flex h-10 shrink-0 items-center gap-2 rounded-xl border px-3.5 text-xs font-bold transition-colors ${
-                                                    filtersOpen || advancedCount > 0
-                                                        ? 'border-amber-400 bg-amber-400/10 text-amber-500'
-                                                        : ghostBtn
-                                                }`}>
-                                                <LuSlidersHorizontal size={14} /> Filtrlar
-                                                {advancedCount > 0 && (
-                                                    <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-amber-400 px-1 text-[10px] font-bold text-[#0f172a]">
-                                                        {advancedCount}
-                                                    </span>
-                                                )}
-                                            </button>
-                                        </div>
 
-                                        {/* Quick row: low stock + sort + reset */}
-                                        <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2">
-                                            <button type="button"
-                                                onClick={() => patchFilters({ lowStock: !filters.lowStock })}
-                                                className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
-                                                    filters.lowStock
-                                                        ? 'border-amber-400 bg-amber-400 text-[#0f172a]'
-                                                        : isDark ? 'border-[#334155] text-[#94a3b8] hover:bg-[#1e293b]' : 'border-[#e2e8f0] text-[#64748b] hover:bg-[#f8fafc]'
-                                                }`}>
-                                                <LuBoxes size={12} /> Kam qolganlar
-                                            </button>
-
-                                            <div className="flex items-center gap-2">
-                                                {hasAnyFilter && (
-                                                    <button type="button" onClick={resetFilters}
-                                                        className={`flex items-center gap-1 text-xs font-semibold transition-colors ${muted} hover:text-[#f43f5e]`}>
-                                                        <LuRotateCcw size={12} /> Tozalash
+                                            <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2">
+                                                <div className="flex items-center gap-2">
+                                                    <button type="button"
+                                                        onClick={() => setFiltersOpen((value) => !value)}
+                                                        aria-expanded={filtersOpen}
+                                                        className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition-colors ${
+                                                            filtersOpen || hasFilters
+                                                                ? 'border-amber-400 bg-amber-400/10 text-amber-500'
+                                                                : isDark
+                                                                    ? 'border-[#334155] text-[#94a3b8] hover:bg-[#1e293b]'
+                                                                    : 'border-[#e2e8f0] text-[#64748b] hover:bg-[#f8fafc]'
+                                                        }`}>
+                                                        <LuSlidersHorizontal size={12} /> Kengaytirilgan filtrlar
                                                     </button>
-                                                )}
+                                                    {hasFilters && (
+                                                        <button type="button" onClick={resetFilters}
+                                                            className={`flex items-center gap-1 text-xs font-semibold transition-colors ${muted} hover:text-[#f43f5e]`}>
+                                                            <LuRotateCcw size={12} /> Tozalash
+                                                        </button>
+                                                    )}
+                                                </div>
                                                 <label className={`flex items-center gap-1.5 text-xs font-semibold ${muted}`}>
                                                     <LuArrowDownWideNarrow size={13} />
                                                     <select
@@ -382,168 +456,195 @@ export default function StockTransactionForm({ action }) {
                                                         onChange={(e) => patchFilters({ sortKey: e.target.value })}
                                                         className={`h-8 rounded-lg border px-2 text-xs font-semibold outline-none ${fieldCx}`}
                                                     >
-                                                        {SORTS.map((x) => <option key={x.key} value={x.key}>{x.label}</option>)}
+                                                        {SORTS.map((sort) => (
+                                                            <option key={sort.key} value={sort.key}>{sort.label}</option>
+                                                        ))}
                                                     </select>
                                                 </label>
                                             </div>
-                                        </div>
-
-                                        {/* Advanced filters */}
-                                        {filtersOpen && (
-                                            <div className={`mt-3 grid grid-cols-2 gap-2.5 rounded-xl border p-3 sm:grid-cols-4 ${isDark ? 'border-[#334155] bg-[#1e293b]/40' : 'border-[#e2e8f0] bg-[#f8fafc]'}`}>
-                                                <label className="flex flex-col gap-1">
-                                                    <span className={`text-[10px] font-bold uppercase tracking-wide ${muted}`}>Artikul</span>
-                                                    <input type="text" placeholder="SH-001" value={filters.article}
-                                                        onChange={(e) => patchFilters({ article: e.target.value })} className={miniCx} />
-                                                </label>
-                                                <label className="flex flex-col gap-1">
-                                                    <span className={`text-[10px] font-bold uppercase tracking-wide ${muted}`}>O&apos;lcham</span>
-                                                    <input type="text" placeholder="1 kg" value={filters.productSize}
-                                                        onChange={(e) => patchFilters({ productSize: e.target.value })} className={miniCx} />
-                                                </label>
-                                                <label className="flex flex-col gap-1 col-span-2">
-                                                    <span className={`text-[10px] font-bold uppercase tracking-wide ${muted}`}>Brend</span>
-                                                    <select value={filters.brandId}
-                                                        onChange={(e) => patchFilters({ brandId: e.target.value })} className={miniCx}>
-                                                        <option value="">Barcha brendlar</option>
-                                                        {brandOptions.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-                                                    </select>
-                                                </label>
-                                                <label className="flex flex-col gap-1 col-span-2">
-                                                    <span className={`text-[10px] font-bold uppercase tracking-wide ${muted}`}>Narx (so&apos;m)</span>
-                                                    <div className="flex items-center gap-1.5">
-                                                        <input type="text" inputMode="numeric" placeholder="dan" value={filters.priceFrom}
-                                                            onChange={(e) => patchFilters({ priceFrom: e.target.value.replace(/[^\d]/g, '') })} className={miniCx} />
-                                                        <span className={muted}>–</span>
-                                                        <input type="text" inputMode="numeric" placeholder="gacha" value={filters.priceTo}
-                                                            onChange={(e) => patchFilters({ priceTo: e.target.value.replace(/[^\d]/g, '') })} className={miniCx} />
-                                                    </div>
-                                                </label>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* List */}
-                                    {isFetching && stocks.length === 0 ? (
-                                        <div className={`flex items-center justify-center gap-2 py-10 text-sm ${muted}`}>
-                                            {spinner} Yuklanmoqda...
-                                        </div>
-                                    ) : stocks.length === 0 ? (
-                                        <div className={`flex flex-col items-center gap-2 py-10 ${muted}`}>
-                                            <LuPackage size={28} strokeWidth={1.5} />
-                                            <p className="text-sm">
-                                                {hasAnyFilter ? 'Filtr bo\'yicha mahsulot topilmadi' : 'Bu omborda mahsulot yo\'q'}
-                                            </p>
-                                            {hasAnyFilter && (
-                                                <button type="button" onClick={resetFilters}
-                                                    className="text-xs font-bold text-amber-500 hover:underline">
-                                                    Filtrlarni tozalash
-                                                </button>
+                                            {filtersOpen && (
+                                                <div className={`mt-3 grid grid-cols-1 gap-2.5 rounded-xl border p-3 sm:grid-cols-2 lg:grid-cols-4 ${
+                                                    isDark ? 'border-[#334155] bg-[#1e293b]/40' : 'border-[#e2e8f0] bg-[#f8fafc]'
+                                                }`}>
+                                                    <label className="flex flex-col gap-1">
+                                                        <span className={`text-[10px] font-bold uppercase tracking-wide ${muted}`}>O‘lcham</span>
+                                                        <input
+                                                                    type="text"
+                                                                    placeholder="1 kg"
+                                                                    value={filters.productSize}
+                                                                    onChange={(e) => patchFilters({ productSize: e.target.value })}
+                                                                    className={`h-9 w-full rounded-lg border px-2.5 text-xs outline-none ${fieldCx}`}
+                                                        />
+                                                    </label>
+                                                    <label className="flex flex-col gap-1">
+                                                        <span className={`text-[10px] font-bold uppercase tracking-wide ${muted}`}>Brend</span>
+                                                        <select
+                                                                    value={filters.brandId}
+                                                                    onChange={(e) => patchFilters({ brandId: e.target.value })}
+                                                                    className={`h-9 w-full rounded-lg border px-2.5 text-xs outline-none ${fieldCx}`}
+                                                        >
+                                                                    <option value="">Barcha brendlar</option>
+                                                                    {brands.map((brand) => (
+                                                                        <option key={brand.id} value={brand.id}>{brand.name}</option>
+                                                                    ))}
+                                                        </select>
+                                                    </label>
+                                                </div>
                                             )}
                                         </div>
-                                    ) : (
-                                        <div className={`relative max-h-80 overflow-y-auto divide-y ${divider} ${isFetching ? 'opacity-60' : ''}`}>
-                                            {stocks.map((st) => {
-                                                const added = items.some((i) => i.productId === st.productId);
-                                                const isLow = st.productMinimumLine > 0 && st.quantity <= st.productMinimumLine;
-                                                return (
-                                                    <button key={`${st.productId}-${st.warehouseId}`} type="button"
-                                                        onClick={() => !added && addProduct(st)}
-                                                        disabled={added}
-                                                        className={`flex w-full items-center gap-3 px-4 py-3 text-left text-sm transition-colors ${
-                                                            added
-                                                                ? 'cursor-not-allowed opacity-50'
-                                                                : isDark ? 'hover:bg-[#1e293b]' : 'hover:bg-amber-50'
-                                                        }`}
-                                                    >
-                                                        <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${isDark ? 'bg-[#334155]' : 'bg-[#f1f5f9]'}`}>
-                                                            <LuPackage size={16} className={muted} />
-                                                        </span>
-                                                        <div className="min-w-0 flex-1">
-                                                            <p className="flex flex-wrap items-center gap-1.5">
-                                                                <span className={`truncate font-semibold text-sm ${head}`}>{st.productName}</span>
-                                                                {st.productSize && (
-                                                                    <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-bold ${isDark ? 'bg-white/5 text-slate-300' : 'bg-slate-100 text-slate-600'}`}>
-                                                                        {st.productSize}
-                                                                    </span>
-                                                                )}
-                                                                {st.brand?.name && (
-                                                                    <span className={`shrink-0 rounded-md border px-1.5 py-0.5 text-[10px] font-bold ${badge}`}>
-                                                                        {st.brand.name}
-                                                                    </span>
-                                                                )}
-                                                            </p>
-                                                            <p className={`mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs ${muted}`}>
-                                                                {st.productArticle && <span className="font-mono">{st.productArticle}</span>}
-                                                                <span className="flex items-center gap-1"><LuBarcode size={11} />{st.productBarcode || '—'}</span>
-                                                                {st.productPiecesPerPack && (
-                                                                    <span className="flex items-center gap-1">
-                                                                        <LuBoxes size={11} />1 pachka = {st.productPiecesPerPack} dona
-                                                                    </span>
-                                                                )}
-                                                            </p>
-                                                        </div>
 
-                                                        {/* Qoldiq badge */}
-                                                        <div className="flex shrink-0 flex-col items-end gap-0.5">
-                                                            <span className={`rounded-full border px-2.5 py-1 text-xs font-bold ${stockTone(st.quantity, isLow)}`}>
-                                                                {formatNumber(st.quantity)} dona
+                                        {/* Products list */}
+                                        {stocksError ? (
+                                            <div className={`flex flex-col items-center gap-2 py-12 text-center ${muted}`}>
+                                                <LuCircleAlert size={26} className="text-red-500" />
+                                                <p className="text-sm font-semibold text-red-500">
+                                                    {stocksErrorData?.data?.message || 'Qoldiqlarni yuklashda xatolik'}
+                                                </p>
+                                                <button
+                                                    type="button"
+                                                    onClick={refetchStocks}
+                                                    className="text-xs font-bold text-amber-500 hover:underline"
+                                                >
+                                                    Qayta urinish
+                                                </button>
+                                            </div>
+                                        ) : isFetching && visibleStocks.length === 0 ? (
+                                            <div className={`flex items-center justify-center gap-2 py-12 text-sm ${muted}`}>
+                                                {spinner} Yuklanmoqda...
+                                            </div>
+                                        ) : visibleStocks.length === 0 ? (
+                                            <div className={`flex flex-col items-center gap-2 py-12 ${muted}`}>
+                                                <LuPackage size={28} strokeWidth={1.5} />
+                                                <p className="text-sm">
+                                                    {hasFilters ? 'Filtr bo\'yicha mahsulot topilmadi' : 'Bu omborda mahsulot yo\'q'}
+                                                </p>
+                                                {hasFilters && (
+                                                    <button type="button" onClick={resetFilters}
+                                                        className="text-xs font-bold text-amber-500 hover:underline">
+                                                        Filtrlarni tozalash
+                                                    </button>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <div className={`max-h-[420px] overflow-y-auto divide-y ${divider}`}>
+                                                {visibleStocks.map((st) => {
+                                                    const added = items.some((i) => i.productId === st.productId);
+                                                    const isLow = st.productLowProductAlert === true
+                                                        && st.productMinimumLine > 0
+                                                        && st.quantity <= st.productMinimumLine;
+                                                    const isOut = st.quantity <= 0;
+
+                                                    return (
+                                                        <button
+                                                            key={`${st.productId}-${st.warehouseId}`}
+                                                            type="button"
+                                                            onClick={() => !added && addProduct(st)}
+                                                            disabled={added}
+                                                            className={`group flex w-full items-center gap-3 px-4 py-3 text-left transition-colors ${
+                                                                added
+                                                                    ? 'cursor-not-allowed opacity-50'
+                                                                    : isDark ? 'hover:bg-[#1e293b]' : 'hover:bg-amber-50'
+                                                            }`}
+                                                        >
+                                                            <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${
+                                                                isOut
+                                                                    ? (isDark ? 'bg-red-500/10 text-red-400' : 'bg-red-50 text-red-500')
+                                                                    : isLow
+                                                                        ? (isDark ? 'bg-amber-400/10 text-amber-400' : 'bg-amber-50 text-amber-500')
+                                                                        : (isDark ? 'bg-[#334155] text-slate-300' : 'bg-slate-100 text-slate-500')
+                                                            }`}>
+                                                                <LuPackage size={18} />
                                                             </span>
-                                                            {isLow && st.quantity > 0 && (
-                                                                <span className="text-[10px] font-semibold text-amber-500">
-                                                                    Kam · min {formatNumber(st.productMinimumLine)}
+
+                                                            <div className="min-w-0 flex-1">
+                                                                <p className={`truncate text-sm font-semibold ${head}`}>
+                                                                    {st.productName}
+                                                                </p>
+                                                                <p className={`mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-xs ${muted}`}>
+                                                                    {st.productArticle && (
+                                                                        <span className="font-mono">{st.productArticle}</span>
+                                                                    )}
+                                                                    {st.productBarcode && (
+                                                                        <span className="flex items-center gap-1">
+                                                                            <LuBarcode size={11} />
+                                                                            {st.productBarcode}
+                                                                        </span>
+                                                                    )}
+                                                                    {st.productSize && (
+                                                                        <span>· {st.productSize}</span>
+                                                                    )}
+                                                                    {st.productPiecesPerPack && (
+                                                                        <span className={isDark ? 'text-indigo-300' : 'text-indigo-600'}>
+                                                                            · 1 pachka = {st.productPiecesPerPack} dona
+                                                                        </span>
+                                                                    )}
+                                                                </p>
+                                                            </div>
+
+                                                            <div className="flex shrink-0 flex-col items-end gap-0.5">
+                                                                <span className={`rounded-full border px-2.5 py-1 text-xs font-bold whitespace-nowrap ${stockTone(st.quantity, isLow)}`}>
+                                                                    {formatNumber(st.quantity)} dona
+                                                                </span>
+                                                                {isLow && st.quantity > 0 && (
+                                                                    <span className="text-[10px] font-semibold text-amber-500">
+                                                                        min {formatNumber(st.productMinimumLine)}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+
+                                                            {added ? (
+                                                                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-400/15 text-amber-500">
+                                                                    <LuCheck size={15} />
+                                                                </span>
+                                                            ) : (
+                                                                <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border transition-all group-hover:scale-110 ${badge}`}>
+                                                                    <LuPlus size={15} />
                                                                 </span>
                                                             )}
-                                                        </div>
+                                                        </button>
+                                                    );
+                                                })}
 
-                                                        {added ? (
-                                                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber-400/10 text-amber-500">
-                                                                <LuCheck size={14} />
-                                                            </span>
+                                                {hasMore && (
+                                                    <div
+                                                        ref={loadMoreRef}
+                                                        className={`flex items-center justify-center gap-2 py-4 text-xs ${muted}`}
+                                                    >
+                                                        {isFetching ? (
+                                                            <>
+                                                                {spinner}
+                                                                <span>Yuklanmoqda...</span>
+                                                            </>
                                                         ) : (
-                                                            <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border ${badge}`}>
-                                                                <LuPlus size={14} />
-                                                            </span>
+                                                            <span className="opacity-60">↓ Yana yuklash uchun pastga suring</span>
                                                         )}
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
-                                    )}
+                                                    </div>
+                                                )}
+                                                {!hasMore && visibleStocks.length > 0 && (
+                                                    <div className={`flex items-center justify-center gap-2 py-3 text-xs ${muted}`}>
+                                                        <LuCircleCheck size={12} className={isDark ? 'text-green-400' : 'text-green-600'} />
+                                                        <span>Barcha {allStocks.length} ta mahsulot yuklandi</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
 
-                                    {/* Footer: pagination + close */}
-                                    <div className={`flex items-center justify-between gap-2 border-t px-3 py-2.5 ${line} ${isDark ? 'bg-[#0f172a]/60' : 'bg-[#f8fafc]'}`}>
-                                        <span className={`flex items-center gap-2 text-xs ${muted}`}>
-                                            {isFetching && spinner}
-                                            {stockPagination
-                                                ? `${stockPagination.page + 1} / ${Math.max(stockPagination.totalPages, 1)} sahifa · jami ${stockPagination.totalElements} ta`
-                                                : `${stocks.length} ta mahsulot`}
-                                        </span>
-                                        <div className="flex items-center gap-1.5">
-                                            {stockPagination && stockPagination.totalPages > 1 && (
-                                                <>
-                                                    <button type="button"
-                                                        disabled={stockPagination.first}
-                                                        onClick={() => setStockPage((p) => Math.max(0, p - 1))}
-                                                        className={`flex h-8 w-8 items-center justify-center rounded-lg border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${ghostBtn}`}>
-                                                        <LuChevronLeft size={15} />
-                                                    </button>
-                                                    <button type="button"
-                                                        disabled={stockPagination.last}
-                                                        onClick={() => setStockPage((p) => p + 1)}
-                                                        className={`flex h-8 w-8 items-center justify-center rounded-lg border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${ghostBtn}`}>
-                                                        <LuChevronRight size={15} />
-                                                    </button>
-                                                </>
-                                            )}
+                                        <div className={`flex items-center justify-between gap-2 border-t px-3 py-2.5 ${line} ${isDark ? 'bg-[#0f172a]/60' : 'bg-[#f8fafc]'}`}>
+                                            <span className={`text-xs ${muted}`}>
+                                                {pagination
+                                                    ? filters.name.trim()
+                                                        ? `${allStocks.length} ta yuklandi`
+                                                        : `Jami ${pagination.totalElements} ta mahsulot`
+                                                    : '—'}
+                                            </span>
                                             <button type="button" onClick={() => setOpen(false)}
-                                                className="flex h-8 items-center rounded-lg bg-amber-400 px-3 text-xs font-bold text-[#0f172a] transition-colors hover:bg-amber-300">
+                                                className="flex h-8 items-center rounded-lg bg-amber-400 px-4 text-xs font-bold text-[#0f172a] transition-colors hover:bg-amber-300">
                                                 Yopish
                                             </button>
                                         </div>
                                     </div>
-                                </div>
-                            )}
+                                )}
+                            </div>
                         </div>
                     </div>
 
@@ -568,7 +669,7 @@ export default function StockTransactionForm({ action }) {
                         <div className={`flex flex-col items-center gap-2 py-12 ${muted}`}>
                             <LuPackage size={34} strokeWidth={1.5} />
                             <p className="text-sm font-semibold">Hozircha mahsulot qo&apos;shilmagan</p>
-                            <p className="text-xs">Yuqoridagi dropdown dan kerakli mahsulotni tanlang</p>
+                            <p className="text-xs">Yuqoridagi ro&apos;yxatdan kerakli mahsulotni tanlang</p>
                         </div>
                     ) : (
                         <div className="overflow-x-auto">
@@ -682,3 +783,7 @@ export default function StockTransactionForm({ action }) {
         </div>
     );
 }
+
+StockTransactionForm.propTypes = {
+    action: PropTypes.oneOf(['IN', 'OUT']).isRequired,
+};

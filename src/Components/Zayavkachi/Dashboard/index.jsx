@@ -6,6 +6,7 @@ import {
     LuTriangleAlert, LuPackage, LuWarehouse, LuTag, LuWallet,
     LuRefreshCw, LuRuler, LuBoxes,
     LuPackageCheck, LuCircleX,
+    LuUserCheck, LuFileSpreadsheet,
 } from 'react-icons/lu';
 import {
     Box, HStack, VStack, Text, Spinner, Button,
@@ -16,10 +17,14 @@ import {
 } from '../../../store/services/salesOrder.api';
 import { useGetPaymentReminderDashboardQuery } from '../../../store/services/paymentReminder.api';
 import { useAppTheme } from '../../../theme/tokens';
+import { useAppSelector } from '../../../store/hooks';
+import { BUXGALTER_ROLES } from '../../../app/permissions/roles';
 import { formatNumber } from '../../ui/number-format';
 
 export default function ZayavkachiDashboard() {
     const { isDark } = useAppTheme();
+    const role = useAppSelector((state) => state.auth.role);
+    const isBuxgalter = BUXGALTER_ROLES.includes(role);
     const [dashboardDate] = useState(() => {
         const date = new Date();
         const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -57,7 +62,7 @@ export default function ZayavkachiDashboard() {
         refetch: refetchPaymentReminders,
     } = useGetPaymentReminderDashboardQuery(
         { date: dashboardDate },
-        { refetchOnMountOrArgChange: true }
+        { refetchOnMountOrArgChange: true, skip: isBuxgalter }
     );
 
     const panel = isDark ? 'border-white/10 bg-[#141C2B]' : 'border-[#e2e8f0] bg-white';
@@ -79,10 +84,14 @@ export default function ZayavkachiDashboard() {
         0
     );
 
-    const quickLinks = [
+    const quickLinks = isBuxgalter ? [
         { label: 'Buyurtmalar', path: '/zayavkachi/orders', icon: LuClipboardList, badge: 'bg-amber-400/10 text-amber-500 border-amber-400/20' },
-        { label: 'Profil', path: '/profile', icon: LuUsers, badge: 'bg-[#0ea5e9]/10 text-[#0ea5e9] border-[#0ea5e9]/20' },
-    ];
+        { label: 'Mijozlar', path: '/customers', icon: LuUsers, badge: 'bg-[#0ea5e9]/10 text-[#0ea5e9] border-[#0ea5e9]/20' },
+        { label: 'Agentlar', path: '/customer-agents', icon: LuUserCheck, badge: 'bg-violet-400/10 text-violet-500 border-violet-400/20' },
+        { label: 'Mahsulot katalogi', path: '/products', icon: LuPackage, badge: 'bg-green-400/10 text-green-500 border-green-400/20' },
+        { label: 'Ombor qoldiqlari', path: '/zayavkachi/warehouse', icon: LuWarehouse, badge: 'bg-cyan-400/10 text-cyan-500 border-cyan-400/20' },
+        { label: 'Mijozlar sverkasi', path: '/reconciliation', icon: LuFileSpreadsheet, badge: 'bg-orange-400/10 text-orange-500 border-orange-400/20' },
+    ] : [];
 
     /* ── Stat cards config ── */
     const statCards = [
@@ -131,18 +140,22 @@ export default function ZayavkachiDashboard() {
                 <div className="absolute right-0 top-0 h-full w-1/2 bg-gradient-to-l from-amber-400/6 to-transparent" />
                 <div className="relative flex flex-wrap items-center justify-between gap-3">
                     <div>
-                        <p className="mb-1 text-xs font-bold uppercase tracking-wider text-amber-500">Zayavkachi</p>
+                        <p className="mb-1 text-xs font-bold uppercase tracking-wider text-amber-500">{isBuxgalter ? 'Buxgalter' : 'Zayavkachi'}</p>
                         <h1 className={`text-xl font-bold ${head}`}>Xayrli kun!</h1>
-                        <p className={`mt-0.5 text-xs ${muted}`}>Mijozlardan kelgan buyurtmalarni qabul qiling va kuzatib boring.</p>
+                        <p className={`mt-0.5 text-xs ${muted}`}>
+                            {isBuxgalter
+                                ? 'Buyurtmalar, narxlar va mijozlar hisobini boshqaring.'
+                                : 'Mijozlardan kelgan buyurtmalarni qabul qiling va kuzatib boring.'}
+                        </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                         <button
                             type="button"
                             onClick={() => {
                                 refetchDashboard();
-                                refetchPaymentReminders();
+                                if (!isBuxgalter) refetchPaymentReminders();
                             }}
-                            disabled={dashboardFetching || paymentReminderFetching}
+                            disabled={dashboardFetching || (!isBuxgalter && paymentReminderFetching)}
                             className={`flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold transition-all hover:-translate-y-0.5 ${isDark
                                     ? 'border-white/10 bg-white/[0.03] text-slate-300 hover:border-amber-400/30 hover:text-amber-400'
                                     : 'border-[#e2e8f0] bg-white text-[#475569] hover:border-amber-400 hover:text-amber-600'
@@ -185,7 +198,25 @@ export default function ZayavkachiDashboard() {
                 ))}
             </div>
 
-            {/* Today's expected payment reminder total */}
+            {quickLinks.length > 0 && (
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                    {quickLinks.map(({ label, path, icon: Icon, badge }) => (
+                        <Link
+                            key={path}
+                            to={path}
+                            className={`flex min-h-24 flex-col justify-between rounded-2xl border p-4 shadow-md transition-transform hover:-translate-y-0.5 ${panel}`}
+                        >
+                            <span className={`flex h-9 w-9 items-center justify-center rounded-xl border ${badge}`}>
+                                <Icon size={17} />
+                            </span>
+                            <span className={`mt-3 text-sm font-semibold ${head}`}>{label}</span>
+                        </Link>
+                    ))}
+                </div>
+            )}
+
+            {/* Today's expected payment total is not part of the accountant dashboard. */}
+            {!isBuxgalter && (
             <div className={`relative overflow-hidden rounded-2xl border p-4 sm:p-5 shadow-md ${panel}`}>
                 <div className="absolute right-0 top-0 h-full w-1/2 bg-gradient-to-l from-green-400/8 to-transparent" />
                 <div className="relative flex flex-wrap items-center justify-between gap-4">
@@ -229,6 +260,7 @@ export default function ZayavkachiDashboard() {
                     </div>
                 </div>
             </div>
+            )}
 
             {/* Dashboard error banner */}
             {dashboardError && !dashboardLoading && (

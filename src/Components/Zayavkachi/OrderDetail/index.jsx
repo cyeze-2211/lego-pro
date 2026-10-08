@@ -6,6 +6,7 @@ import {
     LuStickyNote, LuClock3, LuCircleAlert, LuPencil,
     LuChevronDown, LuTriangleAlert, LuCircleCheck, LuCircleX,
     LuBoxes, LuPencilLine, LuPrinter,
+    LuHistory, LuSave, LuX,
 } from 'react-icons/lu';
 import { useAppTheme } from '../../../theme/tokens';
 import { useAppSelector } from '../../../store/hooks';
@@ -16,6 +17,7 @@ import {
     useRejectSalesOrderMutation,
     useLoadSalesOrderMutation,
     useUpdateSalesOrderPricesMutation,
+    useGetSalesOrdersQuery,
 } from '../../../store/services/salesOrder.api';
 import { useGetProductStocksQuery } from '../../../store/services/productStock.api';
 import { useGetWarehousesQuery } from '../../../store/services/warehouse.api';
@@ -65,7 +67,6 @@ function OrderStatusControl({ order, isDark }) {
         if (!nextStatus || nextStatus === order.status) return;
         setAction(nextStatus);
         try {
-            // CONFIRMED ga o'tishdan oldin narxlarni saqlab olamiz
             if (nextStatus === 'CONFIRMED') {
                 const priceItems = (order.items ?? []).map((item) => ({
                     itemId: item.id,
@@ -131,6 +132,59 @@ OrderStatusControl.propTypes = {
 };
 
 /* ──────────────────────────────────────────────────────────────── */
+/*  Группировка одинаковых товаров (PACK + PIECE) в одну строку      */
+/* ──────────────────────────────────────────────────────────────── */
+function groupOrderItems(items) {
+    if (!items?.length) return [];
+
+    const groups = new Map();
+
+    for (const item of items) {
+        const key = `${item.productId}|${item.warehouseId || ''}`;
+
+        if (!groups.has(key)) {
+            groups.set(key, {
+                key,
+                productId: item.productId,
+                productName: item.productName,
+                productBarcode: item.productBarcode,
+                productArticle: item.productArticle,
+                warehouseId: item.warehouseId,
+                warehouseName: item.warehouseName,
+                unitPrice: item.unitPrice,
+                packs: 0,
+                pieces: 0,
+                lineTotal: 0,
+                orderQuantityTotal: 0,
+                hasPackLine: false,
+                hasPieceLine: false,
+                rawItems: [],
+            });
+        }
+
+        const g = groups.get(key);
+        g.rawItems.push(item);
+        g.lineTotal += Number(item.lineTotal) || 0;
+
+        const qty = Number(item.quantity) || 0;
+        const entered = Number(item.enteredQuantity);
+        const unit = String(item.unit ?? '').toUpperCase();
+
+        g.orderQuantityTotal += qty;
+
+        if (unit === 'PACK' && Number.isFinite(entered) && entered > 0) {
+            g.hasPackLine = true;
+            g.packs += entered;
+        } else {
+            g.hasPieceLine = true;
+            g.pieces += qty;
+        }
+    }
+
+    return Array.from(groups.values());
+}
+
+/* ──────────────────────────────────────────────────────────────── */
 /*  Detail page                                                     */
 /* ──────────────────────────────────────────────────────────────── */
 export default function ZayavkachiOrderDetail() {
@@ -147,6 +201,13 @@ export default function ZayavkachiOrderDetail() {
 
     const { data: order, isLoading, isError } = useGetSalesOrderByIdQuery(id, { skip: !id });
     const { data: warehouses = [] } = useGetWarehousesQuery('PRODUCT');
+    const { data: customerOrdersData, isFetching: customerOrdersFetching } = useGetSalesOrdersQuery(
+        { customerId: order?.customerId, page: 0, size: 6, sort: ['createdAt,DESC', 'id,DESC'] },
+        { skip: !order?.customerId || !BUXGALTER_ROLES.includes(role) },
+    );
+    const [updatePrices, { isLoading: isSavingPrices }] = useUpdateSalesOrderPricesMutation();
+    const [showPriceEditor, setShowPriceEditor] = useState(false);
+    const [priceDraft, setPriceDraft] = useState({});
 
     const orderWarehouseIds = useMemo(() => {
         if (!order?.items) return [];
@@ -159,32 +220,78 @@ export default function ZayavkachiOrderDetail() {
         return selectedWarehouseId || orderWarehouseIds[0] || '';
     }, [orderWarehouseIds, selectedWarehouseId]);
 
-    // eslint-disable-next-line no-unused-vars
-    const orderProductIds = useMemo(() => {
-        if (!order?.items) return [];
-        return [...new Set(order.items.map((i) => i.productId).filter(Boolean))];
-    }, [order]);
-
     const { data: stockData, isFetching: stockFetching } = useGetProductStocksQuery(
         { warehouseId: activeWarehouseId || undefined, page: 0, size: 100 },
         { skip: !activeWarehouseId || !order }
     );
     const stockItems = stockData?.items ?? [];
 
+    /* ── Группируем одинаковые товары ── */
+    const groupedItems = useMemo(
+        () => groupOrderItems(order?.items ?? []),
+        [order]
+    );
+
+    /* ── Comparison с piecesPerPack ── */
     const comparison = useMemo(() => {
-        if (!order?.items) return [];
-        return order.items.map((item) => {
-            const stock    = stockItems.find((s) => s.productId === item.productId && (activeWarehouseId ? s.warehouseId === activeWarehouseId : true));
+        if (!groupedItems.length) return [];
+        return groupedItems.map((g) => {
+            const stock = stockItems.find(
+                (s) => s.productId === g.productId && (activeWarehouseId ? s.warehouseId === activeWarehouseId : true)
+            );
             const stockQty = stock?.quantity ?? 0;
-            const orderQty = item.quantity;
+            const orderQty = g.orderQuantityTotal;
             const enough   = stockQty >= orderQty;
             const diff     = stockQty - orderQty;
-            return { ...item, stockQty, enough, diff };
+
+            const piecesPerPack =
+                Number(stock?.productPiecesPerPack) ||
+                Number(g.rawItems?.[0]?.productPiecesPerPack) ||
+                Number(g.rawItems?.[0]?.piecesPerPack) ||
+                0;
+
+            return { ...g, stockQty, enough, diff, piecesPerPack };
         });
-    }, [order, stockItems, activeWarehouseId]);
+    }, [groupedItems, stockItems, activeWarehouseId]);
 
     const allEnough = comparison.length > 0 && comparison.every((c) => c.enough);
     const someShort = comparison.some((c) => !c.enough);
+
+    /* ── Итоги для footer'а таблицы сравнения ── */
+    const totals = useMemo(() => {
+        let stockTotalPieces = 0;
+        let orderTotalPieces = 0;
+        let stockPacks = 0;
+        let stockRemainder = 0;
+        let orderPacks = 0;
+        let orderRemainder = 0;
+
+        comparison.forEach((row) => {
+            const qty = Number(row.stockQty) || 0;
+            const ordQty = Number(row.orderQuantityTotal) || 0;
+            stockTotalPieces += qty;
+            orderTotalPieces += ordQty;
+
+            const pcs = Number(row.piecesPerPack) || 0;
+            if (pcs > 1) {
+                stockPacks += Math.floor(qty / pcs);
+                stockRemainder += qty % pcs;
+                orderPacks += Math.floor(ordQty / pcs);
+                orderRemainder += ordQty % pcs;
+            } else {
+                stockRemainder += qty;
+                orderRemainder += ordQty;
+            }
+        });
+
+        return {
+            stockTotals: { pieces: stockTotalPieces, packs: stockPacks, remainder: stockRemainder },
+            orderTotals: { pieces: orderTotalPieces, packs: orderPacks, remainder: orderRemainder },
+            totalDiff:   { diff: stockTotalPieces - orderTotalPieces },
+        };
+    }, [comparison]);
+
+    const { stockTotals, orderTotals, totalDiff } = totals;
 
     /* ── theme ── */
     const panel    = isDark ? 'border-white/10 bg-[#141C2B]'        : 'border-[#e2e8f0] bg-white';
@@ -199,6 +306,32 @@ export default function ZayavkachiOrderDetail() {
 
     const backToList   = () => navigate(ordersPath);
     const [showPrintModal, setShowPrintModal] = useState(false);
+    const customerOrders = (customerOrdersData?.items ?? []).filter((item) => item.id !== order?.id);
+
+    const openPriceEditor = () => {
+        setPriceDraft(Object.fromEntries(
+            (order.items ?? []).map((item) => [item.id, String(item.unitPrice ?? 0)]),
+        ));
+        setShowPriceEditor(true);
+    };
+
+    const savePrices = async () => {
+        const items = (order.items ?? []).map((item) => ({
+            itemId: item.id,
+            unitPrice: Number(priceDraft[item.id]),
+        }));
+        if (items.some((item) => !Number.isFinite(item.unitPrice) || item.unitPrice < 0)) {
+            Alert('Narx 0 dan kichik bo‘lmagan son bo‘lishi kerak', 'error');
+            return;
+        }
+        try {
+            await updatePrices({ id: order.id, data: { items } }).unwrap();
+            Alert('Buyurtma narxlari saqlandi', 'success');
+            setShowPriceEditor(false);
+        } catch (error) {
+            Alert(error?.data?.message || 'Narxlarni saqlashda xatolik', 'error');
+        }
+    };
 
     const printInvoice = () => {
         const invoiceEl = document.querySelector('.invoice-print-root');
@@ -224,6 +357,7 @@ export default function ZayavkachiOrderDetail() {
         win.focus();
         setTimeout(() => { win.print(); win.close(); }, 400);
     };
+    void printInvoice;
 
     if (isLoading) return <div className="flex min-h-[60vh] items-center justify-center"><Loading /></div>;
 
@@ -239,7 +373,6 @@ export default function ZayavkachiOrderDetail() {
         );
     }
 
-    const items    = order.items ?? [];
     const editable = order.status === 'CREATED';
     const showStockComparison = order.status === 'CREATED' || order.status === 'LOADED';
 
@@ -253,8 +386,66 @@ export default function ZayavkachiOrderDetail() {
         ? '#b91c1c'
         : '#92400E';
 
+    /* ── Общие итоги ── */
+    const totalPacks = groupedItems.reduce((s, g) => s + g.packs, 0);
+    const totalPieces = groupedItems.reduce((s, g) => s + g.pieces, 0);
+
     return (
         <>
+            {showPriceEditor && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4" role="presentation" onMouseDown={(event) => {
+                    if (event.target === event.currentTarget && !isSavingPrices) setShowPriceEditor(false);
+                }}>
+                    <section role="dialog" aria-modal="true" aria-labelledby="order-price-editor-title" className={`w-full max-w-3xl overflow-hidden rounded-2xl border shadow-2xl ${panel}`}>
+                        <div className={`flex items-center justify-between border-b px-5 py-4 ${line}`}>
+                            <div>
+                                <h2 id="order-price-editor-title" className={`text-base font-bold ${head}`}>Buyurtma narxlarini tahrirlash</h2>
+                                <p className={`mt-1 text-xs ${muted}`}>Har bir qator narxini alohida belgilang.</p>
+                            </div>
+                            <button type="button" onClick={() => setShowPriceEditor(false)} disabled={isSavingPrices} className={`rounded-lg p-2 ${ghostBtn}`} aria-label="Yopish"><LuX size={18} /></button>
+                        </div>
+                        <div className="max-h-[60vh] overflow-auto px-5">
+                            <table className="w-full text-sm">
+                                <thead><tr className={`border-b text-left text-xs ${muted}`}>
+                                    <th className="py-3 pr-3">Mahsulot / turi</th>
+                                    <th className="py-3 px-3 text-right">Miqdor</th>
+                                    <th className="py-3 pl-3 text-right">Narx (so‘m)</th>
+                                </tr></thead>
+                                <tbody className={`divide-y ${divider}`}>
+                                    {(order.items ?? []).map((item) => (
+                                        <tr key={item.id}>
+                                            <td className={`py-3 pr-3 ${head}`}>
+                                                <span className="font-semibold">{item.productName}</span>
+                                                <span className={`ml-2 text-xs ${muted}`}>{item.unit === 'PACK' ? 'Pachka' : 'Dona'}</span>
+                                            </td>
+                                            <td className={`px-3 py-3 text-right ${muted}`}>{item.enteredQuantity ?? item.quantity}</td>
+                                            <td className="py-3 pl-3">
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    step="any"
+                                                    inputMode="decimal"
+                                                    value={priceDraft[item.id] ?? ''}
+                                                    onChange={(event) => setPriceDraft((current) => ({ ...current, [item.id]: event.target.value }))}
+                                                    disabled={isSavingPrices}
+                                                    aria-label={`${item.productName} narxi`}
+                                                    className={`w-full min-w-32 rounded-lg border px-3 py-2 text-right outline-none focus:border-amber-400 ${inputCx}`}
+                                                />
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div className={`flex justify-end gap-2 border-t px-5 py-4 ${line}`}>
+                            <button type="button" onClick={() => setShowPriceEditor(false)} disabled={isSavingPrices} className={`rounded-xl border px-4 py-2 text-sm font-semibold ${ghostBtn}`}>Bekor qilish</button>
+                            <button type="button" onClick={savePrices} disabled={isSavingPrices} className="flex items-center gap-2 rounded-xl bg-amber-400 px-4 py-2 text-sm font-bold text-slate-950 disabled:opacity-60">
+                                <LuSave size={15} /> {isSavingPrices ? 'Saqlanmoqda…' : 'Saqlash'}
+                            </button>
+                        </div>
+                    </section>
+                </div>
+            )}
             {showPrintModal && (
                 <OrderPrintModal
                     order={order}
@@ -263,7 +454,6 @@ export default function ZayavkachiOrderDetail() {
                 />
             )}
 
-            {/* ── PRINT STYLES — invoice yangi windowda ochiladi, bu faqat hide uchun ── */}
             <style>{`
                 .invoice-print { display: none !important; }
             `}</style>
@@ -286,6 +476,12 @@ export default function ZayavkachiOrderDetail() {
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
                             <OrderStatusControl order={order} isDark={isDark} />
+
+                            {BUXGALTER_ROLES.includes(role) && order.status === 'LOADED' && (
+                                <button type="button" onClick={openPriceEditor} className={`flex h-12 items-center gap-2 rounded-xl border px-5 text-sm font-bold transition-colors hover:border-amber-400/60 hover:text-amber-500 ${ghostBtn}`}>
+                                    <LuPencilLine size={16} /> Narxlarni o‘zgartirish
+                                </button>
+                            )}
 
                             {BUXGALTER_ROLES.includes(role) && order.status === 'LOADED' && (
                             <button type="button" onClick={() => setShowPrintModal(true)} title="Chop etish"
@@ -340,9 +536,19 @@ export default function ZayavkachiOrderDetail() {
                         </div>
                     )}
 
-                    <div className={`flex items-center gap-2 border-t px-5 py-3.5 ${line}`}>
+                    <div className={`flex flex-wrap items-center gap-2 border-t px-5 py-3.5 ${line}`}>
                         <h2 className={`text-sm font-bold ${head}`}>Mahsulotlar</h2>
-                        <span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-xs font-bold text-amber-500">{items.length}</span>
+                        <span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-xs font-bold text-amber-500">{groupedItems.length}</span>
+                        {totalPacks > 0 && (
+                            <span className="rounded-full border border-violet-400/30 bg-violet-400/10 px-2 py-0.5 text-xs font-bold text-violet-500">
+                                {totalPacks} pachka
+                            </span>
+                        )}
+                        {totalPieces > 0 && (
+                            <span className={`rounded-full border px-2 py-0.5 text-xs font-bold ${isDark ? 'border-[#334155] bg-white/5 text-slate-300' : 'border-[#e2e8f0] bg-slate-50 text-slate-600'}`}>
+                                {totalPieces} dona
+                            </span>
+                        )}
                     </div>
 
                     <div className="overflow-x-auto">
@@ -353,30 +559,52 @@ export default function ZayavkachiOrderDetail() {
                                     <th className="w-44 px-5 py-3">Barcode</th>
                                     <th className="w-48 px-5 py-3">Ombor</th>
                                     <th className="w-32 px-5 py-3 text-right">Narx</th>
-                                    <th className="w-28 px-5 py-3 text-right">Miqdor</th>
+                                    <th className="w-40 px-5 py-3 text-right">Pachka</th>
+                                    <th className="w-28 px-5 py-3 text-right">Dona</th>
                                     <th className="w-40 px-5 py-3 text-right">Jami</th>
                                 </tr>
                             </thead>
                             <tbody className={`divide-y ${divider}`}>
-                                {items.length === 0 ? (
-                                    <tr><td colSpan={6} className={`py-10 text-center text-sm ${muted}`}>Mahsulotlar topilmadi</td></tr>
-                                ) : items.map((item, idx) => (
-                                    <tr key={item.id} className={`transition-colors ${rowBg}`}>
+                                {groupedItems.length === 0 ? (
+                                    <tr><td colSpan={7} className={`py-10 text-center text-sm ${muted}`}>Mahsulotlar topilmadi</td></tr>
+                                ) : groupedItems.map((g, idx) => (
+                                    <tr key={g.key} className={`transition-colors ${rowBg}`}>
                                         <td className="px-5 py-3">
                                             <div className="flex items-center gap-3">
                                                 <span className={`w-4 shrink-0 text-xs font-bold ${muted}`}>{idx + 1}</span>
-                                                <span className={`font-semibold ${head}`}>{item.productName}</span>
+                                                <span className={`font-semibold ${head}`}>{g.productName}</span>
                                             </div>
                                         </td>
                                         <td className={`px-5 py-3 font-mono text-xs ${muted}`}>
-                                            <span className="flex items-center gap-1.5"><LuBarcode size={13} />{item.productBarcode}</span>
+                                            <span className="flex items-center gap-1.5"><LuBarcode size={13} />{g.productBarcode}</span>
                                         </td>
                                         <td className={`px-5 py-3 text-xs ${muted}`}>
-                                            <span className="flex items-center gap-1.5"><LuWarehouse size={13} />{item.warehouseName}</span>
+                                            <span className="flex items-center gap-1.5"><LuWarehouse size={13} />{g.warehouseName}</span>
                                         </td>
-                                        <td className={`px-5 py-3 text-right text-xs font-semibold ${muted}`}>{fmtNum(item.unitPrice)}</td>
-                                        <td className={`px-5 py-3 text-right font-bold ${head}`}>{item.quantity}</td>
-                                        <td className={`px-5 py-3 text-right font-bold ${head}`}>{fmtNum(item.lineTotal)} so&apos;m</td>
+                                        <td className={`px-5 py-3 text-right text-xs font-semibold ${muted}`}>{fmtNum(g.unitPrice)}</td>
+
+                                        {/* ── Pachka ── */}
+                                        <td className="px-5 py-3 text-right">
+                                            {g.hasPackLine && g.packs > 0 ? (
+                                                <span className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-sm font-bold ${
+                                                    isDark
+                                                        ? 'border-violet-400/30 bg-violet-500/10 text-violet-300'
+                                                        : 'border-violet-300 bg-violet-50 text-violet-700'
+                                                }`}>
+                                                    <LuBoxes size={12} />
+                                                    {g.packs} pachka
+                                                </span>
+                                            ) : (
+                                                <span className={muted}>—</span>
+                                            )}
+                                        </td>
+
+                                        {/* ── Dona ── */}
+                                        <td className={`px-5 py-3 text-right font-bold ${head}`}>
+                                            {g.hasPieceLine && g.pieces > 0 ? fmtNum(g.pieces) : <span className={muted}>—</span>}
+                                        </td>
+
+                                        <td className={`px-5 py-3 text-right font-bold ${head}`}>{fmtNum(g.lineTotal)} so&apos;m</td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -457,8 +685,8 @@ export default function ZayavkachiOrderDetail() {
                                 <thead>
                                     <tr className={`text-left text-xs font-semibold uppercase tracking-wide ${muted} ${isDark ? 'bg-[#0f172a]/30' : 'bg-[#f8fafc]/80'}`}>
                                         <th className="px-5 py-3">Mahsulot</th>
-                                        <th className="w-36 px-5 py-3 text-right">Ombordа qoldiq</th>
-                                        <th className="w-32 px-5 py-3 text-right">Buyurtmada</th>
+                                        <th className="w-40 px-5 py-3 text-right">Ombordа qoldiq</th>
+                                        <th className="w-40 px-5 py-3 text-right">Buyurtmada</th>
                                         <th className="w-32 px-5 py-3 text-right">Farq</th>
                                         <th className="w-32 px-5 py-3 text-center">Holat</th>
                                     </tr>
@@ -467,6 +695,18 @@ export default function ZayavkachiOrderDetail() {
                                     {comparison.map((row) => {
                                         const enough     = row.enough;
                                         const diff       = row.diff;
+                                        const pcs        = Number(row.piecesPerPack) || 0;
+
+                                        /* Ombordagi pachka / dona */
+                                        const stockPacks = pcs > 1 ? Math.floor(row.stockQty / pcs) : 0;
+                                        const stockRem   = pcs > 1 ? row.stockQty % pcs : 0;
+                                        /* Buyurtmadagi pachka / dona */
+                                        const orderPacks = pcs > 1 ? Math.floor(row.orderQuantityTotal / pcs) : 0;
+                                        const orderRem   = pcs > 1 ? row.orderQuantityTotal % pcs : 0;
+                                        /* Farq pachka */
+                                        const diffPacks  = pcs > 1 ? Math.floor(Math.abs(diff) / pcs) : 0;
+                                        const diffRem    = pcs > 1 ? Math.abs(diff) % pcs : 0;
+
                                         const statusIcon = enough
                                             ? <LuCircleCheck size={15} className={isDark ? 'text-green-400' : 'text-green-600'} />
                                             : <LuCircleX     size={15} className={isDark ? 'text-red-400'   : 'text-red-600'} />;
@@ -474,16 +714,62 @@ export default function ZayavkachiOrderDetail() {
                                         const diffCls    = diff === 0 ? muted : diff > 0 ? (isDark ? 'text-green-400' : 'text-green-700') : (isDark ? 'text-red-400' : 'text-red-600');
                                         const rowAccent  = !enough ? (isDark ? 'bg-red-500/5' : 'bg-red-50/60') : '';
                                         return (
-                                            <tr key={row.productId} className={`transition-colors ${rowAccent} ${rowBg}`}>
+                                            <tr key={row.key} className={`transition-colors ${rowAccent} ${rowBg}`}>
                                                 <td className="px-5 py-3">
                                                     <div className="flex flex-col gap-0.5">
                                                         <span className={`font-semibold ${head}`}>{row.productName}</span>
                                                         {row.productBarcode && <span className={`font-mono text-xs ${muted}`}>{row.productBarcode}</span>}
                                                     </div>
                                                 </td>
-                                                <td className={`px-5 py-3 text-right font-bold tabular-nums ${head}`}>{fmtNum(row.stockQty)}</td>
-                                                <td className={`px-5 py-3 text-right font-bold tabular-nums ${head}`}>{fmtNum(row.quantity)}</td>
-                                                <td className={`px-5 py-3 text-right font-bold tabular-nums ${diffCls}`}>{diff > 0 ? `+${fmtNum(diff)}` : fmtNum(diff)}</td>
+
+                                                {/* Omborda qoldiq — dona + pachka */}
+                                                <td className="px-5 py-3 text-right">
+                                                    <div className="flex flex-col items-end gap-0.5">
+                                                        <span className={`font-bold tabular-nums ${head}`}>
+                                                            {fmtNum(row.stockQty)} dona
+                                                        </span>
+                                                        {pcs > 1 && row.stockQty > 0 && (
+                                                            <span className={`inline-flex items-center gap-1 text-[10px] font-semibold ${
+                                                                isDark ? 'text-violet-300' : 'text-violet-600'
+                                                            }`}>
+                                                                <LuBoxes size={10} />
+                                                                {stockPacks} pachka{stockRem > 0 ? ` + ${stockRem} dona` : ''}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </td>
+
+                                                {/* Buyurtmada — dona + pachka */}
+                                                <td className="px-5 py-3 text-right">
+                                                    <div className="flex flex-col items-end gap-0.5">
+                                                        <span className={`font-bold tabular-nums ${head}`}>
+                                                            {fmtNum(row.orderQuantityTotal)} dona
+                                                        </span>
+                                                        {pcs > 1 && row.orderQuantityTotal > 0 && (
+                                                            <span className={`inline-flex items-center gap-1 text-[10px] font-semibold ${
+                                                                isDark ? 'text-violet-300' : 'text-violet-600'
+                                                            }`}>
+                                                                <LuBoxes size={10} />   
+                                                                {orderPacks} pachka{orderRem > 0 ? ` + ${orderRem} dona` : ''}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </td>
+
+                                                {/* Farq — dona + pachka */}
+                                                <td className="px-5 py-3 text-right">
+                                                    <div className="flex flex-col items-end gap-0.5">
+                                                        <span className={`font-bold tabular-nums ${diffCls}`}>
+                                                            {diff > 0 ? `+${fmtNum(diff)}` : fmtNum(diff)}
+                                                        </span>
+                                                        {pcs > 1 && diff !== 0 && (
+                                                            <span className={`text-[10px] font-semibold ${diffCls} opacity-80`}>
+                                                                ({diffPacks} pachka{diffRem > 0 ? ` + ${diffRem}` : ''})
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </td>
+
                                                 <td className="px-5 py-3">
                                                     <div className={`flex items-center justify-center gap-1.5 ${statusCls}`}>
                                                         {statusIcon}
@@ -494,6 +780,76 @@ export default function ZayavkachiOrderDetail() {
                                         );
                                     })}
                                 </tbody>
+
+                                {/* ══ Итоги внизу ══ */}
+                                <tfoot>
+                                    <tr className={isDark ? 'bg-[#0f172a]/50' : 'bg-[#f8fafc]'}>
+                                        <td className={`px-5 py-3 text-xs font-bold uppercase tracking-wide ${muted}`}>
+                                            Jami
+                                        </td>
+
+                                        {/* Omborda qoldiq jami */}
+                                        <td className="px-5 py-3 text-right">
+                                            <div className="flex flex-col items-end gap-0.5">
+                                                <span className={`font-bold tabular-nums ${head}`}>
+                                                    {fmtNum(stockTotals.pieces)} dona
+                                                </span>
+                                                {stockTotals.packs > 0 && (
+                                                    <span className={`inline-flex items-center gap-1 text-[10px] font-semibold ${
+                                                        isDark ? 'text-violet-300' : 'text-violet-600'
+                                                    }`}>
+                                                        <LuBoxes size={10} />
+                                                        {stockTotals.packs} pachka{stockTotals.remainder > 0 ? ` + ${stockTotals.remainder} dona` : ''}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </td>
+
+                                        {/* Buyurtmada jami */}
+                                        <td className="px-5 py-3 text-right">
+                                            <div className="flex flex-col items-end gap-0.5">
+                                                <span className={`font-bold tabular-nums ${head}`}>
+                                                    {fmtNum(orderTotals.pieces)} dona
+                                                </span>
+                                                {orderTotals.packs > 0 && (
+                                                    <span className={`inline-flex items-center gap-1 text-[10px] font-semibold ${
+                                                        isDark ? 'text-violet-300' : 'text-violet-600'
+                                                    }`}>
+                                                        <LuBoxes size={10} />
+                                                        {orderTotals.packs} pachka{orderTotals.remainder > 0 ? ` + ${orderTotals.remainder} dona` : ''}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </td>
+
+                                        {/* Farq jami */}
+                                        <td className="px-5 py-3 text-right">
+                                            <span className={`font-bold tabular-nums ${
+                                                totalDiff.diff === 0
+                                                    ? muted
+                                                    : totalDiff.diff > 0
+                                                    ? (isDark ? 'text-green-400' : 'text-green-700')
+                                                    : (isDark ? 'text-red-400' : 'text-red-600')
+                                            }`}>
+                                                {totalDiff.diff > 0 ? `+${fmtNum(totalDiff.diff)}` : fmtNum(totalDiff.diff)}
+                                            </span>
+                                        </td>
+
+                                        <td className="px-5 py-3 text-center">
+                                            {someShort ? (
+                                                <div className="flex items-center justify-center gap-1.5 text-red-500">
+                                                    <LuCircleX size={15} />
+                                                    <span className="text-xs font-bold">Yetishmaydi</span>
+                                                </div>
+                                            ) : (
+                                                <div className={`flex items-center justify-center gap-1.5 ${isDark ? 'text-green-400' : 'text-green-700'}`}>
+                                                    <LuCircleCheck size={15} />
+                                                    <span className="text-xs font-bold">Yetarli</span>
+                                                </div>
+                                            )}
+                                        </td>
+                                    </tr>
+                                </tfoot>
                             </table>
                         </div>
                     )}
@@ -516,6 +872,41 @@ export default function ZayavkachiOrderDetail() {
                         </div>
                     )}
                 </div>
+                )}
+
+                {BUXGALTER_ROLES.includes(role) && (
+                    <section className={`rounded-2xl border shadow-md ${panel}`}>
+                        <div className={`flex items-center gap-2 border-b px-5 py-4 ${line}`}>
+                            <LuHistory size={17} className="text-amber-500" />
+                            <h2 className={`text-sm font-bold ${head}`}>Shu mijozning boshqa buyurtmalari</h2>
+                            <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${muted}`}>{customerOrders.length}</span>
+                        </div>
+                        {customerOrdersFetching ? (
+                            <p className={`px-5 py-6 text-sm ${muted}`}>Buyurtmalar yuklanmoqda…</p>
+                        ) : customerOrders.length === 0 ? (
+                            <p className={`px-5 py-6 text-sm ${muted}`}>Boshqa buyurtmalar topilmadi.</p>
+                        ) : (
+                            <div className={`divide-y ${divider}`}>
+                                {customerOrders.map((relatedOrder) => (
+                                    <button
+                                        key={relatedOrder.id}
+                                        type="button"
+                                        onClick={() => navigate(`${ordersPath}/${relatedOrder.id}`)}
+                                        className={`flex w-full flex-wrap items-center justify-between gap-3 px-5 py-3 text-left transition-colors ${rowBg}`}
+                                    >
+                                        <span>
+                                            <span className={`block text-sm font-semibold ${head}`}>#{relatedOrder.id.slice(0, 8).toUpperCase()}</span>
+                                            <span className={`text-xs ${muted}`}>{fmtDateTime(relatedOrder.createdAt)} · {relatedOrder.items?.length ?? 0} ta mahsulot</span>
+                                        </span>
+                                        <span className="flex items-center gap-3">
+                                            <span className={`text-xs font-bold ${statusCx(relatedOrder.status)}`}>{STATUS_LABEL[relatedOrder.status] ?? relatedOrder.status}</span>
+                                            <span className={`text-sm font-bold ${head}`}>{fmtNum(relatedOrder.totalAmount)} so‘m</span>
+                                        </span>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </section>
                 )}
             </div>
 
@@ -598,10 +989,10 @@ export default function ZayavkachiOrderDetail() {
                             <td style={{ padding: 0,                 borderRight: '1px solid #334155' }}>
                                 <div style={{ background: '#1e293b', color: '#fff', padding: '7px 8px', textAlign: 'left',   fontSize: '9.5px', fontWeight: 700 }}>Mahsulot</div>
                             </td>
-                            <td style={{ padding: 0, width: '48px',  borderRight: '1px solid #334155' }}>
+                            <td style={{ padding: 0, width: '65px',  borderRight: '1px solid #334155' }}>
                                 <div style={{ background: '#1e293b', color: '#fff', padding: '7px 8px', textAlign: 'center', fontSize: '9.5px', fontWeight: 700 }}>Pachka</div>
                             </td>
-                            <td style={{ padding: 0, width: '44px',  borderRight: '1px solid #334155' }}>
+                            <td style={{ padding: 0, width: '60px',  borderRight: '1px solid #334155' }}>
                                 <div style={{ background: '#1e293b', color: '#fff', padding: '7px 8px', textAlign: 'center', fontSize: '9.5px', fontWeight: 700 }}>Dona</div>
                             </td>
                             <td style={{ padding: 0, width: '88px',  borderRight: '1px solid #334155' }}>
@@ -613,30 +1004,34 @@ export default function ZayavkachiOrderDetail() {
                         </tr>
                     </thead>
                     <tbody>
-                        {items.map((item, idx) => (
-                            <tr key={item.id} style={{ borderBottom: '1px solid #e2e8f0', backgroundColor: '#ffffff' }}>
+                        {groupedItems.map((g, idx) => (
+                            <tr key={g.key} style={{ borderBottom: '1px solid #e2e8f0', backgroundColor: '#ffffff' }}>
                                 <td style={{ backgroundColor: '#ffffff', padding: '6px 8px', textAlign: 'center', fontSize: '10px', color: '#374151', borderRight: '1px solid #e2e8f0' }}>{idx + 1}</td>
                                 <td style={{ backgroundColor: '#ffffff', padding: '6px 8px', fontSize: '10px', borderRight: '1px solid #e2e8f0' }}>
-                                    <div style={{ fontWeight: 600, color: '#0f172a' }}>{item.productName || '—'}</div>
-                                    {item.productBarcode && (
-                                        <div style={{ fontSize: '8.5px', color: '#94a3b8', fontFamily: 'monospace', marginTop: '1px' }}>{item.productBarcode}</div>
+                                    <div style={{ fontWeight: 600, color: '#0f172a' }}>{g.productName || '—'}</div>
+                                    {g.productBarcode && (
+                                        <div style={{ fontSize: '8.5px', color: '#94a3b8', fontFamily: 'monospace', marginTop: '1px' }}>{g.productBarcode}</div>
                                     )}
                                 </td>
-                                <td style={{ backgroundColor: '#ffffff', padding: '6px 8px', textAlign: 'center', fontSize: '10px', color: '#374151', borderRight: '1px solid #e2e8f0' }}>
-                                    {item.quantity}
+                                <td style={{ backgroundColor: '#ffffff', padding: '6px 8px', textAlign: 'center', fontSize: '10px', borderRight: '1px solid #e2e8f0' }}>
+                                    {g.hasPackLine && g.packs > 0 ? (
+                                        <div style={{ fontWeight: 700, color: '#5B21B6' }}>{g.packs}</div>
+                                    ) : (
+                                        <span style={{ color: '#94a3b8' }}>—</span>
+                                    )}
                                 </td>
-                                <td style={{ backgroundColor: '#ffffff', padding: '6px 8px', textAlign: 'center', fontSize: '10px', color: '#374151', borderRight: '1px solid #e2e8f0' }}>
-                                    {item.quantity}
+                                <td style={{ backgroundColor: '#ffffff', padding: '6px 8px', textAlign: 'center', fontSize: '10px', fontWeight: 700, color: '#0f172a', borderRight: '1px solid #e2e8f0' }}>
+                                    {g.hasPieceLine && g.pieces > 0 ? g.pieces : <span style={{ color: '#94a3b8' }}>—</span>}
                                 </td>
                                 <td style={{ backgroundColor: '#ffffff', padding: '6px 8px', textAlign: 'right', fontSize: '10px', color: '#374151', borderRight: '1px solid #e2e8f0' }}>
-                                    {fmtNum(item.unitPrice)}
+                                    {fmtNum(g.unitPrice)}
                                 </td>
                                 <td style={{ backgroundColor: '#ffffff', padding: '6px 8px', textAlign: 'right', fontSize: '10px', fontWeight: 700, color: '#0f172a' }}>
-                                    {fmtNum(item.lineTotal)}
+                                    {fmtNum(g.lineTotal)}
                                 </td>
                             </tr>
                         ))}
-                        {Array.from({ length: Math.max(0, 9 - items.length) }).map((_, i) => (
+                        {Array.from({ length: Math.max(0, 9 - groupedItems.length) }).map((_, i) => (
                             <tr key={`empty-${i}`} style={{ borderBottom: '1px solid #e2e8f0', backgroundColor: '#ffffff' }}>
                                 <td style={{ backgroundColor: '#ffffff', padding: '6px 8px', borderRight: '1px solid #e2e8f0' }}>&nbsp;</td>
                                 <td style={{ backgroundColor: '#ffffff', padding: '6px 8px', borderRight: '1px solid #e2e8f0' }}>&nbsp;</td>
@@ -648,6 +1043,32 @@ export default function ZayavkachiOrderDetail() {
                         ))}
                     </tbody>
                 </table>
+
+                {/* ══ JAMI — pachka/dona сводка ══ */}
+                {(totalPacks > 0 || totalPieces > 0) && (
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '16px', marginTop: '8px', marginBottom: '12px', fontSize: '10px' }}>
+                        {totalPacks > 0 && (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                <span style={{
+                                    display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%',
+                                    background: '#8b5cf6',
+                                }} />
+                                <span style={{ color: '#4b5563' }}>Jami pachka:</span>
+                                <strong style={{ color: '#5B21B6', fontWeight: 800 }}>{totalPacks}</strong>
+                            </span>
+                        )}
+                        {totalPieces > 0 && (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                <span style={{
+                                    display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%',
+                                    background: '#f59e0b',
+                                }} />
+                                <span style={{ color: '#4b5563' }}>Jami dona:</span>
+                                <strong style={{ color: '#0f172a', fontWeight: 800 }}>{totalPieces}</strong>
+                            </span>
+                        )}
+                    </div>
+                )}
 
                 {/* ══ TO'LOV MA'LUMOTLARI + JAMI ══ */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '20px', marginTop: '14px', marginBottom: '12px' }}>

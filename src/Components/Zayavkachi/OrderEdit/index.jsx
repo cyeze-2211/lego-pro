@@ -8,7 +8,10 @@ export default function ZayavkachiOrderEdit() {
     const { id } = useParams();
     const navigate = useNavigate();
     const { pathname } = useLocation();
-    const ordersPath = pathname.startsWith('/orders')
+    const isStaffOrderPath = pathname.startsWith('/staff/orders');
+    const ordersPath = isStaffOrderPath
+        ? `/staff/orders/${id}`
+        : pathname.startsWith('/orders')
         ? '/orders'
         : pathname.startsWith('/kassir/orders')
         ? '/kassir/orders'
@@ -29,6 +32,21 @@ export default function ZayavkachiOrderEdit() {
                 <button type="button" onClick={backToList}
                     className="flex h-12 items-center gap-2 rounded-xl border border-[#f43f5e]/30 px-5 text-sm font-bold">
                     <LuArrowLeft size={16} /> Buyurtmalar ro&apos;yxatiga qaytish
+                </button>
+            </div>
+        );
+    }
+
+    if (isStaffOrderPath && String(order.status ?? '').toUpperCase() !== 'CREATED') {
+        return (
+            <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 text-center">
+                <p className="text-lg">Faqat yangi buyurtmalarni tahrirlash mumkin</p>
+                <button
+                    type="button"
+                    onClick={backToList}
+                    className="flex h-12 items-center gap-2 rounded-xl border border-[#e2e8f0] px-5 text-sm font-bold"
+                >
+                    <LuArrowLeft size={16} /> Buyurtmaga qaytish
                 </button>
             </div>
         );

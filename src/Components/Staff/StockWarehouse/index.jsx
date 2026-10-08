@@ -508,7 +508,6 @@ export default function StaffStockWarehouse() {
                         </span>
                         <div>
                             <p className={`text-sm font-bold ${head}`}>Qoldiqlar ro‘yxati</p>
-                        
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
@@ -523,7 +522,7 @@ export default function StaffStockWarehouse() {
                                     productName:    'Nomi',
                                     productArticle: 'Artikul',
                                     brand:          'Brend',
-                                    piecesPerPack:  'Qadoq',
+                                    piecesPerPack:  'Pachka',
                                     quantity:       'Qoldiq',
                                 }[sortKey] ?? ''}
                                 {' '}
@@ -572,7 +571,7 @@ export default function StaffStockWarehouse() {
                                         <SortableHeader label="Mahsulot" sortField="productName"    className={`min-w-[320px] ${cellBorder}`} />
                                         <SortableHeader label="Artikul"  sortField="productArticle" className={`min-w-[170px] ${cellBorder}`} />
                                         <SortableHeader label="Brend"    sortField="brand"          className={`min-w-[150px] ${cellBorder}`} />
-                                        <SortableHeader label="Qadoq"    sortField="piecesPerPack"  className={`text-center w-[180px] ${cellBorder}`} align="center" />
+                                        <SortableHeader label="Pachka"   sortField="piecesPerPack"  className={`text-center w-[180px] ${cellBorder}`} align="center" />
                                         <SortableHeader label="Qoldiq"   sortField="quantity"       className="text-right w-[200px]" align="right" />
                                     </tr>
                                 </thead>
@@ -653,7 +652,7 @@ export default function StaffStockWarehouse() {
                                                     )}
                                                 </td>
 
-                                                {/* Qadoq: 1 qadoq = N dona + qancha qadoq qoldi */}
+                                                {/* Pachka: faqat nechta pachka bor */}
                                                 <td className={`px-5 py-3.5 text-center ${cellBorder}`}>
                                                     <QadoqCell
                                                         qty={qty}
@@ -685,7 +684,7 @@ export default function StaffStockWarehouse() {
                                 {[
                                     { key: 'productName', label: 'Nomi' },
                                     { key: 'quantity',    label: 'Qoldiq' },
-                                    { key: 'piecesPerPack', label: 'Qadoq' },
+                                    { key: 'piecesPerPack', label: 'Pachka' },
                                 ].map(({ key, label }) => {
                                     const isActive = sortKey === key;
                                     const Icon = isActive
@@ -749,17 +748,18 @@ export default function StaffStockWarehouse() {
                                                         </span>
                                                     )}
                                                 </div>
-                                                {/* Qadoq info */}
-                                                {s.productPiecesPerPack > 0 && qty > 0 && (
-                                                    <p className={`text-xs mt-1 ${isDark ? 'text-indigo-300' : 'text-indigo-600'}`}>
-                                                        <LuBoxes size={10} className="inline mr-1" />
-                                                        1 qadoq = {s.productPiecesPerPack} dona · {Math.floor(qty / s.productPiecesPerPack)} qadoq
-                                                    </p>
-                                                )}
-                                                {s.productPiecesPerPack > 0 && qty === 0 && (
-                                                    <p className={`text-xs mt-1 ${muted}`}>
-                                                        <LuBoxes size={10} className="inline mr-1" />
-                                                        1 qadoq = {s.productPiecesPerPack} dona
+                                                {/* Pachka info */}
+                                                {s.productPiecesPerPack > 0 && (
+                                                    <p className={`text-xs mt-1 font-semibold ${
+                                                        qty > 0
+                                                            ? (isDark ? 'text-emerald-300' : 'text-emerald-700')
+                                                            : (isDark ? 'text-rose-300' : 'text-rose-600')
+                                                    }`}>
+                                                        {qty > 0
+                                                            ? `${Math.floor(qty / s.productPiecesPerPack)} pachka${
+                                                                  qty % s.productPiecesPerPack > 0 ? ` + ${qty % s.productPiecesPerPack} dona` : ''
+                                                              }`
+                                                            : '0 pachka'}
                                                     </p>
                                                 )}
                                                 {min > 0 && (
@@ -844,11 +844,11 @@ function FilterChip({ label, onRemove, isDark }) {
     );
 }
 
-/* ── Qadoq cell: 1 qadoq = N dona + qancha qadoq qoldi ── */
+/* ── Pachka cell: faqat nechta pachka bor ── */
 function QadoqCell({ qty, piecesPerPack, isDark }) {
     const pcs = Number(piecesPerPack) || 0;
 
-    // Нет данных о пачке
+    // Pachka haqida ma'lumot yo'q
     if (!pcs) {
         return <span className={`text-xs ${isDark ? 'text-[#64748b]' : 'text-[#94a3b8]'}`}>—</span>;
     }
@@ -856,33 +856,25 @@ function QadoqCell({ qty, piecesPerPack, isDark }) {
     const fullPacks = Math.floor(qty / pcs);
     const remainder = qty % pcs;
 
-    return (
-        <div className="inline-flex flex-col items-center gap-0.5">
-            {/* 1 qadoq = N dona */}
-            <span className={`inline-flex items-center gap-1.5 rounded-lg px-2 py-0.5 text-[11px] font-bold ${
-                isDark ? 'bg-indigo-500/15 text-indigo-300' : 'bg-indigo-50 text-indigo-600'
-            }`}>
-                <LuBoxes size={10} />
-                1 qadoq = {pcs}
+    if (qty <= 0) {
+        return (
+            <span className={`text-sm font-bold ${isDark ? 'text-rose-300' : 'text-rose-600'}`}>
+                0 pachka
             </span>
+        );
+    }
 
-            {/* Qancha qadoq qoldi */}
-            {qty > 0 ? (
-                <span className={`text-[11px] font-bold whitespace-nowrap ${
-                    isDark ? 'text-emerald-300' : 'text-emerald-700'
-                }`}>
-                    {remainder > 0
-                        ? <>{fullPacks} qadoq <span className="opacity-60">+ {remainder} dona</span></>
-                        : <>{fullPacks} qadoq qoldi</>}
-                </span>
-            ) : (
-                <span className={`text-[11px] font-semibold ${
-                    isDark ? 'text-rose-300' : 'text-rose-600'
-                }`}>
-                    0 qadoq
+    return (
+        <span className={`inline-flex items-baseline gap-1.5 text-sm font-bold whitespace-nowrap ${
+            isDark ? 'text-emerald-300' : 'text-emerald-700'
+        }`}>
+            <span>{fullPacks} pachka</span>
+            {remainder > 0 && (
+                <span className={`text-xs font-semibold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                    + {remainder} dona
                 </span>
             )}
-        </div>
+        </span>
     );
 }
 

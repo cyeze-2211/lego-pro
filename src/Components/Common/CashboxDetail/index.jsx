@@ -3,7 +3,7 @@ import { useParams, useLocation } from 'react-router-dom';
 import {
     LuWallet, LuCalendar, LuArrowDownLeft, LuArrowUpRight,
     LuChevronLeft, LuChevronRight, LuHistory, LuUser,
-    LuFileText, LuFilter,
+    LuFileText, LuFilter, LuTruck, LuArrowLeftRight,
 } from 'react-icons/lu';
 import { useGetCashboxByIdQuery, useGetCashboxTransactionsQuery } from '../../../store/services/cashbox.api';
 import { formatNumber } from '../../ui/number-format';
@@ -11,18 +11,86 @@ import EntityDetail, { DetailRow, DetailSection, formatDetailDate } from '../Ent
 import { useAppTheme } from '../../../theme/tokens';
 
 const PAGE_SIZE = 20;
+
+/* ── Типы операций ── */
+const TYPE_META = {
+    INCOME: {
+        label: 'Kirim',
+        short: 'Kirim',
+        isIncome: true,
+        Icon: LuArrowDownLeft,
+    },
+    EXPENSE: {
+        label: 'Chiqim',
+        short: 'Chiqim',
+        isIncome: false,
+        Icon: LuArrowUpRight,
+    },
+    SUPPLIER_PAYMENT: {
+        label: "Ta'minotchiga to'lov",
+        short: "To'lov",
+        isIncome: false,
+        Icon: LuTruck,
+    },
+    CUSTOMER_PAYMENT: {
+        label: 'Mijoz to‘lovi',
+        short: 'To‘lov',
+        isIncome: true,
+        Icon: LuArrowDownLeft,
+    },
+    TRANSFER_IN: {
+        label: 'O‘tkazma (kirim)',
+        short: 'O‘tkazma',
+        isIncome: true,
+        Icon: LuArrowLeftRight,
+    },
+    TRANSFER_OUT: {
+        label: 'O‘tkazma (chiqim)',
+        short: 'O‘tkazma',
+        isIncome: false,
+        Icon: LuArrowLeftRight,
+    },
+};
+
+const getTypeMeta = (type) => TYPE_META[type] ?? {
+    label: type || '—',
+    short: type || '—',
+    isIncome: false,
+    Icon: LuFileText,
+};
+
 const TYPE_OPTIONS = [
-    { value: '',        label: 'Barchasi' },
-    { value: 'INCOME',  label: 'Kirim' },
-    { value: 'EXPENSE', label: 'Chiqim' },
+    { value: '',                 label: 'Barchasi' },
+    { value: 'INCOME',           label: 'Kirim' },
+    { value: 'CUSTOMER_PAYMENT', label: 'Mijoz to‘lovi' },
+    { value: 'SUPPLIER_PAYMENT', label: "Ta'minotchiga to'lov" },
+    { value: 'EXPENSE',          label: 'Chiqim' },
+    { value: 'TRANSFER_IN',      label: 'O‘tkazma (kirim)' },
+    { value: 'TRANSFER_OUT',     label: 'O‘tkazma (chiqim)' },
 ];
 
 function formatOperationDate(str) {
     if (!str) return '—';
-    // yyyy-MM-dd yoki ISO datetime
     const d = new Date(str);
     if (Number.isNaN(d.getTime())) return str;
     return d.toLocaleDateString('uz-UZ', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+/* ── Логика "Кто/что" в колонке "Nomi / Mijoz / Ta'minotchi" ── */
+function getCounterparty(tx) {
+    /* INCOME / CUSTOMER_PAYMENT → клиент */
+    if (tx.customerName) {
+        return { icon: LuUser, value: tx.customerName, label: 'Mijoz' };
+    }
+    /* SUPPLIER_PAYMENT → поставщик */
+    if (tx.supplierName) {
+        return { icon: LuTruck, value: tx.supplierName, label: "Ta'minotchi" };
+    }
+    /* EXPENSE / прочие → name */
+    if (tx.name) {
+        return { icon: LuFileText, value: tx.name, label: 'Nomi' };
+    }
+    return { icon: LuFileText, value: '—', label: '—' };
 }
 
 export default function CashboxDetail() {
@@ -74,7 +142,7 @@ export default function CashboxDetail() {
             accentSoftBackground="rgba(250, 204, 21, 0.12)"
             accentGradient="linear(to-r, #FACC15, #FDE68A)"
         >
-            {({ accentColor, textColor: tc, subtitleColor: sc }) => (
+            {({ accentColor }) => (
                 <div className="flex flex-col gap-5">
 
                     {/* ── Kassa ma'lumotlari ── */}
@@ -142,7 +210,7 @@ export default function CashboxDetail() {
                                     value={typeFilter}
                                     onChange={(e) => { setType(e.target.value); setPage(0); }}
                                     className={inputCx}
-                                    style={{ minWidth: 120 }}
+                                    style={{ minWidth: 190 }}
                                 >
                                     {TYPE_OPTIONS.map((o) => (
                                         <option key={o.value} value={o.value}>{o.label}</option>
@@ -207,7 +275,7 @@ export default function CashboxDetail() {
                                             background: isDark ? 'rgba(255,255,255,.03)' : '#F8FAFC',
                                             borderBottom: `1px solid ${cardBorder}`,
                                         }}>
-                                            {['№', 'Tur', 'Nomi / Mijoz', 'Summa', 'Sana', 'Izoh'].map((h) => (
+                                            {['№', 'Tur', 'Kim / Nomi', 'Summa', 'Sana', 'Izoh'].map((h) => (
                                                 <th key={h} className="px-4 py-3 text-left font-semibold whitespace-nowrap"
                                                     style={{ color: subtitleColor }}>
                                                     {h}
@@ -217,7 +285,12 @@ export default function CashboxDetail() {
                                     </thead>
                                     <tbody>
                                         {transactions.map((tx, idx) => {
-                                            const isIncome = tx.type === 'INCOME';
+                                            const meta = getTypeMeta(tx.type);
+                                            const isIncome = meta.isIncome;
+                                            const TypeIcon = meta.Icon;
+                                            const counterparty = getCounterparty(tx);
+                                            const CpIcon = counterparty.icon;
+
                                             return (
                                                 <tr key={tx.id} style={{ borderBottom: `1px solid ${cardBorder}` }}>
                                                     {/* № */}
@@ -233,32 +306,31 @@ export default function CashboxDetail() {
                                                                 ? { background: isDark ? 'rgba(34,197,94,.14)' : '#DCFCE7', color: isDark ? '#86EFAC' : '#166534' }
                                                                 : { background: isDark ? 'rgba(239,68,68,.14)' : '#FEE2E2', color: isDark ? '#FCA5A5' : '#991B1B' }
                                                             }
+                                                            title={meta.label}
                                                         >
-                                                            {isIncome
-                                                                ? <LuArrowDownLeft size={12} />
-                                                                : <LuArrowUpRight  size={12} />
-                                                            }
-                                                            {isIncome ? 'Kirim' : 'Chiqim'}
+                                                            <TypeIcon size={12} />
+                                                            {meta.short}
                                                         </span>
                                                     </td>
 
-                                                    {/* Nomi / Mijoz */}
+                                                    {/* Kim / Nomi */}
                                                     <td className="px-4 py-3">
-                                                        {isIncome ? (
-                                                            <div className="flex items-center gap-1.5">
-                                                                <LuUser size={13} style={{ color: accentColor, flexShrink: 0 }} />
-                                                                <span className="font-medium" style={{ color: textColor }}>
-                                                                    {tx.customerName || '—'}
+                                                        <div className="flex items-center gap-1.5">
+                                                            <CpIcon
+                                                                size={13}
+                                                                style={{ color: accentColor, flexShrink: 0 }}
+                                                            />
+                                                            <div className="flex flex-col leading-tight min-w-0">
+                                                                <span className="font-medium truncate" style={{ color: textColor }}>
+                                                                    {counterparty.value}
                                                                 </span>
+                                                                {counterparty.label !== '—' && (
+                                                                    <span className="text-[10px] font-semibold" style={{ color: subtitleColor }}>
+                                                                        {counterparty.label}
+                                                                    </span>
+                                                                )}
                                                             </div>
-                                                        ) : (
-                                                            <div className="flex items-center gap-1.5">
-                                                                <LuFileText size={13} style={{ color: subtitleColor, flexShrink: 0 }} />
-                                                                <span className="font-medium" style={{ color: textColor }}>
-                                                                    {tx.name || '—'}
-                                                                </span>
-                                                            </div>
-                                                        )}
+                                                        </div>
                                                     </td>
 
                                                     {/* Summa */}

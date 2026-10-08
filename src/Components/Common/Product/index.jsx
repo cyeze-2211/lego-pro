@@ -33,6 +33,8 @@ import { useGetWarehousesQuery } from '../../../store/services/warehouse.api';
 import { useGetBrandsQuery } from '../../../store/services/brand.api';
 import { useGetProductCategoriesQuery } from '../../../store/services/productCategory.api';
 import { useGetProductColorsQuery } from '../../../store/services/productColor.api';
+import { useAppSelector } from '../../../store/hooks';
+import { ROLES } from '../../../app/permissions/roles';
 import { BRAND_COLORS, useAppTheme } from '../../../theme/tokens';
 import { Alert } from '../../Other/UI/Alert/Alert';
 import Create from './__components/Create';
@@ -126,6 +128,8 @@ function CopyButton({ product }) {
 
 export default function Product() {
     const navigate = useNavigate();
+    const role = useAppSelector((state) => state.auth.role);
+    const canManageProducts = role === ROLES.MANAGER;
     const [search, setSearch] = useState('');
     const [query, setQuery] = useState('');
     const [filters, setFilters] = useState({ brandId: '', categoryId: '', colorId: '' });
@@ -450,7 +454,7 @@ export default function Product() {
                         Jami: {totalElements} ta mahsulot
                     </Text>
                 </Box>
-                <Create warehouses={warehouses} />
+                {canManageProducts && <Create warehouses={warehouses} />}
             </HStack>
 
             {/* ── Search ── */}
@@ -684,8 +688,8 @@ export default function Product() {
             ) : products.length === 0 ? (
                 <EmptyData
                     text={query ? 'Qidiruv bo‘yicha mahsulot topilmadi' : 'Hozircha mahsulotlar yo‘q'}
-                    description="Yangi mahsulot qo‘shib katalogni to‘ldiring."
-                    action={<Create warehouses={warehouses} />}
+                    description={canManageProducts ? 'Yangi mahsulot qo‘shib katalogni to‘ldiring.' : 'Qidiruv shartlariga mos mahsulot topilmadi.'}
+                    action={canManageProducts ? <Create warehouses={warehouses} /> : undefined}
                 />
             ) : (
                 <>
@@ -725,9 +729,11 @@ export default function Product() {
                                     <Table.ColumnHeader {...headerCell} minW="170px">
                                         Ombor
                                     </Table.ColumnHeader>
-                                    <Table.ColumnHeader {...headerCell} textAlign="center" w="140px">
-                                        Amal
-                                    </Table.ColumnHeader>
+                                    {canManageProducts && (
+                                        <Table.ColumnHeader {...headerCell} textAlign="center" w="140px">
+                                            Amal
+                                        </Table.ColumnHeader>
+                                    )}
                                 </Table.Row>
                             </Table.Header>
                             <Table.Body bg={tableBg}>
@@ -1081,7 +1087,7 @@ export default function Product() {
                                      
 
                                             {/* Amallar */}
-                                            <Table.Cell
+                                            {canManageProducts && <Table.Cell
                                                 {...cellBorder}
                                                 textAlign="center"
                                                 onClick={(event) => event.stopPropagation()}
@@ -1092,7 +1098,7 @@ export default function Product() {
                                                     <Edit product={product} />
                                                     <Delete product={product} />
                                                 </HStack>
-                                            </Table.Cell>
+                                            </Table.Cell>}
                                         </Table.Row>
                                     );
                                 })}
