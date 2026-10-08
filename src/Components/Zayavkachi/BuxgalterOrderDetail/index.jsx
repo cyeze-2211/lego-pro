@@ -103,12 +103,26 @@ const formatDateTime = (value) => {
 
 const getItemUnit = (item) => String(item.unit ?? 'PIECE').toUpperCase();
 const getEnteredQuantity = (item) => Number(item.enteredQuantity ?? item.quantity) || 0;
+const getTotalPieces = (item) => Number(item.quantity) || 0;
 
-const getDraftPrice = (item, draft) => {
-    const value = draft[item.id];
-    if (value === undefined) return Number(item.unitPrice) || 0;
+const getGroupDraftPrice = (group, draft) => {
+    const value = draft[group.key];
+    if (value === undefined) return Number(group.entries[0].unitPrice) || 0;
     const parsed = parsePriceInput(value);
     return Number.isFinite(parsed) ? parsed : 0;
+};
+
+/* Группировка позиций по productId — пачка + дона одного товара = одна строка */
+const groupItems = (items) => {
+    const map = new Map();
+    for (const item of items ?? []) {
+        const key = item.productId || item.id;
+        if (!map.has(key)) {
+            map.set(key, { key, entries: [] });
+        }
+        map.get(key).entries.push(item);
+    }
+    return Array.from(map.values());
 };
 
 const calculateHistoricalPrices = (orders, currentOrder) => {
@@ -196,7 +210,6 @@ export default function BuxgalterOrderDetail() {
         ? 'border-[#334155] text-[#94a3b8] hover:bg-[#1e293b] hover:text-white'
         : 'border-[#e2e8f0] text-[#64748b] hover:bg-[#f1f5f9] hover:text-[#0f172a]';
 
-    /* ── основная кнопка: главный цвет (amber) + чёрный текст ── */
     const primaryBtn = 'inline-flex items-center gap-2 rounded-xl bg-amber-400 px-4 py-2.5 text-sm font-bold text-slate-950 shadow-md shadow-amber-400/20 transition hover:-translate-y-0.5 hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0';
     const primaryBtnSm = 'inline-flex items-center gap-2 rounded-xl bg-amber-400 px-4 py-2 text-sm font-bold text-slate-950 shadow-md shadow-amber-400/20 transition hover:-translate-y-0.5 hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0';
 
@@ -213,44 +226,55 @@ export default function BuxgalterOrderDetail() {
         [priceHistory],
     );
 
+    /* ── Группировка позиций: один товар (пачка + дона) = одна строка ── */
+    const groupedItems = useMemo(() => groupItems(order?.items), [order]);
+
     const orderTotal = useMemo(
-        () => (order?.items ?? []).reduce(
-            (sum, item) => sum + (Number(item.quantity) || 0) * getDraftPrice(item, priceDraft),
-            0,
-        ),
-        [order, priceDraft],
+        () => groupedItems.reduce((sum, group) => {
+            const totalPieces = group.entries.reduce((s, e) => s + getTotalPieces(e), 0);
+            return sum + totalPieces * getGroupDraftPrice(group, priceDraft);
+        }, 0),
+        [groupedItems, priceDraft],
     );
 
-    const changedItems = isEditingPrices
-        ? (order?.items ?? []).filter((item) => {
-            const parsed = parsePriceInput(priceDraft[item.id]);
-            const safe = Number.isFinite(parsed) ? parsed : NaN;
-            return safe !== Number(item.unitPrice);
+    const changedGroups = isEditingPrices
+        ? groupedItems.filter((group) => {
+            const parsed = parsePriceInput(priceDraft[group.key]);
+            if (!Number.isFinite(parsed)) return false;
+            return parsed !== Number(group.entries[0].unitPrice);
         })
         : [];
-    const changedTotal = (order?.items ?? []).reduce(
-        (sum, item) => sum + (Number(item.quantity) || 0) * getDraftPrice(item, priceDraft),
-        0,
-    );
+
+    const changedTotal = groupedItems.reduce((sum, group) => {
+        const totalPieces = group.entries.reduce((s, e) => s + getTotalPieces(e), 0);
+        return sum + totalPieces * getGroupDraftPrice(group, priceDraft);
+    }, 0);
+
     const originalTotal = Number(order?.totalAmount) || 0;
     const totalDelta = changedTotal - originalTotal;
     const canChangePrices = order?.status === 'LOADED';
 
     const beginPriceEdit = () => {
         setPriceDraft(Object.fromEntries(
-            (order.items ?? []).map((item) => [item.id, fmtNumber(item.unitPrice ?? 0)]),
+            groupedItems.map((group) => [
+                group.key,
+                fmtNumber(group.entries[0]?.unitPrice ?? 0),
+            ]),
         ));
         setIsEditingPrices(true);
     };
 
     const savePrices = async () => {
-        const items = (order.items ?? []).map((item) => ({
-            itemId: item.id,
-            unitPrice: parsePriceInput(priceDraft[item.id]),
-        }));
+        const items = groupedItems.flatMap((group) => {
+            const price = parsePriceInput(priceDraft[group.key]);
+            return group.entries.map((entry) => ({
+                itemId: entry.id,
+                unitPrice: price,
+            }));
+        });
 
-        const hasEmpty = (order.items ?? []).some(
-            (item) => !String(priceDraft[item.id] ?? '').trim(),
+        const hasEmpty = groupedItems.some(
+            (group) => !String(priceDraft[group.key] ?? '').trim(),
         );
         const hasInvalid = items.some(
             (item) => !Number.isFinite(item.unitPrice) || item.unitPrice < 0,
@@ -271,9 +295,8 @@ export default function BuxgalterOrderDetail() {
         }
     };
 
-    /* ── Yakuniy tasdiqlash: POST /sales-orders/{id}/confirm ── */
     const confirmCurrentOrder = async () => {
-        if (changedItems.length) {
+        if (changedGroups.length) {
             Alert('Avval o‘zgartirilgan narxlarni saqlang', 'error');
             return;
         }
@@ -363,7 +386,7 @@ export default function BuxgalterOrderDetail() {
                             <button
                                 type="button"
                                 onClick={confirmCurrentOrder}
-                                disabled={isConfirmingOrder || changedItems.length > 0}
+                                disabled={isConfirmingOrder || changedGroups.length > 0}
                                 className={primaryBtn}
                             >
                                 <LuCircleCheck size={16} />
@@ -371,18 +394,15 @@ export default function BuxgalterOrderDetail() {
                             </button>
                         )}
                         {order.status === 'CREATED' && (
-                            <>
-                             
-                                <button
-                                    type="button"
-                                    onClick={rejectCurrentOrder}
-                                    disabled={isLoadingOrder || isRejectingOrder}
-                                    className="inline-flex items-center gap-2 rounded-xl border border-rose-500/30 px-4 py-2.5 text-sm font-bold text-rose-500 transition hover:bg-rose-500/10 disabled:opacity-50"
-                                >
-                                    <LuCircleX size={16} />
-                                    {isRejectingOrder ? 'Rad etilmoqda…' : 'Rad etish'}
-                                </button>
-                            </>
+                            <button
+                                type="button"
+                                onClick={rejectCurrentOrder}
+                                disabled={isLoadingOrder || isRejectingOrder}
+                                className="inline-flex items-center gap-2 rounded-xl border border-rose-500/30 px-4 py-2.5 text-sm font-bold text-rose-500 transition hover:bg-rose-500/10 disabled:opacity-50"
+                            >
+                                <LuCircleX size={16} />
+                                {isRejectingOrder ? 'Rad etilmoqda…' : 'Rad etish'}
+                            </button>
                         )}
 
                         <button
@@ -484,11 +504,11 @@ export default function BuxgalterOrderDetail() {
                             <button
                                 type="button"
                                 onClick={savePrices}
-                                disabled={isSavingPrices || changedItems.length === 0}
+                                disabled={isSavingPrices || changedGroups.length === 0}
                                 className={primaryBtnSm}
                             >
                                 {isSavingPrices ? <LuLoaderCircle className="animate-spin" size={15} /> : <LuSave size={15} />}
-                                {isSavingPrices ? 'Saqlanmoqda…' : `Saqlash (${changedItems.length})`}
+                                {isSavingPrices ? 'Saqlanmoqda…' : `Saqlash (${changedGroups.length})`}
                             </button>
                         </div>
                     )}
@@ -516,38 +536,43 @@ export default function BuxgalterOrderDetail() {
                 )}
 
                 <div className="overflow-x-auto">
-                    <table className="w-full min-w-[1080px] text-sm">
+                    <table className="w-full min-w-[1120px] text-sm">
                         <thead className={isDark ? 'bg-[#0f172a]/40' : 'bg-[#f8fafc]'}>
                             <tr className={`text-left text-[11px] font-semibold uppercase tracking-wider ${muted}`}>
                                 <th className="px-5 py-3.5">Mahsulot</th>
-                                <th className="px-3 py-3.5 text-center w-24">O‘lchov</th>
-                                <th className="px-3 py-3.5 text-right w-32">Miqdor</th>
+                                <th className="px-3 py-3.5 text-center w-28">O‘lchov</th>
+                                <th className="px-3 py-3.5 text-right w-44">Miqdor</th>
                                 <th className="px-3 py-3.5 text-right w-40">Avvalgi narx</th>
                                 <th className="px-3 py-3.5 text-right w-40">O‘rtacha narx</th>
-                                <th className="px-3 py-3.5 text-right w-44">Joriy narx</th>
+                                <th className="px-3 py-3.5 text-right w-48">Joriy narx</th>
                                 <th className="px-5 py-3.5 text-right w-44">Qator jami</th>
                             </tr>
                         </thead>
                         <tbody className={`divide-y ${isDark ? 'divide-[#334155]/40' : 'divide-[#f1f5f9]'}`}>
-                            {(order.items ?? []).map((item) => {
-                                const history = priceHistoryByItem.get(item.id);
-                                const currentPrice = Number(item.unitPrice) || 0;
+                            {groupedItems.map((group) => {
+                                const first = group.entries[0];
+                                const history = priceHistoryByItem.get(first.id);
+                                const currentPrice = Number(first.unitPrice) || 0;
                                 const lastPrice = history?.lastPrice;
-                                const delta = lastPrice === null || lastPrice === undefined ? null : currentPrice - lastPrice;
-                                const parsedDraft = parsePriceInput(priceDraft[item.id]);
+                                const delta = lastPrice === null || lastPrice === undefined
+                                    ? null
+                                    : currentPrice - lastPrice;
+
+                                const parsedDraft = parsePriceInput(priceDraft[group.key]);
                                 const isChanged = isEditingPrices
                                     && Number.isFinite(parsedDraft)
                                     && parsedDraft !== currentPrice;
-                                const unit = getItemUnit(item);
-                                const entered = getEnteredQuantity(item);
-                                const isPack = unit === 'PACK';
-                                const piecesPerPack = isPack && entered > 0 ? Math.round(Number(item.quantity) / entered) : 0;
+
+                                const groupPieces = group.entries.reduce((s, e) => s + getTotalPieces(e), 0);
+                                const groupTotal = groupPieces * getGroupDraftPrice(group, priceDraft);
+                                const isMulti = group.entries.length > 1;
 
                                 return (
                                     <tr
-                                        key={item.id}
+                                        key={group.key}
                                         className={`transition-colors ${isChanged ? (isDark ? 'bg-amber-400/[0.04]' : 'bg-amber-50/40') : ''}`}
                                     >
+                                        {/* Mahsulot */}
                                         <td className="px-5 py-4">
                                             <div className="flex items-start gap-3">
                                                 <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
@@ -557,37 +582,74 @@ export default function BuxgalterOrderDetail() {
                                                 </span>
                                                 <div className="min-w-0">
                                                     <p className={`truncate text-sm font-semibold ${head}`}>
-                                                        {item.productName || 'Mahsulot'}
+                                                        {first.productName || 'Mahsulot'}
                                                     </p>
                                                     <p className={`mt-0.5 truncate font-mono text-[11px] ${muted}`}>
-                                                        {item.productBarcode || item.productId}
+                                                        {first.productBarcode || first.productId}
                                                     </p>
                                                 </div>
                                             </div>
                                         </td>
 
-                                        <td className="px-3 py-4 text-center">
-                                            <span className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-bold ${
-                                                isPack
-                                                    ? (isDark ? 'border-violet-400/30 bg-violet-500/10 text-violet-300' : 'border-violet-200 bg-violet-50 text-violet-700')
-                                                    : (isDark ? 'border-amber-400/30 bg-amber-500/10 text-amber-300' : 'border-amber-200 bg-amber-50 text-amber-700')
-                                            }`}>
-                                                {isPack ? <LuPackage size={10} /> : null}
-                                                {isPack ? 'Pachka' : 'Dona'}
-                                            </span>
+                                        {/* O'lchov — все единицы группы */}
+                                        <td className="px-3 py-4">
+                                            <div className="flex flex-col items-center gap-1">
+                                                {group.entries.map((entry) => {
+                                                    const isPack = getItemUnit(entry) === 'PACK';
+                                                    return (
+                                                        <span
+                                                            key={entry.id}
+                                                            className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-bold ${
+                                                                isPack
+                                                                    ? (isDark ? 'border-violet-400/30 bg-violet-500/10 text-violet-300' : 'border-violet-200 bg-violet-50 text-violet-700')
+                                                                    : (isDark ? 'border-amber-400/30 bg-amber-500/10 text-amber-300' : 'border-amber-200 bg-amber-50 text-amber-700')
+                                                            }`}
+                                                        >
+                                                            {isPack ? <LuPackage size={10} /> : null}
+                                                            {isPack ? 'Pachka' : 'Dona'}
+                                                        </span>
+                                                    );
+                                                })}
+                                            </div>
                                         </td>
 
+                                        {/* Miqdor */}
                                         <td className="px-3 py-4 text-right">
-                                            <p className={`text-sm font-bold ${head}`}>
-                                                {fmt(entered)}
-                                            </p>
-                                            {isPack && piecesPerPack > 0 && (
-                                                <p className={`mt-0.5 text-[11px] ${muted}`}>
-                                                    = {fmt(item.quantity)} dona
-                                                </p>
-                                            )}
+                                            <div className="flex flex-col items-end gap-1">
+                                                {group.entries.map((entry) => {
+                                                    const isPack = getItemUnit(entry) === 'PACK';
+                                                    const entered = getEnteredQuantity(entry);
+                                                    const piecesPerPack = isPack && entered > 0
+                                                        ? Math.round(Number(entry.quantity) / entered)
+                                                        : 0;
+                                                    const showPiecesHint = isPack && piecesPerPack > 0 && !isMulti;
+                                                    return (
+                                                        <div key={entry.id} className="text-right">
+                                                            <p className={`text-sm font-bold ${head}`}>
+                                                                {fmt(entered)}
+                                                                <span className={`ml-1 text-[11px] font-normal ${muted}`}>
+                                                                    {isPack ? 'pachka' : 'dona'}
+                                                                </span>
+                                                            </p>
+                                                            {showPiecesHint && (
+                                                                <p className={`text-[10px] ${muted}`}>
+                                                                    = {fmt(entry.quantity)} dona
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })}
+                                                {isMulti && (
+                                                    <p className={`mt-1 border-t pt-1 text-[11px] font-semibold ${muted} ${
+                                                        isDark ? 'border-white/10' : 'border-slate-200'
+                                                    }`}>
+                                                        Jami: {fmt(groupPieces)} dona
+                                                    </p>
+                                                )}
+                                            </div>
                                         </td>
 
+                                        {/* Avvalgi narx */}
                                         <td className="px-3 py-4 text-right">
                                             {lastPrice === null || lastPrice === undefined ? (
                                                 <span className={muted}>—</span>
@@ -613,6 +675,7 @@ export default function BuxgalterOrderDetail() {
                                             )}
                                         </td>
 
+                                        {/* O'rtacha narx */}
                                         <td className="px-3 py-4 text-right">
                                             {history?.averagePrice === null || history?.averagePrice === undefined ? (
                                                 <span className={muted}>—</span>
@@ -623,18 +686,19 @@ export default function BuxgalterOrderDetail() {
                                             )}
                                         </td>
 
+                                        {/* Joriy narx */}
                                         <td className="px-3 py-4 text-right">
                                             {isEditingPrices ? (
-                                                <div className="relative">
+                                                <div className="relative inline-block">
                                                     <input
-                                                        aria-label={`${item.productName} narxi`}
+                                                        aria-label={`${first.productName} narxi`}
                                                         type="text"
                                                         inputMode="decimal"
                                                         autoComplete="off"
-                                                        value={priceDraft[item.id] ?? ''}
+                                                        value={priceDraft[group.key] ?? ''}
                                                         onChange={(event) => setPriceDraft((state) => ({
                                                             ...state,
-                                                            [item.id]: formatPriceInput(event.target.value),
+                                                            [group.key]: formatPriceInput(event.target.value),
                                                         }))}
                                                         disabled={isSavingPrices}
                                                         className={`w-36 rounded-lg border px-3 pr-11 py-2 text-right text-sm font-bold tabular-nums outline-none transition ${field} ${
@@ -644,6 +708,11 @@ export default function BuxgalterOrderDetail() {
                                                     <span className={`pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs ${muted}`}>
                                                         so‘m
                                                     </span>
+                                                    {isMulti && (
+                                                        <p className={`mt-1 text-[10px] ${muted}`}>
+                                                            Barcha qatorlarga qo‘llanadi
+                                                        </p>
+                                                    )}
                                                 </div>
                                             ) : (
                                                 <p className={`text-sm font-bold ${head}`}>
@@ -652,16 +721,17 @@ export default function BuxgalterOrderDetail() {
                                             )}
                                         </td>
 
+                                        {/* Qator jami */}
                                         <td className="px-5 py-4 text-right">
                                             <p className={`text-sm font-bold ${head}`}>
-                                                {fmt((Number(item.quantity) || 0) * getDraftPrice(item, priceDraft))}
+                                                {fmt(groupTotal)}
                                                 <span className={`ml-1 text-xs font-normal ${muted}`}>so‘m</span>
                                             </p>
                                         </td>
                                     </tr>
                                 );
                             })}
-                            {(order.items ?? []).length === 0 && (
+                            {groupedItems.length === 0 && (
                                 <tr>
                                     <td colSpan={7} className={`px-5 py-12 text-center text-sm ${muted}`}>
                                         Buyurtmada mahsulotlar yo‘q
@@ -788,56 +858,77 @@ export default function BuxgalterOrderDetail() {
                         </div>
                     ) : (
                         <div className="flex flex-col gap-3">
-                            {customerOrders.map((previousOrder) => (
-                                <article key={previousOrder.id} className={`overflow-hidden rounded-xl border transition ${line} ${
-                                    isDark ? 'hover:bg-white/[0.02]' : 'hover:bg-slate-50/50'
-                                }`}>
-                                    <div className={`flex flex-wrap items-center justify-between gap-3 px-4 py-3 ${
-                                        isDark ? 'bg-white/[0.02]' : 'bg-[#f8fafc]'
+                            {customerOrders.map((previousOrder) => {
+                                const previousGroups = groupItems(previousOrder.items);
+
+                                return (
+                                    <article key={previousOrder.id} className={`overflow-hidden rounded-xl border transition ${line} ${
+                                        isDark ? 'hover:bg-white/[0.02]' : 'hover:bg-slate-50/50'
                                     }`}>
-                                        <button
-                                            type="button"
-                                            onClick={() => navigate(`/zayavkachi/orders/${previousOrder.id}`)}
-                                            className="group flex items-center gap-3 text-left"
-                                        >
-                                            <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
-                                                isDark ? 'bg-white/5 text-slate-300' : 'bg-slate-100 text-slate-500'
-                                            }`}>
-                                                <LuClipboardList size={14} />
-                                            </span>
-                                            <div>
-                                                <p className={`flex items-center gap-1 text-sm font-bold ${head} group-hover:text-amber-500`}>
-                                                    #{previousOrder.id.slice(0, 8).toUpperCase()}
-                                                    <LuChevronRight size={12} className="opacity-0 transition group-hover:opacity-100" />
-                                                </p>
-                                                <p className={`mt-0.5 text-xs ${muted}`}>
-                                                    {formatDateTime(previousOrder.createdAt)} · {previousOrder.items?.length ?? 0} qator
-                                                </p>
-                                            </div>
-                                        </button>
-                                        <div className="flex items-center gap-3">
-                                            <span className={`rounded-full border px-2.5 py-1 text-[11px] font-bold ${statusCx(previousOrder.status)}`}>
-                                                {STATUS_LABEL[previousOrder.status] ?? previousOrder.status}
-                                            </span>
-                                            <span className={`text-sm font-bold ${head}`}>
-                                                {fmt(previousOrder.totalAmount)} so‘m
-                                            </span>
-                                        </div>
-                                    </div>
-                                    {previousOrder.items?.length > 0 && (
-                                        <div className={`divide-y ${isDark ? 'divide-white/5' : 'divide-slate-100'}`}>
-                                            {previousOrder.items.map((item) => (
-                                                <div key={item.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5">
-                                                    <span className={`text-sm ${head}`}>{item.productName || 'Mahsulot'}</span>
-                                                    <span className={`text-xs ${muted}`}>
-                                                        {fmt(getEnteredQuantity(item))} {getItemUnit(item) === 'PACK' ? 'pachka' : 'dona'} × {fmt(item.unitPrice)} so‘m
-                                                    </span>
+                                        <div className={`flex flex-wrap items-center justify-between gap-3 px-4 py-3 ${
+                                            isDark ? 'bg-white/[0.02]' : 'bg-[#f8fafc]'
+                                        }`}>
+                                            <button
+                                                type="button"
+                                                onClick={() => navigate(`/zayavkachi/orders/${previousOrder.id}`)}
+                                                className="group flex items-center gap-3 text-left"
+                                            >
+                                                <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+                                                    isDark ? 'bg-white/5 text-slate-300' : 'bg-slate-100 text-slate-500'
+                                                }`}>
+                                                    <LuClipboardList size={14} />
+                                                </span>
+                                                <div>
+                                                    <p className={`flex items-center gap-1 text-sm font-bold ${head} group-hover:text-amber-500`}>
+                                                        #{previousOrder.id.slice(0, 8).toUpperCase()}
+                                                        <LuChevronRight size={12} className="opacity-0 transition group-hover:opacity-100" />
+                                                    </p>
+                                                    <p className={`mt-0.5 text-xs ${muted}`}>
+                                                        {formatDateTime(previousOrder.createdAt)} · {previousGroups.length} qator
+                                                    </p>
                                                 </div>
-                                            ))}
+                                            </button>
+                                            <div className="flex items-center gap-3">
+                                                <span className={`rounded-full border px-2.5 py-1 text-[11px] font-bold ${statusCx(previousOrder.status)}`}>
+                                                    {STATUS_LABEL[previousOrder.status] ?? previousOrder.status}
+                                                </span>
+                                                <span className={`text-sm font-bold ${head}`}>
+                                                    {fmt(previousOrder.totalAmount)} so‘m
+                                                </span>
+                                            </div>
                                         </div>
-                                    )}
-                                </article>
-                            ))}
+                                        {previousGroups.length > 0 && (
+                                            <div className={`divide-y ${isDark ? 'divide-white/5' : 'divide-slate-100'}`}>
+                                                {previousGroups.map((group) => {
+                                                    const first = group.entries[0];
+                                                    return (
+                                                        <div
+                                                            key={group.key}
+                                                            className="flex flex-wrap items-start justify-between gap-2 px-4 py-2.5"
+                                                        >
+                                                            <span className={`text-sm ${head}`}>
+                                                                {first.productName || 'Mahsulot'}
+                                                            </span>
+                                                            <div className="flex flex-col items-end gap-0.5">
+                                                                {group.entries.map((entry) => (
+                                                                    <span
+                                                                        key={entry.id}
+                                                                        className={`text-xs ${muted}`}
+                                                                    >
+                                                                        {fmt(getEnteredQuantity(entry))}{' '}
+                                                                        {getItemUnit(entry) === 'PACK' ? 'pachka' : 'dona'}{' '}
+                                                                        × {fmt(entry.unitPrice)} so‘m
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </article>
+                                );
+                            })}
                         </div>
                     )}
                 </div>
