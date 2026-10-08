@@ -17,6 +17,7 @@ import {
     useUpdateSalesOrderStatusMutation,
     useRejectSalesOrderMutation,
     useLoadSalesOrderMutation,
+    useConfirmSalesOrderMutation,
 } from '../../../store/services/salesOrder.api';
 import DeleteOrder from '../__components/DeleteOrder';
 import { STATUS_LABEL, statusCx } from '../__components/statusBadge';
@@ -129,6 +130,7 @@ function OrderListStatusControl({ order, isDark }) {
     const [updateStatus] = useUpdateSalesOrderStatusMutation();
     const [rejectOrder] = useRejectSalesOrderMutation();
     const [loadOrder] = useLoadSalesOrderMutation();
+    const [confirmOrder] = useConfirmSalesOrderMutation();
 
     const statusStyles = {
         CREATED:    { bg: isDark ? 'rgba(250,204,21,.16)'  : '#FEF3C7', color: isDark ? '#fde68a' : '#92400E', border: isDark ? '#ca8a04' : '#d97706' },
@@ -160,6 +162,9 @@ function OrderListStatusControl({ order, isDark }) {
         try {
             if (nextStatus === 'LOADED') {
                 await loadOrder(order.id).unwrap();
+            } else if (nextStatus === 'CONFIRMED') {
+                /* POST /sales-orders/{id}/confirm — yakuniy tasdiqlash */
+                await confirmOrder(order.id).unwrap();
             } else if (nextStatus === 'REJECTED') {
                 await rejectOrder({ id: order.id }).unwrap();
             } else {

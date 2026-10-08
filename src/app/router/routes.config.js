@@ -309,6 +309,11 @@ export const ROUTES = [
         roles: BUXGALTER_ROLES,
     },
     {
+        path: '/zayavkachi/chart',
+        component: lazy(() => import('../../Components/Common/ProductChart')),
+        roles: BUXGALTER_ROLES,
+    },
+    {
         path: '/zayavkachi',
         component: lazy(() => import('../../Components/Zayavkachi/Dashboard')),
         roles: [...ZAYAVKACHI_ROLES, ...BUXGALTER_ROLES],

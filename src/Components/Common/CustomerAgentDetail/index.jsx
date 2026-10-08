@@ -494,15 +494,7 @@ export default function CustomerAgentDetail() {
                     </Text>
                 </Box>
 
-                <Box {...infoBox}>
-                    <HStack gap={2} mb={2} color={subtitleColor}>
-                        <LuClock size={16} />
-                        <Text fontSize="xs" fontWeight="semibold" textTransform="uppercase" letterSpacing="wider">Oxirgi o'zgarish</Text>
-                    </HStack>
-                    <Text fontSize="md" fontWeight="semibold" color={textColor}>
-                        {formatDateTime(agent.lastModifiedAt)}
-                    </Text>
-                </Box>
+           
             </SimpleGrid>
 
             {/* ── Bonus section ── */}

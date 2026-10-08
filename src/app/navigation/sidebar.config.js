@@ -3,6 +3,7 @@ import { ROLES, WAREHOUSE_ROLES, ZAYAVKACHI_ROLES, BUXGALTER_ROLES, KASSIR_ROLES
 import {
     Boxes, ClipboardList, Cog, History, LayoutDashboard, LogIn, LogOut,
     CalendarClock, Layers3, MonitorCog, Package, Palette, ReceiptText, ShieldCheck, UserRound, Users, Wallet, Warehouse, FileSpreadsheet, UserCheck, Truck,
+    ChartArea,
 } from 'lucide-react';
 
 // ── Manager ────────────────────────────────────────────────────────────────
@@ -94,6 +95,7 @@ export const BUXGALTER_SIDEBAR_CONFIG = [
     { label: 'Dashboard', path: '/buxgalter', icon: LayoutDashboard, roles: BUXGALTER_ROLES },
     { label: 'Buyurtmalar', path: '/zayavkachi/orders', icon: ClipboardList, roles: BUXGALTER_ROLES },
     { label: 'Mijozlar', path: '/customers', icon: Users, roles: BUXGALTER_ROLES },
+    { label: 'Mahsulot statistikasi', path: '/zayavkachi/chart', icon: ChartArea, roles: BUXGALTER_ROLES },
     { label: 'Agentlar', path: '/customer-agents', icon: UserCheck, roles: BUXGALTER_ROLES },
     { label: 'Mahsulot katalogi', path: '/products', icon: Package, roles: BUXGALTER_ROLES },
     { label: 'Tovar ombori qoldiqlari', path: '/zayavkachi/warehouse', icon: Warehouse, roles: BUXGALTER_ROLES },
@@ -103,7 +105,7 @@ export const BUXGALTER_SIDEBAR_CONFIG = [
 export const BUXGALTER_SIDEBAR_GROUPS = [
     { label: 'Asosiy', items: BUXGALTER_SIDEBAR_CONFIG.filter((i) => i.path === '/buxgalter') },
     { label: 'Savdo', items: BUXGALTER_SIDEBAR_CONFIG.filter((i) => ['/zayavkachi/orders', '/customers', '/customer-agents', '/reconciliation'].includes(i.path)) },
-    { label: 'Ombor va katalog', items: BUXGALTER_SIDEBAR_CONFIG.filter((i) => ['/products', '/zayavkachi/warehouse'].includes(i.path)) },
+    { label: 'Ombor va katalog', items: BUXGALTER_SIDEBAR_CONFIG.filter((i) => ['/products', '/zayavkachi/warehouse','/zayavkachi/chart'].includes(i.path)) },
 ];
 
 // ── Kassir ─────────────────────────────────────────────────────────────────

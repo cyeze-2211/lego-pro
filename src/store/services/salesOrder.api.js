@@ -4,7 +4,7 @@ import { axiosBaseQuery } from '../baseQuary/axiosBaseQuery';
 export const salesOrderApi = createApi({
   reducerPath: 'salesOrderApi',
   baseQuery: axiosBaseQuery(),
-  tagTypes: ['SalesOrder', 'ProductShortages', 'SalesOrderDashboard'],
+  tagTypes: ['SalesOrder', 'ProductShortages', 'SalesOrderDashboard', 'TopProducts'],
   endpoints: (builder) => ({
     getSalesOrders: builder.query({
       query: ({ customerId, status, productId, warehouseId, dateFrom, dateTo, page = 0, size = 20, sort = ['createdAt,DESC', 'id,DESC'] } = {}) => ({
@@ -66,6 +66,25 @@ export const salesOrderApi = createApi({
       providesTags: [{ type: 'ProductShortages', id: 'LIST' }],
     }),
 
+    /* ── Eng ko'p sotilgan mahsulotlar ──
+     * GET /api/v1/sales-orders/top-products?dateFrom=YYYY-MM-DD&dateTo=YYYY-MM-DD
+     * Faqat CONFIRMED va paymentStatus=PAID zayavkalar hisobga olinadi.
+     * Oraliq decidedAt bo'yicha (kunlar kiradi).
+     * Tartib: quantity DESC, keyin revenue DESC. Sahifalanmaydi.
+     * Har bir element: { productId, productName, orderCount, quantity, revenue }. */
+    getTopProducts: builder.query({
+      query: ({ dateFrom, dateTo }) => ({
+        url: '/sales-orders/top-products',
+        method: 'GET',
+        params: {
+          ...(dateFrom ? { dateFrom } : {}),
+          ...(dateTo   ? { dateTo }   : {}),
+        },
+      }),
+      transformResponse: (response) => response.data || [],
+      providesTags: [{ type: 'TopProducts', id: 'LIST' }],
+    }),
+
     createSalesOrder: builder.mutation({
       query: (data) => ({ url: '/sales-orders', method: 'POST', data }),
       transformResponse: (response) => response.data,
@@ -73,6 +92,7 @@ export const salesOrderApi = createApi({
         { type: 'SalesOrder', id: 'LIST' },
         { type: 'SalesOrderDashboard', id: 'LIST' },
         { type: 'ProductShortages', id: 'LIST' },
+        { type: 'TopProducts', id: 'LIST' },
       ],
     }),
 
@@ -84,6 +104,7 @@ export const salesOrderApi = createApi({
         { type: 'SalesOrder', id: 'LIST' },
         { type: 'SalesOrderDashboard', id: 'LIST' },
         { type: 'ProductShortages', id: 'LIST' },
+        { type: 'TopProducts', id: 'LIST' },
       ],
     }),
 
@@ -95,6 +116,7 @@ export const salesOrderApi = createApi({
         { type: 'SalesOrder', id: 'LIST' },
         { type: 'SalesOrderDashboard', id: 'LIST' },
         { type: 'ProductShortages', id: 'LIST' },
+        { type: 'TopProducts', id: 'LIST' },
       ],
     }),
 
@@ -111,6 +133,7 @@ export const salesOrderApi = createApi({
         { type: 'SalesOrder', id: 'LIST' },
         { type: 'SalesOrderDashboard', id: 'LIST' },
         { type: 'ProductShortages', id: 'LIST' },
+        { type: 'TopProducts', id: 'LIST' },
       ],
     }),
 
@@ -132,6 +155,7 @@ export const salesOrderApi = createApi({
         { type: 'SalesOrder', id: 'LIST' },
         { type: 'SalesOrderDashboard', id: 'LIST' },
         { type: 'ProductShortages', id: 'LIST' },
+        { type: 'TopProducts', id: 'LIST' },
       ],
     }),
 
@@ -144,6 +168,7 @@ export const salesOrderApi = createApi({
         { type: 'SalesOrder', id: 'LIST' },
         { type: 'SalesOrderDashboard', id: 'LIST' },
         { type: 'ProductShortages', id: 'LIST' },
+        { type: 'TopProducts', id: 'LIST' },
       ],
     }),
 
@@ -159,6 +184,7 @@ export const salesOrderApi = createApi({
         { type: 'SalesOrder', id: 'LIST' },
         { type: 'SalesOrderDashboard', id: 'LIST' },
         { type: 'ProductShortages', id: 'LIST' },
+        { type: 'TopProducts', id: 'LIST' },
       ],
     }),
 
@@ -170,6 +196,7 @@ export const salesOrderApi = createApi({
         { type: 'SalesOrder', id: 'LIST' },
         { type: 'SalesOrderDashboard', id: 'LIST' },
         { type: 'ProductShortages', id: 'LIST' },
+        { type: 'TopProducts', id: 'LIST' },
       ],
     }),
 
@@ -185,6 +212,7 @@ export const salesOrderApi = createApi({
         { type: 'SalesOrder', id: 'LIST' },
         { type: 'SalesOrderDashboard', id: 'LIST' },
         { type: 'ProductShortages', id: 'LIST' },
+        { type: 'TopProducts', id: 'LIST' },
       ],
     }),
   }),
@@ -195,6 +223,7 @@ export const {
   useGetSalesOrderByIdQuery,
   useGetSalesOrderDashboardQuery,
   useGetProductShortagesQuery,
+  useGetTopProductsQuery,
   useCreateSalesOrderMutation,
   useUpdateSalesOrderMutation,
   useDeleteSalesOrderMutation,

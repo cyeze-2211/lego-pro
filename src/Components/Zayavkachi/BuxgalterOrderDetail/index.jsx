@@ -210,8 +210,13 @@ export default function BuxgalterOrderDetail() {
         ? 'border-[#334155] text-[#94a3b8] hover:bg-[#1e293b] hover:text-white'
         : 'border-[#e2e8f0] text-[#64748b] hover:bg-[#f1f5f9] hover:text-[#0f172a]';
 
-    const primaryBtn = 'inline-flex items-center gap-2 rounded-xl bg-amber-400 px-4 py-2.5 text-sm font-bold text-slate-950 shadow-md shadow-amber-400/20 transition hover:-translate-y-0.5 hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0';
-    const primaryBtnSm = 'inline-flex items-center gap-2 rounded-xl bg-amber-400 px-4 py-2 text-sm font-bold text-slate-950 shadow-md shadow-amber-400/20 transition hover:-translate-y-0.5 hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0';
+    /* ── основная кнопка: главный цвет (amber) + ЧИСТО ЧЁРНЫЙ текст ── */
+    const primaryBtn = 'inline-flex items-center gap-2 rounded-xl bg-amber-400 px-4 py-2.5 text-sm font-bold text-black shadow-md shadow-amber-400/20 transition hover:-translate-y-0.5 hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0';
+    const primaryBtnSm = 'inline-flex items-center gap-2 rounded-xl bg-amber-400 px-4 py-2 text-sm font-bold text-black shadow-md shadow-amber-400/20 transition hover:-translate-y-0.5 hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0';
+
+    /* ── контрастный текст для истории ── */
+    const historyText = isDark ? 'text-white' : 'text-slate-900';
+    const historyTextBold = isDark ? 'text-white' : 'text-slate-900';
 
     const customerOrders = useMemo(
         () => (customerOrdersData?.items ?? []).filter((entry) => entry.id !== order?.id),
@@ -631,11 +636,7 @@ export default function BuxgalterOrderDetail() {
                                                                     {isPack ? 'pachka' : 'dona'}
                                                                 </span>
                                                             </p>
-                                                            {showPiecesHint && (
-                                                                <p className={`text-[10px] ${muted}`}>
-                                                                    = {fmt(entry.quantity)} dona
-                                                                </p>
-                                                            )}
+                                                       
                                                         </div>
                                                     );
                                                 })}
@@ -879,11 +880,11 @@ export default function BuxgalterOrderDetail() {
                                                     <LuClipboardList size={14} />
                                                 </span>
                                                 <div>
-                                                    <p className={`flex items-center gap-1 text-sm font-bold ${head} group-hover:text-amber-500`}>
+                                                    <p className={`flex items-center gap-1 text-sm font-bold ${historyTextBold} group-hover:text-amber-500`}>
                                                         #{previousOrder.id.slice(0, 8).toUpperCase()}
                                                         <LuChevronRight size={12} className="opacity-0 transition group-hover:opacity-100" />
                                                     </p>
-                                                    <p className={`mt-0.5 text-xs ${muted}`}>
+                                                    <p className={`mt-0.5 text-xs ${historyText}`}>
                                                         {formatDateTime(previousOrder.createdAt)} · {previousGroups.length} qator
                                                     </p>
                                                 </div>
@@ -892,7 +893,7 @@ export default function BuxgalterOrderDetail() {
                                                 <span className={`rounded-full border px-2.5 py-1 text-[11px] font-bold ${statusCx(previousOrder.status)}`}>
                                                     {STATUS_LABEL[previousOrder.status] ?? previousOrder.status}
                                                 </span>
-                                                <span className={`text-sm font-bold ${head}`}>
+                                                <span className={`text-sm font-bold ${historyTextBold}`}>
                                                     {fmt(previousOrder.totalAmount)} so‘m
                                                 </span>
                                             </div>
@@ -906,14 +907,15 @@ export default function BuxgalterOrderDetail() {
                                                             key={group.key}
                                                             className="flex flex-wrap items-start justify-between gap-2 px-4 py-2.5"
                                                         >
-                                                            <span className={`text-sm ${head}`}>
+                                                            <span className={`text-sm font-medium ${historyText}`}>
                                                                 {first.productName || 'Mahsulot'}
                                                             </span>
+
                                                             <div className="flex flex-col items-end gap-0.5">
                                                                 {group.entries.map((entry) => (
                                                                     <span
                                                                         key={entry.id}
-                                                                        className={`text-xs ${muted}`}
+                                                                        className={`text-xs font-medium ${historyText}`}
                                                                     >
                                                                         {fmt(getEnteredQuantity(entry))}{' '}
                                                                         {getItemUnit(entry) === 'PACK' ? 'pachka' : 'dona'}{' '}
