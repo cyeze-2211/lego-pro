@@ -19,7 +19,6 @@ import {
     LuWarehouse,
     LuCopy,
     LuCheck,
-    LuPalette,
     LuFolder,
     LuSlidersHorizontal,
     LuChevronDown,
@@ -44,6 +43,8 @@ import Loading from '../../Other/UI/Loadings/Loading';
 import EmptyData from '../../Other/UI/NoData/EmptyData';
 import FormControl from '../../ui/FormControl';
 import { formatNumber } from '../../ui/number-format';
+import ColorSwatch from '../../ui/ColorSwatch';
+import ProductImage from '../../ui/ProductImage';
 
 const PAGE_SIZE = 12;
 const CLIPBOARD_EVENT = 'product-clipboard-changed';
@@ -780,22 +781,7 @@ export default function Product() {
 
                                             <Table.Cell {...cellBorder}>
                                                 <HStack gap={2.5}>
-                                                    <Box
-                                                        p={1.5}
-                                                        borderRadius="md"
-                                                        bg={
-                                                            isDark
-                                                                ? 'rgba(250, 204, 21, 0.10)'
-                                                                : '#FEF3C7'
-                                                        }
-                                                        color={accentColor}
-                                                        flexShrink={0}
-                                                        display="inline-flex"
-                                                        alignItems="center"
-                                                        justifyContent="center"
-                                                    >
-                                                        <LuPackage size={14} />
-                                                    </Box>
+                                                    <ProductImage imageUrl={product.imageUrl} version={product.lastModifiedAt} name={product.name} size={40} radius="lg" />
                                                     <VStack
                                                         align="start"
                                                         gap={0}
@@ -921,33 +907,7 @@ export default function Product() {
                                             {/* Rang */}
                                             <Table.Cell {...cellBorder}>
                                                 {color?.name ? (
-                                                    <HStack gap={1.5}>
-                                                        <Box
-                                                            p={1}
-                                                            borderRadius="md"
-                                                            bg={
-                                                                isDark
-                                                                    ? 'rgba(236, 72, 153, 0.15)'
-                                                                    : '#FCE7F3'
-                                                            }
-                                                            color={
-                                                                isDark ? 'pink.300' : 'pink.600'
-                                                            }
-                                                            display="inline-flex"
-                                                            alignItems="center"
-                                                            justifyContent="center"
-                                                            flexShrink={0}
-                                                        >
-                                                            <LuPalette size={12} />
-                                                        </Box>
-                                                        <Text
-                                                            fontSize="sm"
-                                                            color={textColor}
-                                                            noOfLines={1}
-                                                        >
-                                                            {color.name}
-                                                        </Text>
-                                                    </HStack>
+                                                    <ColorSwatch code={color.code} name={color.name} size={16} />
                                                 ) : (
                                                     <Text
                                                         fontSize="sm"

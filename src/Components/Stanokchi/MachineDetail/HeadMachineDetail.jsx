@@ -10,7 +10,6 @@ import {
     LuHistory,
     LuChevronLeft,
     LuChevronRight,
-    LuSearch,
     LuX,
     LuPackage,
     LuCirclePlus,
@@ -26,7 +25,7 @@ import {
     useUpdateMachineStatusMutation,
     useGetMachineOutputsSummaryQuery,
 } from '../../../store/services/machine.api';
-import { useGetProductsQuery } from '../../../store/services/product.api';
+import StartProductPicker from './StartProductPicker';
 import {
     useCreateStockTransactionMutation,
 } from '../../../store/services/productStock.api';
@@ -199,17 +198,11 @@ export default function StanokchiMachineDetail() {
     const { isDark, pageBg, cardBg, cardBorder, textColor, subtitleColor, accentColor } = useAppTheme();
     const [currentTime] = useState(() => new Date());
 
-    const currentUzbekistanTime = getUzbekistanTimeParts(currentTime);
     const currentShift = getCurrentShift(currentTime);
+    // Hisobot butun smena oralig‘i uchun olinadi (boshidan oxirigacha). Oldin oxirgi chegara sahifa
+    // ochilgan vaqt edi, shuning uchun keyin «Qo‘shildi» qilingan donalar «Jami»ga kirmay qolardi.
     const shiftFromDateTime = formatApiDateTime(currentShift.start);
-    const shiftToDateTime = formatApiDateTime(new Date(Date.UTC(
-        currentUzbekistanTime.year,
-        currentUzbekistanTime.month - 1,
-        currentUzbekistanTime.day,
-        currentUzbekistanTime.hour,
-        currentUzbekistanTime.minute,
-        currentUzbekistanTime.second
-    )));
+    const shiftToDateTime = formatApiDateTime(currentShift.end);
 
     /* ── Stanok ma'lumotlari ── */
     const { data: machine, isLoading: machineLoading, refetch: refetchMachine } =
@@ -227,7 +220,6 @@ export default function StanokchiMachineDetail() {
     const historyTotalPages = historyPagination?.totalPages || 0;
 
     /* ── Joriy smena hisoboti ── */
-    const [summaryStatus, setSummaryStatus] = useState(''); // '' | 'WORKING' | 'DEFECT'
 
     const {
         data: summary,
@@ -240,7 +232,6 @@ export default function StanokchiMachineDetail() {
             machineId: id,
             fromDateTime: shiftFromDateTime,
             toDateTime: shiftToDateTime,
-            ...(summaryStatus && { status: summaryStatus }),
         },
         { skip: !id }
     );
@@ -262,8 +253,6 @@ export default function StanokchiMachineDetail() {
        START MODAL
     ════════════════════════════════ */
     const [showStartModal, setShowStartModal] = useState(false);
-    const [startProductSearch, setStartProductSearch] = useState('');
-    const [startProductQuery, setStartProductQuery] = useState('');
     const [startSelectedProductId, setStartSelectedProductId] = useState('');
     const [startSelectedStatus, setStartSelectedStatus] = useState('WORKING');
     const [startError, setStartError] = useState('');
@@ -272,24 +261,14 @@ export default function StanokchiMachineDetail() {
        STATUS MODAL (alohida) — olib tashlandi, endi inline toggle button
     ════════════════════════════════ */
 
-    const { data: startProductsResult, isLoading: startProductsLoading } = useGetProductsQuery(
-        { name: startProductQuery || undefined, page: 0, size: 30 },
-        { skip: !showStartModal }
-    );
-    const startProducts = startProductsResult?.items || [];
-
     const openStartModal = () => {
         setShowStartModal(true);
         setStartSelectedProductId('');
-        setStartProductSearch('');
-        setStartProductQuery('');
         setStartError('');
     };
     const closeStartModal = () => {
         setShowStartModal(false);
         setStartSelectedProductId('');
-        setStartProductSearch('');
-        setStartProductQuery('');
         setStartError('');
     };
 
@@ -319,6 +298,7 @@ export default function StanokchiMachineDetail() {
                 items: [{ productId: machine.currentRun.productId, quantity: 1, unit: 'PIECE' }],
             }).unwrap();
             showToast(`1 dona qayd etildi — ${machine.currentRun.productName}`);
+            refetchMachine();
             refetchHistory();
             refetchSummary();
         } catch (err) {
@@ -923,22 +903,6 @@ export default function StanokchiMachineDetail() {
                     </div>
 
                     <div className="flex items-center gap-2 flex-wrap">
-                        <select
-                            value={summaryStatus}
-                            onChange={(e) => setSummaryStatus(e.target.value)}
-                            className="px-3 py-1.5 rounded-lg border text-xs"
-                            style={{
-                                background: isDark ? BRAND_COLORS.darkInputBg : BRAND_COLORS.lightInputBg,
-                                borderColor: cardBorder,
-                                color: textColor,
-                                outline: 'none',
-                                cursor: 'pointer',
-                            }}
-                        >
-                            <option value="">Hammasi</option>
-                            <option value="WORKING">Butun</option>
-                            <option value="DEFECT">Brak</option>
-                        </select>
                         <button
                             type="button"
                             onClick={() => refetchSummary()}
@@ -967,7 +931,7 @@ export default function StanokchiMachineDetail() {
                 ) : (
                     <div className="p-6">
                         {/* Summary cards - Yaxshilangan dizayn */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
                             {/* Jami miqdor */}
                             <div 
                                 className="rounded-2xl p-5 border-2 transition-all duration-200 hover:scale-105"
@@ -1038,41 +1002,6 @@ export default function StanokchiMachineDetail() {
                                 </p>
                             </div>
 
-                            {/* Brak vaqti */}
-                            <div 
-                                className="rounded-2xl p-5 border-2 transition-all duration-200 hover:scale-105"
-                                style={{
-                                    background: isDark 
-                                        ? 'linear-gradient(135deg, rgba(239,68,68,0.12) 0%, rgba(239,68,68,0.05) 100%)'
-                                        : 'linear-gradient(135deg, rgba(254,242,242,1) 0%, rgba(254,226,226,0.8) 100%)',
-                                    borderColor: isDark ? 'rgba(239,68,68,0.3)' : '#FCA5A5',
-                                    boxShadow: isDark 
-                                        ? '0 4px 16px rgba(239,68,68,0.1)' 
-                                        : '0 4px 16px rgba(239,68,68,0.15)',
-                                }}>
-                                <div className="flex items-start justify-between mb-3">
-                                    <div 
-                                        className="w-12 h-12 rounded-xl flex items-center justify-center"
-                                        style={{
-                                            background: isDark ? 'rgba(239,68,68,0.2)' : 'rgba(239,68,68,0.15)',
-                                        }}
-                                    >
-                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={isDark ? '#FCA5A5' : '#DC2626'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                            <circle cx="12" cy="12" r="10"/>
-                                            <line x1="15" y1="9" x2="9" y2="15"/>
-                                            <line x1="9" y1="9" x2="15" y2="15"/>
-                                        </svg>
-                                    </div>
-                                </div>
-                                <p className="text-xs font-semibold mb-2 uppercase tracking-wide" style={{ color: isDark ? '#FCA5A5' : '#991B1B' }}>
-                                    Brak vaqti
-                                </p>
-                                <p className="text-3xl font-extrabold" style={{ color: isDark ? '#FCA5A5' : '#991B1B' }}>
-                                    {summary?.defectDurationSeconds
-                                        ? formatDurationSeconds(summary.defectDurationSeconds)
-                                        : '0 daqiqa'}
-                                </p>
-                            </div>
                         </div>
 
                         {/* Mahsulotlar ro'yxati - Yaxshilangan dizayn */}
@@ -1156,33 +1085,6 @@ export default function StanokchiMachineDetail() {
                                                 </div>
                                             </div>
 
-                                            {/* Butun / Brak */}
-                                            <div className="grid grid-cols-2 gap-3">
-                                                <div 
-                                                    className="flex items-center gap-2.5 p-3 rounded-xl"
-                                                    style={{ background: isDark ? 'rgba(34,197,94,0.1)' : 'rgba(34,197,94,0.08)' }}
-                                                >
-                                                    <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: '#22C55E' }} />
-                                                    <div>
-                                                        <p className="text-xs font-medium" style={{ color: subtitleColor }}>Butun</p>
-                                                        <p className="text-lg font-bold" style={{ color: isDark ? '#86EFAC' : '#166534' }}>
-                                                            {product.goodQuantity}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                                <div 
-                                                    className="flex items-center gap-2.5 p-3 rounded-xl"
-                                                    style={{ background: isDark ? 'rgba(239,68,68,0.1)' : 'rgba(239,68,68,0.08)' }}
-                                                >
-                                                    <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: '#EF4444' }} />
-                                                    <div>
-                                                        <p className="text-xs font-medium" style={{ color: subtitleColor }}>Brak</p>
-                                                        <p className="text-lg font-bold" style={{ color: isDark ? '#FCA5A5' : '#991B1B' }}>
-                                                            {product.defectQuantity}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            </div>
                                         </div>
                                     ))}
                                 </div>
@@ -1203,15 +1105,6 @@ export default function StanokchiMachineDetail() {
                             <span className="text-xs" style={{ color: subtitleColor }}>
                                 {currentShift.name}
                             </span>
-                            {summaryStatus && (
-                                <>
-                                    <span className="text-xs" style={{ color: subtitleColor }}>•</span>
-                                    <span className="text-xs font-medium"
-                                        style={{ color: summaryStatus === 'DEFECT' ? '#EF4444' : '#22C55E' }}>
-                                        {summaryStatus === 'DEFECT' ? 'Brak' : 'Butun'}
-                                    </span>
-                                </>
-                            )}
                         </div>
                     </div>
                 )}
@@ -1225,6 +1118,7 @@ export default function StanokchiMachineDetail() {
                     onBackdropClick={closeStartModal}
                     isDark={isDark}
                     cardBorder={cardBorder}
+                    size="lg"
                 >
                     {/* Header */}
                     <ModalHeader
@@ -1252,13 +1146,7 @@ export default function StanokchiMachineDetail() {
 
                     <form onSubmit={handleStartSubmit}>
                         <div className="px-5 pb-5 flex flex-col gap-4">
-                            <ProductPicker
-                                label="Mahsulot tanlang"
-                                search={startProductSearch}
-                                onSearchChange={(v) => { setStartProductSearch(v); setStartProductQuery(v.trim()); }}
-                                onSearchClear={() => { setStartProductSearch(''); setStartProductQuery(''); }}
-                                products={startProducts}
-                                loading={startProductsLoading}
+                            <StartProductPicker
                                 selectedId={startSelectedProductId}
                                 onSelect={(pid) => { setStartSelectedProductId(pid); setStartError(''); }}
                                 error={startError}
@@ -1304,14 +1192,14 @@ export default function StanokchiMachineDetail() {
 ══════════════════════════════════════════════════════════════ */
 
 /** Modal backdrop + container */
-function Modal({ children, onBackdropClick, isDark, cardBorder }) {
+function Modal({ children, onBackdropClick, isDark, cardBorder, size = 'md' }) {
     return (
         <div
             className="fixed inset-0 z-50 flex items-center justify-center p-4"
             style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}
             onClick={(e) => { if (e.target === e.currentTarget) onBackdropClick(); }}
         >
-            <div className="w-full max-w-md rounded-2xl border shadow-2xl overflow-hidden"
+            <div className={`w-full ${size === 'lg' ? 'max-w-2xl' : 'max-w-md'} rounded-2xl border shadow-2xl overflow-hidden`}
                 style={{
                     background: isDark ? BRAND_COLORS.darkCardBg : '#fff',
                     borderColor: cardBorder,
@@ -1343,97 +1231,6 @@ function ModalHeader({ icon, title, onClose, isDark, cardBorder, textColor, subt
 }
 
 /** Mahsulot qidirish + tanlash ro'yxati */
-function ProductPicker({
-    label, search, onSearchChange, onSearchClear,
-    products, loading, selectedId, onSelect, error,
-    isDark, cardBorder, textColor, subtitleColor, accentColor,
-}) {
-    return (
-        <div>
-            <label className="block text-xs font-semibold mb-2" style={{ color: subtitleColor }}>
-                {label} <span style={{ color: '#EF4444' }}>*</span>
-            </label>
-
-            {/* Search input */}
-            <div className="relative mb-2">
-                <LuSearch size={15} style={{
-                    position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
-                    color: subtitleColor, pointerEvents: 'none',
-                }} />
-                <input
-                    type="text"
-                    value={search}
-                    onChange={(e) => onSearchChange(e.target.value)}
-                    placeholder="Mahsulot nomini kiriting..."
-                    style={{
-                        width: '100%',
-                        paddingLeft: 36, paddingRight: search ? 36 : 12,
-                        paddingTop: 9, paddingBottom: 9,
-                        borderRadius: 10,
-                        border: `1px solid ${cardBorder}`,
-                        background: isDark ? BRAND_COLORS.darkInputBg : BRAND_COLORS.lightInputBg,
-                        color: textColor, fontSize: 13, outline: 'none',
-                    }}
-                />
-                {search && (
-                    <button type="button" onClick={onSearchClear}
-                        style={{
-                            position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
-                            background: 'transparent', border: 'none', cursor: 'pointer',
-                            color: subtitleColor, display: 'flex', alignItems: 'center',
-                        }}
-                        aria-label="Tozalash">
-                        <LuX size={14} />
-                    </button>
-                )}
-            </div>
-
-            {/* List */}
-            <div className="overflow-y-auto flex flex-col gap-1"
-                style={{
-                    maxHeight: 200,
-                    border: `1px solid ${cardBorder}`,
-                    borderRadius: 12, padding: 6,
-                    background: isDark ? 'rgba(255,255,255,0.02)' : '#FAFAFA',
-                }}>
-                {loading ? (
-                    <div className="py-6 text-center text-sm" style={{ color: subtitleColor }}>Yuklanmoqda...</div>
-                ) : products.length === 0 ? (
-                    <div className="py-6 text-center text-sm" style={{ color: subtitleColor }}>Mahsulot topilmadi</div>
-                ) : (
-                    products.map((product) => {
-                        const selected = selectedId === product.id;
-                        return (
-                            <button key={product.id} type="button"
-                                onClick={() => onSelect(product.id)}
-                                className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left transition-all"
-                                style={{
-                                    background: selected ? (isDark ? 'rgba(250,204,21,0.15)' : '#FEF3C7') : 'transparent',
-                                    border: selected
-                                        ? `1px solid ${isDark ? 'rgba(250,204,21,0.4)' : '#FDE68A'}`
-                                        : '1px solid transparent',
-                                    cursor: 'pointer',
-                                }}>
-                                <div className="flex items-center justify-center w-7 h-7 rounded-lg flex-shrink-0"
-                                    style={{ background: selected ? (isDark ? 'rgba(250,204,21,0.2)' : '#FDE68A') : (isDark ? 'rgba(255,255,255,0.06)' : '#F1F5F9') }}>
-                                    <LuPackage size={13} style={{ color: selected ? accentColor : subtitleColor }} />
-                                </div>
-                                <span className="text-sm font-medium flex-1 truncate"
-                                    style={{ color: selected ? accentColor : textColor }}>
-                                    {product.name}
-                                </span>
-                                {selected && <span className="text-xs font-bold" style={{ color: accentColor }}>✓</span>}
-                            </button>
-                        );
-                    })
-                )}
-            </div>
-
-            {error && <p className="text-xs mt-1.5" style={{ color: '#EF4444' }}>{error}</p>}
-        </div>
-    );
-}
-
 /** Modal action buttons */
 function ModalActions({ onCancel, submitLabel, submitIcon, submitStyle, loading, disabled, cardBorder, textColor }) {
     return (

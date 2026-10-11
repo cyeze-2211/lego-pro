@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink, useLocation } from 'react-router-dom';
 import {
     Box,
     Button,
@@ -43,7 +43,9 @@ export default function Supplier() {
     const [regionId, setRegionId] = useState('');
     const [page, setPage] = useState(0);
     const role = useAppSelector((state) => state.auth.role);
-    const canManageSuppliers = role === ROLES.MANAGER;
+    const canManageSuppliers = role === ROLES.MANAGER || role === ROLES.KASSIR;
+    const { pathname } = useLocation();
+    const base = pathname.startsWith('/kassir') ? '/kassir' : '';
     const { data: regions = [], isError: regionsError } = useGetRegionsQuery();
     const { data: supplierResult, isLoading, error } = useGetSuppliersQuery({
         name: query || undefined,
@@ -244,7 +246,7 @@ export default function Supplier() {
                                             <HStack gap={2.5}>
                                                 <Box {...miniIconBox}><LuTruck size={15} /></Box>
                                                 <Text asChild fontWeight="semibold" fontSize="sm" color={textColor} noOfLines={1} _hover={{ color: accentColor }}>
-                                                    <RouterLink to={`/suppliers/${supplier.id}`}>{supplier.name}</RouterLink>
+                                                    <RouterLink to={`${base}/suppliers/${supplier.id}`}>{supplier.name}</RouterLink>
                                                 </Text>
                                             </HStack>
                                         </Table.Cell>
@@ -281,7 +283,7 @@ export default function Supplier() {
                                         <Table.Cell {...cellBorder}>
                                             <HStack justify="center" gap={1}>
                                                 <Button asChild size="sm" variant="outline" color={accentColor} borderRadius="lg" aria-label="Batafsil">
-                                                    <RouterLink to={`/suppliers/${supplier.id}`}><LuExternalLink size={15} /> </RouterLink>
+                                                    <RouterLink to={`${base}/suppliers/${supplier.id}`}><LuExternalLink size={15} /> </RouterLink>
                                                 </Button>
                                                 {canManageSuppliers && (
                                                     <>

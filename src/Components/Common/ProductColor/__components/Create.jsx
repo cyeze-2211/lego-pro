@@ -16,10 +16,13 @@ import { useCreateProductColorMutation } from '../../../../store/services/produc
 import { useAppTheme } from '../../../../theme/tokens';
 import { Alert } from '../../../Other/UI/Alert/Alert';
 import FormControl from '../../../ui/FormControl';
+import ColorCodeField from './ColorCodeField';
+import { isValidHex, normalizeHex } from '../../../ui/color-utils';
 
 export default function Create() {
     const { open, onOpen, onClose } = useDisclosure();
     const [name, setName] = useState('');
+    const [code, setCode] = useState('');
     const [createColor, { isLoading }] = useCreateProductColorMutation();
     const { isDark, accentColor, cardBg, cardBorder, textColor, subtitleColor } = useAppTheme();
     const modalBorder = isDark ? cardBorder : '#94A3B8';
@@ -36,11 +39,17 @@ export default function Create() {
             return;
         }
 
+        if (code && !isValidHex(code)) {
+            Alert('Rang kodi #RRGGBB ko‘rinishida bo‘lishi kerak', 'error');
+            return;
+        }
+
         try {
-            await createColor({ name: trimmedName }).unwrap();
+            await createColor({ name: trimmedName, code: code ? normalizeHex(code) : null }).unwrap();
             Alert('Rang muvaffaqiyatli yaratildi', 'success');
             onClose();
             setName('');
+            setCode('');
         } catch (error) {
             Alert(error?.data?.message || 'Rang yaratishda xatolik', 'error');
         }
@@ -59,8 +68,8 @@ export default function Create() {
                 color="black"
                 borderRadius="xl"
                 fontWeight="semibold"
-                px={4}
-                py={4}
+                h="44px"
+                px={5}
                 boxShadow="md"
                 _hover={{ bg: isDark ? 'yellow.300' : 'yellow.500', transform: 'translateY(-1px)', boxShadow: 'lg' }}
                 transition="all 0.2s"
@@ -83,7 +92,7 @@ export default function Create() {
                                 </HStack>
                             </Dialog.Header>
                             <Dialog.CloseTrigger asChild>
-                                <Button variant="ghost" color={subtitleColor} size="sm" position="absolute" top="3" right="3" aria-label="Yopish" disabled={isLoading}><X /></Button>
+                                <Button variant="ghost" color={subtitleColor} size="sm" w="32px" h="32px" p={0} minW={0} position="absolute" top="3" right="3" aria-label="Yopish" disabled={isLoading}><X /></Button>
                             </Dialog.CloseTrigger>
 
                             <Dialog.Body py={6}>
@@ -104,6 +113,7 @@ export default function Create() {
                                             minH="52px"
                                         />
                                     </Field.Root>
+                                    <ColorCodeField value={code} onChange={setCode} disabled={isLoading} />
                                 </VStack>
                             </Dialog.Body>
 

@@ -21,6 +21,7 @@ import {
     LuChevronRight,
     LuWallet,
     LuClock,
+    LuPrinter,
 } from 'react-icons/lu';
 import { useAppTheme } from '../../../theme/tokens';
 import {
@@ -34,7 +35,9 @@ import {
 import { useGetCustomerByIdQuery } from '../../../store/services/customer.api';
 import Loading from '../../Other/UI/Loadings/Loading';
 import { Alert } from '../../Other/UI/Alert/Alert';
+import { formatPackPiece, splitOrderItem } from '../../ui/order-items';
 import { STATUS_LABEL, statusCx } from '../__components/statusBadge';
+import OrderPrintModal from '../__components/OrderPrintModal';
 
 const ORDER_HISTORY_SIZE = 30;
 
@@ -101,8 +104,15 @@ const formatDateTime = (value) => {
     return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString('uz-UZ');
 };
 
-const getItemUnit = (item) => String(item.unit ?? 'PIECE').toUpperCase();
-const getEnteredQuantity = (item) => Number(item.enteredQuantity ?? item.quantity) || 0;
+/* Yangi API: qatorda packQuantity + pieceQuantity; pachka bo‘lsa «PACK» deb ko‘rsatamiz */
+const getItemUnit = (item) => (item.packQuantity != null || item.pieceQuantity != null
+    ? (Number(item.packQuantity) > 0 ? 'PACK' : 'PIECE')
+    : String(item.unit ?? 'PIECE').toUpperCase());
+const getEnteredQuantity = (item) => {
+    const split = splitOrderItem(item);
+    return split.packs > 0 ? split.packs : split.pieces;
+};
+const getEnteredLabel = (item) => formatPackPiece(splitOrderItem(item));
 const getTotalPieces = (item) => Number(item.quantity) || 0;
 
 const getGroupDraftPrice = (group, draft) => {
@@ -196,6 +206,9 @@ export default function BuxgalterOrderDetail() {
     const [rejectOrder, { isLoading: isRejectingOrder }] = useRejectSalesOrderMutation();
     const [priceDraft, setPriceDraft] = useState({});
     const [isEditingPrices, setIsEditingPrices] = useState(false);
+
+    /* ── print modal ── */
+    const [printOpen, setPrintOpen] = useState(false);
 
     /* ── theme ── */
     const panel = isDark ? 'border-white/10 bg-[#141C2B]' : 'border-[#e2e8f0] bg-white';
@@ -409,6 +422,16 @@ export default function BuxgalterOrderDetail() {
                                 {isRejectingOrder ? 'Rad etilmoqda…' : 'Rad etish'}
                             </button>
                         )}
+
+                        {/* ── Chop etish ── */}
+                        <button
+                            type="button"
+                            onClick={() => setPrintOpen(true)}
+                            className={primaryBtn}
+                        >
+                            <LuPrinter size={16} />
+                            Chop etish
+                        </button>
 
                         <button
                             type="button"
@@ -627,16 +650,12 @@ export default function BuxgalterOrderDetail() {
                                                     const piecesPerPack = isPack && entered > 0
                                                         ? Math.round(Number(entry.quantity) / entered)
                                                         : 0;
-                                                    const showPiecesHint = isPack && piecesPerPack > 0 && !isMulti;
                                                     return (
                                                         <div key={entry.id} className="text-right">
-                                                            <p className={`text-sm font-bold ${head}`}>
-                                                                {fmt(entered)}
-                                                                <span className={`ml-1 text-[11px] font-normal ${muted}`}>
-                                                                    {isPack ? 'pachka' : 'dona'}
-                                                                </span>
-                                                            </p>
-                                                       
+                                                            <p className={`text-sm font-bold ${head}`}>{getEnteredLabel(entry)}</p>
+                                                            {isPack && piecesPerPack > 0 && (
+                                                                <p className={`text-[11px] ${muted}`}>= {fmt(getTotalPieces(entry))} dona</p>
+                                                            )}
                                                         </div>
                                                     );
                                                 })}
@@ -917,8 +936,7 @@ export default function BuxgalterOrderDetail() {
                                                                         key={entry.id}
                                                                         className={`text-xs font-medium ${historyText}`}
                                                                     >
-                                                                        {fmt(getEnteredQuantity(entry))}{' '}
-                                                                        {getItemUnit(entry) === 'PACK' ? 'pachka' : 'dona'}{' '}
+                                                                        {getEnteredLabel(entry)}{' '}
                                                                         × {fmt(entry.unitPrice)} so‘m
                                                                     </span>
                                                                 ))}
@@ -935,6 +953,14 @@ export default function BuxgalterOrderDetail() {
                     )}
                 </div>
             </section>
+            {/* ═══════════════ PRINT MODAL ═══════════════ */}
+            {printOpen && (
+                <OrderPrintModal
+                    order={order}
+                    onClose={() => setPrintOpen(false)}
+                    showPrices
+                />
+            )}
         </main>
     );
 }

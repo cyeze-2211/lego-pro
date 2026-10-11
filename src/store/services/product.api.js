@@ -89,6 +89,26 @@ export const productApi = createApi({
       ],
     }),
 
+    // POST /api/v1/products/{id}/image – rasm yuklash yoki almashtirish (multipart, `file` maydoni)
+    uploadProductImage: builder.mutation({
+      query: ({ id, file }) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        return {
+          url: `/products/${id}/image`,
+          method: 'POST',
+          data: formData,
+          // axios FormData ni JSON ga aylantirmasligi uchun aniq ko‘rsatiladi; chegara (boundary) ni brauzer qo‘yadi
+          headers: { 'Content-Type': 'multipart/form-data' },
+        };
+      },
+      transformResponse: (response) => response.data,
+      invalidatesTags: (result, error, { id }) => [
+        { type: 'Product', id },
+        { type: 'Product', id: 'LIST' },
+      ],
+    }),
+
     // DELETE /api/v1/products/{id} – мягкое удаление товара
     deleteProduct: builder.mutation({
       query: (id) => ({
@@ -111,5 +131,6 @@ export const {
   useGetProductByBarcodeQuery,
   useCreateProductMutation,
   useUpdateProductMutation,
+  useUploadProductImageMutation,
   useDeleteProductMutation,
 } = productApi;

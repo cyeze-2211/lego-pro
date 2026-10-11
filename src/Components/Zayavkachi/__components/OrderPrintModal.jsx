@@ -1,44 +1,80 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
-import { LuX, LuPrinter, LuBuilding2, LuCheck } from 'react-icons/lu';
+import { LuX, LuPrinter, LuBuilding2, LuCheck, LuPalette, LuLoader } from 'react-icons/lu';
+import { splitOrderItem } from '../../ui/order-items';
 import { useAppTheme } from '../../../theme/tokens';
 import { Alert } from '../../Other/UI/Alert/Alert';
+import { useGetBrandsQuery } from '../../../store/services/brand.api';
+import { loadAuthImage, loadAuthImageDataUrl } from '../../ui/auth-image';
+import { STATUS_LABEL, statusStyle } from './statusBadge';
 
-// Logo import
-import logo1 from '../../../Images/logocopy/Lettered Logo (1).png';
-import logo2 from '../../../Images/logocopy/Lettered Logo Outlined.png';
-import logo3 from '../../../Images/logocopy/Lettered Logo Outlined (2).png';
-import logo4 from '../../../Images/logocopy/Lettered Logo Outlined (3).png';
-import logo5 from '../../../Images/logocopy/Letterd Logo Outlined.png';
-import logo6 from '../../../Images/logocopy/Unified Logo (background).png';
-import logo7 from '../../../Images/logocopy/Ресурс 2300.png';
-
-const LOGOS = [
-    { id: 1, src: logo1, name: 'Total Plast',   company: 'Total Plast',   color: '#0D9488', bgColor: '#F0FDFA', textColor: '#134E4A' },
-    { id: 2, src: logo2, name: 'Eko Plast',     company: 'Eko Plast',     color: '#DC2626', bgColor: '#FEF2F2', textColor: '#7F1D1D' },
-    { id: 3, src: logo3, name: 'Lion Plast',    company: 'Lion Plast',    color: '#CA8A04', bgColor: '#FEFCE8', textColor: '#713F12' },
-    { id: 4, src: logo4, name: 'LEGO PRO',      company: 'Lego Pro',      color: '#B91C1C', bgColor: '#FEF2F2', textColor: '#450A0A' },
-    { id: 5, src: logo5, name: 'Mega Plast',    company: 'Mega Plast',    color: '#E11D48', bgColor: '#FFF1F2', textColor: '#881337' },
-    { id: 6, src: logo6, name: 'Eko Plast Red', company: 'Eko Plast',     color: '#EF4444', bgColor: '#FEF2F2', textColor: '#7F1D1D' },
-    { id: 7, src: logo7, name: 'Milliy Plast',  company: 'Milliy Plast',  color: '#1D4ED8', bgColor: '#EFF6FF', textColor: '#1E3A8A' },
+/* Hujjat aksent rangi uchun tayyor palitra; oxirgi tanlov brauzerda eslab qolinadi */
+const ACCENT_KEY = 'invoice_accent_color';
+const PRESET_COLORS = [
+    { name: 'Teal', value: '#0D9488' }, { name: 'Ko‘k', value: '#1D4ED8' }, { name: 'Yashil', value: '#15803D' },
+    { name: 'Qizil', value: '#DC2626' }, { name: 'To‘q sariq', value: '#EA580C' }, { name: 'Oltin', value: '#CA8A04' },
+    { name: 'Binafsha', value: '#7C3AED' }, { name: 'Pushti', value: '#DB2777' }, { name: 'Kulrang', value: '#334155' }, { name: 'Qora', value: '#0F172A' },
 ];
+const loadAccent = () => { try { return localStorage.getItem(ACCENT_KEY) || PRESET_COLORS[0].value; } catch { return PRESET_COLORS[0].value; } };
 
-const STATUS_LABEL_MAP = {
-    CREATED:    'Yaratilgan',
-    LOADED:     'Ortildi',
-    CONFIRMED:  'Tasdiqlangan',
-    REJECTED:   'Rad etilgan',
-};
+/* Brend logotipi (token bilan yuklanadi); logo bo‘lmasa — bosh harf */
+function BrandThumb({ brand, size = 40 }) {
+    const [src, setSrc] = useState(null);
+    useEffect(() => {
+        let active = true;
+        setSrc(null);
+        if (!brand?.logoUrl) return undefined;
+        loadAuthImage(brand.logoUrl, brand.lastModifiedAt).then((url) => { if (active) setSrc(url); }).catch(() => {});
+        return () => { active = false; };
+    }, [brand?.logoUrl, brand?.lastModifiedAt]);
+    if (src) return <img src={src} alt={brand.name} style={{ height: size, maxWidth: size * 2.4, objectFit: 'contain' }} />;
+    return (
+        <span className="flex items-center justify-center rounded-lg bg-slate-100 text-sm font-black text-slate-500" style={{ height: size, width: size }}>
+            {brand?.name?.charAt(0)?.toUpperCase() || 'B'}
+        </span>
+    );
+}
+BrandThumb.propTypes = { brand: PropTypes.object, size: PropTypes.number };
 
 export default function OrderPrintModal({ order, onClose, showPrices = true }) {
     const { isDark } = useAppTheme();
-    const [selectedLogo, setSelectedLogo] = useState(LOGOS[0]);
+
+    /* Brendlar — API dan */
+    const { data: brandsData, isLoading: brandsLoading } = useGetBrandsQuery({ page: 0, size: 200, sort: ['name,ASC'] });
+    const brands = useMemo(() => brandsData?.items ?? [], [brandsData]);
+    const [selectedBrandId, setSelectedBrandId] = useState('');
+    const selectedBrand = brands.find((b) => b.id === selectedBrandId) ?? brands[0] ?? null;
+    const brandName = selectedBrand?.name || 'Kompaniya';
+
+    /* Tanlangan brend logotipi — chop etish uchun data-URL */
+    const [logoDataUrl, setLogoDataUrl] = useState(null);
+    const [logoLoading, setLogoLoading] = useState(false);
+    useEffect(() => {
+        let active = true;
+        setLogoDataUrl(null);
+        if (!selectedBrand?.logoUrl) { setLogoLoading(false); return undefined; }
+        setLogoLoading(true);
+        loadAuthImageDataUrl(selectedBrand.logoUrl, selectedBrand.lastModifiedAt)
+            .then((url) => { if (active) setLogoDataUrl(url); })
+            .catch(() => { if (active) setLogoDataUrl(null); })
+            .finally(() => { if (active) setLogoLoading(false); });
+        return () => { active = false; };
+    }, [selectedBrand?.logoUrl, selectedBrand?.lastModifiedAt]);
+
+    /* Aksent rangi */
+    const [accent, setAccent] = useState(loadAccent);
+    const pickAccent = (value) => {
+        setAccent(value);
+        try { localStorage.setItem(ACCENT_KEY, value); } catch { /* xotira mavjud emas */ }
+    };
+    const isPreset = PRESET_COLORS.some((c) => c.value.toLowerCase() === accent.toLowerCase());
 
     const panel = isDark ? 'border-white/10 bg-[#141C2B]' : 'border-[#e2e8f0] bg-white';
     const muted = isDark ? 'text-[#94a3b8]' : 'text-[#64748b]';
     const head  = isDark ? 'text-white' : 'text-[#0f172a]';
 
     const handlePrint = () => {
+        if (logoLoading) { Alert('Logotip yuklanmoqda, bir oz kuting', 'warning'); return; }
         const printWindow = window.open('', '_blank');
         if (!printWindow) {
             Alert('Chop etish oynasini ochib bo‘lmadi. Brauzerda pop-up oynalarga ruxsat bering', 'error');
@@ -54,8 +90,8 @@ export default function OrderPrintModal({ order, onClose, showPrices = true }) {
     };
 
     const generatePrintContent = () => {
-        const logoColor = selectedLogo.color;
-        const logoSrc   = selectedLogo.src;
+        const logoColor = accent;
+        const logoSrc   = logoDataUrl;
 
         const fmtNum = (v) => {
             const n = Number(v ?? 0);
@@ -65,11 +101,7 @@ export default function OrderPrintModal({ order, onClose, showPrices = true }) {
         const fmtDateTime = (v) => v ? new Date(v).toLocaleString('uz-UZ') : '—';
         const items       = order.items || [];
 
-        const statusColor = order.status === 'CONFIRMED'
-            ? '#15803d'
-            : order.status === 'REJECTED'
-            ? '#b91c1c'
-            : '#92400E';
+        const statusColor = statusStyle(order.status, false).solid;
 
         const emptyRows = Array.from({ length: Math.max(0, 8 - items.length) })
             .map(() => `
@@ -83,8 +115,8 @@ export default function OrderPrintModal({ order, onClose, showPrices = true }) {
             `).join('');
 
         const itemRows = items.map((item, idx) => {
-            const piecesPerPack = Number(item.productPiecesPerPack ?? item.piecesPerPack) || 0;
-            const packs = piecesPerPack ? Number(item.quantity ?? 0) / piecesPerPack : null;
+            const split = splitOrderItem(item);
+            const packs = split.packs > 0 || split.piecesPerPack > 0 ? split.packs : null;
             return `
             <tr style="border-bottom:1px solid #e2e8f0;background:#fff;">
                 <td style="background:#fff;padding:7px 8px;text-align:center;font-size:10px;color:#374151;border-right:1px solid #e2e8f0;">${idx + 1}</td>
@@ -92,7 +124,7 @@ export default function OrderPrintModal({ order, onClose, showPrices = true }) {
                     <div style="font-weight:600;color:#0f172a;">${item.productName || '—'}</div>
                     ${item.productBarcode ? `<div style="font-size:8.5px;color:#94a3b8;font-family:monospace;margin-top:1px;">${item.productBarcode}</div>` : ''}
                 </td>
-                <td style="background:#fff;padding:7px 8px;text-align:center;font-size:10px;color:#374151;border-right:1px solid #e2e8f0;">${packs === null ? '—' : fmtNum(packs)}</td>
+                <td style="background:#fff;padding:7px 8px;text-align:center;font-size:10px;color:#374151;border-right:1px solid #e2e8f0;">${packs === null ? '—' : `${fmtNum(packs)}${split.pieces > 0 ? ` + ${fmtNum(split.pieces)} d.` : ''}`}</td>
                 <td style="background:#fff;padding:7px 8px;text-align:center;font-size:10px;color:#374151;${showPrices ? 'border-right:1px solid #e2e8f0;' : ''}">${fmtNum(item.quantity)}</td>
                 ${showPrices ? `<td style="background:#fff;padding:7px 8px;text-align:right;font-size:10px;color:#374151;border-right:1px solid #e2e8f0;">${fmtNum(item.unitPrice)}</td>
                 <td style="background:#fff;padding:7px 8px;text-align:right;font-size:10px;font-weight:700;color:#0f172a;">${fmtNum(item.lineTotal)}</td>` : ''}
@@ -119,9 +151,9 @@ export default function OrderPrintModal({ order, onClose, showPrices = true }) {
   <!-- ═══ HEADER ═══ -->
   <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
     <div style="display:flex;align-items:center;gap:12px;">
-      <img src="${logoSrc}" alt="Logo" style="height:44px;width:auto;object-fit:contain;" />
+      ${logoSrc ? `<img src="${logoSrc}" alt="Logo" style="height:44px;width:auto;max-width:120px;object-fit:contain;" />` : `<div style="height:44px;width:44px;border-radius:10px;background:${logoColor};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:20px;">${brandName.charAt(0).toUpperCase()}</div>`}
       <div>
-        <div style="font-weight:900;font-size:17px;color:#0f172a;letter-spacing:0.5px;">${selectedLogo.company}</div>
+        <div style="font-weight:900;font-size:17px;color:#0f172a;letter-spacing:0.5px;">${brandName}</div>
         <div style="font-size:9px;color:#94a3b8;margin-top:2px;letter-spacing:0.3px;">INNOVATSION PVX PROFILLARI</div>
       </div>
     </div>
@@ -155,7 +187,7 @@ export default function OrderPrintModal({ order, onClose, showPrices = true }) {
           <tr>
             <td style="font-size:10px;font-weight:700;color:#94a3b8;padding-right:12px;letter-spacing:0.5px;">HOLATI:</td>
             <td style="font-size:10px;font-weight:800;text-align:right;color:${statusColor};">
-              ${STATUS_LABEL_MAP[order.status] ?? order.status}
+              ${STATUS_LABEL[order.status] ?? order.status}
             </td>
           </tr>
         </tbody>
@@ -284,7 +316,7 @@ export default function OrderPrintModal({ order, onClose, showPrices = true }) {
 </html>`;
     };
 
-    const previewStatus = STATUS_LABEL_MAP[order.status] ?? order.status;
+    const previewStatus = STATUS_LABEL[order.status] ?? order.status;
 
     return (
         <div
@@ -304,7 +336,7 @@ export default function OrderPrintModal({ order, onClose, showPrices = true }) {
                         <div>
                             <h3 className={`text-lg font-bold ${head}`}>Buyurtmani chop etish</h3>
                             <p className={`text-xs ${muted}`}>
-                                {showPrices ? 'Logotipni tanlang va chop etish' : 'Narxlarsiz yuklash hujjati'}
+                                {showPrices ? 'Brend va rangni tanlab chop eting' : 'Narxlarsiz yuklash hujjati'}
                             </p>
                         </div>
                     </div>
@@ -319,45 +351,80 @@ export default function OrderPrintModal({ order, onClose, showPrices = true }) {
                     </button>
                 </div>
 
-                {/* Logo selection */}
+                {/* Brend va rang tanlash */}
                 <div className="p-6">
-                    <div className="mb-4 flex items-center gap-2">
-                        <LuBuilding2 size={16} className={muted} />
-                        <h4 className={`text-sm font-bold ${head}`}>Kompaniya / Logotip</h4>
+                    <div className="mb-3 flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                            <LuBuilding2 size={16} className={muted} />
+                            <h4 className={`text-sm font-bold ${head}`}>Brend</h4>
+                        </div>
+                        <span className={`text-xs ${muted}`}>{brandsLoading ? 'Yuklanmoqda...' : `${brands.length} ta brend`}</span>
                     </div>
-                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-                        {LOGOS.map((logo) => {
-                            const selected = selectedLogo.id === logo.id;
+                    {brandsLoading ? (
+                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+                            {Array.from({ length: 4 }).map((_, i) => <div key={i} className={`h-24 animate-pulse rounded-xl ${isDark ? 'bg-white/5' : 'bg-slate-100'}`} />)}
+                        </div>
+                    ) : brands.length === 0 ? (
+                        <div className={`rounded-xl border border-dashed p-4 text-sm ${isDark ? 'border-white/10' : 'border-slate-200'} ${muted}`}>
+                            Brendlar topilmadi. «Brendlar» bo‘limida brend qo‘shing — hujjatda uning nomi va logotipi chiqadi.
+                        </div>
+                    ) : (
+                        <div className="grid max-h-56 grid-cols-2 gap-3 overflow-y-auto pr-1 sm:grid-cols-3 md:grid-cols-4">
+                            {brands.map((brand) => {
+                                const selected = selectedBrand?.id === brand.id;
+                                return (
+                                    <button
+                                        key={brand.id}
+                                        type="button"
+                                        onClick={() => setSelectedBrandId(brand.id)}
+                                        className={`relative flex flex-col items-center gap-2 rounded-xl border-2 p-3 transition-all ${
+                                            selected
+                                                ? 'border-amber-400 bg-amber-400/10 shadow-lg'
+                                                : isDark ? 'border-[#334155] hover:border-[#475569]' : 'border-[#e2e8f0] hover:border-[#cbd5e1]'
+                                        }`}
+                                    >
+                                        <div className="flex h-10 items-center justify-center"><BrandThumb brand={brand} size={36} /></div>
+                                        <span className={`max-w-full truncate text-xs font-semibold ${selected ? 'text-amber-600' : muted}`}>{brand.name}</span>
+                                        {selected && (
+                                            <div className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-amber-400 text-[#0F172A]">
+                                                <LuCheck size={12} strokeWidth={3} />
+                                            </div>
+                                        )}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
+
+                    <div className="mt-5 flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                            <LuPalette size={16} className={muted} />
+                            <h4 className={`text-sm font-bold ${head}`}>Hujjat rangi</h4>
+                        </div>
+                        <span className={`font-mono text-xs ${muted}`}>{accent.toUpperCase()}</span>
+                    </div>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                        {PRESET_COLORS.map((c) => {
+                            const selected = c.value.toLowerCase() === accent.toLowerCase();
                             return (
                                 <button
-                                    key={logo.id}
-                                    onClick={() => setSelectedLogo(logo)}
-                                    className={`relative flex flex-col items-center gap-2 rounded-xl border-2 p-3 transition-all ${
-                                        selected
-                                            ? 'border-amber-400 bg-amber-400/10 shadow-lg'
-                                            : isDark
-                                            ? 'border-[#334155] hover:border-[#475569]'
-                                            : 'border-[#e2e8f0] hover:border-[#cbd5e1]'
-                                    }`}
+                                    key={c.value}
+                                    type="button"
+                                    title={c.name}
+                                    aria-label={c.name}
+                                    onClick={() => pickAccent(c.value)}
+                                    className="relative h-9 w-9 rounded-full border-2 transition-transform hover:scale-110"
+                                    style={{ background: c.value, borderColor: selected ? '#FACC15' : 'transparent', boxShadow: selected ? '0 0 0 3px rgba(250,204,21,.35)' : 'inset 0 0 0 1px rgba(0,0,0,.08)' }}
                                 >
-                                    <div className="flex h-10 items-center justify-center">
-                                        <img
-                                            src={logo.src}
-                                            alt={logo.name}
-                                            className="h-8 w-20 object-contain"
-                                        />
-                                    </div>
-                                    <span className={`text-xs font-semibold ${selected ? 'text-amber-600' : muted}`}>
-                                        {logo.company}
-                                    </span>
-                                    {selected && (
-                                        <div className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-amber-400 text-[#0F172A]">
-                                            <LuCheck size={12} strokeWidth={3} />
-                                        </div>
-                                    )}
+                                    {selected && <LuCheck size={14} strokeWidth={3} className="absolute inset-0 m-auto text-white" />}
                                 </button>
                             );
                         })}
+                        <label className={`relative flex h-9 cursor-pointer items-center gap-2 rounded-full border-2 px-3 text-xs font-semibold ${!isPreset ? 'border-amber-400' : isDark ? 'border-[#334155]' : 'border-[#e2e8f0]'} ${muted}`} title="O‘z rangingizni tanlang">
+                            <span className="h-5 w-5 rounded-full" style={{ background: accent, boxShadow: 'inset 0 0 0 1px rgba(0,0,0,.08)' }} />
+                            Boshqa rang
+                            <input type="color" value={accent} onChange={(e) => pickAccent(e.target.value.toUpperCase())} className="absolute inset-0 h-full w-full cursor-pointer opacity-0" aria-label="Rang tanlash" />
+                        </label>
                     </div>
 
                     {/* Preview */}
@@ -365,25 +432,25 @@ export default function OrderPrintModal({ order, onClose, showPrices = true }) {
                         <h4 className={`mb-3 text-sm font-bold ${head}`}>Dizayn ko&apos;rinishi:</h4>
                         <div
                             className="overflow-hidden rounded-xl shadow-lg"
-                            style={{ backgroundColor: '#ffffff', border: `1px solid ${selectedLogo.color}30` }}
+                            style={{ backgroundColor: '#ffffff', border: `1px solid ${accent}30` }}
                         >
                             {/* Preview header bar */}
-                            <div style={{ height: '3px', backgroundColor: selectedLogo.color }} />
+                            <div style={{ height: '3px', backgroundColor: accent }} />
 
                             <div className="p-5">
                                 <div className="flex items-start justify-between gap-4">
                                     <div className="flex items-center gap-3">
-                                        <img
-                                            src={selectedLogo.src}
-                                            alt="Selected logo"
-                                            className="h-10 w-24 flex-shrink-0 object-contain"
-                                        />
+                                        {logoLoading
+                                            ? <span className="flex h-10 w-24 items-center justify-center"><LuLoader className="animate-spin text-slate-400" size={18} /></span>
+                                            : logoDataUrl
+                                                ? <img src={logoDataUrl} alt={brandName} className="h-10 w-24 flex-shrink-0 object-contain" />
+                                                : <span className="flex h-10 w-10 items-center justify-center rounded-lg text-lg font-black text-white" style={{ background: accent }}>{brandName.charAt(0).toUpperCase()}</span>}
                                         <div>
                                             <h3
                                                 className="text-base font-black tracking-wide"
-                                                style={{ color: selectedLogo.color }}
+                                                style={{ color: accent }}
                                             >
-                                                {selectedLogo.company}
+                                                {brandName}
                                             </h3>
                                             <p className="text-[10px] font-medium tracking-wider text-[#94a3b8]">
                                                 INNOVATSION PVX PROFILLARI
@@ -393,7 +460,7 @@ export default function OrderPrintModal({ order, onClose, showPrices = true }) {
                                     <div className="text-right">
                                         <h3
                                             className="text-2xl font-black tracking-[0.3em]"
-                                            style={{ color: selectedLogo.color }}
+                                            style={{ color: accent }}
                                         >
                                             INVOICE
                                         </h3>
@@ -403,11 +470,11 @@ export default function OrderPrintModal({ order, onClose, showPrices = true }) {
                                     </div>
                                 </div>
 
-                                <div className="my-4 h-px" style={{ backgroundColor: selectedLogo.color + '30' }} />
+                                <div className="my-4 h-px" style={{ backgroundColor: accent + '30' }} />
 
                                 <div className="flex items-start justify-between gap-4">
                                     <div>
-                                        <p className="text-[10px] font-bold tracking-widest" style={{ color: selectedLogo.textColor, opacity: 0.7 }}>
+                                        <p className="text-[10px] font-bold tracking-widest" style={{ color: '#0f172a', opacity: 0.6 }}>
                                             MIJOZ
                                         </p>
                                         <p className="mt-0.5 text-sm font-bold" style={{ color: '#0f172a' }}>
@@ -415,10 +482,10 @@ export default function OrderPrintModal({ order, onClose, showPrices = true }) {
                                         </p>
                                     </div>
                                     {showPrices ? <div className="text-right">
-                                        <p className="text-[10px] font-bold tracking-widest" style={{ color: selectedLogo.textColor, opacity: 0.7 }}>
+                                        <p className="text-[10px] font-bold tracking-widest" style={{ color: '#0f172a', opacity: 0.6 }}>
                                             SUMMA
                                         </p>
-                                        <p className="mt-0.5 text-sm font-black" style={{ color: selectedLogo.color }}>
+                                        <p className="mt-0.5 text-sm font-black" style={{ color: accent }}>
                                             {Number(order.totalAmount || 0).toLocaleString('ru-RU').replace(/\u00A0/g, ' ')} so&apos;m
                                         </p>
                                     </div> : (
@@ -434,7 +501,7 @@ export default function OrderPrintModal({ order, onClose, showPrices = true }) {
                                     </p>
                                     <div
                                         className="rounded-full px-3 py-1 text-[10px] font-bold text-white"
-                                        style={{ backgroundColor: selectedLogo.color }}
+                                        style={{ backgroundColor: accent }}
                                     >
                                         {previewStatus}
                                     </div>
@@ -458,9 +525,10 @@ export default function OrderPrintModal({ order, onClose, showPrices = true }) {
                     </button>
                     <button
                         onClick={handlePrint}
-                        className="flex items-center gap-2 rounded-xl bg-[#FACC15] px-6 py-3 text-sm font-bold text-[#0F172A] shadow-lg shadow-[#FACC15]/30 transition-all hover:-translate-y-px hover:bg-[#EAB308] hover:shadow-xl"
+                        disabled={logoLoading || brandsLoading}
+                        className="flex items-center gap-2 rounded-xl bg-[#FACC15] px-6 py-3 text-sm font-bold text-[#0F172A] shadow-lg shadow-[#FACC15]/30 transition-all hover:-translate-y-px hover:bg-[#EAB308] hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                        <LuPrinter size={16} />
+                        {logoLoading ? <LuLoader size={16} className="animate-spin" /> : <LuPrinter size={16} />}
                         Chop etish
                     </button>
                 </div>

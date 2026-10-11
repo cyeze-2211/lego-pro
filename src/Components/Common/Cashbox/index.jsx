@@ -10,6 +10,8 @@ import {
 } from '@chakra-ui/react';
 import { LuSearch, LuWallet, LuX } from 'react-icons/lu';
 import { useGetCashboxesQuery } from '../../../store/services/cashbox.api';
+import { ROLES } from '../../../app/permissions/roles';
+import { useAppSelector } from '../../../store/hooks';
 import { BRAND_COLORS, useAppTheme } from '../../../theme/tokens';
 import { Alert } from '../../Other/UI/Alert/Alert';
 import Create from './__components/Create';
@@ -22,8 +24,10 @@ import { formatNumber } from '../../ui/number-format';
 
 export default function Cashbox() {
     const { pathname } = useLocation();
-    const isZayavkachi = pathname.startsWith('/zayavkachi');
-    const base = pathname.startsWith('/kassir') ? '/kassir' : isZayavkachi ? '/zayavkachi' : '';
+    const role = useAppSelector((state) => state.auth.role);
+    // Zayavkachi va ximik uchun kassalar faqat ko‘rish rejimida
+    const isZayavkachi = pathname.startsWith('/zayavkachi') || role === ROLES.XIMIK;
+    const base = pathname.startsWith('/kassir') ? '/kassir' : pathname.startsWith('/zayavkachi') ? '/zayavkachi' : '';
     const [search, setSearch] = useState('');
     const [query, setQuery] = useState('');
     const { data: cashboxes = [], isLoading, error } = useGetCashboxesQuery();

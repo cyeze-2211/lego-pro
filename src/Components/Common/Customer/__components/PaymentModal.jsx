@@ -2,14 +2,15 @@ import { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import { Box, Button, Dialog, Field, HStack, Portal, Spinner, Text, VStack } from '@chakra-ui/react';
 import { Check, X } from 'lucide-react';
-import { LuCalendarDays, LuDollarSign, LuStickyNote, LuWallet } from 'react-icons/lu';
+import { LuCalendarDays, LuStickyNote, LuWallet } from 'react-icons/lu';
 import { useAppTheme } from '../../../../theme/tokens';
 import FormControl from '../../../ui/FormControl';
 import { Alert } from '../../../Other/UI/Alert/Alert';
 import { useCreatePaymentMutation } from '../../../../store/services/payment.api';
 import { useGetCashboxesQuery } from '../../../../store/services/cashbox.api';
 import { formatNumber } from '../../../ui/number-format';
-import UsdCalculator, { CalculatorToggle, formatTypedAmount } from '../../../ui/UsdCalculator';
+import CurrencyAmountField from '../../../ui/CurrencyAmountField';
+import { buildCurrencyPayload, emptyCurrencyValue, validateCurrencyValue } from '../../../ui/currency';
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -23,10 +24,9 @@ export default function PaymentModal({ open, onClose, customerId, order = null }
     const isOrderMode = Boolean(order);
 
     const [cashboxId, setCashboxId] = useState('');
-    const [amount, setAmount] = useState('');
+    const [money, setMoney] = useState(emptyCurrencyValue);
     const [summary, setSummary] = useState('');
     const [paidAt, setPaidAt] = useState(today());
-    const [calcOpen, setCalcOpen] = useState(false);
 
     const { isDark, accentColor, cardBg, cardBorder, textColor, subtitleColor } = useAppTheme();
     const modalBorder = isDark ? cardBorder : '#94A3B8';
@@ -38,32 +38,23 @@ export default function PaymentModal({ open, onClose, customerId, order = null }
     useEffect(() => {
         if (open) {
             setCashboxId('');
-            setAmount('');
+            setMoney(emptyCurrencyValue());
             setSummary('');
             setPaidAt(today());
-            setCalcOpen(false);
         }
     }, [open]);
 
-    const applyTyped = (raw, setter) => {
-        const next = formatTypedAmount(raw);
-        if (next !== null) setter(next);
-    };
-
     const save = async () => {
-        const numericAmount = Number(String(amount).replace(/\s/g, '').replace(',', '.'));
         if (!cashboxId) return Alert('Kassani tanlang', 'error');
-        if (!amount || !Number.isFinite(numericAmount) || numericAmount <= 0)
-            return Alert('Summa 0 dan katta bo\'lishi kerak', 'error');
-        if (!/^\d+(?:[.,]\d{1,2})?$/.test(String(amount).replace(/\s/g, '')))
-            return Alert('Summa 2 kasr xonagacha bo\'lishi kerak', 'error');
+        const moneyError = validateCurrencyValue(money);
+        if (moneyError) return Alert(moneyError, 'error');
         if (!paidAt || paidAt > today())
             return Alert('Sana bugun yoki undan oldingi kun bo\'lishi kerak', 'error');
 
         const payload = {
             customerId,
             cashboxId,
-            amount: numericAmount,
+            ...buildCurrencyPayload(money),
             paidAt,
             ...(summary.trim() && { summary: summary.trim() }),
             ...(isOrderMode && { salesOrderId: order.id }),
@@ -89,7 +80,7 @@ export default function PaymentModal({ open, onClose, customerId, order = null }
                         borderWidth="1px"
                         borderRadius="2xl"
                         overflow="hidden"
-                        maxW={calcOpen ? '760px' : '560px'}
+                        maxW="600px"
                         w="calc(100% - 32px)"
                     >
                         {/* top accent bar */}
@@ -196,50 +187,25 @@ export default function PaymentModal({ open, onClose, customerId, order = null }
                                     )}
                                 </Field.Root>
 
-                                {/* summa + sana */}
-                                <HStack align="end" gap={4} flexWrap="wrap" flexDirection={{ base: 'column', sm: 'row' }}>
-                                    <Field.Root required flex="1" w="100%" minW="180px">
-                                        <Field.Label color={textColor}>
-                                            <HStack gap={2}>
-                                                <LuDollarSign size={16} />
-                                                <span>Summa (so&apos;m)</span>
-                                            </HStack>
-                                            <Field.RequiredIndicator />
-                                        </Field.Label>
-                                        <FormControl
-                                            value={amount}
-                                            onChange={(e) => applyTyped(e.target.value, setAmount)}
-                                            inputMode="decimal"
-                                            placeholder="0"
-                                        />
-                                    </Field.Root>
+                                {/* summa (valyuta bilan) */}
+                                <CurrencyAmountField value={money} onChange={setMoney} disabled={isLoading} />
 
-                                    <Field.Root required flex="1" w="100%" minW="180px">
-                                        <Field.Label color={textColor}>
-                                            <HStack gap={2}>
-                                                <LuCalendarDays size={16} />
-                                                <span>Sana</span>
-                                            </HStack>
-                                            <Field.RequiredIndicator />
-                                        </Field.Label>
-                                        <FormControl
-                                            type="date"
-                                            value={paidAt}
-                                            max={today()}
-                                            onChange={(e) => setPaidAt(e.target.value)}
-                                        />
-                                    </Field.Root>
-
-                                    <CalculatorToggle open={calcOpen} onClick={() => setCalcOpen((v) => !v)} />
-                                </HStack>
-
-                                {calcOpen && (
-                                    <UsdCalculator
-                                        active={open && calcOpen}
-                                        onApply={setAmount}
-                                        applyLabel="So'mni to'lov summasiga qo'yish"
+                                {/* sana */}
+                                <Field.Root required>
+                                    <Field.Label color={textColor}>
+                                        <HStack gap={2}>
+                                            <LuCalendarDays size={16} />
+                                            <span>Sana</span>
+                                        </HStack>
+                                        <Field.RequiredIndicator />
+                                    </Field.Label>
+                                    <FormControl
+                                        type="date"
+                                        value={paidAt}
+                                        max={today()}
+                                        onChange={(e) => setPaidAt(e.target.value)}
                                     />
-                                )}
+                                </Field.Root>
 
                                 {/* izoh — general modeda ko'rsatiladi */}
                                 {!isOrderMode && (
@@ -264,7 +230,7 @@ export default function PaymentModal({ open, onClose, customerId, order = null }
                         </Dialog.Body>
 
                         <Dialog.Footer gap={3} pt={5} pb={6} borderTopWidth="1px" borderColor={modalBorder}>
-                            <Button variant="ghost" onClick={onClose} color={subtitleColor}>
+                            <Button variant="ghost" onClick={onClose} color={subtitleColor} borderRadius="xl" h="44px" px={5}>
                                 Bekor qilish
                             </Button>
                             <Button
@@ -273,7 +239,9 @@ export default function PaymentModal({ open, onClose, customerId, order = null }
                                 bg={accentColor}
                                 color="black"
                                 borderRadius="xl"
+                                h="44px"
                                 px={8}
+                                fontWeight="semibold"
                             >
                                 {isLoading ? (
                                     <HStack>

@@ -25,7 +25,7 @@ const TABS = [
     },
     {
         key: 'completed',
-        label: 'Tugallangan',
+        label: 'Tugallandi',
         Icon: LuCircleCheckBig,
         statuses: ['CONFIRMED'],
         hasStatusFilter: false,
@@ -33,7 +33,7 @@ const TABS = [
     },
     {
         key: 'cancelled',
-        label: 'Rad etilgan',
+        label: 'Bekor qilindi',
         Icon: LuBan,
         statuses: ['REJECTED'],
         hasStatusFilter: false,

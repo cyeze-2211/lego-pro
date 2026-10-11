@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import {
     LuArrowRight, LuClock3, LuWallet,
-    LuReceiptText, LuUsers, LuClipboardList,
+    LuReceiptText, LuUsers, LuTruck,
 } from 'react-icons/lu';
 import { useAppTheme } from '../../../theme/tokens';
 
@@ -18,13 +18,13 @@ export default function KassirDashboard() {
     const totalCashboxes = 0;
     const totalExpenses  = 0;
     const totalCustomers = 0;
-    const totalOrders    = 0;
+    const totalSuppliers = 0;
 
     const quickLinks = [
         { label: 'Kassalar',    path: '/kassir/cashboxes', icon: LuWallet,        badge: 'bg-emerald-400/10 text-emerald-500 border-emerald-400/20' },
         { label: 'Mijozlar',    path: '/kassir/customers', icon: LuUsers,         badge: 'bg-[#0ea5e9]/10 text-[#0ea5e9] border-[#0ea5e9]/20' },
         { label: 'Xarajatlar',  path: '/kassir/expenses',  icon: LuReceiptText,   badge: 'bg-rose-400/10 text-rose-500 border-rose-400/20' },
-        { label: 'Buyurtmalar', path: '/kassir/orders',    icon: LuClipboardList, badge: 'bg-amber-400/10 text-amber-500 border-amber-400/20' },
+        { label: 'Yetkazib beruvchilar', path: '/kassir/suppliers', icon: LuTruck, badge: 'bg-violet-400/10 text-violet-500 border-violet-400/20' },
     ];
 
     return (
@@ -54,7 +54,7 @@ export default function KassirDashboard() {
                     { label: 'Kassalar',    value: totalCashboxes, icon: LuWallet,        cls: 'bg-emerald-400/10 text-emerald-500' },
                     { label: 'Mijozlar',    value: totalCustomers, icon: LuUsers,         cls: 'bg-[#0ea5e9]/10 text-[#0ea5e9]'     },
                     { label: 'Xarajatlar',  value: totalExpenses,  icon: LuReceiptText,   cls: 'bg-rose-400/10 text-rose-500'       },
-                    { label: 'Buyurtmalar', value: totalOrders,    icon: LuClipboardList, cls: 'bg-amber-400/10 text-amber-500'     },
+                    { label: 'Yetkazib beruvchilar', value: totalSuppliers, icon: LuTruck, cls: 'bg-violet-400/10 text-violet-500' },
                 ].map(({ label, value, icon: Icon, cls }) => (
                     <div key={label} className={`flex flex-col gap-2.5 sm:gap-3 rounded-2xl border p-3 sm:p-4 shadow-md ${panel}`}>
                         <span className={`flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl ${cls}`}>
@@ -105,24 +105,24 @@ export default function KassirDashboard() {
                     </div>
                 </div>
 
-                {/* Recent orders */}
+                {/* Suppliers */}
                 <div className={`rounded-2xl border shadow-md ${panel}`}>
                     <div className={`flex items-center justify-between border-b px-4 py-3 sm:px-5 sm:py-3.5 ${line}`}>
                         <div className="flex items-center gap-2.5">
-                            <span className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-xl bg-amber-400/10 text-amber-500">
-                                <LuClipboardList size={14} />
+                            <span className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-xl bg-violet-400/10 text-violet-500">
+                                <LuTruck size={14} />
                             </span>
                             <div>
-                                <p className={`text-sm font-bold ${head}`}>So&apos;nggi buyurtmalar</p>
-                                <p className={`hidden sm:block text-xs ${muted}`}>Oxirgi 5 ta buyurtma</p>
+                                <p className={`text-sm font-bold ${head}`}>Yetkazib beruvchilar</p>
+                                <p className={`hidden sm:block text-xs ${muted}`}>Balans va to&apos;lovlar</p>
                             </div>
                         </div>
-                        <Link to="/kassir/orders" className="flex items-center gap-1 text-xs font-semibold text-amber-500 hover:text-amber-600 whitespace-nowrap">
+                        <Link to="/kassir/suppliers" className="flex items-center gap-1 text-xs font-semibold text-violet-500 hover:text-violet-600 whitespace-nowrap">
                             Barchasi <LuArrowRight size={12} />
                         </Link>
                     </div>
                     <div className={`divide-y ${divider}`}>
-                        <p className={`py-8 text-center text-sm ${muted}`}>Buyurtmalar topilmadi</p>
+                        <p className={`py-8 text-center text-sm ${muted}`}>Yetkazib beruvchilar ro&apos;yxatini oching</p>
                     </div>
                 </div>
             </div>

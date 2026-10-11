@@ -318,7 +318,7 @@ export default function ProductChart() {
                                 Eng ko‘p sotilgan mahsulotlar
                             </h1>
                             <p className={`mt-1 text-xs ${muted}`}>
-                                Faqat <span className="font-semibold text-emerald-500">tasdiqlangan (CONFIRMED)</span> va{' '}
+                                Faqat <span className="font-semibold text-emerald-500">tugallangan (CONFIRMED)</span> va{' '}
                                 <span className="font-semibold text-emerald-500">to‘liq to‘langan (PAID)</span> buyurtmalar asosida
                             </p>
                         </div>

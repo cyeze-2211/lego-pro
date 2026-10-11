@@ -8,10 +8,16 @@ export const customerApi = createApi({
   endpoints: (builder) => ({
     // GET /api/v1/customers — sahifalangan ro'yxat (name filtri bilan)
     getCustomers: builder.query({
-      query: ({ name, page = 0, size = 12, sort = ['createdAt,DESC', 'id,DESC'] } = {}) => ({
+      query: ({ name, regionId, page = 0, size = 12, sort = ['createdAt,DESC', 'id,DESC'] } = {}) => ({
         url: '/customers',
         method: 'GET',
-        params: { ...(name ? { name } : {}), page, size, sort },
+        params: {
+          ...(name ? { name } : {}),
+          ...(regionId != null && regionId !== '' ? { regionId } : {}),
+          page,
+          size,
+          sort,
+        },
       }),
       transformResponse: (response) => ({ items: response.data, pagination: response.pagination }),
       providesTags: [{ type: 'Customer', id: 'LIST' }],

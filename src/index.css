@@ -293,3 +293,30 @@ table thead th {
 
 
 
+
+/* ── Akt sverka: yuklab olinadigan qog‘oz ko‘rinishi mavzudan mustaqil (doim oq) ── */
+.sverka-paper { color-scheme: light; }
+.theme-dark .sverka-paper table thead th,
+.dark .sverka-paper table thead th,
+.theme-light .sverka-paper table thead th,
+.sverka-paper table thead th {
+  background: #f3f4f6 !important;
+  color: #111827 !important;
+}
+.theme-dark .sverka-paper table tbody td,
+.dark .sverka-paper table tbody td,
+.theme-light .sverka-paper table tbody td,
+.sverka-paper table tbody td {
+  background: #ffffff !important;
+}
+.theme-dark .sverka-paper table tbody tr.sverka-total td,
+.dark .sverka-paper table tbody tr.sverka-total td,
+.theme-light .sverka-paper table tbody tr.sverka-total td,
+.sverka-paper table tbody tr.sverka-total td {
+  background: #f3f4f6 !important;
+}
+.theme-dark .sverka-paper table tbody tr:hover td,
+.dark .sverka-paper table tbody tr:hover td,
+.theme-light .sverka-paper table tbody tr:hover td {
+  background: inherit !important;
+}

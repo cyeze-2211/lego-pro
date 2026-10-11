@@ -13,9 +13,10 @@ import {
     LuChevronLeft, LuChevronRight, LuPhone, LuSearch,
     LuUsers, LuX, LuClock3, LuTriangleAlert, LuCalendarCheck,
     LuCalendarDays, LuStickyNote, LuSlidersHorizontal, LuChevronDown,
-    LuChevronUp, LuRotateCcw, LuArrowUp, LuArrowDown, LuArrowUpDown,
+    LuChevronUp, LuRotateCcw, LuArrowUp, LuArrowDown, LuArrowUpDown, LuMapPin,
 } from 'react-icons/lu';
 import { useGetCustomersQuery } from '../../../store/services/customer.api';
+import { useGetRegionsQuery } from '../../../store/services/region.api';
 import { BRAND_COLORS, useAppTheme } from '../../../theme/tokens';
 import { Alert } from '../../Other/UI/Alert/Alert';
 import DeleteCustomer from '../__components/DeleteCustomer';
@@ -145,6 +146,7 @@ export default function ZayavkachiCustomers() {
     /* ── Filter state ── */
     const [search, setSearch]           = useState('');
     const [query, setQuery]             = useState('');
+    const [regionId, setRegionId]       = useState('');
     const [page, setPage]               = useState(0);
     const [pageSize, setPageSize]       = useState(DEFAULT_PAGE_SIZE);
     const [sortKey, setSortKey]         = useState(DEFAULT_SORT_KEY);
@@ -159,8 +161,10 @@ export default function ZayavkachiCustomers() {
     const serverSortKey = activeSortOption.server ? sortKey : DEFAULT_SORT_KEY;
     const serverSortDir = activeSortOption.server ? sortDir : DEFAULT_SORT_DIR;
 
+    const { data: regions = [], isError: regionsError } = useGetRegionsQuery();
     const { data: customerResult, isLoading, error } = useGetCustomersQuery({
         name: query || undefined,
+        regionId: regionId || undefined,
         page,
         size: pageSize,
         sort: [`${serverSortKey},${serverSortDir.toUpperCase()}`, 'id,DESC'],
@@ -228,18 +232,24 @@ export default function ZayavkachiCustomers() {
         if (error) Alert(error?.data?.message || 'Mijozlarni yuklashda xatolik', 'error');
     }, [error]);
 
+    useEffect(() => {
+        if (regionsError) Alert('Viloyatlar ro‘yxatini yuklashda xatolik', 'error');
+    }, [regionsError]);
+
     /* ── Helpers ── */
     const isDefaultSort = sortKey === DEFAULT_SORT_KEY && sortDir === DEFAULT_SORT_DIR;
-    const hasFilter = Boolean(query || !isDefaultSort || pageSize !== DEFAULT_PAGE_SIZE);
+    const hasFilter = Boolean(query || regionId || !isDefaultSort || pageSize !== DEFAULT_PAGE_SIZE);
 
     const activeCount =
         (query ? 1 : 0) +
+        (regionId ? 1 : 0) +
         (!isDefaultSort ? 1 : 0) +
         (pageSize !== DEFAULT_PAGE_SIZE ? 1 : 0);
 
     const resetFilters = () => {
         setSearch('');
         setQuery('');
+        setRegionId('');
         setSortKey(DEFAULT_SORT_KEY);
         setSortDir(DEFAULT_SORT_DIR);
         setPageSize(DEFAULT_PAGE_SIZE);
@@ -264,6 +274,9 @@ export default function ZayavkachiCustomers() {
             ? 'border-white/10 bg-[#1e293b]/80 text-white placeholder:text-slate-500 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20'
             : 'border-[#e2e8f0] bg-white text-[#0f172a] placeholder:text-slate-400 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20',
     ].join(' ');
+
+    const labelCx = isDark ? 'text-slate-400' : 'text-[#64748b]';
+    const mutedCx = isDark ? 'text-slate-500' : 'text-slate-400';
 
     const createButton = <CustomerCreate />;
 
@@ -353,13 +366,13 @@ export default function ZayavkachiCustomers() {
                     <div className="overflow-hidden">
                         <Box p={5} bg={cardBg}>
 
-                            <form onSubmit={submitSearch} >
-                                <div className="lg:col-span-5">
-                                    <label className={`mb-1.5 flex items-center gap-1.5 text-xs font-semibold ${subtitleColor}`}>
+                            <form onSubmit={submitSearch} className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+                                <div className="lg:col-span-8">
+                                    <label className={`mb-1.5 flex items-center gap-1.5 text-xs font-semibold ${labelCx}`}>
                                         <LuSearch size={13} /> Mijoz nomi bo‘yicha qidirish
                                     </label>
                                     <div className="relative">
-                                        <LuSearch className={`pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 ${subtitleColor}`} />
+                                        <LuSearch className={`pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 ${mutedCx}`} />
                                         <input
                                             type="search"
                                             placeholder="Mijoz nomini kiriting..."
@@ -383,6 +396,39 @@ export default function ZayavkachiCustomers() {
                                     </div>
 
                                 </div>
+                                <div className="lg:col-span-4">
+                                    <label className={`mb-1.5 flex items-center gap-1.5 text-xs font-semibold ${labelCx}`}>
+                                        <LuMapPin size={13} /> Viloyat
+                                    </label>
+                                    <div className="relative">
+                                        <LuMapPin className={`pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 ${regionId ? 'text-amber-500' : mutedCx}`} />
+                                        <select
+                                            value={regionId}
+                                            onChange={(e) => { setRegionId(e.target.value); setPage(0); }}
+                                            className={`${inputCx} appearance-none pl-10 pr-10 cursor-pointer`}
+                                            aria-label="Viloyat bo‘yicha filtrlash"
+                                        >
+                                            <option value="">Barcha viloyatlar</option>
+                                            {regions.map((region) => (
+                                                <option key={region.id} value={region.id}>{region.name}</option>
+                                            ))}
+                                        </select>
+                                        {regionId ? (
+                                            <button
+                                                type="button"
+                                                onClick={() => { setRegionId(''); setPage(0); }}
+                                                className={`absolute right-3 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full transition-colors ${
+                                                    isDark ? 'text-slate-400 hover:bg-white/[0.06] hover:text-white' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-700'
+                                                }`}
+                                                aria-label="Viloyat filtrini tozalash"
+                                            >
+                                                <LuX size={13} />
+                                            </button>
+                                        ) : (
+                                            <LuChevronDown className={`pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 h-4 w-4 ${mutedCx}`} />
+                                        )}
+                                    </div>
+                                </div>
                             </form>
                         </Box>
                     </div>
@@ -396,8 +442,8 @@ export default function ZayavkachiCustomers() {
                 <Box p={8} textAlign="center" color={isDark ? 'red.300' : 'red.600'}>Ma&apos;lumotlarni yuklashda xatolik</Box>
             ) : customers.length === 0 ? (
                 <EmptyData
-                    text={query ? 'Qidiruv bo‘yicha mijoz topilmadi' : 'Hozircha mijozlar yo‘q'}
-                    description={query ? "Boshqa nom bilan qidirib ko‘ring yoki filtrlarni tozalang." : "Yangi mijoz qo‘shib ma’lumotnomani to‘ldiring."}
+                    text={query || regionId ? 'Filtr bo‘yicha mijoz topilmadi' : 'Hozircha mijozlar yo‘q'}
+                    description={query || regionId ? "Boshqa nom yoki viloyatni tanlab ko‘ring, yoki filtrlarni tozalang." : "Yangi mijoz qo‘shib ma’lumotnomani to‘ldiring."}
                     action={hasFilter ? (
                         <Button onClick={resetFilters} variant="outline" borderColor={cardBorder} color={textColor} borderRadius="xl">
                             <HStack gap={2}><LuRotateCcw size={16} /><span>Filtrlarni tozalash</span></HStack>

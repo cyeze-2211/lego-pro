@@ -1,5 +1,5 @@
 import { lazy } from 'react';
-import { ROLES, WAREHOUSE_ROLES, ZAYAVKACHI_ROLES, BUXGALTER_ROLES, KASSIR_ROLES } from '../permissions/roles';
+import { ROLES, WAREHOUSE_ROLES, ZAYAVKACHI_ROLES, BUXGALTER_ROLES, KASSIR_ROLES, XIMIK_ROLES } from '../permissions/roles';
 
 export const STANOKCHI_ROLES = [ROLES.STANOKCHI];
 export const MIKSERCHI_ROLES = [ROLES.MIKSERCHI];
@@ -20,7 +20,7 @@ export const ROUTES = [
     {
         path: '/profile',
         component: lazy(() => import('../../Components/Common/Profile')),
-        roles: [ROLES.MANAGER, ...WAREHOUSE_ROLES, ...ZAYAVKACHI_ROLES, ...BUXGALTER_ROLES, ...KASSIR_ROLES],
+        roles: [ROLES.MANAGER, ...WAREHOUSE_ROLES, ...ZAYAVKACHI_ROLES, ...BUXGALTER_ROLES, ...KASSIR_ROLES, ...XIMIK_ROLES],
     },
     {
         path: '/warehouses',
@@ -50,32 +50,32 @@ export const ROUTES = [
     {
         path: '/raw',
         component: lazy(() => import('../../Components/Common/Raw')),
-        roles: ROLES.MANAGER,
+        roles: [ROLES.MANAGER, ...XIMIK_ROLES],
     },
     {
         path: '/raw/:id',
         component: lazy(() => import('../../Components/Common/RawDetail')),
-        roles: ROLES.MANAGER,
+        roles: [ROLES.MANAGER, ...XIMIK_ROLES],
     },
     {
         path: '/recipes',
         component: lazy(() => import('../../Components/Common/Recipe')),
-        roles: ROLES.MANAGER,
+        roles: [ROLES.MANAGER, ...XIMIK_ROLES],
     },
     {
         path: '/recipes/:id',
         component: lazy(() => import('../../Components/Common/RecipeDetail')),
-        roles: ROLES.MANAGER,
+        roles: [ROLES.MANAGER, ...XIMIK_ROLES],
     },
     {
         path: '/machines',
         component: lazy(() => import('../../Components/Common/Machine')),
-        roles: ROLES.MANAGER,
+        roles: [ROLES.MANAGER, ...XIMIK_ROLES],
     },
     {
         path: '/machines/:id',
         component: lazy(() => import('../../Components/Common/MachineDetail')),
-        roles: ROLES.MANAGER,
+        roles: [ROLES.MANAGER, ...XIMIK_ROLES],
     },
     {
         path: '/customers',
@@ -85,12 +85,12 @@ export const ROUTES = [
     {
         path: '/suppliers',
         component: lazy(() => import('../../Components/Common/Supplier')),
-        roles: ROLES.MANAGER,
+        roles: [ROLES.MANAGER, ...XIMIK_ROLES],
     },
     {
         path: '/suppliers/:id',
         component: lazy(() => import('../../Components/Common/SupplierDetail')),
-        roles: ROLES.MANAGER,
+        roles: [ROLES.MANAGER, ...XIMIK_ROLES],
     },
     {
         path: '/users',
@@ -140,17 +140,17 @@ export const ROUTES = [
     {
         path: '/cashboxes',
         component: lazy(() => import('../../Components/Common/Cashbox')),
-        roles: ROLES.MANAGER,
+        roles: [ROLES.MANAGER, ...XIMIK_ROLES],
     },
     {
         path: '/cashboxes/:id',
         component: lazy(() => import('../../Components/Common/CashboxDetail')),
-        roles: ROLES.MANAGER,
+        roles: [ROLES.MANAGER, ...XIMIK_ROLES],
     },
     {
         path: '/expenses',
         component: lazy(() => import('../../Components/Common/Expense')),
-        roles: ROLES.MANAGER,
+        roles: [ROLES.MANAGER, ...XIMIK_ROLES],
     },
     {
         path: '/reminders',
@@ -165,7 +165,7 @@ export const ROUTES = [
     {
         path: '/expenses/:id',
         component: lazy(() => import('../../Components/Common/ExpenseDetail')),
-        roles: ROLES.MANAGER,
+        roles: [ROLES.MANAGER, ...XIMIK_ROLES],
     },
     {
         path: '/products/:id',
@@ -389,6 +389,18 @@ export const ROUTES = [
         roles: [...ZAYAVKACHI_ROLES, ...BUXGALTER_ROLES],
     },
 
+    // ── Ximik routes ─────────────────────────────────────────────────────
+    {
+        path: '/ximik',
+        component: lazy(() => import('../../Components/Ximik/Dashboard')),
+        roles: XIMIK_ROLES,
+    },
+    {
+        path: '/ximik/warehouse',
+        component: lazy(() => import('../../Components/Staff/StockWarehouse')),
+        roles: XIMIK_ROLES,
+    },
+
     // ── Kassir routes ────────────────────────────────────────────────────
     {
         path: '/kassir',
@@ -427,11 +439,6 @@ export const ROUTES = [
         component: lazy(() => import('../../Components/Zayavkachi/CustomerEdit')),
         roles: KASSIR_ROLES,
     },
-    {
-        path: '/kassir/customers/:id/orders/new',
-        component: lazy(() => import('../../Components/Zayavkachi/CustomerOrderCreate')),
-        roles: KASSIR_ROLES,
-    },
     // Xarajatlar
     {
         path: '/kassir/expenses',
@@ -443,31 +450,27 @@ export const ROUTES = [
         component: lazy(() => import('../../Components/Common/ExpenseDetail')),
         roles: KASSIR_ROLES,
     },
+    // Xarajat kategoriyalari
+    {
+        path: '/kassir/expense-categories',
+        component: lazy(() => import('../../Components/Common/ExpenseCategory')),
+        roles: KASSIR_ROLES,
+    },
+    // Yetkazib beruvchilar
+    {
+        path: '/kassir/suppliers',
+        component: lazy(() => import('../../Components/Common/Supplier')),
+        roles: KASSIR_ROLES,
+    },
+    {
+        path: '/kassir/suppliers/:id',
+        component: lazy(() => import('../../Components/Common/SupplierDetail')),
+        roles: KASSIR_ROLES,
+    },
     // Sverka
     {
         path: '/kassir/reconciliation',
         component: lazy(() => import('../../Components/Common/CustomerReconciliation')),
-        roles: KASSIR_ROLES,
-    },
-    // Buyurtmalar
-    {
-        path: '/kassir/orders',
-        component: lazy(() => import('../../Components/Zayavkachi/Orders')),
-        roles: KASSIR_ROLES,
-    },
-    {
-        path: '/kassir/orders/new',
-        component: lazy(() => import('../../Components/Zayavkachi/OrderCreate')),
-        roles: KASSIR_ROLES,
-    },
-    {
-        path: '/kassir/orders/:id',
-        component: lazy(() => import('../../Components/Zayavkachi/OrderDetail')),
-        roles: KASSIR_ROLES,
-    },
-    {
-        path: '/kassir/orders/:id/edit',
-        component: lazy(() => import('../../Components/Zayavkachi/OrderEdit')),
         roles: KASSIR_ROLES,
     },
 ];

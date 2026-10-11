@@ -17,16 +17,20 @@ import { useUpdateProductColorMutation } from '../../../../store/services/produc
 import { useAppTheme } from '../../../../theme/tokens';
 import { Alert } from '../../../Other/UI/Alert/Alert';
 import FormControl from '../../../ui/FormControl';
+import ColorCodeField from './ColorCodeField';
+import { ColorDot } from '../../../ui/ColorSwatch';
+import { isValidHex, normalizeHex } from '../../../ui/color-utils';
 
 export default function Edit({ color }) {
     const { open, onOpen, onClose } = useDisclosure();
     const [name, setName] = useState(color.name);
+    const [code, setCode] = useState(color.code || '');
     const [updateColor, { isLoading }] = useUpdateProductColorMutation();
     const { isDark, accentColor, cardBg, cardBorder, textColor, subtitleColor } = useAppTheme();
     const modalBorder = isDark ? cardBorder : '#94A3B8';
 
     useEffect(() => {
-        if (open) setName(color.name);
+        if (open) { setName(color.name); setCode(color.code || ''); }
     }, [open, color]);
 
     const handleSubmit = async () => {
@@ -40,8 +44,12 @@ export default function Edit({ color }) {
             Alert('Rang nomi 255 belgidan oshmasligi kerak', 'error');
             return;
         }
+        if (code && !isValidHex(code)) {
+            Alert('Rang kodi #RRGGBB ko‘rinishida bo‘lishi kerak', 'error');
+            return;
+        }
         try {
-            await updateColor({ id: color.id, data: { name: trimmedName } }).unwrap();
+            await updateColor({ id: color.id, data: { name: trimmedName, code: code ? normalizeHex(code) : null } }).unwrap();
             Alert('Rang yangilandi', 'success');
             onClose();
         } catch (error) {
@@ -60,9 +68,12 @@ export default function Edit({ color }) {
                 onClick={onOpen}
                 variant="ghost"
                 size="sm"
+                w="34px"
+                h="34px"
+                p={0}
+                minW={0}
                 color={accentColor}
-                borderRadius="xl"
-                px={3}
+                borderRadius="lg"
                 aria-label="Tahrirlash"
                 _hover={{ bg: isDark ? 'rgba(250, 204, 21, 0.16)' : 'yellow.50', color: isDark ? 'yellow.200' : 'yellow.700' }}
             >
@@ -81,10 +92,11 @@ export default function Edit({ color }) {
                                         <Palette size={24} />
                                     </Box>
                                     <span>Rangni tahrirlash</span>
+                                    <ColorDot code={isValidHex(code) ? code : ''} size={22} ml={1} />
                                 </HStack>
                             </Dialog.Header>
                             <Dialog.CloseTrigger asChild>
-                                <Button variant="ghost" color={subtitleColor} size="sm" position="absolute" top="3" right="3" aria-label="Yopish" disabled={isLoading}><X /></Button>
+                                <Button variant="ghost" color={subtitleColor} size="sm" w="32px" h="32px" p={0} minW={0} position="absolute" top="3" right="3" aria-label="Yopish" disabled={isLoading}><X /></Button>
                             </Dialog.CloseTrigger>
 
                             <Dialog.Body py={6}>
@@ -105,6 +117,7 @@ export default function Edit({ color }) {
                                             minH="52px"
                                         />
                                     </Field.Root>
+                                    <ColorCodeField value={code} onChange={setCode} disabled={isLoading} />
                                 </VStack>
                             </Dialog.Body>
 
@@ -126,5 +139,6 @@ Edit.propTypes = {
     color: PropTypes.shape({
         id: PropTypes.string.isRequired,
         name: PropTypes.string.isRequired,
+        code: PropTypes.string,
     }).isRequired,
 };

@@ -1,5 +1,7 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
 import { axiosBaseQuery } from '../baseQuary/axiosBaseQuery';
+import { machineApi } from './machine.api';
+import { machineOutputApi } from './machineOutput.api';
 
 export const productStockApi = createApi({
     reducerPath: 'productStockApi',
@@ -77,6 +79,16 @@ export const productStockApi = createApi({
                 { type: 'ProductStock', id: 'LIST' },
                 { type: 'StockTransaction', id: 'LIST' },
             ],
+            // PRODUCE stanok holati va ishlab chiqarish tarixini o‘zgartiradi — ularning keshini ham yangilaymiz
+            onQueryStarted: async (arg, { dispatch, queryFulfilled }) => {
+                try {
+                    await queryFulfilled;
+                    if (arg?.machineId) {
+                        dispatch(machineApi.util.invalidateTags([{ type: 'Machine', id: arg.machineId }, { type: 'Machine', id: 'LIST' }]));
+                        dispatch(machineOutputApi.util.invalidateTags(['MachineOutput']));
+                    }
+                } catch { /* xatolik chaqiruvchi tomonda ko‘rsatiladi */ }
+            },
         }),
     }),
 });

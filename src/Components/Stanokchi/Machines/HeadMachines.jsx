@@ -114,7 +114,7 @@ export default function StanokchiMachines() {
     const { isDark, pageBg, cardBg, cardBorder, textColor, subtitleColor, accentColor } = useAppTheme();
     const { setPageHeader } = useHeaderContext();
 
-    const { data: result, isLoading, error } = useGetMachinesQuery({ page, size: PAGE_SIZE });
+    const { data: result, isLoading, isFetching, error } = useGetMachinesQuery({ page, size: PAGE_SIZE });
 
     const machines = result?.items || [];
     const pagination = result?.pagination;
@@ -131,6 +131,8 @@ export default function StanokchiMachines() {
             {/* Loading skeletons */}
             {isLoading && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                        <SkeletonCard key={i} isDark={isDark} cardBg={cardBg} cardBorder={cardBorder} />
                     ))}
                 </div>
             )}
@@ -154,7 +156,7 @@ export default function StanokchiMachines() {
             {/* Cards grid */}
             {!isLoading && !error && machines.length > 0 && (
                 <>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 transition-opacity" style={{ opacity: isFetching ? 0.6 : 1 }}>
                         {machines.map((machine) => (
                             <MachineCard
                                 key={machine.id}

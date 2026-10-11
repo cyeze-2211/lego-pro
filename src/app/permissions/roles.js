@@ -11,6 +11,7 @@ export const ROLES = {
     STANOKCHI: 'stanokchi',
     MIKSERCHI: 'mikserchi',
     KASSIR: 'kassir',
+    XIMIK: 'ximik',
 };
 
 /** Mahsulot ombori rollari */
@@ -36,6 +37,11 @@ export const BUXGALTER_ROLES = [
 /** Kassir rollari */
 export const KASSIR_ROLES = [
     ROLES.KASSIR,
+];
+
+/** Ximik rollari */
+export const XIMIK_ROLES = [
+    ROLES.XIMIK,
 ];
 
 /** Barcha ombor rollari (ikkalasi) */

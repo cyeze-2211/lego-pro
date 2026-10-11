@@ -11,6 +11,6 @@ export default function Create({ cashboxes }) {
     const [createExpense, { isLoading }] = useCreateExpenseMutation();
     const { accentColor, isDark } = useAppTheme();
     const save = async (data) => { try { await createExpense(data).unwrap(); Alert('Xarajat muvaffaqiyatli yaratildi', 'success'); onClose(); } catch (error) { Alert(error?.data?.message || 'Xarajat yaratishda xatolik', 'error'); } };
-    return <><Button onClick={onOpen} bg={accentColor} color="black" borderRadius="xl" px={4} py={4} _hover={{ bg: isDark ? 'yellow.300' : 'yellow.500' }}><HStack gap={2}><LuPlus size={20}/><span>Xarajat qo‘shish</span></HStack></Button><ExpenseForm open={open} onClose={onClose} cashboxes={cashboxes} onSubmit={save} isLoading={isLoading}/></>;
+    return <><Button onClick={onOpen} bg={accentColor} color="black" borderRadius="xl" h="44px" px={5} fontWeight="semibold" _hover={{ bg: isDark ? 'yellow.300' : 'yellow.500' }}><HStack gap={2}><LuPlus size={20}/><span>Xarajat qo‘shish</span></HStack></Button><ExpenseForm open={open} onClose={onClose} cashboxes={cashboxes} onSubmit={save} isLoading={isLoading}/></>;
 }
 Create.propTypes = { cashboxes: PropTypes.array.isRequired };

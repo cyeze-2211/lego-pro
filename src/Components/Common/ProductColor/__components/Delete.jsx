@@ -39,9 +39,12 @@ export default function Delete({ color }) {
                 onClick={onOpen}
                 variant="ghost"
                 size="sm"
+                w="34px"
+                h="34px"
+                p={0}
+                minW={0}
                 color={isDark ? 'red.300' : 'red.600'}
-                borderRadius="xl"
-                px={3}
+                borderRadius="lg"
                 aria-label="O‘chirish"
                 _hover={{ bg: isDark ? 'rgba(239, 68, 68, 0.16)' : 'red.50', color: isDark ? 'red.200' : 'red.700' }}
             >

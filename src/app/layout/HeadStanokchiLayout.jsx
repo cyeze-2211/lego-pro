@@ -8,7 +8,7 @@ import { useGetUserByIdQuery } from '../../store/services/user.api';
 import { useAppDispatch } from '../../store/hooks';
 import { logoutUser } from '../../store/slices/auth.slice';
 import { useLogoutMutation } from '../../store/services/auth.api';
-import HeadStanokchiSidebar from '../../Components/Stanokchi/HeadStanokchiSidebar';
+import Sidebar from '../../Components/Other/Sidebar/Sidebar';
 import { useStanokchiMode } from '../../context/StanokchiModeContext';
 import Loading from '../../Components/Other/UI/Loadings/Loading';
 import { HeaderProvider, useHeaderContext } from '../../context/HeaderContext';
@@ -90,10 +90,26 @@ function HeadStanokchiLayoutInner() {
                 />
             )}
 
-            <HeadStanokchiSidebar
+            <Sidebar
                 open={effectiveSidebarOpen}
                 mobileOpen={mobileOpen}
                 onMobileClose={() => setMobileOpen(false)}
+                footer={({ showLabels, onItemClick }) => (
+                    <button
+                        type="button"
+                        onClick={() => { switchToWorker(); onItemClick?.(); }}
+                        title={!showLabels ? 'Xodim rejimi' : undefined}
+                        className={`flex w-full items-center ${showLabels ? 'justify-start gap-3' : 'justify-center'} rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150 hover:-translate-y-px`}
+                        style={{
+                            background: isDark ? 'rgba(250,204,21,0.08)' : '#FFFBEB',
+                            color: isDark ? '#FACC15' : '#92400E',
+                            border: `1px solid ${isDark ? 'rgba(250,204,21,0.2)' : '#FDE68A'}`,
+                        }}
+                    >
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"><UserCog className="h-5 w-5" /></span>
+                        {showLabels && <span className="truncate">Xodim rejimi</span>}
+                    </button>
+                )}
             />
 
             <div

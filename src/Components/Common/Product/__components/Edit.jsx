@@ -25,10 +25,13 @@ import {
     LuWarehouse,
     LuGift,
 } from 'react-icons/lu';
-import { useUpdateProductMutation } from '../../../../store/services/product.api';
+import { useUpdateProductMutation, useUploadProductImageMutation } from '../../../../store/services/product.api';
+import ImageField from './ImageField';
+import { bustProductImage } from '../../../ui/auth-image';
 import { useGetWarehousesQuery } from '../../../../store/services/warehouse.api';
 import { useGetBrandsQuery } from '../../../../store/services/brand.api';
 import { useGetProductColorsQuery } from '../../../../store/services/productColor.api';
+import { ColorDot } from '../../../ui/ColorSwatch';
 import { useGetProductCategoriesQuery } from '../../../../store/services/productCategory.api';
 import { Alert } from '../../../Other/UI/Alert/Alert';
 import { useAppTheme } from '../../../../theme/tokens';
@@ -66,7 +69,9 @@ const buildInitial = (product) => ({
 export default function Edit({ product }) {
     const { open, onOpen, onClose } = useDisclosure();
     const [form, setForm] = useState(() => buildInitial(product));
+    const [imageFile, setImageFile] = useState(null);
     const [updateProduct, { isLoading }] = useUpdateProductMutation();
+    const [uploadProductImage, { isLoading: uploadingImage }] = useUploadProductImageMutation();
     const {
         data: warehouses = [],
         isLoading: warehousesLoading,
@@ -102,6 +107,7 @@ export default function Edit({ product }) {
     useEffect(() => {
         if (open && !wasOpenRef.current) {
             setForm(buildInitial(productRef.current));
+            setImageFile(null);
         }
         wasOpenRef.current = open;
     }, [open]);
@@ -170,11 +176,22 @@ export default function Edit({ product }) {
 
         try {
             await updateProduct({ id: product.id, data: payload }).unwrap();
-            Alert('Mahsulot yangilandi', 'success');
-            onClose();
         } catch (error) {
             Alert(error?.data?.message || 'Mahsulotni yangilashda xatolik', 'error');
+            return;
         }
+        if (imageFile) {
+            try {
+                const updated = await uploadProductImage({ id: product.id, file: imageFile }).unwrap();
+                bustProductImage(updated?.imageUrl || product.imageUrl || `/api/v1/products/${product.id}/image`);
+                Alert('Mahsulot va rasmi yangilandi', 'success');
+            } catch (error) {
+                Alert(error?.data?.message || 'Mahsulot yangilandi, lekin rasm yuklanmadi', 'warning');
+            }
+        } else {
+            Alert('Mahsulot yangilandi', 'success');
+        }
+        onClose();
     };
 
     const sectionHeader = (icon, label) => (
@@ -299,6 +316,7 @@ export default function Edit({ product }) {
                                     <Box>
                                         {sectionHeader(<Package size={16} />, 'Asosiy ma’lumotlar')}
                                         <VStack gap={5} align="stretch">
+                                            <ImageField file={imageFile} onChange={setImageFile} currentUrl={product.imageUrl} currentVersion={product.lastModifiedAt} disabled={isLoading || uploadingImage} />
                                             <Field.Root required>
                                                 <Field.Label color={textColor} fontWeight="medium">
                                                     <HStack gap={2}>
@@ -393,6 +411,9 @@ export default function Edit({ product }) {
                                                         <span>Mahsulot rangi</span>
                                                     </HStack>
                                                 </Field.Label>
+                                                <HStack gap={3} align="center" w="100%">
+                                                    <ColorDot code={colors.find((c) => c.id === form.colorId)?.code || ''} size={40} borderRadius="xl" />
+                                                    <Box flex={1} minW={0}>
                                                 <FormControl
                                                     as="select"
                                                     value={form.colorId}
@@ -413,9 +434,11 @@ export default function Edit({ product }) {
                                                         <option value={form.colorId}>{product.color?.name || 'Mavjud mahsulot rangi'}</option>
                                                     )}
                                                     {colors.map((color) => (
-                                                        <option key={color.id} value={color.id}>{color.name}</option>
+                                                        <option key={color.id} value={color.id}>{color.name}{color.code ? ` (${color.code.toUpperCase()})` : ''}</option>
                                                     ))}
                                                 </FormControl>
+                                                    </Box>
+                                                </HStack>
                                                 {!colorsLoading && !colorsError && colors.length === 0 && (
                                                     <Field.HelperText color={subtitleColor}>
                                                         Tahrirlashdan oldin ranglar bo‘limida rang qo‘shing.
@@ -680,6 +703,8 @@ Edit.propTypes = {
         minimumLine: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
         piecesPerPack: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
         lowProductAlert: PropTypes.bool,
+        imageUrl: PropTypes.string,
+        lastModifiedAt: PropTypes.string,
         brandId: PropTypes.string,
         brand: PropTypes.shape({
             id: PropTypes.string,

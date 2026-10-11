@@ -1,1089 +1,516 @@
-import { useState, useCallback } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import PropTypes from 'prop-types';
 import * as XLSX from 'xlsx';
+import html2canvas from 'html2canvas';
+import { Badge, Box, Button, HStack, Heading, SimpleGrid, Spinner, Table, Text, VStack } from '@chakra-ui/react';
 import {
-    Box, Button, HStack, Heading, Text, VStack, Spinner,
-} from '@chakra-ui/react';
-import {
-    LuFileSpreadsheet, LuUsers, LuCalendar, LuSearch, LuX,
-    LuChevronLeft, LuChevronRight, LuClipboardList, LuCreditCard,
-    LuTrendingDown, LuTrendingUp, LuWallet, LuTriangleAlert,
-    LuCircleCheck, LuCircleDot, LuFilter,
+    LuArrowDownLeft, LuArrowUpRight, LuCalendarDays, LuCircleAlert, LuClipboardList, LuCreditCard,
+    LuFileSpreadsheet, LuFileText, LuImage, LuRotateCcw, LuScale, LuUndo2, LuUsers,
 } from 'react-icons/lu';
 import Select from 'react-select';
-import { useGetCustomersQuery } from '../../../store/services/customer.api';
+import { useGetCustomersQuery, useGetCustomerByIdQuery } from '../../../store/services/customer.api';
 import { useGetSalesOrdersQuery } from '../../../store/services/salesOrder.api';
 import { useGetPaymentsQuery } from '../../../store/services/payment.api';
 import { formatNumber } from '../../ui/number-format';
-import { formatDetailDate, formatDetailNumber } from '../EntityDetail';
-import { useAppTheme, BRAND_COLORS } from '../../../theme/tokens';
+import { formatDate, formatDateTime, todayIso, toDate } from '../../ui/date-format';
+import { useAppTheme } from '../../../theme/tokens';
 import { Alert } from '../../Other/UI/Alert/Alert';
 
-/* ── helpers ─────────────────────────────────────────────────────────────── */
-const ORDER_STATUS_LABELS = {
-    CREATED:    'Kutilmoqda',
-    LOADED:     'Ortildi',
-    CONFIRMED:  'Tugallangan',
-    REJECTED:   'Rad etilgan',
-};
+/* Dalolatnomada ko‘rsatiladigan tashkilot nomi */
+const COMPANY_NAME = 'Zafar Lux';
+const BIG_PAGE = 1000;
 
-const ORDER_STATUS_COLORS = {
-    CREATED:    { bg: 'rgba(250,204,21,.15)',  color: '#b45309', border: '#d97706' },
-    LOADED:     { bg: 'rgba(168,85,247,.15)',  color: '#7e22ce', border: '#9333ea' },
-    CONFIRMED:  { bg: 'rgba(34,197,94,.15)',   color: '#15803d', border: '#16a34a' },
-    REJECTED:   { bg: 'rgba(239,68,68,.15)',   color: '#b91c1c', border: '#dc2626' },
-};
+/* ── Sana yordamchilari ────────────────────────────────────────────────── */
+const pad = (n) => String(n).padStart(2, '0');
+const iso = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const dayOf = (value) => { const d = toDate(value); return d ? iso(d) : ''; };
 
-const ORDER_STATUS_COLORS_DARK = {
-    CREATED:    { bg: 'rgba(250,204,21,.14)',  color: '#fde68a', border: '#ca8a04' },
-    LOADED:     { bg: 'rgba(168,85,247,.14)',  color: '#d8b4fe', border: '#9333ea' },
-    CONFIRMED:  { bg: 'rgba(34,197,94,.14)',   color: '#86efac', border: '#16a34a' },
-    REJECTED:   { bg: 'rgba(239,68,68,.14)',   color: '#fca5a5', border: '#dc2626' },
-};
+const DATE_PRESETS = [
+    { key: 'today', label: 'Bugun', range: () => [todayIso(), todayIso()] },
+    { key: 'week', label: 'Shu hafta', range: () => { const d = new Date(); const f = new Date(d); f.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return [iso(f), iso(d)]; } },
+    { key: 'month', label: 'Shu oy', range: () => { const d = new Date(); return [iso(new Date(d.getFullYear(), d.getMonth(), 1)), iso(d)]; } },
+    { key: 'prevMonth', label: 'O‘tgan oy', range: () => { const d = new Date(); return [iso(new Date(d.getFullYear(), d.getMonth() - 1, 1)), iso(new Date(d.getFullYear(), d.getMonth(), 0))]; } },
+    { key: 'all', label: 'Barcha vaqt', range: () => ['', todayIso()] },
+];
 
-function statusPill(status, isDark) {
-    const map = isDark ? ORDER_STATUS_COLORS_DARK : ORDER_STATUS_COLORS;
-    const s = map[status] || map.CREATED;
-    return (
-        <span style={{
-            display: 'inline-flex', alignItems: 'center', gap: 4,
-            background: s.bg, color: s.color, border: `1px solid ${s.border}`,
-            borderRadius: 999, padding: '2px 10px', fontSize: 12, fontWeight: 700,
-            whiteSpace: 'nowrap',
-        }}>
-            {ORDER_STATUS_LABELS[status] ?? status}
-        </span>
-    );
+const money = (value) => formatNumber(Math.round((Number(value) || 0) * 100) / 100);
+
+/* ── Dalolatnoma hisob-kitobi ──────────────────────────────────────────── */
+/*
+ * Debet — mijozning qarzi oshadi (tasdiqlangan buyurtma), Kredit — qarz kamayadi (to‘lov, qaytarish).
+ * Saldo: musbat — mijoz qarzdor, manfiy — mijozda avans bor.
+ * Davr boshidagi saldo joriy balansdan orqaga hisoblanadi, shuning uchun yakuniy saldo har doim
+ * haqiqiy balans bilan mos keladi.
+ */
+function buildStatement({ orders, payments, balance, dateFrom, dateTo }) {
+    const events = [];
+
+    orders.forEach((order) => {
+        if (order.status !== 'CONFIRMED' && order.status !== 'RETURNED') return;
+        const at = order.decidedAt || order.createdAt;
+        const itemsCount = order.items?.length ?? 0;
+        events.push({
+            id: `order-${order.id}`,
+            kind: 'order',
+            at,
+            day: dayOf(at),
+            title: `Sotuv (buyurtma) — ${formatDateTime(at)}`,
+            note: [itemsCount ? `${itemsCount} ta mahsulot` : null, order.summary].filter(Boolean).join(' | '),
+            debet: Number(order.totalAmount) || 0,
+            kredit: 0,
+        });
+        if (order.status === 'RETURNED') {
+            const rAt = order.returnedAt || order.lastModifiedAt || at;
+            events.push({
+                id: `return-${order.id}`,
+                kind: 'return',
+                at: rAt,
+                day: dayOf(rAt),
+                title: `Buyurtma qaytarildi — ${formatDateTime(rAt)}`,
+                note: order.returnReason || 'Qaytarilgan buyurtma',
+                debet: 0,
+                kredit: Number(order.totalAmount) || 0,
+            });
+        }
+    });
+
+    payments.forEach((payment) => {
+        if (payment.status !== 'ACTIVE') return;
+        const at = payment.paidAt && payment.createdAt && dayOf(payment.paidAt) === dayOf(payment.createdAt) ? payment.createdAt : payment.paidAt || payment.createdAt;
+        events.push({
+            id: `payment-${payment.id}`,
+            kind: 'payment',
+            at,
+            day: dayOf(at),
+            title: `Kirim kassa orderi — ${payment.cashboxName || 'Kassa'}`,
+            note: [payment.currency === 'USD' && Number(payment.usdRate) > 0 ? `$ ${money((Number(payment.amount) || 0) / Number(payment.usdRate))} × ${money(payment.usdRate)}` : null, payment.summary].filter(Boolean).join(' | '),
+            debet: 0,
+            kredit: Number(payment.amount) || 0,
+        });
+    });
+
+    events.sort((a, b) => (toDate(a.at)?.getTime() ?? 0) - (toDate(b.at)?.getTime() ?? 0));
+
+    const inPeriod = (e) => (!dateFrom || e.day >= dateFrom) && (!dateTo || e.day <= dateTo);
+    const afterPeriod = (e) => Boolean(dateTo) && e.day > dateTo;
+
+    const debtNow = -(Number(balance) || 0);
+    const after = events.filter(afterPeriod);
+    const period = events.filter(inPeriod);
+
+    const sum = (list, key) => list.reduce((acc, e) => acc + e[key], 0);
+    const closing = debtNow - sum(after, 'debet') + sum(after, 'kredit');
+    const turnoverDebet = sum(period, 'debet');
+    const turnoverKredit = sum(period, 'kredit');
+    const opening = closing - turnoverDebet + turnoverKredit;
+
+    return { rows: period, opening, closing, turnoverDebet, turnoverKredit };
 }
 
-function SummaryCard({ icon: Icon, label, value, color, subLabel, isDark, cardBg, cardBorder }) {
+/* ── Kichik UI ─────────────────────────────────────────────────────────── */
+function StatCard({ icon: Icon, label, value, sub, color, bg }) {
+    const { isDark, cardBg, cardBorder, textColor, subtitleColor } = useAppTheme();
     return (
-        <Box
-            flex="1"
-            minW="200px"
-            bg={cardBg}
-            borderWidth="1px"
-            borderColor={cardBorder}
-            borderRadius="2xl"
-            p={5}
-            position="relative"
-            overflow="hidden"
-            boxShadow={isDark ? '0 4px 20px rgba(0,0,0,.3)' : '0 4px 16px rgba(15,23,42,.07)'}
-        >
-            <Box
-                position="absolute"
-                top={0} right={0}
-                w="80px" h="80px"
-                borderRadius="0 1rem 0 80px"
-                bg={color}
-                opacity={0.08}
-            />
-            <HStack gap={3} mb={3}>
-                <Box
-                    p={2.5}
-                    borderRadius="xl"
-                    bg={color}
-                    opacity={0.15}
-                    position="absolute"
-                />
-                <Box
-                    p={2.5}
-                    borderRadius="xl"
-                    bg="transparent"
-                    border={`1.5px solid ${color}`}
-                    color={color}
-                    display="flex"
-                    alignItems="center"
-                    justifyContent="center"
-                >
-                    <Icon size={18} />
+        <Box bg={cardBg} borderWidth="1px" borderColor={cardBorder} borderRadius="2xl" p={{ base: 4, md: 5 }} minW={0} boxShadow={isDark ? '0 12px 30px rgba(0,0,0,.16)' : '0 8px 22px rgba(15,23,42,.06)'}>
+            <HStack gap={3} align="start">
+                <Box p={2.5} borderRadius="xl" bg={bg} color={color} flexShrink={0}><Icon size={20} /></Box>
+                <Box minW={0} flex={1}>
+                    <Text fontSize="xs" fontWeight="semibold" textTransform="uppercase" letterSpacing="wider" color={subtitleColor}>{label}</Text>
+                    <Text fontSize={{ base: 'xl', md: '2xl' }} fontWeight="bold" color={color || textColor} lineHeight="1.2" mt={1} truncate>{value}</Text>
+                    {sub && <Text fontSize="sm" color={subtitleColor} mt={1}>{sub}</Text>}
                 </Box>
-                <Text fontSize="sm" color={isDark ? 'gray.400' : 'gray.500'} fontWeight="medium">{label}</Text>
             </HStack>
-            <Text fontSize="xl" fontWeight="bold" color={isDark ? 'gray.100' : 'gray.800'} lineHeight="1.2">
-                {value}
-            </Text>
-            {subLabel && (
-                <Text fontSize="xs" color={isDark ? 'gray.500' : 'gray.400'} mt={1}>{subLabel}</Text>
-            )}
         </Box>
     );
 }
+StatCard.propTypes = { icon: PropTypes.elementType.isRequired, label: PropTypes.string.isRequired, value: PropTypes.node.isRequired, sub: PropTypes.node, color: PropTypes.string, bg: PropTypes.string };
 
-const PAGE_SIZE = 15;
-const BIG_PAGE = 999;
+/* ── Dalolatnoma (qog‘oz ko‘rinishi; faqat oddiy HTML + inline uslublar, mavzudan mustaqil) ── */
+const PAPER = { text: '#111827', muted: '#4B5563', line: '#111827', head: '#F3F4F6', blue: '#1D4ED8' };
 
-/* ═══════════════════════════════════════════════════════════════════════════ */
+function describeSaldo(value, customerName) {
+    if (value > 0) return `${customerName} ${COMPANY_NAME} ga ${money(value)} so‘m qarzdor`;
+    if (value < 0) return `${customerName} da ${money(-value)} so‘m avans bor (oldindan to‘lagan)`;
+    return 'Qarz ham, avans ham yo‘q';
+}
+
+function Statement({ statement, customer, dateFrom, dateTo, innerRef }) {
+    const { rows, opening, closing, turnoverDebet, turnoverKredit } = statement;
+    const name = customer?.name || 'Mijoz';
+    const endDate = formatDate(dateTo || todayIso());
+    const periodLabel = `${dateFrom ? formatDate(dateFrom) : 'boshidan'} — ${endDate}`;
+    const cell = { border: `1px solid ${PAPER.line}`, padding: '6px 8px', fontSize: '13px', verticalAlign: 'top', color: PAPER.text };
+    const num = { ...cell, textAlign: 'right', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' };
+    const th = { ...cell, textAlign: 'center', fontWeight: 700, background: PAPER.head };
+    const saldoRow = (label, value) => (
+        <tr className="sverka-total">
+            <td style={{ ...cell, fontWeight: 700 }} colSpan={2}>{label}</td>
+            <td style={{ ...num, fontWeight: 700 }}>{value > 0 ? money(value) : ''}</td>
+            <td style={{ ...num, fontWeight: 700 }}>{value < 0 ? money(-value) : ''}</td>
+            <td style={{ ...cell, color: PAPER.muted }}>{value > 0 ? 'Mijoz qarzdor' : value < 0 ? 'Mijozda avans bor' : 'Qarz yo‘q'}</td>
+        </tr>
+    );
+
+    return (
+        <div ref={innerRef} className="sverka-paper" style={{ background: '#ffffff', color: PAPER.text, padding: '32px 36px', fontFamily: 'Arial, Helvetica, sans-serif', width: '100%', boxSizing: 'border-box' }}>
+            <div style={{ textAlign: 'center', marginBottom: 16 }}>
+                <div style={{ fontSize: 17, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Solishtirma dalolatnomasi (akt sverka)</div>
+                <div style={{ fontSize: 14, fontWeight: 700, marginTop: 4 }}>{COMPANY_NAME} va {name} o‘rtasida</div>
+                <div style={{ fontSize: 13, color: PAPER.muted, marginTop: 4 }}>{periodLabel} davri uchun</div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', fontSize: 13, marginBottom: 12 }}>
+                <div>
+                    <div><b>Tashkilot:</b> {COMPANY_NAME}</div>
+                    <div><b>Mijoz:</b> {name}</div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                    {customer?.phone && <div><b>Telefon:</b> {customer.phone}</div>}
+                    {customer?.inn && <div><b>INN / STIR:</b> {customer.inn}</div>}
+                    <div><b>Tuzilgan sana:</b> {formatDateTime(new Date())}</div>
+                </div>
+            </div>
+
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                    <tr>
+                        <th rowSpan={2} style={{ ...th, width: '36%' }}>Hujjat</th>
+                        <th rowSpan={2} style={{ ...th, width: '12%' }}>Sana</th>
+                        <th colSpan={2} style={th}>Summa, so‘m</th>
+                        <th rowSpan={2} style={th}>Izoh</th>
+                    </tr>
+                    <tr>
+                        <th style={{ ...th, width: '16%' }}>Sotuv<br /><span style={{ fontWeight: 400, fontSize: 11, color: PAPER.muted }}>qarz oshdi</span></th>
+                        <th style={{ ...th, width: '16%' }}>To‘lov<br /><span style={{ fontWeight: 400, fontSize: 11, color: PAPER.muted }}>qarz kamaydi</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {saldoRow(`Davr boshida (${dateFrom ? formatDate(dateFrom) : 'boshidan'})`, opening)}
+                    {rows.length === 0 && (
+                        <tr><td style={{ ...cell, textAlign: 'center', color: PAPER.muted }} colSpan={5}>Bu davrda hujjatlar yo‘q</td></tr>
+                    )}
+                    {rows.map((row) => (
+                        <tr key={row.id}>
+                            <td style={cell}>{row.title}</td>
+                            <td style={{ ...cell, whiteSpace: 'nowrap' }}>{formatDate(row.at)}</td>
+                            <td style={num}>{row.debet ? money(row.debet) : ''}</td>
+                            <td style={num}>{row.kredit ? money(row.kredit) : ''}</td>
+                            <td style={{ ...cell, color: PAPER.muted }}>{row.note || ''}</td>
+                        </tr>
+                    ))}
+                    <tr className="sverka-total">
+                        <td style={{ ...cell, fontWeight: 700, color: PAPER.blue }} colSpan={2}>Davr jami</td>
+                        <td style={{ ...num, fontWeight: 700, color: PAPER.blue }}>{money(turnoverDebet)}</td>
+                        <td style={{ ...num, fontWeight: 700, color: PAPER.blue }}>{money(turnoverKredit)}</td>
+                        <td style={cell} />
+                    </tr>
+                    {saldoRow(`Davr oxirida (${endDate})`, closing)}
+                </tbody>
+            </table>
+
+            <div style={{ fontSize: 13, marginTop: 16 }}>
+                <b>Xulosa:</b> {endDate} holatiga ko‘ra {describeSaldo(closing, name)}.
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 40, marginTop: 32, fontSize: 13 }}>
+                <div>
+                    <div style={{ fontWeight: 700 }}>{COMPANY_NAME}</div>
+                    <div style={{ borderBottom: `1px solid ${PAPER.line}`, height: 34 }} />
+                    <div style={{ color: PAPER.muted, fontSize: 11, marginTop: 4 }}>imzo / M.O‘.</div>
+                </div>
+                <div>
+                    <div style={{ fontWeight: 700 }}>{name}</div>
+                    <div style={{ borderBottom: `1px solid ${PAPER.line}`, height: 34 }} />
+                    <div style={{ color: PAPER.muted, fontSize: 11, marginTop: 4 }}>imzo / M.O‘.</div>
+                </div>
+            </div>
+        </div>
+    );
+}
+Statement.propTypes = {
+    statement: PropTypes.object.isRequired, customer: PropTypes.object, dateFrom: PropTypes.string, dateTo: PropTypes.string,
+    innerRef: PropTypes.oneOfType([PropTypes.func, PropTypes.shape({ current: PropTypes.any })]),
+};
+
+/* ── Sahifa ────────────────────────────────────────────────────────────── */
 export default function CustomerReconciliation() {
-    const {
-        isDark, pageBg, cardBg, cardBorder, textColor, subtitleColor, accentColor,
-    } = useAppTheme();
+    const { isDark, pageBg, cardBg, cardBorder, textColor, subtitleColor, accentColor, inputBg, inputBorder } = useAppTheme();
+    const paperRef = useRef(null);
 
-    /* ── filter state ─────────────────────────────────────────────────── */
-    const [selectedCustomer, setSelectedCustomer] = useState(null);
-    const [dateFrom, setDateFrom]                 = useState('');
-    const [dateTo, setDateTo]                     = useState('');
-    const [customerSearch, setCustomerSearch]     = useState('');
-    const [ordersPage, setOrdersPage]             = useState(0);
-    const [paymentsPage, setPaymentsPage]         = useState(0);
-    const [activeTab, setActiveTab]               = useState('orders'); // 'orders' | 'payments' | 'summary'
-    const [exporting, setExporting]               = useState(false);
+    const [selected, setSelected] = useState(null);
+    const [customerSearch, setCustomerSearch] = useState('');
+    const [dateFrom, setDateFrom] = useState(() => DATE_PRESETS[2].range()[0]);
+    const [dateTo, setDateTo] = useState(todayIso());
+    const [exporting, setExporting] = useState('');
 
-    /* ── derived ──────────────────────────────────────────────────────── */
-    const customerId = selectedCustomer?.value ?? null;
-    const hasCustomer = Boolean(customerId);
+    const customerId = selected?.value ?? null;
 
-    /* ── customers list for selector ─────────────────────────────────── */
-    const { data: customersData, isLoading: customersLoading } = useGetCustomersQuery(
-        { name: customerSearch || undefined, page: 0, size: 50 },
-    );
-    const customerOptions = (customersData?.items ?? []).map((c) => ({
-        value: c.id,
-        label: c.name,
-        phone: c.phone,
-        balance: c.balance,
-    }));
+    const { data: customersData, isLoading: customersLoading } = useGetCustomersQuery({ name: customerSearch || undefined, page: 0, size: 50 });
+    const customerOptions = (customersData?.items ?? []).map((c) => ({ value: c.id, label: c.name, phone: c.phone, balance: c.balance }));
 
-    /* ── orders ───────────────────────────────────────────────────────── */
-    const { data: ordersData, isFetching: ordersFetching } = useGetSalesOrdersQuery(
-        {
-            customerId: customerId ?? undefined,
-            dateFrom:   dateFrom   || undefined,
-            dateTo:     dateTo     || undefined,
-            page:       ordersPage,
-            size:       PAGE_SIZE,
-        },
-        { skip: !hasCustomer },
+    const { data: customer, isFetching: customerFetching } = useGetCustomerByIdQuery(customerId, { skip: !customerId });
+    const { data: ordersData, isFetching: ordersFetching, isError: ordersError } = useGetSalesOrdersQuery({ customerId, page: 0, size: BIG_PAGE, sort: ['createdAt,ASC', 'id,ASC'] }, { skip: !customerId });
+    const { data: paymentsData, isFetching: paymentsFetching, isError: paymentsError } = useGetPaymentsQuery({ customerId, page: 0, size: BIG_PAGE, sort: ['paidAt,ASC', 'createdAt,ASC'] }, { skip: !customerId });
+
+    const loading = customerFetching || ordersFetching || paymentsFetching;
+    const orders = useMemo(() => ordersData?.items ?? [], [ordersData]);
+    const payments = useMemo(() => paymentsData?.items ?? [], [paymentsData]);
+
+    const statement = useMemo(
+        () => buildStatement({ orders, payments, balance: customer?.balance ?? selected?.balance ?? 0, dateFrom, dateTo }),
+        [orders, payments, customer, selected, dateFrom, dateTo],
     );
 
-    /* ── payments ─────────────────────────────────────────────────────── */
-    const { data: paymentsData, isFetching: paymentsFetching } = useGetPaymentsQuery(
-        {
-            customerId: customerId ?? undefined,
-            paidFrom:   dateFrom   || undefined,
-            paidTo:     dateTo     || undefined,
-            page:       paymentsPage,
-            size:       PAGE_SIZE,
-        },
-        { skip: !hasCustomer },
-    );
+    const activePreset = DATE_PRESETS.find((p) => { const [f, t] = p.range(); return dateFrom === f && dateTo === t; })?.key;
+    const applyPreset = (preset) => { const [f, t] = preset.range(); setDateFrom(f); setDateTo(t); };
+    const resetAll = () => { setSelected(null); setCustomerSearch(''); applyPreset(DATE_PRESETS[2]); };
 
-    const orders       = ordersData?.items       ?? [];
-    const payments     = paymentsData?.items     ?? [];
-    const orderPagination   = ordersData?.pagination   ?? {};
-    const paymentPagination = paymentsData?.pagination ?? {};
+    const fileBase = () => `Sverka_${(customer?.name || 'mijoz').replace(/[^\p{L}\p{N}]+/gu, '_')}_${dateFrom || 'boshidan'}_${dateTo || todayIso()}`;
 
-    /* ── summary numbers ──────────────────────────────────────────────── */
-    const totalOrdersCount   = orderPagination?.totalElements   ?? 0;
-    const totalPaymentsCount = paymentPagination?.totalElements ?? 0;
-
-    const ordersTotalSum    = orders.reduce((s, o) => s + (o.totalAmount  ?? 0), 0);
-    const paymentsSum       = payments.reduce((s, p) => s + (p.amount     ?? 0), 0);
-    const remainingDebtSum  = orders.reduce((s, o) => s + (o.remainingDebt ?? 0), 0);
-
-    const customerBalance = selectedCustomer?.balance ?? null;
-
-    /* ── reset pages on filter change ─────────────────────────────────── */
-    const resetPages = () => { setOrdersPage(0); setPaymentsPage(0); };
-
-    const handleCustomerChange = (opt) => { setSelectedCustomer(opt); resetPages(); };
-    const handleDateChange = (field, val) => {
-        if (field === 'from') setDateFrom(val);
-        else setDateTo(val);
-        resetPages();
-    };
-
-    const clearAll = () => {
-        setSelectedCustomer(null);
-        setDateFrom('');
-        setDateTo('');
-        setCustomerSearch('');
-        resetPages();
-    };
-
-    const hasFilters = hasCustomer || dateFrom || dateTo;
-
-    /* ── Excel export ─────────────────────────────────────────────────── */
-    const handleExport = useCallback(async () => {
-        if (!hasCustomer) {
-            Alert('Avval mijozni tanlang', 'warning');
-            return;
-        }
-        setExporting(true);
+    const downloadPng = async () => {
+        if (!paperRef.current) return;
+        setExporting('png');
         try {
-            const wb = XLSX.utils.book_new();
-            const customerName = selectedCustomer?.label ?? 'Mijoz';
-            const period = dateFrom && dateTo
-                ? `${dateFrom} — ${dateTo}`
-                : dateFrom
-                ? `${dateFrom} dan`
-                : dateTo
-                ? `${dateTo} gacha`
-                : 'Barcha vaqt';
-
-            const infoRows = [
-                ['MIJOZ SVERKA HISOBOTI'],
-                [],
-                ['Mijoz:', customerName],
-                ['Telefon:', selectedCustomer?.phone ?? ''],
-                ['Joriy balans:', `${formatNumber(Math.abs(Number(customerBalance) || 0))} so'm ${(Number(customerBalance) || 0) < 0 ? '(qarzdor)' : (Number(customerBalance) || 0) > 0 ? '(kredit)' : ''}`],
-                ['Davr:', period],
-                ['Hisobot sanasi:', new Date().toLocaleDateString('uz-UZ')],
-                [],
-                ['Buyurtmalar soni:', totalOrdersCount],
-                ["To'lovlar soni:", totalPaymentsCount],
-            ];
-            const infoWs = XLSX.utils.aoa_to_sheet(infoRows);
-            infoWs['!cols'] = [{ wch: 22 }, { wch: 40 }];
-            XLSX.utils.book_append_sheet(wb, infoWs, 'Ma\'lumot');
-
-            const orderHeaders = ['№', 'Mahsulotlar soni', 'Jami summa (so\'m)', 'Qolgan qarz (so\'m)', 'Holat', 'Izoh', 'Sana'];
-            const orderRows = orders.map((o, i) => [
-                i + 1,
-                o.items?.length ?? 0,
-                o.totalAmount   ?? 0,
-                o.remainingDebt ?? 0,
-                ORDER_STATUS_LABELS[o.status] ?? o.status,
-                o.summary ?? '',
-                formatDetailDate(o.createdAt),
-            ]);
-
-            const ordersWs = XLSX.utils.aoa_to_sheet([orderHeaders, ...orderRows]);
-            ordersWs['!cols'] = [
-                { wch: 5 }, { wch: 18 }, { wch: 22 }, { wch: 22 }, { wch: 16 }, { wch: 30 }, { wch: 20 },
-            ];
-            XLSX.utils.book_append_sheet(wb, ordersWs, 'Buyurtmalar');
-
-            const payHeaders = ['№', 'Kassa', 'Summa (so\'m)', 'Taqsimlangan (so\'m)', 'Avans (so\'m)', 'Holat', 'Izoh', 'Sana'];
-            const payRows = payments.map((p, i) => [
-                i + 1,
-                p.cashboxName ?? '',
-                p.amount           ?? 0,
-                p.allocatedAmount   ?? 0,
-                p.unallocatedAmount ?? 0,
-                p.status === 'ACTIVE' ? 'Faol' : 'Bekor qilingan',
-                p.summary ?? '',
-                formatDetailDate(p.paidAt ?? p.createdAt),
-            ]);
-
-            const paymentsWs = XLSX.utils.aoa_to_sheet([payHeaders, ...payRows]);
-            paymentsWs['!cols'] = [
-                { wch: 5 }, { wch: 20 }, { wch: 20 }, { wch: 22 }, { wch: 16 }, { wch: 18 }, { wch: 30 }, { wch: 20 },
-            ];
-            XLSX.utils.book_append_sheet(wb, paymentsWs, 'To\'lovlar');
-
-            const summaryRows = [
-                ['XULOSA'],
-                [],
-                ['Ko\'rsatkich',                                             'Qiymat'],
-                ['Jami buyurtmalar soni',                                    totalOrdersCount],
-                ["Jami to'lovlar soni",                                      totalPaymentsCount],
-                ["Joriy sahifadagi buyurtmalar summasi (so'm)",               ordersTotalSum],
-                ["Joriy sahifadagi to'lovlar summasi (so'm)",                 paymentsSum],
-                ["Joriy sahifadagi qolgan qarz summasi (so'm)",              remainingDebtSum],
-                ['Joriy balans',                                             `${formatNumber(Math.abs(Number(customerBalance) || 0))} so'm ${(Number(customerBalance) || 0) < 0 ? '(qarzdor)' : (Number(customerBalance) || 0) > 0 ? '(kredit)' : ''}`],
-            ];
-            const summaryWs = XLSX.utils.aoa_to_sheet(summaryRows);
-            summaryWs['!cols'] = [{ wch: 40 }, { wch: 25 }];
-            XLSX.utils.book_append_sheet(wb, summaryWs, 'Xulosa');
-
-            const fileName = `Sverka_${customerName.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.xlsx`;
-            XLSX.writeFile(wb, fileName);
-            Alert(`"${customerName}" uchun sverka yuklab olindi`, 'success');
+            const canvas = await html2canvas(paperRef.current, { scale: 2, backgroundColor: '#ffffff', useCORS: true, logging: false });
+            const link = document.createElement('a');
+            link.download = `${fileBase()}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+            Alert('Dalolatnoma rasm sifatida yuklab olindi', 'success');
         } catch (err) {
             console.error(err);
-            Alert("Eksportda xatolik yuz berdi", 'error');
+            Alert('Rasmga aylantirishda xatolik', 'error');
         } finally {
-            setExporting(false);
+            setExporting('');
         }
-    }, [hasCustomer, selectedCustomer, customerBalance, dateFrom, dateTo, orders, payments, totalOrdersCount, totalPaymentsCount, ordersTotalSum, paymentsSum, remainingDebtSum]);
+    };
 
-    /* ── theme helpers ────────────────────────────────────────────────── */
-    const panel   = `rounded-2xl border ${isDark ? 'border-white/[0.07] bg-[#141C2B]' : 'border-[#e2e8f0] bg-white'}`;
-    const muted   = isDark ? 'text-[#94a3b8]' : 'text-[#64748b]';
-    const head    = isDark ? 'text-white' : 'text-[#0f172a]';
-    const rowHov  = isDark ? 'hover:bg-amber-400/[0.05]' : 'hover:bg-amber-50/60';
-    const divLine = isDark ? 'divide-white/[0.06]' : 'divide-[#f1f5f9]';
-    const thCx    = `px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide ${muted} ${isDark ? 'bg-[#0f172a]/30' : 'bg-[#f8fafc]'}`;
-    const tdCx    = 'px-4 py-3 text-sm';
-    const inputCx = [
-        'h-11 w-full rounded-xl border px-4 text-sm outline-none transition-all duration-200',
-        isDark
-            ? 'border-white/[0.1] bg-[#1e293b]/80 text-white placeholder:text-slate-500 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20'
-            : 'border-[#e2e8f0] bg-white text-[#0f172a] placeholder:text-slate-400 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20',
-    ].join(' ');
+    const downloadExcel = () => {
+        setExporting('xlsx');
+        try {
+            const { rows, opening, closing, turnoverDebet, turnoverKredit } = statement;
+            const aoa = [
+                ['SOLISHTIRMA DALOLATNOMASI (AKT SVERKA)'],
+                [`${COMPANY_NAME} va ${customer?.name || ''} o‘rtasida`],
+                [`Davr: ${dateFrom ? formatDate(dateFrom) : 'boshidan'} — ${formatDate(dateTo || todayIso())}`],
+                [],
+                ['Hujjat', 'Sana', 'Sotuv (qarz oshdi), so‘m', 'To‘lov (qarz kamaydi), so‘m', 'Izoh'],
+                [`Davr boshida (${dateFrom ? formatDate(dateFrom) : 'boshidan'})`, '', opening > 0 ? opening : '', opening < 0 ? -opening : '', opening > 0 ? 'Mijoz qarzdor' : opening < 0 ? 'Mijozda avans bor' : ''],
+                ...rows.map((r) => [r.title, formatDate(r.at), r.debet || '', r.kredit || '', r.note || '']),
+                ['Davr jami', '', turnoverDebet, turnoverKredit, ''],
+                [`Davr oxirida (${formatDate(dateTo || todayIso())})`, '', closing > 0 ? closing : '', closing < 0 ? -closing : '', closing > 0 ? 'Mijoz qarzdor' : closing < 0 ? 'Mijozda avans bor' : 'Qarz yo‘q'],
+            ];
+            const ws = XLSX.utils.aoa_to_sheet(aoa);
+            ws['!cols'] = [{ wch: 44 }, { wch: 12 }, { wch: 18 }, { wch: 18 }, { wch: 40 }];
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Sverka');
+            XLSX.writeFile(wb, `${fileBase()}.xlsx`);
+            Alert('Excel fayl yuklab olindi', 'success');
+        } catch (err) {
+            console.error(err);
+            Alert('Eksportda xatolik', 'error');
+        } finally {
+            setExporting('');
+        }
+    };
 
-    /* react-select styles */
+    /* react-select */
     const selectStyles = {
-        control: (base, state) => ({
-            ...base,
-            minHeight: 44,
-            borderRadius: 12,
-            borderColor: state.isFocused ? '#FACC15' : (isDark ? 'rgba(255,255,255,0.1)' : '#e2e8f0'),
-            backgroundColor: isDark ? 'rgba(30,41,59,0.8)' : '#fff',
-            boxShadow: state.isFocused ? '0 0 0 2px rgba(250,204,21,.2)' : 'none',
-            '&:hover': { borderColor: '#FACC15' },
-            fontSize: 14,
-        }),
-        option: (base, state) => ({
-            ...base,
-            backgroundColor: state.isSelected
-                ? '#FACC15'
-                : state.isFocused
-                ? (isDark ? 'rgba(250,204,21,.12)' : '#FFFBEB')
-                : (isDark ? '#141C2B' : '#fff'),
-            color: state.isSelected ? '#0F172A' : (isDark ? '#e2e8f0' : '#0f172a'),
-            fontSize: 14,
-            cursor: 'pointer',
-        }),
-        menu: (base) => ({
-            ...base,
-            backgroundColor: isDark ? '#141C2B' : '#fff',
-            border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : '#e2e8f0'}`,
-            borderRadius: 12,
-            boxShadow: isDark
-                ? '0 16px 40px rgba(0,0,0,.5)'
-                : '0 8px 24px rgba(15,23,42,.12)',
-            zIndex: 50,
-        }),
+        control: (base, state) => ({ ...base, minHeight: 44, borderRadius: 12, borderColor: state.isFocused ? '#FACC15' : (isDark ? 'rgba(255,255,255,0.1)' : '#e2e8f0'), backgroundColor: isDark ? 'rgba(30,41,59,0.8)' : '#fff', boxShadow: state.isFocused ? '0 0 0 2px rgba(250,204,21,.2)' : 'none', '&:hover': { borderColor: '#FACC15' }, fontSize: 14 }),
+        option: (base, state) => ({ ...base, backgroundColor: state.isSelected ? '#FACC15' : state.isFocused ? (isDark ? 'rgba(250,204,21,.12)' : '#FFFBEB') : (isDark ? '#141C2B' : '#fff'), color: state.isSelected ? '#0F172A' : (isDark ? '#e2e8f0' : '#0f172a'), fontSize: 14, cursor: 'pointer' }),
+        menu: (base) => ({ ...base, backgroundColor: isDark ? '#141C2B' : '#fff', border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : '#e2e8f0'}`, borderRadius: 12, zIndex: 50 }),
         singleValue: (base) => ({ ...base, color: isDark ? '#f1f5f9' : '#0f172a' }),
         placeholder: (base) => ({ ...base, color: isDark ? '#64748b' : '#94a3b8', fontSize: 14 }),
         input: (base) => ({ ...base, color: isDark ? '#f1f5f9' : '#0f172a' }),
-        noOptionsMessage: (base) => ({
-            ...base,
-            color: isDark ? '#64748b' : '#94a3b8',
-            backgroundColor: isDark ? '#141C2B' : '#fff',
-            fontSize: 14,
-        }),
+        noOptionsMessage: (base) => ({ ...base, color: isDark ? '#64748b' : '#94a3b8', fontSize: 14 }),
+    };
+    const formatOptionLabel = (opt) => {
+        const b = Number(opt.balance) || 0;
+        return (
+            <div className="flex items-center justify-between gap-2 py-0.5">
+                <div><div className="font-semibold text-sm">{opt.label}</div>{opt.phone && <div className="text-xs opacity-60">{opt.phone}</div>}</div>
+                <span className={`text-xs font-bold shrink-0 ${b < 0 ? 'text-red-500' : b > 0 ? 'text-green-500' : 'text-slate-400'}`}>
+                    {b < 0 ? `qarz ${money(-b)}` : b > 0 ? `avans ${money(b)}` : '0'} so‘m
+                </span>
+            </div>
+        );
     };
 
-    const formatOptionLabel = (opt) => (
-        <div className="flex items-center justify-between gap-2 py-0.5">
-            <div>
-                <div className="font-semibold text-sm">{opt.label}</div>
-                {opt.phone && <div className="text-xs opacity-60">{opt.phone}</div>}
-            </div>
-            {opt.balance !== undefined && opt.balance !== null && (
-                <span className={`text-xs font-bold shrink-0 ${
-                    Number(opt.balance) > 0
-                        ? 'text-red-500'
-                        : Number(opt.balance) < 0
-                        ? 'text-green-500'
-                        : 'text-slate-400'
-                }`}>
-                    {Number(opt.balance) === 0 ? '0' : formatNumber(Math.abs(Number(opt.balance)))} so'm
-                </span>
-            )}
-        </div>
-    );
+    const inputCx = { h: '44px', px: 3, w: '100%', borderRadius: 'xl', borderWidth: '1px', borderColor: inputBorder, bg: inputBg, color: textColor, fontSize: 'sm', outline: 'none', _focus: { borderColor: accentColor, boxShadow: `0 0 0 3px ${accentColor}44` } };
+    const accentSoft = isDark ? 'rgba(250,204,21,.12)' : '#FEF3C7';
+    const red = isDark ? '#FCA5A5' : '#B91C1C';
+    const redSoft = isDark ? 'rgba(239,68,68,.14)' : '#FEE2E2';
+    const green = isDark ? '#86EFAC' : '#15803D';
+    const greenSoft = isDark ? 'rgba(34,197,94,.14)' : '#DCFCE7';
+    const sky = isDark ? '#7DD3FC' : '#0284C7';
+    const skySoft = isDark ? 'rgba(14,165,233,.12)' : '#E0F2FE';
+    const panelShadow = isDark ? '0 12px 30px rgba(0,0,0,.16)' : '0 8px 22px rgba(15,23,42,.06)';
+    const saldoMeta = (v) => (v > 0 ? { color: red, bg: redSoft, label: 'Mijoz qarzdor' } : v < 0 ? { color: green, bg: greenSoft, label: 'Mijozda avans bor' } : { color: textColor, bg: isDark ? 'rgba(148,163,184,.12)' : '#F1F5F9', label: 'Qarz yo‘q' });
+    const th = { color: subtitleColor, fontSize: '11px', fontWeight: 'semibold', textTransform: 'uppercase', letterSpacing: 'wider', whiteSpace: 'nowrap', bg: isDark ? 'rgba(148,163,184,0.06)' : '#F8FAFC' };
+    const openMeta = saldoMeta(statement.opening);
+    const closeMeta = saldoMeta(statement.closing);
+    const hasData = Boolean(customerId) && !loading;
 
-    /* ── tabs ─────────────────────────────────────────────────────────── */
-    const tabs = [
-        { id: 'summary',  label: 'Xulosa',      icon: LuWallet },
-        { id: 'orders',   label: 'Buyurtmalar', icon: LuClipboardList, count: totalOrdersCount },
-        { id: 'payments', label: "To'lovlar",   icon: LuCreditCard,    count: totalPaymentsCount },
-    ];
-
-    /* ════════════════════════════════════════════════════════════════════ */
     return (
         <Box my={2} bg={pageBg} color={textColor} minH="100%">
-
-            {/* ── Page Header ───────────────────────────────────────────── */}
-            <Box className={panel} mb={5} position="relative" overflow="hidden">
-                <Box
-                    position="absolute" top={0} right={0}
-                    w="40%" h="100%"
-                    bgGradient="linear(to-l, rgba(250,204,21,0.06), transparent)"
-                />
-                <HStack justify="space-between" align="center" flexWrap="wrap" gap={4} p={5}>
-                    <HStack gap={4}>
-                        <Box
-                            p={3}
-                            borderRadius="xl"
-                            bg={isDark ? 'rgba(250,204,21,.12)' : '#FEF9C3'}
-                            border={`1.5px solid ${isDark ? 'rgba(250,204,21,.3)' : '#FDE047'}`}
-                            color="#CA8A04"
-                            display="flex" alignItems="center" justifyContent="center"
-                        >
-                            <LuFileSpreadsheet size={24} />
-                        </Box>
-                        <Box>
-                            <Heading fontSize="2xl" fontWeight="bold" color={textColor} lineHeight="1.2">
-                                Mijoz Sverka
-                            </Heading>
-                            <Text fontSize="sm" color={subtitleColor} mt={0.5}>
-                                Buyurtmalar va to'lovlar bo'yicha hisob-kitob hisoboti
-                            </Text>
-                        </Box>
-                    </HStack>
-                    <Button
-                        onClick={handleExport}
-                        disabled={!hasCustomer || exporting}
-                        bg={hasCustomer ? accentColor : (isDark ? 'rgba(255,255,255,0.06)' : '#f1f5f9')}
-                        color={hasCustomer ? '#0F172A' : subtitleColor}
-                        borderRadius="xl"
-                        px={6}
-                        h="44px"
-                        fontWeight="bold"
-                        fontSize="sm"
-                        _hover={hasCustomer ? { bg: BRAND_COLORS.yellowHover, transform: 'translateY(-1px)', shadow: 'lg' } : {}}
-                        transition="all .2s"
-                        cursor={hasCustomer ? 'pointer' : 'not-allowed'}
-                        opacity={hasCustomer ? 1 : 0.5}
-                    >
-                        <HStack gap={2}>
-                            {exporting
-                                ? <Spinner size="sm" />
-                                : <LuFileSpreadsheet size={17} />
-                            }
-                            <span>{exporting ? 'Yuklanmoqda...' : 'Excel yuklab olish'}</span>
-                        </HStack>
+            {/* ── Sarlavha ── */}
+            <HStack justify="space-between" align="start" flexWrap="wrap" gap={4} mb={4}>
+                <Box>
+                    <Heading className="text-[35px] font-semibold" color={textColor}>Akt sverka</Heading>
+                    <Text color={subtitleColor} fontSize="sm" mt={1}>Mijoz bilan o‘zaro hisob-kitoblar bo‘yicha solishtirma dalolatnomasi</Text>
+                </Box>
+                <HStack gap={2} flexWrap="wrap">
+                    <Button variant="outline" borderRadius="xl" h="42px" px={4} disabled={!hasData || Boolean(exporting)} onClick={downloadExcel}>
+                        <HStack gap={2}>{exporting === 'xlsx' ? <Spinner size="sm" /> : <LuFileSpreadsheet size={16} />}<span>Excel</span></HStack>
+                    </Button>
+                    <Button bg={accentColor} color="black" borderRadius="xl" h="42px" px={5} fontWeight="semibold" _hover={{ bg: '#EAB308' }} disabled={!hasData || Boolean(exporting)} onClick={downloadPng}>
+                        <HStack gap={2}>{exporting === 'png' ? <Spinner size="sm" /> : <LuImage size={16} />}<span>{exporting === 'png' ? 'Tayyorlanmoqda...' : 'Aktni yuklab olish'}</span></HStack>
                     </Button>
                 </HStack>
-            </Box>
+            </HStack>
 
-            {/* ── Filters ───────────────────────────────────────────────── */}
-            <Box className={panel} mb={5} p={5}>
-                <HStack gap={2} mb={4}>
-                    <LuFilter size={15} color={isDark ? '#94a3b8' : '#64748b'} />
-                    <Text fontSize="sm" fontWeight="semibold" color={subtitleColor}>Filterlar</Text>
-                    {hasFilters && (
-                        <Button
-                            size="xs"
-                            variant="ghost"
-                            onClick={clearAll}
-                            color={subtitleColor}
-                            ml={1}
-                            borderRadius="full"
-                            px={3}
-                            _hover={{ bg: isDark ? 'whiteAlpha.100' : 'gray.100', color: textColor }}
-                        >
-                            <HStack gap={1}><LuX size={12} /><span>Tozalash</span></HStack>
+            {/* ── Filtrlar ── */}
+            <Box bg={cardBg} borderWidth="1px" borderColor={cardBorder} borderRadius="2xl" p={5} mb={4} boxShadow={panelShadow}>
+                <SimpleGrid columns={{ base: 1, md: 2, xl: 4 }} gap={4} alignItems="end">
+                    <Box gridColumn={{ xl: 'span 2' }}>
+                        <HStack gap={1.5} mb={1.5} fontSize="xs" fontWeight="semibold" color={subtitleColor}><LuUsers size={13} /><span>Mijoz</span></HStack>
+                        <Select value={selected} onChange={setSelected} onInputChange={(v) => setCustomerSearch(v)} options={customerOptions} isLoading={customersLoading} isClearable placeholder="Mijoz nomini qidiring..." noOptionsMessage={() => 'Mijoz topilmadi'} loadingMessage={() => 'Yuklanmoqda...'} styles={selectStyles} formatOptionLabel={formatOptionLabel} />
+                    </Box>
+                    <Box>
+                        <HStack gap={1.5} mb={1.5} fontSize="xs" fontWeight="semibold" color={subtitleColor}><LuCalendarDays size={13} /><span>Davr boshi</span></HStack>
+                        <Box as="input" type="date" value={dateFrom} max={dateTo || undefined} onChange={(e) => setDateFrom(e.target.value)} aria-label="Davr boshi" {...inputCx} />
+                    </Box>
+                    <Box>
+                        <HStack gap={1.5} mb={1.5} fontSize="xs" fontWeight="semibold" color={subtitleColor}><LuCalendarDays size={13} /><span>Davr oxiri</span></HStack>
+                        <Box as="input" type="date" value={dateTo} min={dateFrom || undefined} max={todayIso()} onChange={(e) => setDateTo(e.target.value)} aria-label="Davr oxiri" {...inputCx} />
+                    </Box>
+                </SimpleGrid>
+                <HStack justify="space-between" flexWrap="wrap" gap={3} mt={4}>
+                    <HStack gap={1.5} flexWrap="wrap">
+                        <Text fontSize="xs" color={subtitleColor} mr={1}>Tez tanlash:</Text>
+                        {DATE_PRESETS.map((preset) => {
+                            const isActive = activePreset === preset.key;
+                            return (
+                                <Button key={preset.key} size="sm" h="30px" px={3.5} borderRadius="full" fontSize="xs" fontWeight="semibold" onClick={() => applyPreset(preset)} bg={isActive ? accentColor : 'transparent'} color={isActive ? 'black' : subtitleColor} borderWidth="1px" borderColor={isActive ? accentColor : cardBorder} _hover={{ bg: isActive ? accentColor : (isDark ? 'whiteAlpha.100' : 'gray.50') }}>
+                                    {preset.label}
+                                </Button>
+                            );
+                        })}
+                    </HStack>
+                    {(selected || activePreset !== 'month') && (
+                        <Button variant="ghost" size="sm" h="32px" px={3} borderRadius="xl" color={subtitleColor} onClick={resetAll} _hover={{ color: accentColor }}>
+                            <HStack gap={1.5}><LuRotateCcw size={13} /><span>Tozalash</span></HStack>
                         </Button>
                     )}
                 </HStack>
-
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    <div className="lg:col-span-2">
-                        <label className={`mb-1.5 block text-xs font-semibold ${muted}`}>
-                            <HStack as="span" gap={1.5} display="inline-flex">
-                                <LuUsers size={13} />
-                                <span>Mijoz tanlash *</span>
-                            </HStack>
-                        </label>
-                        <Select
-                            value={selectedCustomer}
-                            onChange={handleCustomerChange}
-                            onInputChange={(v) => setCustomerSearch(v)}
-                            options={customerOptions}
-                            isLoading={customersLoading}
-                            isClearable
-                            placeholder="Mijoz nomini qidiring..."
-                            noOptionsMessage={() => 'Mijoz topilmadi'}
-                            loadingMessage={() => 'Yuklanmoqda...'}
-                            styles={selectStyles}
-                            formatOptionLabel={formatOptionLabel}
-                        />
-                    </div>
-
-                    <div>
-                        <label className={`mb-1.5 block text-xs font-semibold ${muted}`}>
-                            <HStack as="span" gap={1.5} display="inline-flex">
-                                <LuCalendar size={13} />
-                                <span>Sanadan</span>
-                            </HStack>
-                        </label>
-                        <input
-                            type="date"
-                            value={dateFrom}
-                            onChange={(e) => handleDateChange('from', e.target.value)}
-                            className={inputCx}
-                        />
-                    </div>
-
-                    <div>
-                        <label className={`mb-1.5 block text-xs font-semibold ${muted}`}>
-                            <HStack as="span" gap={1.5} display="inline-flex">
-                                <LuCalendar size={13} />
-                                <span>Sanagacha</span>
-                            </HStack>
-                        </label>
-                        <input
-                            type="date"
-                            value={dateTo}
-                            onChange={(e) => handleDateChange('to', e.target.value)}
-                            className={inputCx}
-                        />
-                    </div>
-                </div>
-
-                {selectedCustomer && (
-                    <Box
-                        mt={4}
-                        p={4}
-                        borderRadius="xl"
-                        bg={isDark ? 'rgba(250,204,21,.07)' : '#FFFBEB'}
-                        borderWidth="1px"
-                        borderColor={isDark ? 'rgba(250,204,21,.2)' : '#FDE68A'}
-                    >
-                        <HStack gap={4} flexWrap="wrap">
-                            <HStack gap={2}>
-                                <Box p={2} borderRadius="lg" bg={isDark ? 'rgba(250,204,21,.15)' : '#FEF3C7'} color="#CA8A04">
-                                    <LuUsers size={16} />
-                                </Box>
-                                <Box>
-                                    <Text fontSize="xs" color={subtitleColor}>Tanlangan mijoz</Text>
-                                    <Text fontWeight="bold" color={textColor}>{selectedCustomer.label}</Text>
-                                </Box>
-                            </HStack>
-                            {selectedCustomer.phone && (
-                                <Box>
-                                    <Text fontSize="xs" color={subtitleColor}>Telefon</Text>
-                                    <Text fontWeight="semibold" color={textColor}>{selectedCustomer.phone}</Text>
-                                </Box>
-                            )}
-                            {customerBalance !== null && (
-                                <Box>
-                                    <Text fontSize="xs" color={subtitleColor}>Joriy balans</Text>
-                                    <Text
-                                        fontWeight="bold"
-                                        color={
-                                            Number(customerBalance) < 0
-                                                ? (isDark ? 'red.300' : 'red.600')
-                                                : Number(customerBalance) > 0
-                                                ? (isDark ? 'green.300' : 'green.600')
-                                                : subtitleColor
-                                        }
-                                    >
-                                        {Number(customerBalance) === 0
-                                            ? '0 so\'m'
-                                            : `${formatNumber(Math.abs(Number(customerBalance)))} so'm ${
-                                                Number(customerBalance) < 0 ? '(qarzdor)' : '(kredit)'
-                                            }`
-                                        }
-                                    </Text>
-                                </Box>
-                            )}
-                        </HStack>
-                    </Box>
-                )}
             </Box>
 
-            {/* ── Empty state when no customer selected ─────────────────── */}
-            {!hasCustomer && (
-                <Box
-                    className={panel}
-                    p={14}
-                    display="flex"
-                    flexDirection="column"
-                    alignItems="center"
-                    gap={4}
-                >
-                    <Box
-                        p={5}
-                        borderRadius="2xl"
-                        bg={isDark ? 'rgba(250,204,21,.08)' : '#FEF9C3'}
-                        border={`2px dashed ${isDark ? 'rgba(250,204,21,.2)' : '#FDE68A'}`}
-                        color="#CA8A04"
-                        display="flex"
-                        alignItems="center"
-                        justifyContent="center"
-                    >
-                        <LuUsers size={36} strokeWidth={1.5} />
-                    </Box>
-                    <VStack gap={1} textAlign="center">
-                        <Text fontSize="lg" fontWeight="bold" color={textColor}>Mijoz tanlanmagan</Text>
-                        <Text fontSize="sm" color={subtitleColor} maxW="360px">
-                            Sverka hisobotini ko'rish uchun yuqoridan mijozni tanlang va davr sanalarini belgilang
-                        </Text>
-                    </VStack>
-                </Box>
-            )}
-
-            {/* ── Data view ─────────────────────────────────────────────── */}
-            {hasCustomer && (
+            {/* ── Mazmun ── */}
+            {!customerId ? (
+                <VStack py={16} gap={3} bg={cardBg} borderWidth="1px" borderColor={cardBorder} borderRadius="2xl" boxShadow={panelShadow}>
+                    <Box p={4} borderRadius="2xl" bg={accentSoft} color={accentColor}><LuFileText size={30} /></Box>
+                    <Text fontWeight="semibold" color={textColor}>Mijozni tanlang</Text>
+                    <Text fontSize="sm" color={subtitleColor} textAlign="center" maxW="420px">Dalolatnoma tanlangan mijoz va davr bo‘yicha avtomatik tuziladi: davr boshidagi saldo, sotuvlar, to‘lovlar va yakuniy saldo.</Text>
+                </VStack>
+            ) : loading ? (
+                <VStack py={16} gap={3} bg={cardBg} borderWidth="1px" borderColor={cardBorder} borderRadius="2xl"><Spinner size="lg" color={accentColor} /><Text color={subtitleColor} fontSize="sm">Dalolatnoma tuzilmoqda...</Text></VStack>
+            ) : (
                 <>
-                    <HStack gap={4} mb={5} flexWrap="wrap" align="stretch">
-                        <SummaryCard
-                            icon={LuClipboardList}
-                            label="Jami buyurtmalar"
-                            value={`${formatDetailNumber(totalOrdersCount)} ta`}
-                            color="#FACC15"
-                            subLabel={`Sahifada: ${orders.length} ta`}
-                            isDark={isDark}
-                            cardBg={cardBg}
-                            cardBorder={cardBorder}
-                        />
-                        <SummaryCard
-                            icon={LuCreditCard}
-                            label="Jami to'lovlar"
-                            value={`${formatDetailNumber(totalPaymentsCount)} ta`}
-                            color="#22c55e"
-                            subLabel={`Sahifada: ${payments.length} ta`}
-                            isDark={isDark}
-                            cardBg={cardBg}
-                            cardBorder={cardBorder}
-                        />
-                        <SummaryCard
-                            icon={LuTrendingDown}
-                            label="Buyurtmalar summasi"
-                            value={`${formatNumber(ordersTotalSum)} so'm`}
-                            color="#f59e0b"
-                            subLabel="Joriy sahifa bo'yicha"
-                            isDark={isDark}
-                            cardBg={cardBg}
-                            cardBorder={cardBorder}
-                        />
-                        <SummaryCard
-                            icon={LuTrendingUp}
-                            label="To'lovlar summasi"
-                            value={`${formatNumber(paymentsSum)} so'm`}
-                            color="#3b82f6"
-                            subLabel="Joriy sahifa bo'yicha"
-                            isDark={isDark}
-                            cardBg={cardBg}
-                            cardBorder={cardBorder}
-                        />
-                        <SummaryCard
-                            icon={LuTriangleAlert}
-                            label="Qolgan qarz"
-                            value={`${formatNumber(remainingDebtSum)} so'm`}
-                            color={remainingDebtSum > 0 ? '#ef4444' : '#22c55e'}
-                            subLabel="Joriy sahifa bo'yicha"
-                            isDark={isDark}
-                            cardBg={cardBg}
-                            cardBorder={cardBorder}
-                        />
-                    </HStack>
+                    {(ordersError || paymentsError) && (
+                        <HStack gap={2} mb={4} px={4} py={3} borderRadius="xl" bg={redSoft} color={red} fontSize="sm"><LuCircleAlert size={16} /><span>Ma&apos;lumotlarning bir qismini yuklab bo‘lmadi, dalolatnoma to‘liq bo‘lmasligi mumkin.</span></HStack>
+                    )}
+                    <SimpleGrid columns={{ base: 1, sm: 2, xl: 4 }} gap={4} mb={4}>
+                        <StatCard icon={LuScale} label={`Davr boshida · ${dateFrom ? formatDate(dateFrom) : 'boshidan'}`} value={`${money(Math.abs(statement.opening))} so‘m`} sub={openMeta.label} color={openMeta.color} bg={openMeta.bg} />
+                        <StatCard icon={LuArrowUpRight} label="Sotuvlar (qarz oshdi)" value={`${money(statement.turnoverDebet)} so‘m`} sub={`${statement.rows.filter((r) => r.kind === 'order').length} ta buyurtma`} color={sky} bg={skySoft} />
+                        <StatCard icon={LuArrowDownLeft} label="To‘lovlar (qarz kamaydi)" value={`${money(statement.turnoverKredit)} so‘m`} sub={`${statement.rows.filter((r) => r.kind !== 'order').length} ta to‘lov / qaytarish`} color={green} bg={greenSoft} />
+                        <StatCard icon={LuScale} label={`Davr oxirida · ${formatDate(dateTo || todayIso())}`} value={`${money(Math.abs(statement.closing))} so‘m`} sub={closeMeta.label} color={closeMeta.color} bg={closeMeta.bg} />
+                    </SimpleGrid>
 
-                    <Box className={panel}>
-                        <HStack
-                            gap={0}
-                            borderBottomWidth="1px"
-                            borderColor={cardBorder}
-                            px={4}
-                            pt={1}
-                            overflowX="auto"
-                        >
-                            {tabs.map((tab) => {
-                                const isActive = activeTab === tab.id;
-                                const Icon = tab.icon;
-                                return (
-                                    <button
-                                        key={tab.id}
-                                        type="button"
-                                        onClick={() => setActiveTab(tab.id)}
-                                        className={`relative flex items-center gap-2 px-5 py-3.5 text-sm font-semibold transition-all whitespace-nowrap border-b-2 -mb-px ${
-                                            isActive
-                                                ? 'border-amber-400 text-amber-500'
-                                                : `border-transparent ${muted} hover:text-slate-600 dark:hover:text-slate-300`
-                                        }`}
-                                    >
-                                        <Icon size={15} />
-                                        {tab.label}
-                                        {tab.count !== undefined && tab.count > 0 && (
-                                            <span className={`ml-1 rounded-full px-2 py-0.5 text-xs font-bold ${
-                                                isActive
-                                                    ? 'bg-amber-400 text-slate-900'
-                                                    : (isDark ? 'bg-white/10 text-slate-300' : 'bg-slate-100 text-slate-600')
-                                            }`}>
-                                                {tab.count}
-                                            </span>
-                                        )}
-                                    </button>
-                                );
-                            })}
+                    <Box bg={cardBg} borderWidth="1px" borderColor={cardBorder} borderRadius="2xl" overflow="hidden" boxShadow={panelShadow}>
+                        <HStack justify="space-between" align="center" flexWrap="wrap" gap={3} px={{ base: 4, md: 5 }} py={3.5} borderBottomWidth="1px" borderColor={cardBorder}>
+                            <HStack gap={2}>
+                                <LuFileText size={17} color={accentColor} />
+                                <Heading size="sm" color={textColor}>Hisob-kitoblar</Heading>
+                                <Badge borderRadius="full" px={2} fontSize="11px" bg={accentSoft} color={accentColor}>{statement.rows.length}</Badge>
+                            </HStack>
+                            <Text fontSize="sm" color={subtitleColor}>{customer?.name || selected?.label} · {dateFrom ? formatDate(dateFrom) : 'boshidan'} — {formatDate(dateTo || todayIso())}</Text>
                         </HStack>
-
-                        {/* ══ XULOSA TAB ═══════════════════════════════════ */}
-                        {activeTab === 'summary' && (
-                            <Box p={6}>
-                                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                                    <Box
-                                        p={5}
-                                        borderRadius="xl"
-                                        bg={
-                                            Number(customerBalance) > 0
-                                                ? (isDark ? 'rgba(239,68,68,.08)' : '#FEF2F2')
-                                                : Number(customerBalance) < 0
-                                                ? (isDark ? 'rgba(34,197,94,.08)' : '#F0FDF4')
-                                                : (isDark ? 'rgba(255,255,255,.04)' : '#F8FAFC')
-                                        }
-                                        borderWidth="1px"
-                                        borderColor={
-                                            Number(customerBalance) > 0
-                                                ? (isDark ? 'rgba(239,68,68,.25)' : '#FECACA')
-                                                : Number(customerBalance) < 0
-                                                ? (isDark ? 'rgba(34,197,94,.25)' : '#BBF7D0')
-                                                : cardBorder
-                                        }
-                                    >
-                                        <HStack gap={3} mb={3}>
-                                            <Box
-                                                p={2.5} borderRadius="xl"
-                                                bg={Number(customerBalance) > 0 ? 'rgba(239,68,68,.15)' : 'rgba(34,197,94,.15)'}
-                                                color={Number(customerBalance) > 0 ? '#ef4444' : '#22c55e'}
-                                                display="flex" alignItems="center"
-                                            >
-                                                {Number(customerBalance) > 0
-                                                    ? <LuTriangleAlert size={18} />
-                                                    : <LuCircleCheck size={18} />
-                                                }
-                                            </Box>
-                                            <Text fontWeight="semibold" color={textColor}>Joriy balans holati</Text>
-                                        </HStack>
-                                        <Text fontSize="2xl" fontWeight="bold"
-                                            color={
-                                                Number(customerBalance) > 0
-                                                    ? (isDark ? 'red.300' : 'red.600')
-                                                    : Number(customerBalance) < 0
-                                                    ? (isDark ? 'green.300' : 'green.600')
-                                                    : subtitleColor
-                                            }>
-                                            {Number(customerBalance) === 0
-                                                ? '0 so\'m'
-                                                : `${formatNumber(Math.abs(Number(customerBalance)))} so'm`
-                                            }
-                                        </Text>
-                                        <Text fontSize="sm" color={subtitleColor} mt={1}>
-                                            {Number(customerBalance) < 0
-                                                ? '⚠ Mijoz qarzdor'
-                                                : Number(customerBalance) > 0
-                                                ? '✓ Mijozda kredit bor (ortiqcha to\'lagan)'
-                                                : 'Hisob-kitob balanslangan'
-                                            }
-                                        </Text>
-                                    </Box>
-
-                                    <Box
-                                        p={5} borderRadius="xl"
-                                        bg={isDark ? 'rgba(255,255,255,.03)' : '#F8FAFC'}
-                                        borderWidth="1px" borderColor={cardBorder}
-                                    >
-                                        <Text fontWeight="semibold" color={textColor} mb={4}>Statistika (joriy sahifa)</Text>
-                                        <VStack gap={3} align="stretch">
-                                            {[
-                                                { label: 'Buyurtmalar soni', value: `${formatDetailNumber(totalOrdersCount)} ta`, icon: LuClipboardList, color: '#FACC15' },
-                                                { label: "To'lovlar soni",   value: `${formatDetailNumber(totalPaymentsCount)} ta`, icon: LuCreditCard, color: '#22c55e' },
-                                                { label: 'Buyurtmalar jami', value: `${formatNumber(ordersTotalSum)} so'm`, icon: LuTrendingDown, color: '#f59e0b' },
-                                                { label: "To'lovlar jami",   value: `${formatNumber(paymentsSum)} so'm`, icon: LuTrendingUp, color: '#3b82f6' },
-                                                { label: 'Qolgan qarz',      value: `${formatNumber(remainingDebtSum)} so'm`, icon: LuTriangleAlert, color: remainingDebtSum > 0 ? '#ef4444' : '#22c55e' },
-                                            ].map(({ label, value, icon: Ic, color }) => (
-                                                <HStack key={label} justify="space-between" gap={4}>
-                                                    <HStack gap={2}>
-                                                        <Ic size={14} color={color} />
-                                                        <Text fontSize="sm" color={subtitleColor}>{label}</Text>
+                        <Box overflowX="auto">
+                            <Table.Root size="sm" bg={isDark ? 'transparent' : 'white'} minW="880px">
+                                <Table.Header>
+                                    <Table.Row>
+                                        <Table.ColumnHeader {...th} w="44px" textAlign="center">№</Table.ColumnHeader>
+                                        <Table.ColumnHeader {...th}>Hujjat</Table.ColumnHeader>
+                                        <Table.ColumnHeader {...th}>Sana</Table.ColumnHeader>
+                                        <Table.ColumnHeader {...th} textAlign="right">Sotuv (qarz +)</Table.ColumnHeader>
+                                        <Table.ColumnHeader {...th} textAlign="right">To‘lov (qarz −)</Table.ColumnHeader>
+                                        <Table.ColumnHeader {...th}>Izoh</Table.ColumnHeader>
+                                    </Table.Row>
+                                </Table.Header>
+                                <Table.Body>
+                                    <Table.Row bg={isDark ? 'whiteAlpha.50' : 'gray.50'}>
+                                        <Table.Cell />
+                                        <Table.Cell colSpan={2} fontWeight="bold" color={textColor} fontSize="sm">Davr boshida ({dateFrom ? formatDate(dateFrom) : 'boshidan'})</Table.Cell>
+                                        <Table.Cell textAlign="right" fontWeight="bold" fontSize="sm" color={red} whiteSpace="nowrap">{statement.opening > 0 ? money(statement.opening) : ''}</Table.Cell>
+                                        <Table.Cell textAlign="right" fontWeight="bold" fontSize="sm" color={green} whiteSpace="nowrap">{statement.opening < 0 ? money(-statement.opening) : ''}</Table.Cell>
+                                        <Table.Cell fontSize="sm" color={subtitleColor}>{openMeta.label}</Table.Cell>
+                                    </Table.Row>
+                                    {statement.rows.length === 0 && (
+                                        <Table.Row><Table.Cell colSpan={6} py={10} textAlign="center" color={subtitleColor}>Bu davrda hujjatlar yo‘q</Table.Cell></Table.Row>
+                                    )}
+                                    {statement.rows.map((row, index) => {
+                                        const kind = row.kind === 'order'
+                                            ? { label: 'Sotuv', Icon: LuArrowUpRight, color: sky, bg: skySoft }
+                                            : row.kind === 'return'
+                                                ? { label: 'Qaytarish', Icon: LuUndo2, color: isDark ? '#C4B5FD' : '#6D28D9', bg: isDark ? 'rgba(139,92,246,.14)' : '#EDE9FE' }
+                                                : { label: 'To‘lov', Icon: LuArrowDownLeft, color: green, bg: greenSoft };
+                                        return (
+                                            <Table.Row key={row.id} _hover={{ bg: isDark ? 'rgba(250,204,21,.04)' : '#FFFBEB' }}>
+                                                <Table.Cell textAlign="center" color={subtitleColor} fontSize="sm">{index + 1}</Table.Cell>
+                                                <Table.Cell>
+                                                    <HStack gap={2.5}>
+                                                        <Box p={1.5} borderRadius="md" bg={kind.bg} color={kind.color} flexShrink={0}><kind.Icon size={13} /></Box>
+                                                        <Box minW={0}>
+                                                            <Text fontSize="sm" fontWeight="semibold" color={textColor} noOfLines={1}>{row.title}</Text>
+                                                            <Text fontSize="10px" fontWeight="semibold" textTransform="uppercase" letterSpacing="wider" color={subtitleColor}>{kind.label}</Text>
+                                                        </Box>
                                                     </HStack>
-                                                    <Text fontSize="sm" fontWeight="bold" color={textColor}>{value}</Text>
-                                                </HStack>
-                                            ))}
-                                        </VStack>
-                                    </Box>
-                                </div>
-
-                                <Box
-                                    mt={5} p={4} borderRadius="xl"
-                                    bg={isDark ? 'rgba(250,204,21,.06)' : '#FFFBEB'}
-                                    borderWidth="1px" borderColor={isDark ? 'rgba(250,204,21,.15)' : '#FDE68A'}
-                                >
-                                    <HStack gap={3}>
-                                        <LuFileSpreadsheet size={18} color="#CA8A04" />
-                                        <Box>
-                                            <Text fontSize="sm" fontWeight="semibold" color={isDark ? '#fde68a' : '#92400e'}>
-                                                Excel hisobotni yuklab oling
-                                            </Text>
-                                            <Text fontSize="xs" color={subtitleColor} mt={0.5}>
-                                                Hisobot 3 ta varaqdan iborat: Ma'lumot, Buyurtmalar va To'lovlar.
-                                                Mijozga jo'natish uchun tayyor formatda saqlanadi.
-                                            </Text>
-                                        </Box>
-                                        <Button
-                                            onClick={handleExport}
-                                            disabled={exporting}
-                                            bg={accentColor}
-                                            color="black"
-                                            borderRadius="xl"
-                                            px={5}
-                                            h="38px"
-                                            fontSize="sm"
-                                            fontWeight="bold"
-                                            ml="auto"
-                                            flexShrink={0}
-                                            _hover={{ bg: BRAND_COLORS.yellowHover }}
-                                        >
-                                            <HStack gap={2}>
-                                                {exporting ? <Spinner size="sm" /> : <LuFileSpreadsheet size={15} />}
-                                                <span>Yuklab olish</span>
-                                            </HStack>
-                                        </Button>
-                                    </HStack>
-                                </Box>
-                            </Box>
-                        )}
-
-                        {/* ══ BUYURTMALAR TAB ═══════════════════════════════ */}
-                        {activeTab === 'orders' && (
-                            <Box>
-                                {ordersFetching ? (
-                                    <Box py={14} display="flex" alignItems="center" justifyContent="center" gap={3} color={subtitleColor}>
-                                        <Spinner size="sm" color="yellow.400" />
-                                        <Text fontSize="sm">Yuklanmoqda...</Text>
-                                    </Box>
-                                ) : orders.length === 0 ? (
-                                    <VStack py={14} gap={3}>
-                                        <LuClipboardList size={36} color={isDark ? '#334155' : '#cbd5e1'} strokeWidth={1.5} />
-                                        <Text color={subtitleColor} fontSize="sm">Bu davr uchun buyurtmalar topilmadi</Text>
-                                    </VStack>
-                                ) : (
-                                    <>
-                                        <Box overflowX="auto">
-                                            <table className="w-full text-sm border-collapse">
-                                                <thead>
-                                                    <tr>
-                                                        <th className={`${thCx} w-12 text-center`}>№</th>
-                                                        <th className={thCx}>Mahsulotlar</th>
-                                                        <th className={`${thCx} text-right`}>Jami summa</th>
-                                                        <th className={`${thCx} text-right`}>Qolgan qarz</th>
-                                                        <th className={thCx}>Holat</th>
-                                                        <th className={thCx}>Izoh</th>
-                                                        <th className={thCx}>Sana</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className={`divide-y ${divLine}`}>
-                                                    {orders.map((order, idx) => (
-                                                        <tr key={order.id} className={`transition-colors ${rowHov}`}>
-                                                            <td className={`${tdCx} text-center ${muted}`}>
-                                                                {ordersPage * PAGE_SIZE + idx + 1}
-                                                            </td>
-                                                            <td className={`${tdCx} font-semibold ${head}`}>
-                                                                <HStack gap={2}>
-                                                                    <Box p={1.5} borderRadius="md"
-                                                                        bg={isDark ? 'rgba(250,204,21,.1)' : '#FEF3C7'}
-                                                                        color="#CA8A04"
-                                                                        display="flex" alignItems="center"
-                                                                    >
-                                                                        <LuClipboardList size={13} />
-                                                                    </Box>
-                                                                    <span>{order.items?.length ?? 0} ta mahsulot</span>
-                                                                </HStack>
-                                                            </td>
-                                                            <td className={`${tdCx} text-right font-bold ${head} whitespace-nowrap`}>
-                                                                {formatNumber(order.totalAmount ?? 0)} so'm
-                                                            </td>
-                                                            <td className={`${tdCx} text-right whitespace-nowrap`}>
-                                                                <span style={{
-                                                                    fontWeight: (order.remainingDebt ?? 0) > 0 ? 700 : 400,
-                                                                    color: (order.remainingDebt ?? 0) > 0
-                                                                        ? (isDark ? '#f87171' : '#dc2626')
-                                                                        : (isDark ? '#94a3b8' : '#64748b'),
-                                                                }}>
-                                                                    {formatNumber(order.remainingDebt ?? 0)} so'm
-                                                                </span>
-                                                            </td>
-                                                            <td className={tdCx}>
-                                                                {statusPill(order.status, isDark)}
-                                                            </td>
-                                                            <td className={`${tdCx} ${muted} max-w-[200px] truncate`}>
-                                                                {order.summary || '—'}
-                                                            </td>
-                                                            <td className={`${tdCx} ${muted} whitespace-nowrap`}>
-                                                                <HStack gap={1.5}>
-                                                                    <LuCalendar size={12} />
-                                                                    <span>{formatDetailDate(order.createdAt)}</span>
-                                                                </HStack>
-                                                            </td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                                <tfoot>
-                                                    <tr className={isDark ? 'bg-[#0f172a]/50' : 'bg-[#f8fafc]'}>
-                                                        <td colSpan={2} className={`${tdCx} font-bold ${head}`}>
-                                                            Sahifa jami
-                                                        </td>
-                                                        <td className={`${tdCx} text-right font-bold text-amber-500 whitespace-nowrap`}>
-                                                            {formatNumber(ordersTotalSum)} so'm
-                                                        </td>
-                                                        <td className={`${tdCx} text-right font-bold whitespace-nowrap`}
-                                                            style={{ color: remainingDebtSum > 0 ? (isDark ? '#f87171' : '#dc2626') : (isDark ? '#94a3b8' : '#64748b') }}>
-                                                            {formatNumber(remainingDebtSum)} so'm
-                                                        </td>
-                                                        <td colSpan={3} />
-                                                    </tr>
-                                                </tfoot>
-                                            </table>
-                                        </Box>
-                                        <HStack justify="space-between" align="center" px={5} py={4} flexWrap="wrap" gap={3}
-                                            borderTopWidth="1px" borderColor={cardBorder}>
-                                            <Text color={subtitleColor} fontSize="sm">
-                                                Jami <strong>{formatDetailNumber(totalOrdersCount)}</strong> ta buyurtma
-                                                {' '}· Sahifa <strong>{ordersPage + 1}</strong> / <strong>{orderPagination.totalPages || 1}</strong>
-                                            </Text>
-                                            <HStack gap={2}>
-                                                <Button
-                                                    size="sm" variant="outline" borderRadius="xl"
-                                                    disabled={ordersPage === 0}
-                                                    onClick={() => setOrdersPage((v) => v - 1)}
-                                                >
-                                                    <LuChevronLeft size={15} />
-                                                </Button>
-                                                <Button
-                                                    size="sm" variant="outline" borderRadius="xl"
-                                                    disabled={ordersPage >= (orderPagination.totalPages || 1) - 1}
-                                                    onClick={() => setOrdersPage((v) => v + 1)}
-                                                >
-                                                    <LuChevronRight size={15} />
-                                                </Button>
-                                            </HStack>
-                                        </HStack>
-                                    </>
-                                )}
-                            </Box>
-                        )}
-
-                        {/* ══ TO'LOVLAR TAB ═════════════════════════════════ */}
-                        {activeTab === 'payments' && (
-                            <Box>
-                                {paymentsFetching ? (
-                                    <Box py={14} display="flex" alignItems="center" justifyContent="center" gap={3} color={subtitleColor}>
-                                        <Spinner size="sm" color="yellow.400" />
-                                        <Text fontSize="sm">Yuklanmoqda...</Text>
-                                    </Box>
-                                ) : payments.length === 0 ? (
-                                    <VStack py={14} gap={3}>
-                                        <LuCreditCard size={36} color={isDark ? '#334155' : '#cbd5e1'} strokeWidth={1.5} />
-                                        <Text color={subtitleColor} fontSize="sm">Bu davr uchun to'lovlar topilmadi</Text>
-                                    </VStack>
-                                ) : (
-                                    <>
-                                        <Box overflowX="auto">
-                                            <table className="w-full text-sm border-collapse">
-                                                <thead>
-                                                    <tr>
-                                                        <th className={`${thCx} w-12 text-center`}>№</th>
-                                                        <th className={thCx}>Kassa</th>
-                                                        <th className={`${thCx} text-right`}>Summa</th>
-                                                        <th className={`${thCx} text-right`}>Taqsimlangan</th>
-                                                        <th className={`${thCx} text-right`}>Avans</th>
-                                                        <th className={thCx}>Holat</th>
-                                                        <th className={thCx}>Izoh</th>
-                                                        <th className={thCx}>Sana</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className={`divide-y ${divLine}`}>
-                                                    {payments.map((pay, idx) => {
-                                                        const isActive = pay.status === 'ACTIVE';
-                                                        return (
-                                                            <tr
-                                                                key={pay.id}
-                                                                className={`transition-colors ${rowHov}`}
-                                                                style={{ opacity: isActive ? 1 : 0.5 }}
-                                                            >
-                                                                <td className={`${tdCx} text-center ${muted}`}>
-                                                                    {paymentsPage * PAGE_SIZE + idx + 1}
-                                                                </td>
-                                                                <td className={`${tdCx} font-semibold ${head} whitespace-nowrap`}>
-                                                                    <HStack gap={2}>
-                                                                        <Box p={1.5} borderRadius="md"
-                                                                            bg={isDark ? 'rgba(59,130,246,.12)' : '#EFF6FF'}
-                                                                            color="#3b82f6"
-                                                                            display="flex" alignItems="center"
-                                                                        >
-                                                                            <LuWallet size={13} />
-                                                                        </Box>
-                                                                        <span>{pay.cashboxName || '—'}</span>
-                                                                    </HStack>
-                                                                </td>
-                                                                <td className={`${tdCx} text-right font-bold whitespace-nowrap`}
-                                                                    style={{ color: isDark ? '#86efac' : '#15803d' }}>
-                                                                    {formatNumber(pay.amount ?? 0)} so'm
-                                                                </td>
-                                                                <td className={`${tdCx} text-right ${muted} whitespace-nowrap`}>
-                                                                    {formatNumber(pay.allocatedAmount ?? 0)} so'm
-                                                                </td>
-                                                                <td className={`${tdCx} text-right whitespace-nowrap`}>
-                                                                    <span style={{
-                                                                        fontWeight: (pay.unallocatedAmount ?? 0) > 0 ? 700 : 400,
-                                                                        color: (pay.unallocatedAmount ?? 0) > 0
-                                                                            ? (isDark ? '#86efac' : '#15803d')
-                                                                            : (isDark ? '#94a3b8' : '#64748b'),
-                                                                    }}>
-                                                                        {formatNumber(pay.unallocatedAmount ?? 0)} so'm
-                                                                    </span>
-                                                                </td>
-                                                                <td className={tdCx}>
-                                                                    <span style={{
-                                                                        display: 'inline-flex', alignItems: 'center', gap: 4,
-                                                                        background: isActive
-                                                                            ? (isDark ? 'rgba(34,197,94,.14)' : '#DCFCE7')
-                                                                            : (isDark ? 'rgba(239,68,68,.14)' : '#FEE2E2'),
-                                                                        color: isActive
-                                                                            ? (isDark ? '#86efac' : '#15803d')
-                                                                            : (isDark ? '#fca5a5' : '#b91c1c'),
-                                                                        border: `1px solid ${isActive ? '#16a34a' : '#dc2626'}`,
-                                                                        borderRadius: 999, padding: '2px 10px',
-                                                                        fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap',
-                                                                    }}>
-                                                                        {isActive
-                                                                            ? <LuCircleCheck size={11} />
-                                                                            : <LuCircleDot size={11} />
-                                                                        }
-                                                                        {isActive ? 'Faol' : 'Bekor qilingan'}
-                                                                    </span>
-                                                                </td>
-                                                                <td className={`${tdCx} ${muted} max-w-[180px] truncate`}>
-                                                                    {pay.summary || '—'}
-                                                                </td>
-                                                                <td className={`${tdCx} ${muted} whitespace-nowrap`}>
-                                                                    <HStack gap={1.5}>
-                                                                        <LuCalendar size={12} />
-                                                                        <span>{formatDetailDate(pay.paidAt ?? pay.createdAt)}</span>
-                                                                    </HStack>
-                                                                </td>
-                                                            </tr>
-                                                        );
-                                                    })}
-                                                </tbody>
-                                                <tfoot>
-                                                    <tr className={isDark ? 'bg-[#0f172a]/50' : 'bg-[#f8fafc]'}>
-                                                        <td colSpan={2} className={`${tdCx} font-bold ${head}`}>
-                                                            Sahifa jami
-                                                        </td>
-                                                        <td className={`${tdCx} text-right font-bold whitespace-nowrap`}
-                                                            style={{ color: isDark ? '#86efac' : '#15803d' }}>
-                                                            {formatNumber(paymentsSum)} so'm
-                                                        </td>
-                                                        <td colSpan={5} />
-                                                    </tr>
-                                                </tfoot>
-                                            </table>
-                                        </Box>
-                                        <HStack justify="space-between" align="center" px={5} py={4} flexWrap="wrap" gap={3}
-                                            borderTopWidth="1px" borderColor={cardBorder}>
-                                            <Text color={subtitleColor} fontSize="sm">
-                                                Jami <strong>{formatDetailNumber(totalPaymentsCount)}</strong> ta to'lov
-                                                {' '}· Sahifa <strong>{paymentsPage + 1}</strong> / <strong>{paymentPagination.totalPages || 1}</strong>
-                                            </Text>
-                                            <HStack gap={2}>
-                                                <Button
-                                                    size="sm" variant="outline" borderRadius="xl"
-                                                    disabled={paymentsPage === 0}
-                                                    onClick={() => setPaymentsPage((v) => v - 1)}
-                                                >
-                                                    <LuChevronLeft size={15} />
-                                                </Button>
-                                                <Button
-                                                    size="sm" variant="outline" borderRadius="xl"
-                                                    disabled={paymentsPage >= (paymentPagination.totalPages || 1) - 1}
-                                                    onClick={() => setPaymentsPage((v) => v + 1)}
-                                                >
-                                                    <LuChevronRight size={15} />
-                                                </Button>
-                                            </HStack>
-                                        </HStack>
-                                    </>
-                                )}
-                            </Box>
-                        )}
+                                                </Table.Cell>
+                                                <Table.Cell whiteSpace="nowrap" color={textColor} fontSize="sm">{formatDate(row.at)}</Table.Cell>
+                                                <Table.Cell textAlign="right" whiteSpace="nowrap" fontSize="sm" fontWeight={row.debet ? 'bold' : 'normal'} color={row.debet ? red : subtitleColor}>{row.debet ? money(row.debet) : '—'}</Table.Cell>
+                                                <Table.Cell textAlign="right" whiteSpace="nowrap" fontSize="sm" fontWeight={row.kredit ? 'bold' : 'normal'} color={row.kredit ? green : subtitleColor}>{row.kredit ? money(row.kredit) : '—'}</Table.Cell>
+                                                <Table.Cell fontSize="sm" color={subtitleColor} maxW="260px"><Text noOfLines={2}>{row.note || '—'}</Text></Table.Cell>
+                                            </Table.Row>
+                                        );
+                                    })}
+                                    <Table.Row bg={accentSoft}>
+                                        <Table.Cell />
+                                        <Table.Cell colSpan={2} fontWeight="bold" color={textColor} fontSize="sm">Davr jami</Table.Cell>
+                                        <Table.Cell textAlign="right" fontWeight="bold" fontSize="sm" color={textColor} whiteSpace="nowrap">{money(statement.turnoverDebet)}</Table.Cell>
+                                        <Table.Cell textAlign="right" fontWeight="bold" fontSize="sm" color={textColor} whiteSpace="nowrap">{money(statement.turnoverKredit)}</Table.Cell>
+                                        <Table.Cell />
+                                    </Table.Row>
+                                    <Table.Row bg={isDark ? 'whiteAlpha.50' : 'gray.50'}>
+                                        <Table.Cell />
+                                        <Table.Cell colSpan={2} fontWeight="bold" color={textColor} fontSize="sm">Davr oxirida ({formatDate(dateTo || todayIso())})</Table.Cell>
+                                        <Table.Cell textAlign="right" fontWeight="bold" fontSize="sm" color={red} whiteSpace="nowrap">{statement.closing > 0 ? money(statement.closing) : ''}</Table.Cell>
+                                        <Table.Cell textAlign="right" fontWeight="bold" fontSize="sm" color={green} whiteSpace="nowrap">{statement.closing < 0 ? money(-statement.closing) : ''}</Table.Cell>
+                                        <Table.Cell fontSize="sm" color={subtitleColor}>{closeMeta.label}</Table.Cell>
+                                    </Table.Row>
+                                </Table.Body>
+                            </Table.Root>
+                        </Box>
                     </Box>
+
+                    {/* Yuklab olish uchun yashirin qog‘oz ko‘rinishi (1C uslubida) */}
+                    <Box position="fixed" left="-20000px" top="0" w="960px" aria-hidden="true" pointerEvents="none" bg="white" color="#111827">
+                        <Statement statement={statement} customer={customer || { name: selected?.label, phone: selected?.phone }} dateFrom={dateFrom} dateTo={dateTo} innerRef={paperRef} />
+                    </Box>
+
+                    <HStack gap={2} mt={3} color={subtitleColor} fontSize="xs" flexWrap="wrap">
+                        <LuClipboardList size={13} /><span>«Sotuv» ustuni — tasdiqlangan buyurtmalar, mijozning qarzi shunga oshadi.</span>
+                        <LuCreditCard size={13} /><span>«To‘lov» ustuni — qabul qilingan to‘lovlar va qaytarishlar, qarz shunga kamayadi. Bekor qilinganlar hisobga olinmaydi.</span>
+                    </HStack>
                 </>
             )}
         </Box>

@@ -10,6 +10,7 @@ import {
 } from 'react-icons/lu';
 import { useAppTheme } from '../../../theme/tokens';
 import { formatNumber } from '../../ui/number-format';
+import { formatPackPiece, splitOrderItem } from '../../ui/order-items';
 import { useAppSelector } from '../../../store/hooks';
 import { ROLES } from '../../../app/permissions/roles';
 import {
@@ -20,33 +21,18 @@ import {
     useConfirmSalesOrderMutation,
 } from '../../../store/services/salesOrder.api';
 import DeleteOrder from '../__components/DeleteOrder';
-import { STATUS_LABEL, statusCx } from '../__components/statusBadge';
+import { STATUS_LABEL, statusCx, statusStyle, NEXT_STATUS, FINAL_STATUSES } from '../__components/statusBadge';
 import { Alert } from '../../Other/UI/Alert/Alert';
 
 const PAGE_SIZE = 20;
 
-/* ── Status configs ── */
-const LOCAL_LABELS = {
-    CREATED:    'Yaratilgan',
-    LOADED:     'Ortildi',
-    CONFIRMED:  'Tugallangan',
-    REJECTED:   'Rad etilgan',
-};
-
-const NEXT_STATUS = {
-    CREATED:    ['LOADED', 'REJECTED'],
-    LOADED:     ['CONFIRMED'],
-    CONFIRMED:  [],
-    REJECTED:   [],
-};
-
-const FINAL_STATUSES = ['CONFIRMED', 'REJECTED'];
-
+/* ── Status configs — yagona manba: statusBadge.js ── */
 const STATUS_ICON = {
     CREATED:    LuCircleDashed,
     LOADED:     LuPackageCheck,
     CONFIRMED:  LuCircleCheckBig,
     REJECTED:   LuCircleX,
+    RETURNED:   LuBan,
 };
 
 /* ── Tabs ── */
@@ -62,21 +48,21 @@ const TABS = [
     },
     {
         key: 'completed',
-        label: 'Tugallangan',
+        label: 'Tugallandi',
         Icon: LuCircleCheckBig,
         statuses: ['CONFIRMED'],
         hasStatusFilter: false,
         emptyText: "Hali tugallangan buyurtma yo'q",
-        emptyHint: "Tasdiqlangan buyurtmalar shu yerda ko'rinadi",
+        emptyHint: "Tugallangan buyurtmalar shu yerda ko'rinadi",
     },
     {
         key: 'cancelled',
-        label: 'Rad etilgan',
+        label: 'Bekor qilindi',
         Icon: LuBan,
         statuses: ['REJECTED'],
         hasStatusFilter: false,
-        emptyText: "Hali rad etilgan buyurtma yo'q",
-        emptyHint: "Rad etilgan buyurtmalar shu yerda ko'rinadi",
+        emptyText: "Hali bekor qilingan buyurtma yo'q",
+        emptyHint: "Bekor qilingan buyurtmalar shu yerda ko'rinadi",
     },
 ];
 
@@ -84,7 +70,7 @@ const ACTIVE_STATUSES = TABS[0].statuses;
 
 const labelOf = (status) => {
     if (!status) return '—';
-    return LOCAL_LABELS[status] ?? STATUS_LABEL?.[status] ?? status;
+    return STATUS_LABEL[status] ?? status;
 };
 
 const safeStatusCx = (status) => {
@@ -101,11 +87,7 @@ const effectiveNextStatuses = (status) => {
     return Array.isArray(next) ? next : [];
 };
 
-const isFinalStatus = (status) => {
-    if (!status) return false;
-    if (status === 'CONFIRMED' || status === 'REJECTED') return true;
-    return Array.isArray(FINAL_STATUSES) && FINAL_STATUSES.includes(status);
-};
+const isFinalStatus = (status) => Boolean(status) && FINAL_STATUSES.includes(status);
 
 const formatDate = (value) => {
     if (!value) return '—';
@@ -132,13 +114,7 @@ function OrderListStatusControl({ order, isDark }) {
     const [loadOrder] = useLoadSalesOrderMutation();
     const [confirmOrder] = useConfirmSalesOrderMutation();
 
-    const statusStyles = {
-        CREATED:    { bg: isDark ? 'rgba(250,204,21,.16)'  : '#FEF3C7', color: isDark ? '#fde68a' : '#92400E', border: isDark ? '#ca8a04' : '#d97706' },
-        LOADED:     { bg: isDark ? 'rgba(167,139,250,.16)' : '#EDE9FE', color: isDark ? '#c4b5fd' : '#5B21B6', border: isDark ? '#8b5cf6' : '#7c3aed' },
-        CONFIRMED:  { bg: isDark ? 'rgba(34,197,94,.16)'   : '#DCFCE7', color: isDark ? '#86efac' : '#15803d', border: '#16a34a' },
-        REJECTED:   { bg: isDark ? 'rgba(239,68,68,.16)'   : '#FEE2E2', color: isDark ? '#fca5a5' : '#b91c1c', border: '#dc2626' },
-    };
-    const style = statusStyles[order.status] || statusStyles.CREATED;
+    const style = statusStyle(order.status, isDark);
 
     const isFinal = isFinalStatus(order.status);
     const nextStatuses = effectiveNextStatuses(order.status);
@@ -221,7 +197,7 @@ OrderListStatusControl.propTypes = {
 /*  Tugallangan / Rad etilgan — qator ostidagi panel                */
 /* ──────────────────────────────────────────────────────────────── */
 function OrderUnderPanel({ order, isDark }) {
-    const isCancelled = order?.status === 'REJECTED';
+    const isCancelled = order?.status === 'REJECTED' || order?.status === 'RETURNED';
 
     const head = isDark ? 'text-white' : 'text-[#0f172a]';
     const muted = isDark ? 'text-[#94a3b8]' : 'text-[#64748b]';
@@ -253,7 +229,7 @@ function OrderUnderPanel({ order, isDark }) {
                             </span>
                             <div>
                                 <p className={`text-sm font-bold leading-tight ${head}`}>
-                                    {isCancelled ? 'Rad etilgan' : 'Tugallangan'}
+                                    {labelOf(order?.status)}
                                 </p>
                                 <p className={`text-xs ${muted}`}>
                                     {isCancelled
@@ -280,14 +256,15 @@ function OrderUnderPanel({ order, isDark }) {
                                     <tr className={`text-left font-semibold uppercase tracking-wide ${muted}`}>
                                         <th className="px-3 py-2">Mahsulot</th>
                                         <th className="px-3 py-2 w-24 text-right">Narx</th>
-                                        <th className="px-3 py-2 w-20 text-right">Soni</th>
+                                        <th className="px-3 py-2 w-32 text-right">Miqdor</th>
                                         <th className="px-3 py-2 w-28 text-right">Jami</th>
                                     </tr>
                                 </thead>
                                 <tbody className={`divide-y ${isDark ? 'divide-[#334155]/60' : 'divide-[#e2e8f0]'}`}>
                                     {items.map((it, i) => {
-                                        const price = Number(it?.price ?? it?.amount ?? 0);
-                                        const qty = Number(it?.quantity ?? 1);
+                                        const price = Number(it?.unitPrice ?? it?.price ?? it?.amount ?? 0);
+                                        const split = splitOrderItem(it);
+                                        const qty = split.total || Number(it?.quantity ?? 1);
                                         return (
                                             <tr key={it?.id ?? i}>
                                                 <td className={`px-3 py-2 font-semibold ${head}`}>
@@ -296,9 +273,12 @@ function OrderUnderPanel({ order, isDark }) {
                                                 <td className={`px-3 py-2 text-right ${muted}`}>
                                                     {formatNumber(price)}
                                                 </td>
-                                                <td className={`px-3 py-2 text-right ${muted}`}>x {qty}</td>
+                                                <td className={`px-3 py-2 text-right whitespace-nowrap ${muted}`}>
+                                                    <span className={`font-semibold ${head}`}>{formatPackPiece(split)}</span>
+                                                    {split.packs > 0 && <span className="block text-[10px]">= {qty} dona</span>}
+                                                </td>
                                                 <td className={`px-3 py-2 text-right font-bold ${head}`}>
-                                                    {formatNumber(price * qty)}
+                                                    {formatNumber(Number(it?.lineTotal) || price * qty)}
                                                 </td>
                                             </tr>
                                         );
@@ -461,10 +441,12 @@ export default function ZayavkachiOrders() {
                             <p className={`text-sm mt-0.5 ${muted}`}>Mijozlardan kelgan buyurtmalar ro&apos;yxati</p>
                         </div>
                     </div>
-                    <button type="button" onClick={() => navigate(`${ordersPath}/new`)}
-                        className="flex h-12 items-center gap-2 rounded-xl bg-[#FACC15] px-6 text-sm font-bold text-[#0F172A] shadow-lg shadow-[#FACC15]/30 transition-all duration-200 hover:-translate-y-px hover:bg-[#EAB308] hover:shadow-xl">
-                        <LuPlus size={16} /> Yangi buyurtma
-                    </button>
+                    {!pathname?.startsWith('/kassir') && (
+                        <button type="button" onClick={() => navigate(`${ordersPath}/new`)}
+                            className="flex h-12 items-center gap-2 rounded-xl bg-[#FACC15] px-6 text-sm font-bold text-[#0F172A] shadow-lg shadow-[#FACC15]/30 transition-all duration-200 hover:-translate-y-px hover:bg-[#EAB308] hover:shadow-xl">
+                            <LuPlus size={16} /> Yangi buyurtma
+                        </button>
+                    )}
                 </div>
             </div>
 

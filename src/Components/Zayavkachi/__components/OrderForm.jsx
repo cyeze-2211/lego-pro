@@ -10,6 +10,8 @@ import {
 import { useAppTheme } from '../../../theme/tokens';
 import { formatNumber } from '../../ui/number-format';
 import { Alert } from '../../Other/UI/Alert/Alert';
+import { splitOrderItem } from '../../ui/order-items';
+import { STATUS_LABEL, statusCx } from './statusBadge';
 import { useGetWarehousesQuery } from '../../../store/services/warehouse.api';
 import { useGetProductsQuery } from '../../../store/services/product.api';
 import { useGetProductStocksQuery } from '../../../store/services/productStock.api';
@@ -67,17 +69,10 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
     const debouncedFilters = useDebouncedValue(filters, 350);
     const [expandedOrders, setExpandedOrders] = useState({});
     const [items, setItems]             = useState(() => {
+        // Har bir (mahsulot, ombor) uchun bitta qator: pachka + dona
         const groupedItems = new Map();
         for (const item of order?.items ?? []) {
-            const packQuantity = Number(item.quantity);
-            const enteredQuantity = Number(item.enteredQuantity);
-            const piecesPerPack = Number(
-                item.productPiecesPerPack
-                ?? item.piecesPerPack
-                ?? (item.unit === 'PACK' && enteredQuantity > 0
-                    ? packQuantity / enteredQuantity
-                    : 0)
-            ) || null;
+            const split = splitOrderItem(item);
             const key = `${item.productId}-${item.warehouseId}`;
             const existing = groupedItems.get(key) ?? {
                 id: item.id,
@@ -86,7 +81,7 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                 productArticle: item.productArticle,
                 productBarcode: item.productBarcode,
                 warehouseId: item.warehouseId,
-                piecesPerPack,
+                piecesPerPack: split.piecesPerPack || null,
                 packs: 0,
                 pieces: 0,
                 quantity: 0,
@@ -94,17 +89,10 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                 enteredQuantity: 0,
                 unitPrice: item.unitPrice,
             };
-            if (!existing.piecesPerPack && piecesPerPack) {
-                existing.piecesPerPack = piecesPerPack;
-            }
-            if (item.unit === 'PACK') {
-                existing.packs += enteredQuantity || (
-                    piecesPerPack ? packQuantity / piecesPerPack : 0
-                );
-            } else {
-                existing.pieces += enteredQuantity || packQuantity;
-            }
-            existing.quantity = existing.packs * (piecesPerPack ?? 0) + existing.pieces;
+            if (!existing.piecesPerPack && split.piecesPerPack) existing.piecesPerPack = split.piecesPerPack;
+            existing.packs += split.packs;
+            existing.pieces += split.pieces;
+            existing.quantity = existing.packs * (existing.piecesPerPack ?? 0) + existing.pieces;
             existing.enteredQuantity = existing.quantity;
             groupedItems.set(key, existing);
         }
@@ -182,7 +170,7 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
 
     const prevOrdersCustomerId = customerId || null;
     const { data: prevOrdersData, isFetching: prevOrdersFetching } = useGetSalesOrdersQuery(
-        { customerId: prevOrdersCustomerId, status: 'APPROVED', size: 10, sort: ['createdAt,DESC', 'id,DESC'] },
+        { customerId: prevOrdersCustomerId, status: 'CONFIRMED', size: 10, sort: ['createdAt,DESC', 'id,DESC'] },
         { skip: !prevOrdersCustomerId }
     );
     const prevOrders = (prevOrdersData?.items ?? []).filter((o) => o.id !== order?.id);
@@ -516,34 +504,19 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
             Alert('Har bir mahsulot uchun musbat miqdor va to‘g‘ri qadoq sonini kiriting', 'error');
             return;
         }
+        // Yangi API: har bir (mahsulot, ombor) uchun bitta qator — packQuantity + pieceQuantity
+        const toLine = ({ productId, warehouseId: whId, packs, pieces }) => ({
+            productId,
+            warehouseId: whId,
+            packQuantity: Number(packs) || 0,
+            pieceQuantity: Number(pieces) || 0,
+        });
         const data = {
             customerId,
             summary: summary.trim() || null,
-            items: items.flatMap(({ productId, warehouseId: whId, packs, pieces, unitPrice }) => {
-                const lines = [];
-                if (packs > 0) {
-                    lines.push({ productId, warehouseId: whId, quantity: packs, unit: 'PACK', unitPrice });
-                }
-                if (pieces > 0) {
-                    lines.push({ productId, warehouseId: whId, quantity: pieces, unit: 'PIECE', unitPrice });
-                }
-                return lines;
-            }),
+            items: items.map(toLine),
         };
-        const createData = {
-            customerId,
-            summary: summary.trim() || null,
-            items: items.flatMap(({ productId, warehouseId: whId, packs, pieces }) => {
-                const lines = [];
-                if (packs > 0) {
-                    lines.push({ productId, warehouseId: whId, quantity: packs, unit: 'PACK' });
-                }
-                if (pieces > 0) {
-                    lines.push({ productId, warehouseId: whId, quantity: pieces, unit: 'PIECE' });
-                }
-                return lines;
-            }),
-        };
+        const createData = data;
         try {
             if (isEdit) {
                 if (canEditPrice) {
@@ -854,13 +827,18 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                                 </label>
                                                 <label className="flex flex-col gap-1 col-span-2">
                                                     <span className={`text-[10px] font-bold uppercase tracking-wide ${muted}`}>Rang</span>
-                                                    <select value={filters.colorId}
-                                                        onChange={(e) => patchFilters({ colorId: e.target.value })} className={miniCx}>
-                                                        <option value="">Barcha ranglar</option>
-                                                        {colors.map((color) => (
-                                                            <option key={color.id} value={color.id}>{color.name}</option>
-                                                        ))}
-                                                    </select>
+                                                    <div className="relative">
+                                                        {filters.colorId && colors.find((c) => c.id === filters.colorId)?.code && (
+                                                            <span className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 rounded-full border border-black/10" style={{ background: colors.find((c) => c.id === filters.colorId)?.code }} />
+                                                        )}
+                                                        <select value={filters.colorId}
+                                                            onChange={(e) => patchFilters({ colorId: e.target.value })} className={`${miniCx} ${filters.colorId && colors.find((c) => c.id === filters.colorId)?.code ? 'pl-7' : ''}`}>
+                                                            <option value="">Barcha ranglar</option>
+                                                            {colors.map((color) => (
+                                                                <option key={color.id} value={color.id}>{color.name}{color.code ? ` (${color.code.toUpperCase()})` : ''}</option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
                                                 </label>
                                                 <label className="flex flex-col gap-1 col-span-2">
                                                     <span className={`text-[10px] font-bold uppercase tracking-wide ${muted}`}>Narx (so&apos;m)</span>
@@ -1195,11 +1173,7 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                                                     <LuPlus size={14} />
                                                                 </button>
                                                             </div>
-                                                            {item.packs > 0 && item.piecesPerPack > 0 && (
-                                                                <span className={`text-[10px] ${muted}`}>
-                                                                    Pachkalar jami: {formatNumber(getPackAmount(item))} so&apos;m
-                                                                </span>
-                                                            )}
+                                                          
                                                     </div>
                                                 </td>
 
@@ -1488,18 +1462,13 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                     ) : prevOrders.length === 0 ? (
                         <div className={`flex flex-col items-center gap-2 py-10 ${muted}`}>
                             <LuClipboardList size={30} strokeWidth={1.5} />
-                            <p className="text-sm">Bu mijozda hozircha tasdiqlangan buyurtmalar yo&apos;q</p>
+                            <p className="text-sm">Bu mijozda hozircha tugallangan buyurtmalar yo&apos;q</p>
                         </div>
                     ) : (
                         <div className={`divide-y ${line}`}>
                             {prevOrders.map((o) => {
                                 const isOpen = expandedOrders[o.id];
-                                const STATUS_COLOR = {
-                                    APPROVED: isDark ? 'bg-green-500/10 text-green-400 border-green-500/30' : 'bg-green-50 text-green-700 border-green-200',
-                                    PENDING:  isDark ? 'bg-amber-400/10 text-amber-400 border-amber-400/30' : 'bg-amber-50 text-amber-700 border-amber-200',
-                                    REJECTED: isDark ? 'bg-red-500/10 text-red-400 border-red-500/30'    : 'bg-red-50 text-red-700 border-red-200',
-                                };
-                                const statusCls = STATUS_COLOR[o.status] || STATUS_COLOR.PENDING;
+                                const statusCls = statusCx(o.status);
 
                                 return (
                                     <div key={o.id}>
@@ -1524,7 +1493,7 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                             </span>
 
                                             <span className={`rounded-full border px-2.5 py-0.5 text-xs font-bold ${statusCls} shrink-0`}>
-                                                {{ APPROVED: 'Tasdiqlangan', PENDING: 'Kutilmoqda', REJECTED: 'Rad etilgan' }[o.status] ?? o.status}
+                                                {STATUS_LABEL[o.status] ?? o.status}
                                             </span>
 
                                             {o.summary && (

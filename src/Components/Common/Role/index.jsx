@@ -12,7 +12,7 @@ import {
     LuCrown, LuCalculator, LuShoppingCart,
     LuTruck, LuWarehouse, LuHeadset, LuClipboardList,
     LuBriefcase, LuUserCog, LuUserRound,
-    LuFactory, LuBlend, LuReceipt, LuCoins,
+    LuFactory, LuBlend, LuReceipt, LuCoins, LuFlaskConical,
 } from 'react-icons/lu';
 import {
     useGetRolesQuery,
@@ -38,6 +38,7 @@ const ROLE_LABELS = {
 
     /* Savdo / kassa */
     KASSIR:                   { uz: 'Kassir',                 Icon: LuCoins,         color: 'green' },
+    XIMIK:                    { uz: 'Ximik (texnolog)',       Icon: LuFlaskConical,  color: 'teal' },
     CASHIER:                  { uz: 'Kassir',                 Icon: LuCoins,         color: 'green' },
     SELLER:                   { uz: 'Sotuvchi',               Icon: LuShoppingCart,  color: 'teal' },
     OPERATOR:                 { uz: 'Operator',               Icon: LuHeadset,       color: 'cyan' },

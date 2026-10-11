@@ -118,6 +118,25 @@ export const machineApi = createApi({
       }),
       transformResponse: (response) => response.data,
     }),
+
+    // GET /api/v1/machines/production-summary — barcha stanoklar: holati + oraliqdagi ishlab chiqarishi
+    getMachinesProductionSummary: builder.query({
+      query: ({ name, fromDateTime, toDateTime, page = 0, size = 20, sort = ['createdAt,DESC', 'id,DESC'] } = {}) => ({
+        url: '/machines/production-summary',
+        method: 'GET',
+        params: {
+          ...(name ? { name } : {}),
+          ...(fromDateTime ? { fromDateTime } : {}),
+          ...(toDateTime ? { toDateTime } : {}),
+          page,
+          size,
+          sort,
+        },
+      }),
+      transformResponse: (response) => ({ items: response.data ?? [], pagination: response.pagination ?? null }),
+      // Stanok holati o‘zgarganda yoki «Qo‘shildi» bosilganda ham yangilansin
+      providesTags: [{ type: 'Machine', id: 'LIST' }],
+    }),
   }),
 });
 
@@ -132,4 +151,5 @@ export const {
   useStopMachineProductionMutation,
   useGetMachineRunsQuery,
   useGetMachineOutputsSummaryQuery,
+  useGetMachinesProductionSummaryQuery,
 } = machineApi;

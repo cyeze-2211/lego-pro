@@ -1,242 +1,247 @@
 import { useState } from 'react';
-import { useParams, useLocation } from 'react-router-dom';
-import { Badge, Box, Button, HStack, Table, Text, Spinner, Portal, Dialog, VStack, SimpleGrid, IconButton } from '@chakra-ui/react';
+import PropTypes from 'prop-types';
+import { useParams, useLocation, useNavigate, Link as RouterLink } from 'react-router-dom';
 import {
-    LuCalendar, LuChevronLeft, LuChevronRight, LuClipboardList,
-    LuPhone, LuUsers, LuWallet, LuCreditCard, LuTriangleAlert, LuX,
-    LuBanknote, LuCircleX, LuMapPin, LuHash, LuUserCheck, LuSend,
-    LuStickyNote, LuClock, LuTrendingUp, LuTrendingDown, LuCircleCheck,
-    LuCircleAlert, LuCopy, LuExternalLink,
+    Badge, Box, Button, Dialog, HStack, Heading, Portal, SimpleGrid, Spinner, Table, Text, VStack,
+} from '@chakra-ui/react';
+import {
+    LuArrowLeft, LuBanknote, LuCalendar, LuChevronLeft, LuChevronRight, LuCircleAlert,
+    LuCircleCheck, LuCircleX, LuClipboardList, LuClock3, LuCopy, LuCreditCard, LuExternalLink,
+    LuHash, LuMapPin, LuPen, LuPhone, LuScale, LuSend, LuStickyNote, LuTriangleAlert,
+    LuTruck, LuUndo2, LuUserCheck, LuUsers, LuWallet, LuX,
 } from 'react-icons/lu';
 import { useGetCustomerByIdQuery } from '../../../store/services/customer.api';
-import { useGetSalesOrdersQuery, useApproveSalesOrderMutation, useRejectSalesOrderMutation } from '../../../store/services/salesOrder.api';
+import { useGetSalesOrdersQuery, useRejectSalesOrderMutation } from '../../../store/services/salesOrder.api';
 import { useGetPaymentsQuery, useCancelPaymentMutation } from '../../../store/services/payment.api';
-import { formatNumber } from '../../ui/number-format';
-import EntityDetail, { DetailSection, formatDetailDate } from '../EntityDetail';
-import PaymentModal from '../Customer/__components/PaymentModal';
-import { Alert } from '../../Other/UI/Alert/Alert';
+import { ROLES } from '../../../app/permissions/roles';
+import { useAppSelector } from '../../../store/hooks';
 import { useAppTheme } from '../../../theme/tokens';
+import { formatNumber } from '../../ui/number-format';
+import Loading from '../../Other/UI/Loadings/Loading';
+import { Alert } from '../../Other/UI/Alert/Alert';
+import { formatDetailDate } from '../EntityDetail';
+import { STATUS_LABEL } from '../../Zayavkachi/__components/statusBadge';
+import { CurrencyNote } from '../../ui/CurrencyAmountField';
+import PaymentModal from '../Customer/__components/PaymentModal';
+import Edit from '../Customer/__components/Edit';
 
 const PAGE_SIZE = 10;
 
 const ORDER_STATUS_FILTERS = [
     { value: '', label: 'Barchasi' },
-    { value: 'PENDING', label: 'Kutilmoqda' },
-    { value: 'APPROVED', label: 'Tasdiqlangan' },
-    { value: 'REJECTED', label: 'Rad etilgan' },
+    { value: 'CREATED', label: STATUS_LABEL.CREATED },
+    { value: 'LOADED', label: STATUS_LABEL.LOADED },
+    { value: 'CONFIRMED', label: STATUS_LABEL.CONFIRMED },
+    { value: 'REJECTED', label: STATUS_LABEL.REJECTED },
+    { value: 'RETURNED', label: STATUS_LABEL.RETURNED },
 ];
 
-const ORDER_STATUS_LABELS = {
-    PENDING: 'Kutilmoqda',
-    APPROVED: 'Tasdiqlangan',
-    REJECTED: 'Rad etilgan',
+const ORDER_STATUS_META = {
+    CREATED: { label: STATUS_LABEL.CREATED, icon: LuClock3, tone: 'amber' },
+    LOADED: { label: STATUS_LABEL.LOADED, icon: LuTruck, tone: 'violet' },
+    CONFIRMED: { label: STATUS_LABEL.CONFIRMED, icon: LuCircleCheck, tone: 'green' },
+    REJECTED: { label: STATUS_LABEL.REJECTED, icon: LuCircleX, tone: 'red' },
+    RETURNED: { label: STATUS_LABEL.RETURNED, icon: LuUndo2, tone: 'orange' },
 };
 
-const PAYMENT_STATUS_LABELS = {
-    ACTIVE: 'Faol',
-    CANCELLED: 'Bekor qilingan',
-};
+const TONES = (isDark) => ({
+    amber: { bg: isDark ? 'rgba(250,204,21,.14)' : '#FEF3C7', color: isDark ? '#FDE68A' : '#92400E', border: isDark ? 'rgba(250,204,21,.35)' : '#FDE68A' },
+    green: { bg: isDark ? 'rgba(34,197,94,.14)' : '#DCFCE7', color: isDark ? '#86EFAC' : '#15803D', border: isDark ? 'rgba(34,197,94,.35)' : '#BBF7D0' },
+    red: { bg: isDark ? 'rgba(239,68,68,.14)' : '#FEE2E2', color: isDark ? '#FCA5A5' : '#B91C1C', border: isDark ? 'rgba(239,68,68,.35)' : '#FECACA' },
+    gray: { bg: isDark ? 'rgba(148,163,184,.12)' : '#F1F5F9', color: isDark ? '#E2E8F0' : '#334155', border: isDark ? 'rgba(148,163,184,.3)' : '#E2E8F0' },
+    sky: { bg: isDark ? 'rgba(14,165,233,.12)' : '#E0F2FE', color: isDark ? '#7DD3FC' : '#0284C7', border: isDark ? 'rgba(14,165,233,.3)' : '#BAE6FD' },
+    violet: { bg: isDark ? 'rgba(139,92,246,.12)' : '#EDE9FE', color: isDark ? '#C4B5FD' : '#7C3AED', border: isDark ? 'rgba(139,92,246,.3)' : '#DDD6FE' },
+    orange: { bg: isDark ? 'rgba(249,115,22,.14)' : '#FFEDD5', color: isDark ? '#FDBA74' : '#C2410C', border: isDark ? 'rgba(249,115,22,.35)' : '#FED7AA' },
+});
 
-const TABS = [
-    { value: 'orders', label: 'Buyurtmalar', icon: LuClipboardList },
-    { value: 'payments', label: "To'lovlar", icon: LuCreditCard },
-];
-
-// ── Yordamchi: bosh harflar ───────────────────────────────────────────────
+/* ── Yordamchilar ──────────────────────────────────────────────────────── */
 const getInitials = (name) => {
     if (!name) return '?';
-    return name
-        .split(' ')
-        .filter(Boolean)
-        .slice(0, 2)
-        .map((n) => n[0]?.toUpperCase())
-        .join('');
+    return name.split(' ').filter(Boolean).slice(0, 2).map((n) => n[0]?.toUpperCase()).join('');
 };
 
-// ── Avatar ────────────────────────────────────────────────────────────────
-function Avatar({ name, size = 64, accentColor, isDark }) {
+function formatDateOnly(value) {
+    if (!value) return '—';
+    const date = new Date(/^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00` : value);
+    return Number.isNaN(date.getTime())
+        ? String(value)
+        : date.toLocaleDateString('uz-UZ', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+function getBalanceMeta(balance) {
+    if (balance < 0) {
+        return {
+            tone: 'red',
+            label: 'Qarzdor',
+            title: 'Mijoz bizga qarzdor',
+            hint: 'Tasdiqlangan buyurtmalar bo‘yicha to‘lanmagan summa. To‘lov qabul qilib qarzni yoping.',
+        };
+    }
+    if (balance > 0) {
+        return {
+            tone: 'green',
+            label: 'Avans',
+            title: 'Mijozda avans bor',
+            hint: 'Mijoz oldindan to‘lab qo‘ygan. Keyingi buyurtmalar shu summadan avtomatik yopiladi.',
+        };
+    }
+    return {
+        tone: 'gray',
+        label: 'Hisob tenglashgan',
+        title: 'Qarz ham, avans ham yo‘q',
+        hint: 'Barcha buyurtmalar to‘liq to‘langan.',
+    };
+}
+
+/* ── Kichik UI bloklari ────────────────────────────────────────────────── */
+function Pill({ tone = 'gray', icon: Icon, children }) {
+    const { isDark } = useAppTheme();
+    const t = TONES(isDark)[tone];
     return (
-        <Box
-            w={`${size}px`}
-            h={`${size}px`}
-            minW={`${size}px`}
-            borderRadius="2xl"
-            bg={isDark ? 'rgba(148,163,184,0.10)' : 'gray.100'}
-            borderWidth="1px"
-            borderColor={isDark ? 'whiteAlpha.200' : 'gray.200'}
-            color={accentColor}
-            display="flex"
-            alignItems="center"
-            justifyContent="center"
-            fontWeight="bold"
-            fontSize={`${size * 0.34}px`}
-            letterSpacing="tight"
-            flexShrink={0}
-            userSelect="none"
-        >
-            {getInitials(name)}
+        <Badge borderRadius="full" px={2.5} py={1} fontSize="11px" fontWeight="semibold" bg={t.bg} color={t.color} borderWidth="1px" borderColor={t.border} whiteSpace="nowrap">
+            <HStack gap={1.5} display="inline-flex">{Icon && <Icon size={12} />}<span>{children}</span></HStack>
+        </Badge>
+    );
+}
+Pill.propTypes = { tone: PropTypes.string, icon: PropTypes.elementType, children: PropTypes.node };
+
+function Card({ children, ...props }) {
+    const { isDark, cardBg, cardBorder } = useAppTheme();
+    return (
+        <Box bg={cardBg} borderWidth="1px" borderColor={cardBorder} borderRadius="2xl" overflow="hidden" boxShadow={isDark ? '0 12px 30px rgba(0,0,0,.16)' : '0 8px 22px rgba(15,23,42,.06)'} {...props}>
+            {children}
         </Box>
     );
 }
+Card.propTypes = { children: PropTypes.node };
 
-// ── Info Cell — kartochka ichidagi ma'lumot ───────────────────────────────
-function InfoCell({ icon: Icon, label, value, emptyText = '—', isDark, textColor, subtitleColor, accentColor, href, mono }) {
-    const isEmpty = value === null || value === undefined || value === '';
+function StatCard({ icon: Icon, label, value, sub, tone = 'gray', valueTone = false }) {
+    const { isDark, textColor, subtitleColor } = useAppTheme();
+    const t = TONES(isDark)[tone];
     return (
-        <HStack align="start" gap={3} p={3.5} borderRadius="xl" bg={isDark ? 'rgba(148,163,184,0.06)' : 'gray.50'} borderWidth="1px" borderColor={isDark ? 'whiteAlpha.100' : 'gray.100'} _hover={{ borderColor: isDark ? 'whiteAlpha.200' : 'gray.200' }} transition="all 0.15s">
-            <Box
-                p={2}
-                borderRadius="lg"
-                bg={isDark ? 'rgba(250, 204, 21, 0.10)' : '#FEF3C7'}
-                color={accentColor}
-                flexShrink={0}
-                display="inline-flex"
-                alignItems="center"
-                justifyContent="center"
-                w="34px"
-                h="34px"
-            >
-                <Icon size={16} />
-            </Box>
-            <VStack align="start" gap={0.5} flex="1" minW={0}>
-                <Text fontSize="10px" color={subtitleColor} fontWeight="semibold" textTransform="uppercase" letterSpacing="wider">
-                    {label}
-                </Text>
-                {isEmpty ? (
-                    <Text fontSize="sm" color={subtitleColor} fontStyle="italic">{emptyText}</Text>
+        <Card p={{ base: 4, md: 5 }} minW={0}>
+            <HStack gap={3} align="start">
+                <Box p={2.5} borderRadius="xl" bg={t.bg} color={t.color} flexShrink={0}><Icon size={20} /></Box>
+                <Box minW={0} flex={1}>
+                    <Text fontSize="xs" fontWeight="semibold" textTransform="uppercase" letterSpacing="wider" color={subtitleColor}>{label}</Text>
+                    <Text fontSize={{ base: 'xl', md: '2xl' }} fontWeight="bold" color={valueTone ? t.color : textColor} lineHeight="1.2" mt={1} truncate>{value}</Text>
+                    {sub && <Text fontSize="sm" color={subtitleColor} mt={1}>{sub}</Text>}
+                </Box>
+            </HStack>
+        </Card>
+    );
+}
+StatCard.propTypes = {
+    icon: PropTypes.elementType.isRequired, label: PropTypes.string.isRequired, value: PropTypes.node.isRequired,
+    sub: PropTypes.node, tone: PropTypes.string, valueTone: PropTypes.bool,
+};
+
+function InfoCard({ icon: Icon, title, children }) {
+    const { cardBorder, textColor, accentColor } = useAppTheme();
+    return (
+        <Card>
+            <HStack gap={2} px={{ base: 4, md: 5 }} py={3.5} borderBottomWidth="1px" borderColor={cardBorder}>
+                <Icon size={17} color={accentColor} />
+                <Heading size="sm" color={textColor}>{title}</Heading>
+            </HStack>
+            <VStack align="stretch" gap={0} css={{ '& > * + *': { borderTopWidth: '1px', borderTopColor: cardBorder } }}>
+                {children}
+            </VStack>
+        </Card>
+    );
+}
+InfoCard.propTypes = { icon: PropTypes.elementType.isRequired, title: PropTypes.string.isRequired, children: PropTypes.node };
+
+function InfoRow({ icon: Icon, label, value, mono = false, href, emptyText = 'Ko‘rsatilmagan', action }) {
+    const { textColor, subtitleColor, accentColor } = useAppTheme();
+    const empty = value === null || value === undefined || value === '';
+    return (
+        <HStack gap={3} px={{ base: 4, md: 5 }} py={3} align="start">
+            <Box color={subtitleColor} mt="2px" flexShrink={0}><Icon size={15} /></Box>
+            <Box minW={0} flex={1}>
+                <Text fontSize="xs" color={subtitleColor} fontWeight="semibold" textTransform="uppercase" letterSpacing="wider">{label}</Text>
+                {empty ? (
+                    <Text color={subtitleColor} fontSize="sm" mt={0.5}>{emptyText}</Text>
                 ) : href ? (
-                    <Text
-                        as="a"
-                        href={href}
-                        fontSize="sm"
-                        color={textColor}
-                        fontWeight="medium"
-                        wordBreak="break-word"
-                        _hover={{ color: accentColor }}
-                        transition="color 0.15s"
-                    >
-                        {value}
-                    </Text>
+                    <Text as="a" href={href} display="block" color={accentColor} fontWeight="semibold" fontSize="sm" mt={0.5} _hover={{ textDecoration: 'underline' }}>{value}</Text>
                 ) : (
-                    <Text fontSize="sm" color={textColor} fontWeight="medium" wordBreak="break-word" fontFamily={mono ? 'mono' : 'inherit'}>
-                        {value}
-                    </Text>
+                    <Text color={textColor} fontWeight="medium" fontSize="sm" mt={0.5} fontFamily={mono ? 'mono' : undefined} whiteSpace="pre-wrap" wordBreak="break-word">{value}</Text>
                 )}
-            </VStack>
-        </HStack>
-    );
-}
-
-// ── Stat card — yuqoridagi statistika kartalari ───────────────────────────
-function StatCard({ icon: Icon, label, value, suffix, tone = 'default', isDark, textColor, subtitleColor, accentColor }) {
-    const tones = {
-        default: {
-            bg: isDark ? 'rgba(148,163,184,0.06)' : 'gray.50',
-            iconBg: isDark ? 'rgba(148,163,184,0.12)' : 'gray.100',
-            iconColor: subtitleColor,
-            valueColor: textColor,
-        },
-        danger: {
-            bg: isDark ? 'rgba(239,68,68,0.08)' : 'red.50',
-            iconBg: isDark ? 'rgba(239,68,68,0.15)' : 'red.100',
-            iconColor: isDark ? 'red.300' : 'red.600',
-            valueColor: isDark ? 'red.300' : 'red.600',
-        },
-        success: {
-            bg: isDark ? 'rgba(34,197,94,0.08)' : 'green.50',
-            iconBg: isDark ? 'rgba(34,197,94,0.15)' : 'green.100',
-            iconColor: isDark ? 'green.300' : 'green.700',
-            valueColor: isDark ? 'green.300' : 'green.700',
-        },
-        accent: {
-            bg: isDark ? 'rgba(250,204,21,0.08)' : '#FEFCE8',
-            iconBg: isDark ? 'rgba(250,204,21,0.15)' : '#FEF3C7',
-            iconColor: accentColor,
-            valueColor: textColor,
-        },
-    };
-    const t = tones[tone] || tones.default;
-
-    return (
-        <HStack
-            align="center"
-            gap={3}
-            p={4}
-            borderRadius="2xl"
-            bg={t.bg}
-            borderWidth="1px"
-            borderColor={isDark ? 'whiteAlpha.100' : 'gray.100'}
-            transition="all 0.2s"
-            _hover={{ transform: 'translateY(-1px)', boxShadow: isDark ? '0 8px 20px rgba(0,0,0,0.25)' : '0 8px 20px rgba(15,23,42,0.06)' }}
-        >
-            <Box
-                p={2.5}
-                borderRadius="xl"
-                bg={t.iconBg}
-                color={t.iconColor}
-                display="inline-flex"
-                alignItems="center"
-                justifyContent="center"
-                flexShrink={0}
-            >
-                <Icon size={18} />
             </Box>
-            <VStack align="start" gap={0} flex="1" minW={0}>
-                <Text fontSize="10px" color={subtitleColor} fontWeight="semibold" textTransform="uppercase" letterSpacing="wider">
-                    {label}
-                </Text>
-                <HStack gap={1} align="baseline">
-                    <Text fontSize="lg" fontWeight="bold" color={t.valueColor} lineHeight="1.2" whiteSpace="nowrap" overflow="hidden" textOverflow="ellipsis">
-                        {value}
-                    </Text>
-                    {suffix && <Text fontSize="xs" color={subtitleColor} fontWeight="medium">{suffix}</Text>}
-                </HStack>
-            </VStack>
+            {action}
         </HStack>
     );
 }
+InfoRow.propTypes = {
+    icon: PropTypes.elementType.isRequired, label: PropTypes.string.isRequired, value: PropTypes.node,
+    mono: PropTypes.bool, href: PropTypes.string, emptyText: PropTypes.string, action: PropTypes.node,
+};
 
-// ── To'lovni bekor qilish confirm dialogi ─────────────────────────────────
-function CancelPaymentDialog({ open, onClose, onConfirm, isLoading, amount }) {
+function EmptyState({ icon: Icon, title, description }) {
+    const { isDark, textColor, subtitleColor } = useAppTheme();
+    return (
+        <VStack py={12} gap={3}>
+            <Box p={4} borderRadius="2xl" bg={isDark ? 'rgba(148,163,184,0.06)' : 'gray.50'} color={subtitleColor}><Icon size={28} /></Box>
+            <VStack gap={1}>
+                <Text fontWeight="semibold" color={textColor}>{title}</Text>
+                {description && <Text fontSize="sm" color={subtitleColor} textAlign="center">{description}</Text>}
+            </VStack>
+        </VStack>
+    );
+}
+EmptyState.propTypes = { icon: PropTypes.elementType.isRequired, title: PropTypes.string.isRequired, description: PropTypes.string };
+
+function Pagination({ page, totalPages, total, unit, onChange }) {
+    const { textColor, subtitleColor } = useAppTheme();
+    return (
+        <HStack justify="space-between" mt={4} flexWrap="wrap" gap={3}>
+            <Text color={subtitleColor} fontSize="sm">Jami: <Text as="span" fontWeight="bold" color={textColor}>{formatNumber(total)}</Text> {unit}</Text>
+            {totalPages > 1 && (
+                <HStack gap={2}>
+                    <Button size="sm" variant="outline" borderRadius="lg" w="34px" h="34px" p={0} minW={0} disabled={page === 0} onClick={() => onChange(page - 1)} aria-label="Oldingi sahifa"><LuChevronLeft size={14} /></Button>
+                    <Text color={subtitleColor} fontSize="sm" fontWeight="medium" px={2}>{page + 1} / {totalPages}</Text>
+                    <Button size="sm" variant="outline" borderRadius="lg" w="34px" h="34px" p={0} minW={0} disabled={page >= totalPages - 1} onClick={() => onChange(page + 1)} aria-label="Keyingi sahifa"><LuChevronRight size={14} /></Button>
+                </HStack>
+            )}
+        </HStack>
+    );
+}
+Pagination.propTypes = {
+    page: PropTypes.number.isRequired, totalPages: PropTypes.number.isRequired, total: PropTypes.number.isRequired,
+    unit: PropTypes.string.isRequired, onChange: PropTypes.func.isRequired,
+};
+
+/* ── Tasdiqlash dialoglari ─────────────────────────────────────────────── */
+function ConfirmDialog({ open, onClose, onConfirm, isLoading, title, body, confirmLabel, loadingLabel, tone = 'red', icon: Icon = LuTriangleAlert }) {
     const { isDark, cardBg, cardBorder, textColor, subtitleColor } = useAppTheme();
+    const t = TONES(isDark)[tone];
+    const solid = tone === 'red' ? 'red.500' : tone === 'green' ? 'green.600' : 'gray.600';
+    const solidHover = tone === 'red' ? 'red.600' : tone === 'green' ? 'green.700' : 'gray.700';
     return (
         <Dialog.Root open={open} onOpenChange={(e) => !e.open && onClose()} size="md" placement="center">
             <Portal>
                 <Dialog.Backdrop backdropFilter="blur(8px)" bg={isDark ? 'blackAlpha.700' : 'blackAlpha.400'} />
                 <Dialog.Positioner>
                     <Dialog.Content bg={cardBg} borderColor={cardBorder} borderWidth="1px" borderRadius="2xl" overflow="hidden" maxW="460px" w="calc(100% - 32px)" boxShadow="2xl">
-                        <Box position="absolute" top="0" left="0" right="0" h="4px" bgGradient="linear(to-r, red.500, red.300)" />
+                        <Box position="absolute" top="0" left="0" right="0" h="4px" bg={t.color} />
                         <Dialog.Header color={textColor} fontSize="xl" fontWeight="bold" pt={7} pb={4} borderBottomWidth="1px" borderColor={cardBorder}>
                             <HStack gap={3}>
-                                <Box p={3} borderRadius="xl" bg={isDark ? 'rgba(239,68,68,.15)' : 'red.50'} color="red.500">
-                                    <LuTriangleAlert size={22} />
-                                </Box>
-                                <span>To&apos;lovni bekor qilish</span>
+                                <Box p={3} borderRadius="xl" bg={t.bg} color={t.color}><Icon size={22} /></Box>
+                                <span>{title}</span>
                             </HStack>
                         </Dialog.Header>
                         <Dialog.CloseTrigger asChild>
-                            <Button variant="ghost" color={subtitleColor} size="sm" position="absolute" top="3" right="3" aria-label="Yopish"><LuX /></Button>
+                            <Button variant="ghost" color={subtitleColor} size="sm" w="32px" h="32px" p={0} minW={0} position="absolute" top="3" right="3" aria-label="Yopish"><LuX /></Button>
                         </Dialog.CloseTrigger>
                         <Dialog.Body py={5}>
-                            <Box p={4} borderRadius="xl" bg={isDark ? 'rgba(239,68,68,.08)' : 'red.50'} borderWidth="1px" borderColor={isDark ? 'rgba(239,68,68,.2)' : 'red.200'}>
-                                <HStack gap={3} align="start">
-                                    <LuTriangleAlert size={18} color={isDark ? '#f87171' : '#dc2626'} style={{ flexShrink: 0, marginTop: 2 }} />
-                                    <Text fontSize="sm" color={isDark ? 'red.300' : 'red.700'}>
-                                        <strong>{formatNumber(amount ?? 0)} so&apos;m</strong> miqdoridagi to&apos;lovni bekor qilmoqchisiz.
-                                        Pul kassadan chiqariladi, zayavkalar va mijoz balansi tiklanadi. Bu amalni qaytarib bo&apos;lmaydi.
-                                    </Text>
-                                </HStack>
+                            <Box p={4} borderRadius="xl" bg={t.bg} borderWidth="1px" borderColor={t.border}>
+                                <Text fontSize="sm" color={textColor}>{body}</Text>
                             </Box>
                         </Dialog.Body>
                         <Dialog.Footer gap={3} pt={4} pb={6} borderTopWidth="1px" borderColor={cardBorder}>
-                            <Button variant="ghost" onClick={onClose} color={subtitleColor} borderRadius="xl">
-                                <HStack gap={2}><LuX size={15} /><span>Yo&apos;q, qoldirish</span></HStack>
-                            </Button>
-                            <Button onClick={onConfirm} disabled={isLoading} bg="red.500" color="white" _hover={{ bg: 'red.600' }} borderRadius="xl" px={6}>
-                                {isLoading
-                                    ? <HStack gap={2}><Spinner size="sm" /><span>Bekor qilinmoqda...</span></HStack>
-                                    : <HStack gap={2}><LuCircleX size={15} /><span>Ha, bekor qilish</span></HStack>
-                                }
+                            <Button variant="ghost" onClick={onClose} color={subtitleColor} borderRadius="xl" h="40px" px={4}>Ortga</Button>
+                            <Button onClick={onConfirm} disabled={isLoading} bg={solid} color="white" _hover={{ bg: solidHover }} borderRadius="xl" h="40px" px={6}>
+                                {isLoading ? <HStack gap={2}><Spinner size="sm" /><span>{loadingLabel}</span></HStack> : confirmLabel}
                             </Button>
                         </Dialog.Footer>
                     </Dialog.Content>
@@ -245,676 +250,417 @@ function CancelPaymentDialog({ open, onClose, onConfirm, isLoading, amount }) {
         </Dialog.Root>
     );
 }
+ConfirmDialog.propTypes = {
+    open: PropTypes.bool.isRequired, onClose: PropTypes.func.isRequired, onConfirm: PropTypes.func.isRequired,
+    isLoading: PropTypes.bool, title: PropTypes.string.isRequired, body: PropTypes.node.isRequired,
+    confirmLabel: PropTypes.string.isRequired, loadingLabel: PropTypes.string.isRequired, tone: PropTypes.string, icon: PropTypes.elementType,
+};
 
-// ── Status select ─────────────────────────────────────────────────────────
-function OrderStatusSelect({ orderId, currentStatus, onApprove, onReject, isLoading, isDark }) {
-    const styleMap = {
-        PENDING: { bg: isDark ? 'rgba(250,204,21,.14)' : '#FEF3C7', color: isDark ? '#fde68a' : '#92400E', border: isDark ? '#ca8a04' : '#d97706' },
-        APPROVED: { bg: isDark ? 'rgba(34,197,94,.14)' : '#DCFCE7', color: isDark ? '#86efac' : '#15803d', border: isDark ? '#16a34a' : '#16a34a' },
-        REJECTED: { bg: isDark ? 'rgba(239,68,68,.14)' : '#FEE2E2', color: isDark ? '#fca5a5' : '#b91c1c', border: isDark ? '#dc2626' : '#dc2626' },
-    };
-    const style = styleMap[currentStatus] || styleMap.PENDING;
-
-    if (currentStatus !== 'PENDING') {
-        const Icon = currentStatus === 'APPROVED' ? LuCircleCheck : LuCircleX;
-        return (
-            <Badge borderRadius="full" px={2.5} py={1} bg={style.bg} color={style.color} whiteSpace="nowrap" fontSize="11px" fontWeight="semibold">
-                <HStack gap={1.5} display="inline-flex"><Icon size={12} /><span>{ORDER_STATUS_LABELS[currentStatus] || currentStatus}</span></HStack>
-            </Badge>
-        );
-    }
-
-    if (isLoading) {
-        return (
-            <Badge borderRadius="full" px={3} py={1} bg={style.bg} color={style.color} whiteSpace="nowrap">
-                <HStack gap={1} display="inline-flex"><Spinner size="xs" /><span>...</span></HStack>
-            </Badge>
-        );
-    }
-
-    return (
-        <Box
-            as="select"
-            value="PENDING"
-            onChange={(e) => {
-                const val = e.target.value;
-                if (val === 'APPROVED') onApprove(orderId);
-                else if (val === 'REJECTED') onReject(orderId);
-                e.target.value = 'PENDING';
-            }}
-            bg={style.bg}
-            color={style.color}
-            borderColor={style.border}
-            borderWidth="1px"
-            borderRadius="full"
-            px={3}
-            py={1}
-            fontSize="11px"
-            fontWeight="semibold"
-            cursor="pointer"
-            outline="none"
-            _focus={{ outline: 'none', boxShadow: 'none' }}
-        >
-            <option value="PENDING">{ORDER_STATUS_LABELS.PENDING}</option>
-            <option value="APPROVED">✓ Tasdiqlash</option>
-            <option value="REJECTED">✗ Rad etish</option>
-        </Box>
-    );
-}
-
-// ── Empty state ───────────────────────────────────────────────────────────
-function EmptyState({ icon: Icon, title, description, isDark, subtitleColor }) {
-    return (
-        <VStack py={12} gap={3}>
-            <Box
-                p={4}
-                borderRadius="2xl"
-                bg={isDark ? 'rgba(148,163,184,0.06)' : 'gray.50'}
-                color={subtitleColor}
-            >
-                <Icon size={32} />
-            </Box>
-            <VStack gap={1}>
-                <Text fontWeight="semibold" color={subtitleColor}>{title}</Text>
-                {description && <Text fontSize="sm" color={subtitleColor} opacity={0.7}>{description}</Text>}
-            </VStack>
-        </VStack>
-    );
-}
-
-// ── Section wrapper ───────────────────────────────────────────────────────
-function Section({ title, subtitle, action, children, isDark, textColor, subtitleColor, cardBorder }) {
-    return (
-        <Box
-            bg={isDark ? 'rgba(15,23,42,0.35)' : 'white'}
-            borderWidth="1px"
-            borderColor={cardBorder}
-            borderRadius="2xl"
-            overflow="hidden"
-            boxShadow={isDark ? 'none' : '0 1px 3px rgba(15,23,42,0.04)'}
-            gridColumn={{ base: 'auto', lg: '1 / -1' }}
-        >
-            {(title || action) && (
-                <HStack justify="space-between" align="center" px={5} py={3.5} borderBottomWidth="1px" borderColor={cardBorder}>
-                    <VStack align="start" gap={0}>
-                        {title && <Text fontWeight="bold" fontSize="md" color={textColor}>{title}</Text>}
-                        {subtitle && <Text fontSize="xs" color={subtitleColor}>{subtitle}</Text>}
-                    </VStack>
-                    {action}
-                </HStack>
-            )}
-            <Box p={5}>{children}</Box>
-        </Box>
-    );
-}
-
-// ── Asosiy komponent ───────────────────────────────────────────────────────
+/* ── Sahifa ────────────────────────────────────────────────────────────── */
 export default function CustomerDetail() {
     const { id } = useParams();
+    const navigate = useNavigate();
     const { pathname } = useLocation();
-    const backTo = pathname.startsWith('/kassir') ? '/kassir/customers' : '/customers';
+    const role = useAppSelector((state) => state.auth.role);
+
+    const isKassirPath = pathname.startsWith('/kassir');
+    const backTo = isKassirPath ? '/kassir/customers' : '/customers';
+    // Kassirda buyurtmalar bo‘limi yo‘q, shuning uchun unga buyurtma sahifasiga havola ko‘rsatilmaydi
+    const ordersBase = isKassirPath ? null : role === ROLES.BUXGALTER ? '/zayavkachi/orders' : '/orders';
+    const canEdit = role === ROLES.MANAGER || role === ROLES.KASSIR;
 
     const [activeTab, setActiveTab] = useState('orders');
     const [orderStatus, setOrderStatus] = useState('');
     const [orderPage, setOrderPage] = useState(0);
     const [paymentPage, setPaymentPage] = useState(0);
     const [paymentModal, setPaymentModal] = useState({ open: false, order: null });
-    const [cancelConfirm, setCancelConfirm] = useState({ open: false, paymentId: null, amount: 0 });
-    const [actionId, setActionId] = useState(null);
+    const [editOpen, setEditOpen] = useState(false);
+    const [cancelConfirm, setCancelConfirm] = useState(null);
+    const [rejectConfirm, setRejectConfirm] = useState(null);
 
     const { data: customer, isLoading, isError } = useGetCustomerByIdQuery(id, { skip: !id });
-
     const { data: orderResult, isFetching: ordersFetching } = useGetSalesOrdersQuery(
         { customerId: id, status: orderStatus || undefined, page: orderPage, size: PAGE_SIZE },
-        { skip: !id }
+        { skip: !id },
     );
-
+    const { data: pendingResult } = useGetSalesOrdersQuery(
+        { customerId: id, status: 'CREATED', page: 0, size: 1 },
+        { skip: !id },
+    );
     const { data: paymentResult, isFetching: paymentsFetching } = useGetPaymentsQuery(
         { customerId: id, page: paymentPage, size: PAGE_SIZE },
-        { skip: !id || activeTab !== 'payments' }
+        { skip: !id },
     );
+
+    const [rejectSalesOrder, { isLoading: rejecting }] = useRejectSalesOrderMutation();
+    const [cancelPayment, { isLoading: cancelling }] = useCancelPaymentMutation();
+
+    const { isDark, pageBg, cardBg, cardBorder, textColor, subtitleColor, accentColor, cardShadow } = useAppTheme();
+    const tones = TONES(isDark);
+
+    if (isLoading) {
+        return <Box minH="60vh" display="flex" alignItems="center" justifyContent="center"><Loading /></Box>;
+    }
+    if (isError || !customer) {
+        return (
+            <Box minH="60vh" display="flex" flexDirection="column" alignItems="center" justifyContent="center" gap={4} color={isDark ? 'red.300' : 'red.600'}>
+                <LuCircleAlert size={34} />
+                <Text fontSize="lg">Mijoz ma&apos;lumotini yuklashda xatolik</Text>
+                <Button variant="outline" borderRadius="xl" h="42px" px={4} onClick={() => navigate(backTo)}><HStack gap={2}><LuArrowLeft size={16} /><span>Mijozlar ro‘yxatiga qaytish</span></HStack></Button>
+            </Box>
+        );
+    }
 
     const orders = orderResult?.items || [];
     const totalOrderPages = orderResult?.pagination?.totalPages || 0;
     const totalOrders = orderResult?.pagination?.totalElements ?? 0;
-
+    const pendingCount = pendingResult?.pagination?.totalElements ?? 0;
     const payments = paymentResult?.items || [];
     const totalPaymentPages = paymentResult?.pagination?.totalPages || 0;
     const totalPayments = paymentResult?.pagination?.totalElements ?? 0;
 
-    const [approveSalesOrder] = useApproveSalesOrderMutation();
-    const [rejectSalesOrder] = useRejectSalesOrderMutation();
-    const [cancelPayment, { isLoading: cancelling }] = useCancelPaymentMutation();
+    const balance = Number(customer.balance) || 0;
+    const balanceMeta = getBalanceMeta(balance);
+    const balanceTone = tones[balanceMeta.tone];
+    const accentSoft = isDark ? 'rgba(250,204,21,.12)' : '#FEF3C7';
+    const phoneHref = customer.phone ? `tel:${String(customer.phone).replace(/[^\d+]/g, '')}` : undefined;
+    const tableHeaderBg = isDark ? 'rgba(148,163,184,0.06)' : '#F8FAFC';
+    const th = { color: subtitleColor, fontSize: '11px', fontWeight: 'semibold', textTransform: 'uppercase', letterSpacing: 'wider', whiteSpace: 'nowrap', bg: tableHeaderBg };
 
-    const openGeneralPayment = () => setPaymentModal({ open: true, order: null });
-    const openOrderPayment = (order) => setPaymentModal({ open: true, order });
-    const closePayment = () => setPaymentModal({ open: false, order: null });
-
-    const handleApprove = async (orderId) => {
-        setActionId(orderId);
+    const handleReject = async () => {
+        if (!rejectConfirm) return;
         try {
-            await approveSalesOrder(orderId).unwrap();
-            Alert('Buyurtma muvaffaqiyatli tasdiqlandi', 'success');
+            await rejectSalesOrder({ id: rejectConfirm.id }).unwrap();
+            Alert('Buyurtma bekor qilindi', 'success');
+            setRejectConfirm(null);
         } catch (err) {
-            Alert(err?.data?.message || 'Tasdiqlashda xatolik', 'error');
-        } finally { setActionId(null); }
-    };
-
-    const handleReject = async (orderId) => {
-        setActionId(orderId);
-        try {
-            await rejectSalesOrder({ id: orderId }).unwrap();
-            Alert('Buyurtma rad etildi', 'success');
-        } catch (err) {
-            Alert(err?.data?.message || 'Rad etishda xatolik', 'error');
-        } finally { setActionId(null); }
+            Alert(err?.data?.message || 'Bekor qilishda xatolik', 'error');
+        }
     };
 
     const handleCancelPayment = async () => {
+        if (!cancelConfirm) return;
         try {
-            await cancelPayment(cancelConfirm.paymentId).unwrap();
-            Alert("To'lov bekor qilindi", 'success');
-            setCancelConfirm({ open: false, paymentId: null, amount: 0 });
+            await cancelPayment(cancelConfirm.id).unwrap();
+            Alert('To‘lov bekor qilindi', 'success');
+            setCancelConfirm(null);
         } catch (err) {
-            Alert(err?.data?.message || "Bekor qilishda xatolik", 'error');
+            Alert(err?.data?.message || 'Bekor qilishda xatolik', 'error');
         }
     };
 
-    const copyId = () => {
-        if (customer?.id) {
-            navigator.clipboard.writeText(customer.id);
+    const copyId = async () => {
+        try {
+            await navigator.clipboard.writeText(customer.id);
             Alert('ID nusxalandi', 'success');
+        } catch {
+            Alert('Nusxalab bo‘lmadi', 'error');
         }
     };
+
+    const tabs = [
+        { value: 'orders', label: 'Buyurtmalar', icon: LuClipboardList, count: totalOrders },
+        { value: 'payments', label: 'To‘lovlar', icon: LuCreditCard, count: totalPayments },
+    ];
 
     return (
-        <EntityDetail
-            payment="To'lov qilish"
-            onPayment={openGeneralPayment}
-            title={customer?.name || 'Mijoz'}
-            icon={LuUsers}
-            backTo={backTo}
-            backLabel="Mijozlar"
-            loading={isLoading}
-            error={isError || !customer}
-        >
-            {({ isDark, textColor, subtitleColor, accentColor, cardBorder, cardBg }) => {
-                const balanceValue = Number(customer.balance) || 0;
-                const balanceTone = balanceValue < 0 ? 'danger' : balanceValue > 0 ? 'success' : 'default';
-                const balanceLabel = balanceValue < 0 ? 'Qarzdor' : balanceValue > 0 ? 'Kredit' : 'Balans';
-
-                return (
-                    <>
-                        {/* ══ HERO: Avatar + ism + asosiy info ══ */}
-                        <Box
-                            gridColumn={{ base: 'auto', lg: '1 / -1' }}
-                            bg={isDark ? 'rgba(15,23,42,0.35)' : 'white'}
-                            borderWidth="1px"
-                            borderColor={cardBorder}
-                            borderRadius="2xl"
-                            overflow="hidden"
-                            boxShadow={isDark ? 'none' : '0 1px 3px rgba(15,23,42,0.04)'}
-                        >
-                            {/* Banner */}
-                            <Box
-                                h="52px"
-                                bgGradient={
-                                    isDark
-                                        ? 'linear(135deg, rgba(250,204,21,0.15) 0%, rgba(250,204,21,0.02) 100%)'
-                                        : 'linear(135deg, #FEF3C7 0%, #FFFBEB 100%)'
-                                }
-                                borderColor={cardBorder}
-                            />
-
-                            {/* Avatar + info */}
-                            <Box px={{ base: 5, md: 6 }} pb={5}>
-                                <HStack align="flex-start" gap={4} mt="-38px" flexWrap={{ base: 'wrap', md: 'nowrap' }}>
-                                    <Avatar name={customer.name} size={76} accentColor={accentColor} isDark={isDark} />
-
-                                    <VStack align="start" gap={2} flex="1" minW={0} pt={{ base: 0, md: 10 }}>
-                                        <HStack gap={2.5} flexWrap="wrap" align="center">
-                                            <Text
-                                                fontSize={{ base: 'xl', md: '2xl' }}
-                                                fontWeight="bold"
-                                                color={textColor}
-                                                lineHeight="1.2"
-                                                letterSpacing="-0.01em"
-                                            >
-                                                {customer.name}
-                                            </Text>
-                                            <Badge
-                                                borderRadius="full"
-                                                px={2.5}
-                                                py={0.5}
-                                                bg={isDark ? 'rgba(34,197,94,0.15)' : 'green.50'}
-                                                color={isDark ? 'green.300' : 'green.700'}
-                                                fontSize="10px"
-                                                fontWeight="semibold"
-                                                textTransform="uppercase"
-                                                letterSpacing="wide"
-                                                lineHeight="1.4"
-                                            >
-                                                Faol mijoz
-                                            </Badge>
-                                        </HStack>
-
-                                        <HStack gap={4} flexWrap="wrap" color={subtitleColor} fontSize="sm" rowGap={1}>
-                                            <HStack gap={1.5} align="center">
-                                                <LuPhone size={13} style={{ flexShrink: 0 }} />
-                                                <Text
-                                                    as="a"
-                                                    href={`tel:${customer.phone}`}
-                                                    _hover={{ color: accentColor }}
-                                                    transition="color 0.15s"
-                                                    fontWeight="medium"
-                                                >
-                                                    {customer.phone}
-                                                </Text>
-                                            </HStack>
-                                            {customer.address && (
-                                                <HStack gap={1.5} align="center" minW={0}>
-                                                    <LuMapPin size={13} style={{ flexShrink: 0 }} />
-                                                    <Text noOfLines={1} fontWeight="medium">{customer.address}</Text>
-                                                </HStack>
-                                            )}
-                                        </HStack>
-                                    </VStack>
+        <Box bg={pageBg} color={textColor} minH="100%" w="100%">
+            {/* ── Sarlavha ── */}
+            <Box overflow="hidden" borderWidth="1px" borderColor={cardBorder} borderRadius="2xl" boxShadow={cardShadow} mb={4}>
+                <Box h="5px" bg={`linear-gradient(90deg, ${accentColor}, #FDE68A)`} />
+                <Box bg={cardBg} p={{ base: 4, md: 6 }}>
+                    <HStack justify="space-between" align="start" flexWrap="wrap" gap={4}>
+                        <HStack gap={4} minW={0} align="start">
+                            <Box w="64px" h="64px" borderRadius="2xl" bg={accentSoft} color={accentColor} display="flex" alignItems="center" justifyContent="center" fontWeight="bold" fontSize="22px" flexShrink={0} userSelect="none">
+                                {getInitials(customer.name)}
+                            </Box>
+                            <Box minW={0}>
+                                <HStack gap={2} flexWrap="wrap" mb={1}>
+                                    <Text fontSize="xs" fontWeight="semibold" textTransform="uppercase" letterSpacing="wider" color={subtitleColor}>Mijoz</Text>
+                                    <Pill tone={balanceMeta.tone}>{balanceMeta.label}</Pill>
+                                    {pendingCount > 0 && <Pill tone="amber" icon={LuClock3}>{pendingCount} ta yangi buyurtma</Pill>}
+                                </HStack>
+                                <Heading size={{ base: 'lg', md: 'xl' }} color={textColor} lineHeight="1.15" wordBreak="break-word">{customer.name}</Heading>
+                                <HStack gap={4} mt={2} flexWrap="wrap" color={subtitleColor} fontSize="sm">
+                                    {customer.phone && <HStack gap={1.5}><LuPhone size={14} /><Text as="a" href={phoneHref} _hover={{ color: accentColor }}>{customer.phone}</Text></HStack>}
+                                    {customer.address && <HStack gap={1.5} minW={0}><LuMapPin size={14} /><Text noOfLines={1}>{customer.address}</Text></HStack>}
+                                    {customer.agentName && <HStack gap={1.5}><LuUserCheck size={14} /><span>{customer.agentName}</span></HStack>}
                                 </HStack>
                             </Box>
-                        </Box>
+                        </HStack>
 
-                        {/* ══ STATISTIKA KARTALARI ══ */}
-                        <Box gridColumn={{ base: 'auto', lg: '1 / -1' }}>
-                            <SimpleGrid columns={{ base: 1, sm: 2, lg: 4 }} gap={3}>
-                                <StatCard
-                                    icon={balanceValue < 0 ? LuTrendingDown : LuTrendingUp}
-                                    label={balanceLabel}
-                                    value={formatNumber(Math.abs(balanceValue))}
-                                    suffix="so'm"
-                                    tone={balanceTone}
-                                    isDark={isDark}
-                                    textColor={textColor}
-                                    subtitleColor={subtitleColor}
-                                    accentColor={accentColor}
-                                />
-                                <StatCard
-                                    icon={LuClipboardList}
-                                    label="Buyurtmalar"
-                                    value={formatNumber(totalOrders)}
-                                    suffix="ta"
-                                    tone="accent"
-                                    isDark={isDark}
-                                    textColor={textColor}
-                                    subtitleColor={subtitleColor}
-                                    accentColor={accentColor}
-                                />
-                                <StatCard
-                                    icon={LuCreditCard}
-                                    label="To'lovlar"
-                                    value={formatNumber(totalPayments)}
-                                    suffix="ta"
-                                    tone="default"
-                                    isDark={isDark}
-                                    textColor={textColor}
-                                    subtitleColor={subtitleColor}
-                                    accentColor={accentColor}
-                                />
-                                <StatCard
-                                    icon={LuCalendar}
-                                    label="Ro'yxatga olingan"
-                                    value={formatDetailDate(customer.createdAt)?.split(',')[0] || '—'}
-                                    tone="default"
-                                    isDark={isDark}
-                                    textColor={textColor}
-                                    subtitleColor={subtitleColor}
-                                    accentColor={accentColor}
-                                />
-                            </SimpleGrid>
-                        </Box>
+                        <HStack gap={2} flexWrap="wrap" flexShrink={0}>
+                            <Button variant="outline" borderRadius="xl" h="42px" px={4} onClick={() => navigate(backTo)}>
+                                <HStack gap={2}><LuArrowLeft size={16} /><span>Ro‘yxatga</span></HStack>
+                            </Button>
+                            {canEdit && (
+                                <Button variant="outline" borderRadius="xl" h="42px" px={4} color={accentColor} borderColor={isDark ? 'rgba(250,204,21,.4)' : '#FDE68A'} _hover={{ bg: accentSoft }} onClick={() => setEditOpen(true)}>
+                                    <HStack gap={2}><LuPen size={16} /><span>Tahrirlash</span></HStack>
+                                </Button>
+                            )}
+                            <Button bg={accentColor} color="black" borderRadius="xl" h="42px" px={5} fontWeight="semibold" _hover={{ bg: '#EAB308' }} onClick={() => setPaymentModal({ open: true, order: null })}>
+                                <HStack gap={2}><LuWallet size={16} /><span>To‘lov qabul qilish</span></HStack>
+                            </Button>
+                        </HStack>
+                    </HStack>
+                </Box>
+            </Box>
 
-                        {/* ══ MIJOZ MA'LUMOTLARI ══ */}
-                        <Section
-                            title="Mijoz ma'lumotlari"
-                            subtitle="Shaxsiy va aloqa ma'lumotlari"
-                            isDark={isDark}
-                            textColor={textColor}
-                            subtitleColor={subtitleColor}
-                            cardBorder={cardBorder}
-                        >
-                            <SimpleGrid columns={{ base: 1, md: 2 }} gap={3}>
-                                <InfoCell icon={LuUsers} label="To‘liq nomi" value={customer.name} isDark={isDark} textColor={textColor} subtitleColor={subtitleColor} accentColor={accentColor} />
-                                <InfoCell icon={LuPhone} label="Telefon" value={customer.phone} href={`tel:${customer.phone}`} isDark={isDark} textColor={textColor} subtitleColor={subtitleColor} accentColor={accentColor} />
-                                <InfoCell icon={LuHash} label="INN / STIR" value={customer.inn} emptyText="Kiritilmagan" mono isDark={isDark} textColor={textColor} subtitleColor={subtitleColor} accentColor={accentColor} />
-                                <InfoCell icon={LuUserCheck} label="Agent" value={customer.agentName} emptyText="Biriktirilmagan" isDark={isDark} textColor={textColor} subtitleColor={subtitleColor} accentColor={accentColor} />
-                                <InfoCell
-                                    icon={LuSend}
-                                    label="Telegram"
-                                    value={customer.telegramChatId ? `Chat ID: ${customer.telegramChatId}` : null}
-                                    emptyText="Ulanmagan"
-                                    mono={!!customer.telegramChatId}
-                                    isDark={isDark}
-                                    textColor={textColor}
-                                    subtitleColor={subtitleColor}
-                                    accentColor={accentColor}
-                                />
-                                <InfoCell icon={LuCalendar} label="Yaratilgan" value={formatDetailDate(customer.createdAt)} isDark={isDark} textColor={textColor} subtitleColor={subtitleColor} accentColor={accentColor} />
-                                <InfoCell icon={LuMapPin} label="Manzil" value={customer.address} emptyText="Kiritilmagan" isDark={isDark} textColor={textColor} subtitleColor={subtitleColor} accentColor={accentColor} />
-                                <InfoCell icon={LuClock} label="Yangilangan" value={formatDetailDate(customer.lastModifiedAt)} isDark={isDark} textColor={textColor} subtitleColor={subtitleColor} accentColor={accentColor} />
-                                <Box gridColumn={{ base: 'auto', md: 'span 2' }}>
-                                    <InfoCell icon={LuStickyNote} label="Izoh" value={customer.summary} emptyText="Izoh yo‘q" isDark={isDark} textColor={textColor} subtitleColor={subtitleColor} accentColor={accentColor} />
-                                </Box>
+            {/* ── Ko‘rsatkichlar ── */}
+            <SimpleGrid columns={{ base: 1, sm: 2, xl: 4 }} gap={4} mb={4}>
+                <StatCard icon={LuScale} label="Joriy balans" value={`${balance < 0 ? '-' : ''}${formatNumber(Math.abs(balance))} so‘m`} sub={balanceMeta.title} tone={balanceMeta.tone} valueTone />
+                <StatCard icon={LuClipboardList} label="Buyurtmalar" value={`${formatNumber(totalOrders)} ta`} sub={pendingCount > 0 ? `${pendingCount} tasi hali yangi (ortilmagan)` : 'Yangi buyurtma yo‘q'} tone="amber" />
+                <StatCard icon={LuCreditCard} label="To‘lovlar" value={`${formatNumber(totalPayments)} ta`} sub="Qabul qilingan to‘lovlar soni" tone="sky" />
+                <StatCard icon={LuCalendar} label="Ro‘yxatga olingan" value={formatDateOnly(customer.createdAt)} sub={customer.lastModifiedAt ? `Yangilangan: ${formatDetailDate(customer.lastModifiedAt)}` : undefined} tone="violet" />
+            </SimpleGrid>
 
-                            </SimpleGrid>
-                        </Section>
+            {/* ── Balans izohi ── */}
+            <Box mb={4} px={{ base: 4, md: 5 }} py={3} borderRadius="xl" borderWidth="1px" borderColor={balanceTone.border} bg={balanceTone.bg}>
+                <HStack gap={2.5} align="start">
+                    <Box color={balanceTone.color} mt="2px"><LuCircleAlert size={16} /></Box>
+                    <Text fontSize="sm" color={textColor}>
+                        <Text as="span" fontWeight="semibold" color={balanceTone.color}>{balanceMeta.title}.</Text>{' '}{balanceMeta.hint}
+                    </Text>
+                </HStack>
+            </Box>
 
-                        {/* ══ BUYURTMALAR / TO'LOVLAR ══ */}
-                        <Section
-                            isDark={isDark}
-                            textColor={textColor}
-                            subtitleColor={subtitleColor}
-                            cardBorder={cardBorder}
-                        >
-                            {/* Tabs */}
-                            <HStack gap={1} mb={5} p={1} bg={isDark ? 'rgba(148,163,184,0.06)' : 'gray.100'} borderRadius="xl" w="fit-content">
-                                {TABS.map((tab) => {
-                                    const isActive = activeTab === tab.value;
-                                    const Icon = tab.icon;
-                                    return (
-                                        <Button
-                                            key={tab.value}
-                                            size="sm"
-                                            borderRadius="lg"
-                                            px={5}
-                                            h="36px"
-                                            fontWeight="semibold"
-                                            fontSize="sm"
-                                            onClick={() => setActiveTab(tab.value)}
-                                            bg={isActive ? (isDark ? 'rgba(250,204,21,0.15)' : 'white') : 'transparent'}
-                                            color={isActive ? accentColor : subtitleColor}
-                                            boxShadow={isActive && !isDark ? '0 1px 3px rgba(15,23,42,0.08)' : 'none'}
-                                            _hover={{ bg: isActive ? (isDark ? 'rgba(250,204,21,0.18)' : 'white') : (isDark ? 'whiteAlpha.50' : 'whiteAlpha.700') }}
-                                            transition="all 0.15s"
-                                        >
-                                            <HStack gap={2}><Icon size={14} /><span>{tab.label}</span></HStack>
-                                        </Button>
-                                    );
-                                })}
-                            </HStack>
+            {/* ── Ma'lumotlar ── */}
+            <SimpleGrid columns={{ base: 1, lg: 2 }} gap={4} mb={4}>
+                <InfoCard icon={LuUsers} title="Aloqa ma’lumotlari">
+                    <InfoRow icon={LuPhone} label="Telefon" value={customer.phone} href={phoneHref} />
+                    <InfoRow icon={LuMapPin} label="Manzil" value={customer.address} />
+                    <InfoRow icon={LuHash} label="INN / STIR" value={customer.inn} mono />
+                    <InfoRow icon={LuUserCheck} label="Agent" value={customer.agentName} emptyText="Biriktirilmagan" />
+                    <InfoRow icon={LuSend} label="Telegram" value={customer.telegramChatId ? String(customer.telegramChatId) : null} emptyText="Ulanmagan" mono />
+                </InfoCard>
+                <InfoCard icon={LuStickyNote} title="Qo‘shimcha ma’lumotlar">
+                    <InfoRow icon={LuStickyNote} label="Izoh" value={customer.summary} emptyText="Izoh yo‘q" />
+                    <InfoRow icon={LuCalendar} label="Yaratilgan" value={formatDetailDate(customer.createdAt)} />
+                    <InfoRow icon={LuClock3} label="Oxirgi o‘zgarish" value={formatDetailDate(customer.lastModifiedAt)} />
+                    <InfoRow
+                        icon={LuHash}
+                        label="Tizim ID"
+                        value={customer.id}
+                        mono
+                        action={<Button size="xs" variant="ghost" color={subtitleColor} w="30px" h="30px" p={0} minW={0} onClick={copyId} aria-label="ID nusxalash"><LuCopy size={14} /></Button>}
+                    />
+                </InfoCard>
+            </SimpleGrid>
 
-                            {/* ══ BUYURTMALAR ══ */}
-                            {activeTab === 'orders' && (
-                                <>
-                                    <HStack gap={1.5} flexWrap="wrap" mb={4}>
-                                        {ORDER_STATUS_FILTERS.map((option) => {
-                                            const isActive = orderStatus === option.value;
+            {/* ── Buyurtmalar / To'lovlar ── */}
+            <Card>
+                <HStack justify="space-between" align="center" flexWrap="wrap" gap={3} px={{ base: 4, md: 5 }} py={3} borderBottomWidth="1px" borderColor={cardBorder}>
+                    <HStack gap={1} p={1} bg={isDark ? 'rgba(148,163,184,0.06)' : 'gray.100'} borderRadius="xl">
+                        {tabs.map((tab) => {
+                            const isActive = activeTab === tab.value;
+                            return (
+                                <Button
+                                    key={tab.value} size="sm" borderRadius="lg" px={4} h="36px" fontWeight="semibold" fontSize="sm"
+                                    onClick={() => setActiveTab(tab.value)}
+                                    bg={isActive ? (isDark ? 'rgba(250,204,21,0.15)' : 'white') : 'transparent'}
+                                    color={isActive ? accentColor : subtitleColor}
+                                    boxShadow={isActive && !isDark ? '0 1px 3px rgba(15,23,42,0.08)' : 'none'}
+                                    _hover={{ bg: isActive ? (isDark ? 'rgba(250,204,21,0.18)' : 'white') : (isDark ? 'whiteAlpha.50' : 'whiteAlpha.700') }}
+                                >
+                                    <HStack gap={2}>
+                                        <tab.icon size={14} />
+                                        <span>{tab.label}</span>
+                                        <Box as="span" px={1.5} borderRadius="md" fontSize="11px" bg={isActive ? accentSoft : (isDark ? 'whiteAlpha.100' : 'gray.200')} color={isActive ? accentColor : subtitleColor}>{formatNumber(tab.count)}</Box>
+                                    </HStack>
+                                </Button>
+                            );
+                        })}
+                    </HStack>
+
+                    {activeTab === 'orders' && (
+                        <HStack gap={1.5} flexWrap="wrap">
+                            {ORDER_STATUS_FILTERS.map((option) => {
+                                const isActive = orderStatus === option.value;
+                                return (
+                                    <Button
+                                        key={option.value || 'all'} size="sm" borderRadius="full" px={3.5} h="30px" fontSize="xs" fontWeight="semibold"
+                                        onClick={() => { setOrderStatus(option.value); setOrderPage(0); }}
+                                        bg={isActive ? accentColor : 'transparent'} color={isActive ? 'black' : subtitleColor}
+                                        borderWidth="1px" borderColor={isActive ? accentColor : cardBorder}
+                                        _hover={{ bg: isActive ? accentColor : (isDark ? 'whiteAlpha.100' : 'gray.50') }}
+                                    >
+                                        {option.label}
+                                    </Button>
+                                );
+                            })}
+                        </HStack>
+                    )}
+                </HStack>
+
+                <Box p={{ base: 3, md: 5 }}>
+                    {/* ── Buyurtmalar ── */}
+                    {activeTab === 'orders' && (ordersFetching ? (
+                        <VStack py={12} gap={3}><Spinner size="md" color={accentColor} /><Text color={subtitleColor} fontSize="sm">Yuklanmoqda...</Text></VStack>
+                    ) : orders.length === 0 ? (
+                        <EmptyState icon={LuClipboardList} title={orderStatus ? 'Bu holatdagi buyurtmalar topilmadi' : 'Hozircha buyurtmalar yo‘q'} description={orderStatus ? 'Boshqa holatni tanlab ko‘ring' : 'Yangi buyurtma yaratilganda bu yerda ko‘rinadi'} />
+                    ) : (
+                        <>
+                            <Box overflowX="auto" borderWidth="1px" borderColor={cardBorder} borderRadius="xl">
+                                <Table.Root size="sm" bg={isDark ? 'transparent' : 'white'} minW="980px">
+                                    <Table.Header>
+                                        <Table.Row>
+                                            <Table.ColumnHeader {...th} w="44px" textAlign="center">№</Table.ColumnHeader>
+                                            <Table.ColumnHeader {...th}>Sana</Table.ColumnHeader>
+                                            <Table.ColumnHeader {...th}>Mahsulotlar</Table.ColumnHeader>
+                                            <Table.ColumnHeader {...th} textAlign="right">Summa</Table.ColumnHeader>
+                                            <Table.ColumnHeader {...th} textAlign="right">To‘langan</Table.ColumnHeader>
+                                            <Table.ColumnHeader {...th} textAlign="right">Qarz</Table.ColumnHeader>
+                                            <Table.ColumnHeader {...th}>Holat</Table.ColumnHeader>
+                                            <Table.ColumnHeader {...th} textAlign="right">Amallar</Table.ColumnHeader>
+                                        </Table.Row>
+                                    </Table.Header>
+                                    <Table.Body>
+                                        {orders.map((order, index) => {
+                                            const total = Number(order.totalAmount) || 0;
+                                            const debt = Number(order.remainingDebt) || 0;
+                                            const paid = Number.isFinite(Number(order.paidAmount)) && order.paidAmount != null ? Number(order.paidAmount) : Math.max(total - debt, 0);
+                                            const status = ORDER_STATUS_META[order.status] || { label: order.status || '—', icon: LuClock3, tone: 'gray' };
+                                            const items = order.items || [];
+                                            const itemNames = items.map((i) => i.productName).filter(Boolean);
                                             return (
-                                                <Button
-                                                    key={option.value || 'all'}
-                                                    size="sm"
-                                                    borderRadius="full"
-                                                    px={4}
-                                                    h="30px"
-                                                    fontSize="xs"
-                                                    fontWeight="semibold"
-                                                    onClick={() => { setOrderStatus(option.value); setOrderPage(0); }}
-                                                    bg={isActive ? accentColor : 'transparent'}
-                                                    color={isActive ? 'black' : subtitleColor}
-                                                    borderWidth="1px"
-                                                    borderColor={isActive ? accentColor : cardBorder}
-                                                    _hover={{ bg: isActive ? accentColor : (isDark ? 'whiteAlpha.100' : 'gray.50') }}
-                                                    transition="all 0.15s"
-                                                >
-                                                    {option.label}
-                                                </Button>
+                                                <Table.Row key={order.id} _hover={{ bg: isDark ? 'rgba(250,204,21,.04)' : '#FFFBEB' }}>
+                                                    <Table.Cell color={subtitleColor} textAlign="center" fontSize="sm">{orderPage * PAGE_SIZE + index + 1}</Table.Cell>
+                                                    <Table.Cell color={textColor} fontSize="sm" whiteSpace="nowrap">
+                                                        <Text fontWeight="medium">{formatDateOnly(order.createdAt)}</Text>
+                                                        <Text fontSize="xs" color={subtitleColor}>{formatDetailDate(order.createdAt).split(', ')[1] || ''}</Text>
+                                                    </Table.Cell>
+                                                    <Table.Cell fontSize="sm" maxW="260px">
+                                                        <Text color={textColor} fontWeight="semibold">{items.length} ta mahsulot</Text>
+                                                        <Text color={subtitleColor} fontSize="xs" noOfLines={1} title={itemNames.join(', ')}>
+                                                            {itemNames.length ? itemNames.slice(0, 2).join(', ') + (itemNames.length > 2 ? ` +${itemNames.length - 2}` : '') : (order.summary || '—')}
+                                                        </Text>
+                                                    </Table.Cell>
+                                                    <Table.Cell color={textColor} fontWeight="bold" fontSize="sm" textAlign="right" whiteSpace="nowrap">{formatNumber(total)} so‘m</Table.Cell>
+                                                    <Table.Cell color={isDark ? 'green.300' : 'green.700'} fontSize="sm" textAlign="right" whiteSpace="nowrap">{formatNumber(paid)}</Table.Cell>
+                                                    <Table.Cell textAlign="right" whiteSpace="nowrap">
+                                                        <Text color={debt > 0 ? (isDark ? 'red.300' : 'red.600') : subtitleColor} fontWeight={debt > 0 ? 'bold' : 'normal'} fontSize="sm">{formatNumber(debt)}</Text>
+                                                    </Table.Cell>
+                                                    <Table.Cell><Pill tone={status.tone} icon={status.icon}>{status.label}</Pill></Table.Cell>
+                                                    <Table.Cell>
+                                                        <HStack justify="flex-end" gap={1.5} flexWrap="nowrap">
+                                                            {order.status === 'CREATED' && (
+                                                                <Button size="xs" h="30px" px={3} borderRadius="lg" bg={tones.red.bg} color={tones.red.color} borderWidth="1px" borderColor={tones.red.border} _hover={{ opacity: 0.85 }} onClick={() => setRejectConfirm(order)}>
+                                                                    <HStack gap={1}><LuX size={13} /><span>Bekor qilish</span></HStack>
+                                                                </Button>
+                                                            )}
+                                                            {order.status === 'CONFIRMED' && debt > 0 && (
+                                                                <Button size="xs" h="30px" px={3} borderRadius="lg" bg={accentColor} color="black" fontWeight="semibold" _hover={{ bg: '#EAB308' }} onClick={() => setPaymentModal({ open: true, order })}>
+                                                                    <HStack gap={1}><LuBanknote size={13} /><span>To‘lov</span></HStack>
+                                                                </Button>
+                                                            )}
+                                                            {ordersBase && (
+                                                                <Button asChild size="xs" w="30px" h="30px" p={0} minW={0} borderRadius="lg" variant="outline" color={subtitleColor} aria-label="Buyurtmani ochish" title="Buyurtmani ochish">
+                                                                    <RouterLink to={`${ordersBase}/${order.id}`}><LuExternalLink size={14} /></RouterLink>
+                                                                </Button>
+                                                            )}
+                                                        </HStack>
+                                                    </Table.Cell>
+                                                </Table.Row>
                                             );
                                         })}
-                                    </HStack>
+                                    </Table.Body>
+                                </Table.Root>
+                            </Box>
+                            <Pagination page={orderPage} totalPages={totalOrderPages} total={totalOrders} unit="ta buyurtma" onChange={setOrderPage} />
+                        </>
+                    ))}
 
-                                    {ordersFetching ? (
-                                        <VStack py={12} gap={3}>
-                                            <Spinner size="md" color={accentColor} thickness="3px" />
-                                            <Text color={subtitleColor} fontSize="sm">Yuklanmoqda...</Text>
-                                        </VStack>
-                                    ) : orders.length === 0 ? (
-                                        <EmptyState
-                                            icon={LuClipboardList}
-                                            title={orderStatus ? 'Bu holatdagi buyurtmalar topilmadi' : "Hozircha buyurtmalar yo'q"}
-                                            description={orderStatus ? 'Boshqa holatni tanlab ko‘ring' : 'Yangi buyurtma yaratilganda bu yerda ko‘rinadi'}
-                                            isDark={isDark}
-                                            subtitleColor={subtitleColor}
-                                        />
-                                    ) : (
-                                        <>
-                                            <Box overflowX="auto" borderWidth="1px" borderColor={cardBorder} borderRadius="xl">
-                                                <Table.Root size="sm" bg={isDark ? 'transparent' : 'white'} borderCollapse="collapse">
-                                                    <Table.Header bg={isDark ? 'rgba(148,163,184,0.06)' : 'gray.50'}>
-                                                        <Table.Row>
-                                                            <Table.ColumnHeader color={subtitleColor} w="50px" textAlign="center" fontSize="11px" fontWeight="semibold" textTransform="uppercase" letterSpacing="wider">№</Table.ColumnHeader>
-                                                            <Table.ColumnHeader color={subtitleColor} fontSize="11px" fontWeight="semibold" textTransform="uppercase" letterSpacing="wider">Mahsulotlar</Table.ColumnHeader>
-                                                            <Table.ColumnHeader color={subtitleColor} fontSize="11px" fontWeight="semibold" textTransform="uppercase" letterSpacing="wider">Izoh</Table.ColumnHeader>
-                                                            <Table.ColumnHeader color={subtitleColor} textAlign="right" fontSize="11px" fontWeight="semibold" textTransform="uppercase" letterSpacing="wider">Summa</Table.ColumnHeader>
-                                                            <Table.ColumnHeader color={subtitleColor} textAlign="right" fontSize="11px" fontWeight="semibold" textTransform="uppercase" letterSpacing="wider">Qarz</Table.ColumnHeader>
-                                                            <Table.ColumnHeader color={subtitleColor} fontSize="11px" fontWeight="semibold" textTransform="uppercase" letterSpacing="wider">Holati</Table.ColumnHeader>
-                                                            <Table.ColumnHeader color={subtitleColor} fontSize="11px" fontWeight="semibold" textTransform="uppercase" letterSpacing="wider">Sana</Table.ColumnHeader>
-                                                            <Table.ColumnHeader color={subtitleColor} textAlign="center" fontSize="11px" fontWeight="semibold" textTransform="uppercase" letterSpacing="wider">Amal</Table.ColumnHeader>
-                                                        </Table.Row>
-                                                    </Table.Header>
-                                                    <Table.Body>
-                                                        {orders.map((order, index) => (
-                                                            <Table.Row key={order.id} _hover={{ bg: isDark ? 'rgba(250,204,21,.04)' : '#FFFBEB' }} transition="background 0.15s">
-                                                                <Table.Cell color={subtitleColor} textAlign="center" fontSize="sm">{orderPage * PAGE_SIZE + index + 1}</Table.Cell>
-                                                                <Table.Cell color={textColor} fontWeight="semibold" fontSize="sm" whiteSpace="nowrap">{order.items?.length ?? 0} ta</Table.Cell>
-                                                                <Table.Cell color={subtitleColor} fontSize="sm" maxW="200px">{order.summary || '—'}</Table.Cell>
-                                                                <Table.Cell color={textColor} fontWeight="bold" fontSize="sm" textAlign="right" whiteSpace="nowrap">
-                                                                    {formatNumber(order.totalAmount ?? 0)} <Text as="span" fontSize="xs" color={subtitleColor}>so&apos;m</Text>
-                                                                </Table.Cell>
-                                                                <Table.Cell textAlign="right" whiteSpace="nowrap">
-                                                                    <Text
-                                                                        color={(order.remainingDebt ?? 0) > 0 ? (isDark ? 'red.300' : 'red.600') : subtitleColor}
-                                                                        fontWeight={(order.remainingDebt ?? 0) > 0 ? 'bold' : 'normal'}
-                                                                        fontSize="sm"
-                                                                    >
-                                                                        {formatNumber(order.remainingDebt ?? 0)}
-                                                                    </Text>
-                                                                </Table.Cell>
-                                                                <Table.Cell>
-                                                                    <OrderStatusSelect
-                                                                        orderId={order.id}
-                                                                        currentStatus={order.status}
-                                                                        onApprove={handleApprove}
-                                                                        onReject={handleReject}
-                                                                        isLoading={actionId === order.id}
-                                                                        isDark={isDark}
-                                                                    />
-                                                                </Table.Cell>
-                                                                <Table.Cell color={subtitleColor} fontSize="sm" whiteSpace="nowrap">{formatDetailDate(order.createdAt)}</Table.Cell>
-                                                                <Table.Cell textAlign="center">
-                                                                    <Button
-                                                                        size="xs"
-                                                                        height="30px"
-                                                                        borderRadius="lg"
-                                                                        px={3}
-                                                                        gap={1.5}
-                                                                        fontSize="xs"
-                                                                        fontWeight="semibold"
-                                                                        bg={order.status === 'APPROVED' ? accentColor : (isDark ? 'whiteAlpha.100' : 'gray.100')}
-                                                                        color={order.status === 'APPROVED' ? 'black' : subtitleColor}
-                                                                        cursor={order.status === 'APPROVED' ? 'pointer' : 'not-allowed'}
-                                                                        opacity={order.status === 'APPROVED' ? 1 : 0.5}
-                                                                        _hover={order.status === 'APPROVED' ? { opacity: 0.9, transform: 'translateY(-1px)' } : {}}
-                                                                        transition="all 0.15s"
-                                                                        onClick={() => order.status === 'APPROVED' && openOrderPayment(order)}
-                                                                        title={order.status !== 'APPROVED' ? "Avval buyurtmani tasdiqlang" : "To'lov qilish"}
-                                                                    >
-                                                                        <LuBanknote size={13} />
-                                                                        <span>To&apos;lov</span>
-                                                                    </Button>
-                                                                </Table.Cell>
-                                                            </Table.Row>
-                                                        ))}
-                                                    </Table.Body>
-                                                </Table.Root>
-                                            </Box>
-                                            <HStack justify="space-between" mt={4} flexWrap="wrap" gap={3}>
-                                                <Text color={subtitleColor} fontSize="sm">
-                                                    Jami: <Text as="span" fontWeight="bold" color={textColor}>{formatNumber(totalOrders)}</Text> ta buyurtma
-                                                </Text>
-                                                {totalOrderPages > 1 && (
-                                                    <HStack gap={2}>
-                                                        <Button size="sm" variant="outline" borderRadius="lg" disabled={orderPage === 0} onClick={() => setOrderPage((v) => v - 1)}><LuChevronLeft size={14} /></Button>
-                                                        <Text color={subtitleColor} fontSize="sm" fontWeight="medium" px={2}>{orderPage + 1} / {totalOrderPages}</Text>
-                                                        <Button size="sm" variant="outline" borderRadius="lg" disabled={orderPage >= totalOrderPages - 1} onClick={() => setOrderPage((v) => v + 1)}><LuChevronRight size={14} /></Button>
-                                                    </HStack>
-                                                )}
-                                            </HStack>
-                                        </>
-                                    )}
-                                </>
-                            )}
+                    {/* ── To'lovlar ── */}
+                    {activeTab === 'payments' && (paymentsFetching ? (
+                        <VStack py={12} gap={3}><Spinner size="md" color={accentColor} /><Text color={subtitleColor} fontSize="sm">Yuklanmoqda...</Text></VStack>
+                    ) : payments.length === 0 ? (
+                        <EmptyState icon={LuCreditCard} title="Hozircha to‘lovlar yo‘q" description="To‘lov qabul qilinganda bu yerda tarix paydo bo‘ladi" />
+                    ) : (
+                        <>
+                            <Box overflowX="auto" borderWidth="1px" borderColor={cardBorder} borderRadius="xl">
+                                <Table.Root size="sm" bg={isDark ? 'transparent' : 'white'} minW="980px">
+                                    <Table.Header>
+                                        <Table.Row>
+                                            <Table.ColumnHeader {...th} w="44px" textAlign="center">№</Table.ColumnHeader>
+                                            <Table.ColumnHeader {...th}>Sana</Table.ColumnHeader>
+                                            <Table.ColumnHeader {...th}>Kassa</Table.ColumnHeader>
+                                            <Table.ColumnHeader {...th} textAlign="right">Summa</Table.ColumnHeader>
+                                            <Table.ColumnHeader {...th} textAlign="right">Buyurtmaga yopilgan</Table.ColumnHeader>
+                                            <Table.ColumnHeader {...th} textAlign="right">Avansga o‘tgan</Table.ColumnHeader>
+                                            <Table.ColumnHeader {...th}>Holat</Table.ColumnHeader>
+                                            <Table.ColumnHeader {...th}>Izoh</Table.ColumnHeader>
+                                            <Table.ColumnHeader {...th} textAlign="right">Amal</Table.ColumnHeader>
+                                        </Table.Row>
+                                    </Table.Header>
+                                    <Table.Body>
+                                        {payments.map((payment, index) => {
+                                            const cancelled = payment.status === 'CANCELLED';
+                                            const advance = Number(payment.unallocatedAmount) || 0;
+                                            return (
+                                                <Table.Row key={payment.id} opacity={cancelled ? 0.55 : 1} _hover={{ bg: isDark ? 'rgba(250,204,21,.04)' : '#FFFBEB' }}>
+                                                    <Table.Cell color={subtitleColor} textAlign="center" fontSize="sm">{paymentPage * PAGE_SIZE + index + 1}</Table.Cell>
+                                                    <Table.Cell color={textColor} fontSize="sm" whiteSpace="nowrap" fontWeight="medium">{formatDateOnly(payment.paidAt)}</Table.Cell>
+                                                    <Table.Cell color={textColor} fontSize="sm" whiteSpace="nowrap"><HStack gap={1.5}><LuWallet size={13} color={subtitleColor} /><span>{payment.cashboxName || '—'}</span></HStack></Table.Cell>
+                                                    <Table.Cell textAlign="right" whiteSpace="nowrap">
+                                                        <Text color={textColor} fontWeight="bold" fontSize="sm" textDecoration={cancelled ? 'line-through' : undefined}>{formatNumber(payment.amount ?? 0)} so‘m</Text>
+                                                        <CurrencyNote currency={payment.currency} usdRate={payment.usdRate} amount={payment.amount} />
+                                                    </Table.Cell>
+                                                    <Table.Cell color={subtitleColor} fontSize="sm" textAlign="right" whiteSpace="nowrap">{formatNumber(payment.allocatedAmount ?? 0)}</Table.Cell>
+                                                    <Table.Cell textAlign="right" whiteSpace="nowrap">
+                                                        <Text color={advance > 0 ? (isDark ? 'green.300' : 'green.600') : subtitleColor} fontWeight={advance > 0 ? 'bold' : 'normal'} fontSize="sm">{formatNumber(advance)}</Text>
+                                                    </Table.Cell>
+                                                    <Table.Cell>
+                                                        <Pill tone={cancelled ? 'red' : 'green'} icon={cancelled ? LuCircleX : LuCircleCheck}>{cancelled ? 'Bekor qilingan' : 'Faol'}</Pill>
+                                                        {payment.cancelledAt && <Text color={subtitleColor} fontSize="xs" mt={1}>{formatDetailDate(payment.cancelledAt)}</Text>}
+                                                    </Table.Cell>
+                                                    <Table.Cell color={subtitleColor} fontSize="sm" maxW="200px"><Text noOfLines={2}>{payment.summary || '—'}</Text></Table.Cell>
+                                                    <Table.Cell>
+                                                        <HStack justify="flex-end">
+                                                            {cancelled ? (
+                                                                <Text fontSize="xs" color={subtitleColor}>—</Text>
+                                                            ) : (
+                                                                <Button size="xs" h="30px" px={3} borderRadius="lg" bg={tones.red.bg} color={tones.red.color} borderWidth="1px" borderColor={tones.red.border} _hover={{ opacity: 0.85 }} onClick={() => setCancelConfirm(payment)}>
+                                                                    <HStack gap={1}><LuCircleX size={13} /><span>Bekor qilish</span></HStack>
+                                                                </Button>
+                                                            )}
+                                                        </HStack>
+                                                    </Table.Cell>
+                                                </Table.Row>
+                                            );
+                                        })}
+                                    </Table.Body>
+                                </Table.Root>
+                            </Box>
+                            <Pagination page={paymentPage} totalPages={totalPaymentPages} total={totalPayments} unit="ta to‘lov" onChange={setPaymentPage} />
+                        </>
+                    ))}
+                </Box>
+            </Card>
 
-                            {/* ══ TO'LOVLAR ══ */}
-                            {activeTab === 'payments' && (
-                                <>
-                                    {paymentsFetching ? (
-                                        <VStack py={12} gap={3}>
-                                            <Spinner size="md" color={accentColor} thickness="3px" />
-                                            <Text color={subtitleColor} fontSize="sm">Yuklanmoqda...</Text>
-                                        </VStack>
-                                    ) : payments.length === 0 ? (
-                                        <EmptyState
-                                            icon={LuCreditCard}
-                                            title="Hozircha to'lovlar yo'q"
-                                            description="To'lov qilinganda bu yerda tarix paydo bo'ladi"
-                                            isDark={isDark}
-                                            subtitleColor={subtitleColor}
-                                        />
-                                    ) : (
-                                        <>
-                                            <Box overflowX="auto" borderWidth="1px" borderColor={cardBorder} borderRadius="xl">
-                                                <Table.Root size="sm" bg={isDark ? 'transparent' : 'white'} borderCollapse="collapse">
-                                                    <Table.Header bg={isDark ? 'rgba(148,163,184,0.06)' : 'gray.50'}>
-                                                        <Table.Row>
-                                                            <Table.ColumnHeader color={subtitleColor} w="50px" textAlign="center" fontSize="11px" fontWeight="semibold" textTransform="uppercase" letterSpacing="wider">№</Table.ColumnHeader>
-                                                            <Table.ColumnHeader color={subtitleColor} fontSize="11px" fontWeight="semibold" textTransform="uppercase" letterSpacing="wider">Kassa</Table.ColumnHeader>
-                                                            <Table.ColumnHeader color={subtitleColor} textAlign="right" fontSize="11px" fontWeight="semibold" textTransform="uppercase" letterSpacing="wider">Summa</Table.ColumnHeader>
-                                                            <Table.ColumnHeader color={subtitleColor} textAlign="right" fontSize="11px" fontWeight="semibold" textTransform="uppercase" letterSpacing="wider">Taqsimlangan</Table.ColumnHeader>
-                                                            <Table.ColumnHeader color={subtitleColor} textAlign="right" fontSize="11px" fontWeight="semibold" textTransform="uppercase" letterSpacing="wider">Avans</Table.ColumnHeader>
-                                                            <Table.ColumnHeader color={subtitleColor} fontSize="11px" fontWeight="semibold" textTransform="uppercase" letterSpacing="wider">Holati</Table.ColumnHeader>
-                                                            <Table.ColumnHeader color={subtitleColor} fontSize="11px" fontWeight="semibold" textTransform="uppercase" letterSpacing="wider">Izoh</Table.ColumnHeader>
-                                                            <Table.ColumnHeader color={subtitleColor} fontSize="11px" fontWeight="semibold" textTransform="uppercase" letterSpacing="wider">Sana</Table.ColumnHeader>
-                                                            <Table.ColumnHeader color={subtitleColor} textAlign="center" fontSize="11px" fontWeight="semibold" textTransform="uppercase" letterSpacing="wider">Amal</Table.ColumnHeader>
-                                                        </Table.Row>
-                                                    </Table.Header>
-                                                    <Table.Body>
-                                                        {payments.map((payment, index) => (
-                                                            <Table.Row
-                                                                key={payment.id}
-                                                                opacity={payment.status === 'CANCELLED' ? 0.5 : 1}
-                                                                _hover={{ bg: isDark ? 'rgba(250,204,21,.04)' : '#FFFBEB' }}
-                                                                transition="background 0.15s"
-                                                            >
-                                                                <Table.Cell color={subtitleColor} textAlign="center" fontSize="sm">{paymentPage * PAGE_SIZE + index + 1}</Table.Cell>
-                                                                <Table.Cell color={textColor} fontSize="sm" whiteSpace="nowrap" fontWeight="medium">{payment.cashboxName}</Table.Cell>
-                                                                <Table.Cell color={textColor} fontWeight="bold" fontSize="sm" textAlign="right" whiteSpace="nowrap">
-                                                                    {formatNumber(payment.amount ?? 0)} <Text as="span" fontSize="xs" color={subtitleColor}>so&apos;m</Text>
-                                                                </Table.Cell>
-                                                                <Table.Cell color={subtitleColor} fontSize="sm" textAlign="right" whiteSpace="nowrap">
-                                                                    {formatNumber(payment.allocatedAmount ?? 0)}
-                                                                </Table.Cell>
-                                                                <Table.Cell textAlign="right" whiteSpace="nowrap">
-                                                                    <Text
-                                                                        color={(payment.unallocatedAmount ?? 0) > 0 ? (isDark ? 'green.300' : 'green.600') : subtitleColor}
-                                                                        fontWeight={(payment.unallocatedAmount ?? 0) > 0 ? 'bold' : 'normal'}
-                                                                        fontSize="sm"
-                                                                    >
-                                                                        {formatNumber(payment.unallocatedAmount ?? 0)}
-                                                                    </Text>
-                                                                </Table.Cell>
-                                                                <Table.Cell>
-                                                                    <Badge
-                                                                        borderRadius="full"
-                                                                        px={2.5}
-                                                                        py={1}
-                                                                        fontSize="11px"
-                                                                        fontWeight="semibold"
-                                                                        bg={payment.status === 'ACTIVE'
-                                                                            ? (isDark ? 'rgba(34,197,94,.14)' : '#DCFCE7')
-                                                                            : (isDark ? 'rgba(239,68,68,.14)' : '#FEE2E2')}
-                                                                        color={payment.status === 'ACTIVE'
-                                                                            ? (isDark ? 'green.300' : 'green.700')
-                                                                            : (isDark ? 'red.300' : 'red.700')}
-                                                                        whiteSpace="nowrap"
-                                                                    >
-                                                                        {PAYMENT_STATUS_LABELS[payment.status] || payment.status}
-                                                                    </Badge>
-                                                                </Table.Cell>
-                                                                <Table.Cell color={subtitleColor} fontSize="sm" maxW="160px">{payment.summary || '—'}</Table.Cell>
-                                                                <Table.Cell color={subtitleColor} fontSize="sm" whiteSpace="nowrap">{payment.paidAt}</Table.Cell>
-                                                                <Table.Cell textAlign="center">
-                                                                    {payment.status === 'ACTIVE' ? (
-                                                                        <Button
-                                                                            size="xs"
-                                                                            height="28px"
-                                                                            borderRadius="lg"
-                                                                            px={3}
-                                                                            gap={1.5}
-                                                                            fontSize="xs"
-                                                                            fontWeight="semibold"
-                                                                            bg={isDark ? 'rgba(239,68,68,.15)' : 'red.50'}
-                                                                            color={isDark ? 'red.300' : 'red.600'}
-                                                                            borderWidth="1px"
-                                                                            borderColor={isDark ? 'rgba(239,68,68,.3)' : 'red.200'}
-                                                                            _hover={{ bg: isDark ? 'rgba(239,68,68,.25)' : 'red.100' }}
-                                                                            onClick={() => setCancelConfirm({ open: true, paymentId: payment.id, amount: payment.amount })}
-                                                                            transition="all 0.15s"
-                                                                        >
-                                                                            <LuCircleX size={12} />
-                                                                            <span>Bekor</span>
-                                                                        </Button>
-                                                                    ) : (
-                                                                        <Text fontSize="xs" color={subtitleColor}>—</Text>
-                                                                    )}
-                                                                </Table.Cell>
-                                                            </Table.Row>
-                                                        ))}
-                                                    </Table.Body>
-                                                </Table.Root>
-                                            </Box>
-                                            <HStack justify="space-between" mt={4} flexWrap="wrap" gap={3}>
-                                                <Text color={subtitleColor} fontSize="sm">
-                                                    Jami: <Text as="span" fontWeight="bold" color={textColor}>{formatNumber(totalPayments)}</Text> ta to&apos;lov
-                                                </Text>
-                                                {totalPaymentPages > 1 && (
-                                                    <HStack gap={2}>
-                                                        <Button size="sm" variant="outline" borderRadius="lg" disabled={paymentPage === 0} onClick={() => setPaymentPage((v) => v - 1)}><LuChevronLeft size={14} /></Button>
-                                                        <Text color={subtitleColor} fontSize="sm" fontWeight="medium" px={2}>{paymentPage + 1} / {totalPaymentPages}</Text>
-                                                        <Button size="sm" variant="outline" borderRadius="lg" disabled={paymentPage >= totalPaymentPages - 1} onClick={() => setPaymentPage((v) => v + 1)}><LuChevronRight size={14} /></Button>
-                                                    </HStack>
-                                                )}
-                                            </HStack>
-                                        </>
-                                    )}
-                                </>
-                            )}
-                        </Section>
-
-                        {/* ── Modals ── */}
-                        <PaymentModal
-                            open={paymentModal.open}
-                            onClose={closePayment}
-                            customerId={id}
-                            order={paymentModal.order}
-                        />
-                        <CancelPaymentDialog
-                            open={cancelConfirm.open}
-                            onClose={() => setCancelConfirm({ open: false, paymentId: null, amount: 0 })}
-                            onConfirm={handleCancelPayment}
-                            isLoading={cancelling}
-                            amount={cancelConfirm.amount}
-                        />
-                    </>
-                );
-            }}
-        </EntityDetail>
+            {/* ── Modallar ── */}
+            <PaymentModal open={paymentModal.open} onClose={() => setPaymentModal({ open: false, order: null })} customerId={id} order={paymentModal.order} />
+            {editOpen && <Edit customer={customer} hideTrigger openOnMount onClosed={() => setEditOpen(false)} />}
+            <ConfirmDialog
+                open={Boolean(cancelConfirm)}
+                onClose={() => setCancelConfirm(null)}
+                onConfirm={handleCancelPayment}
+                isLoading={cancelling}
+                title="To‘lovni bekor qilish"
+                confirmLabel="Ha, bekor qilish"
+                loadingLabel="Bekor qilinmoqda..."
+                body={<><strong>{formatNumber(cancelConfirm?.amount ?? 0)} so‘m</strong> miqdoridagi to‘lov bekor qilinadi. Pul kassadan chiqariladi, buyurtmalar qarzi va mijoz balansi tiklanadi. Bu amalni qaytarib bo‘lmaydi.</>}
+            />
+            <ConfirmDialog
+                open={Boolean(rejectConfirm)}
+                onClose={() => setRejectConfirm(null)}
+                onConfirm={handleReject}
+                isLoading={rejecting}
+                title="Buyurtmani bekor qilish"
+                confirmLabel="Ha, bekor qilish"
+                loadingLabel="Bekor qilinmoqda..."
+                icon={LuCircleX}
+                body={<><strong>{formatNumber(rejectConfirm?.totalAmount ?? 0)} so‘m</strong> summadagi buyurtma bekor qilinadi. Bekor qilingan buyurtma bo‘yicha to‘lov qabul qilib bo‘lmaydi.</>}
+            />
+        </Box>
     );
 }

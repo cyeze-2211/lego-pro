@@ -27,9 +27,11 @@ import {
     LuBoxes,
     LuGift,
 } from 'react-icons/lu';
-import { useCreateProductMutation } from '../../../../store/services/product.api';
+import { useCreateProductMutation, useUploadProductImageMutation } from '../../../../store/services/product.api';
+import ImageField from './ImageField';
 import { useGetBrandsQuery } from '../../../../store/services/brand.api';
 import { useGetProductColorsQuery } from '../../../../store/services/productColor.api';
+import { ColorDot } from '../../../ui/ColorSwatch';
 import { useGetProductCategoriesQuery } from '../../../../store/services/productCategory.api';
 import { Alert } from '../../../Other/UI/Alert/Alert';
 import { useAppTheme } from '../../../../theme/tokens';
@@ -103,10 +105,12 @@ export default function Create({ warehouses }) {
     const { open, onOpen, onClose } = useDisclosure();
 
     const [form, setForm] = useState(EMPTY_FORM);
+    const [imageFile, setImageFile] = useState(null);
     const [copiedFrom, setCopiedFrom] = useState(null);
     const [hasClipboard, setHasClipboard] = useState(() => !!readClipboard());
 
     const [createProduct, { isLoading }] = useCreateProductMutation();
+    const [uploadProductImage, { isLoading: uploadingImage }] = useUploadProductImageMutation();
     const {
         data: brandsData,
         isLoading: brandsLoading,
@@ -244,15 +248,28 @@ export default function Create({ warehouses }) {
         }
         if (form.brandId) payload.brandId = form.brandId;
 
+        let created;
         try {
-            await createProduct(payload).unwrap();
-            Alert('Mahsulot muvaffaqiyatli yaratildi', 'success');
-            onClose();
-            setForm(EMPTY_FORM);
-            setCopiedFrom(null);
+            created = await createProduct(payload).unwrap();
         } catch (error) {
             Alert(error?.data?.message || 'Mahsulot yaratishda xatolik', 'error');
+            return;
         }
+
+        if (imageFile && created?.id) {
+            try {
+                await uploadProductImage({ id: created.id, file: imageFile }).unwrap();
+                Alert('Mahsulot va rasmi muvaffaqiyatli saqlandi', 'success');
+            } catch (error) {
+                Alert(error?.data?.message || 'Mahsulot yaratildi, lekin rasm yuklanmadi. Tahrirlash orqali qayta urinib ko‘ring.', 'warning');
+            }
+        } else {
+            Alert('Mahsulot muvaffaqiyatli yaratildi', 'success');
+        }
+        onClose();
+        setForm(EMPTY_FORM);
+        setImageFile(null);
+        setCopiedFrom(null);
     };
 
     const sectionHeader = (icon, label) => (
@@ -461,6 +478,7 @@ export default function Create({ warehouses }) {
                                     <Box>
                                         {sectionHeader(<Package size={16} />, 'Asosiy ma’lumotlar')}
                                         <VStack gap={5} align="stretch">
+                                            <ImageField file={imageFile} onChange={setImageFile} disabled={isLoading || uploadingImage} />
                                             <Field.Root required>
                                                 <Field.Label color={textColor} fontWeight="medium">
                                                     <HStack gap={2}>
@@ -560,6 +578,9 @@ export default function Create({ warehouses }) {
                                                         <span>Mahsulot rangi</span>
                                                     </HStack>
                                                 </Field.Label>
+                                                <HStack gap={3} align="center" w="100%">
+                                                    <ColorDot code={colors.find((c) => c.id === form.colorId)?.code || ''} size={40} borderRadius="xl" />
+                                                    <Box flex={1} minW={0}>
                                                 <FormControl
                                                     as="select"
                                                     value={form.colorId}
@@ -580,9 +601,11 @@ export default function Create({ warehouses }) {
                                                         <option value={form.colorId}>Mavjud mahsulot rangi</option>
                                                     )}
                                                     {colors.map((color) => (
-                                                        <option key={color.id} value={color.id}>{color.name}</option>
+                                                        <option key={color.id} value={color.id}>{color.name}{color.code ? ` (${color.code.toUpperCase()})` : ''}</option>
                                                     ))}
                                                 </FormControl>
+                                                    </Box>
+                                                </HStack>
                                                 {!colorsLoading && !colorsError && colors.length === 0 && (
                                                     <Field.HelperText color={subtitleColor}>
                                                         Mahsulot yaratishdan oldin ranglar bo‘limida rang qo‘shing.

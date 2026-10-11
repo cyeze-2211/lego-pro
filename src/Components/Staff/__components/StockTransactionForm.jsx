@@ -7,6 +7,7 @@ import {
     LuArrowDownWideNarrow,
 } from 'react-icons/lu';
 import { useAppTheme } from '../../../theme/tokens';
+import { toStockItem } from '../../ui/order-items';
 import { useGetWarehousesQuery } from '../../../store/services/warehouse.api';
 import { useGetProductStocksQuery } from '../../../store/services/productStock.api';
 import { useCreateStockTransactionMutation } from '../../../store/services/productStock.api';
@@ -238,34 +239,30 @@ export default function StockTransactionForm({ action }) {
     const addProduct = useCallback((stock) => {
         setItems((prev) => {
             if (prev.find((i) => i.productId === stock.productId)) return prev;
+            const ppp = Number(stock.productPiecesPerPack) || 0;
             return [...prev, {
                 productId:       stock.productId,
                 productName:     stock.productName,
                 productBarcode:  stock.productBarcode,
-                piecesPerPack:   stock.productPiecesPerPack ?? null,
-                quantity:        1,
-                unit:            'PACK',
+                piecesPerPack:   ppp || null,
+                packs:           ppp > 0 ? 1 : 0,
+                pieces:          ppp > 0 ? 0 : 1,
             }];
         });
     }, []);
 
     const removeItem = (id) => setItems((p) => p.filter((i) => i.productId !== id));
 
-    const updateQty = (id, val) => {
-        const qty = parseInt(val, 10);
-        if (isNaN(qty) || qty < 1) return;
-        setItems((p) => p.map((i) => i.productId === id ? { ...i, quantity: qty } : i));
+    /* Pachka va dona — ikkalasi birga kiritiladi, jami dona avtomatik hisoblanadi */
+    const setField = (id, field, val) => {
+        const n = parseInt(val, 10);
+        if (Number.isNaN(n) || n < 0) return;
+        setItems((p) => p.map((i) => (i.productId === id ? { ...i, [field]: n } : i)));
     };
-
-    const stepQty = (id, delta) => {
-        setItems((p) => p.map((i) =>
-            i.productId === id ? { ...i, quantity: Math.max(1, i.quantity + delta) } : i
-        ));
+    const stepField = (id, field, delta) => {
+        setItems((p) => p.map((i) => (i.productId === id ? { ...i, [field]: Math.max(0, (i[field] || 0) + delta) } : i)));
     };
-
-    const updateUnit = (id, unit) => {
-        setItems((p) => p.map((i) => i.productId === id ? { ...i, unit } : i));
-    };
+    const totalPieces = (i) => (i.packs || 0) * (i.piecesPerPack || 0) + (i.pieces || 0);
 
     const handleWarehouseChange = (value) => {
         setWarehouseId(value);
@@ -276,15 +273,16 @@ export default function StockTransactionForm({ action }) {
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!warehouseId || items.length === 0) return;
+        const invalid = items.find((i) => totalPieces(i) <= 0 || (i.packs > 0 && !(i.piecesPerPack > 0)));
+        if (invalid) {
+            showToast('error', `«${invalid.productName}» uchun pachka yoki dona miqdorini kiriting`);
+            return;
+        }
         try {
             await createTx({
                 warehouseId,
                 action,
-                items: items.map(({ productId, quantity, unit }) => ({
-                    productId,
-                    quantity: parseInt(quantity, 10),
-                    unit,
-                })),
+                items: items.map((i) => toStockItem(i.productId, i.packs, i.pieces, i.piecesPerPack)),
             }).unwrap();
             showToast('success', `${isIn ? 'Kirim' : 'Chiqim'} muvaffaqiyatli amalga oshirildi!`);
             setItems([]);
@@ -293,7 +291,9 @@ export default function StockTransactionForm({ action }) {
         }
     };
 
-    const totalQty = items.reduce((s, i) => s + i.quantity, 0);
+    const totalPacks = items.reduce((sum, i) => sum + (i.packs || 0), 0);
+    const totalLoose = items.reduce((sum, i) => sum + (i.pieces || 0), 0);
+    const totalAll = items.reduce((sum, i) => sum + totalPieces(i), 0);
     const formId = `stock-tx-${action}`;
     const hasFilters = Boolean(
         filters.name.trim() || filters.productSize.trim() || filters.brandId ||
@@ -334,7 +334,7 @@ export default function StockTransactionForm({ action }) {
                     <div className="flex gap-2">
                         {items.length > 0 && (
                             <span className={`inline-flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-sm font-bold ${badge}`}>
-                                <LuPackage size={14} /> {items.length} ta · {totalQty} {items.some(i => i.unit === 'PACK') ? 'pachka' : 'dona'}
+                                <LuPackage size={14} /> {items.length} ta · {totalPacks > 0 ? `${totalPacks} pachka` : ''}{totalPacks > 0 && totalLoose > 0 ? ' + ' : ''}{totalLoose > 0 || totalPacks === 0 ? `${totalLoose} dona` : ''} · jami {totalAll} dona
                             </span>
                         )}
                         <button type="submit" form={formId}
@@ -678,8 +678,9 @@ export default function StockTransactionForm({ action }) {
                                     <tr className={`text-left text-xs font-semibold uppercase tracking-wide ${muted} ${isDark ? 'bg-[#0f172a]/30' : 'bg-[#f8fafc]/80'}`}>
                                         <th className="px-5 py-3">Mahsulot</th>
                                         <th className="px-5 py-3 w-48">Barcode</th>
-                                        <th className="px-5 py-3 w-44">Birlik</th>
-                                        <th className="px-5 py-3 w-56">Miqdor</th>
+                                        <th className="px-5 py-3 w-56">Pachka</th>
+                                        <th className="px-5 py-3 w-56">Dona</th>
+                                        <th className="px-5 py-3 w-36 text-right">Jami</th>
                                         <th className="px-5 py-3 w-16"></th>
                                     </tr>
                                 </thead>
@@ -701,54 +702,51 @@ export default function StockTransactionForm({ action }) {
                                                 <span className="flex items-center gap-1.5"><LuBarcode size={13} />{item.productBarcode}</span>
                                             </td>
 
-                                            {/* Unit toggle — PACHKA | DONA */}
-                                            <td className="px-5 py-3">
-                                                <div className={`inline-flex rounded-xl border overflow-hidden text-xs font-bold ${isDark ? 'border-[#334155]' : 'border-[#e2e8f0]'}`}>
-                                                    <button type="button" onClick={() => updateUnit(item.productId, 'PACK')}
-                                                        disabled={!item.piecesPerPack}
-                                                        title={!item.piecesPerPack ? 'Bu mahsulotda pachka ma\'lumoti yo\'q' : `1 pachka = ${item.piecesPerPack} dona`}
-                                                        className={`px-3 py-2 transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
-                                                            item.unit === 'PACK'
-                                                                ? 'bg-amber-400 text-[#0f172a]'
-                                                                : isDark ? 'bg-[#1e293b] text-[#94a3b8] hover:bg-[#334155]' : 'bg-[#f8fafc] text-[#64748b] hover:bg-[#f1f5f9]'
-                                                        }`}>
-                                                        Pachka
+                                            {/* Pachka */}
+                                            <td className="px-5 py-3" title={!item.piecesPerPack ? 'Bu mahsulotda pachka ma\'lumoti yo\'q' : `1 pachka = ${item.piecesPerPack} dona`}>
+                                                <div className={`inline-flex items-center rounded-xl border overflow-hidden ${isDark ? 'border-[#334155]' : 'border-[#e2e8f0]'} ${!item.piecesPerPack ? 'opacity-40' : ''}`}>
+                                                    <button type="button" onClick={() => stepField(item.productId, 'packs', -1)} disabled={!item.piecesPerPack} aria-label="Kamaytirish"
+                                                        className={`flex h-11 w-11 items-center justify-center transition-colors disabled:cursor-not-allowed ${isDark ? 'bg-[#1e293b] hover:bg-[#334155] text-[#cbd5e1]' : 'bg-[#f8fafc] hover:bg-[#f1f5f9] text-[#475569]'}`}>
+                                                        <LuMinus size={15} />
                                                     </button>
-                                                    <button type="button" onClick={() => updateUnit(item.productId, 'PIECE')}
-                                                        className={`px-3 py-2 transition-colors ${
-                                                            item.unit === 'PIECE'
-                                                                ? 'bg-amber-400 text-[#0f172a]'
-                                                                : isDark ? 'bg-[#1e293b] text-[#94a3b8] hover:bg-[#334155]' : 'bg-[#f8fafc] text-[#64748b] hover:bg-[#f1f5f9]'
-                                                        }`}>
-                                                        Dona
+                                                    <input type="number" min={0} value={item.packs} disabled={!item.piecesPerPack}
+                                                        onChange={(e) => setField(item.productId, 'packs', e.target.value)}
+                                                        className={`h-11 w-20 border-x text-center text-base font-bold outline-none disabled:cursor-not-allowed ${isDark ? 'border-[#334155] bg-[#0f172a] text-white' : 'border-[#e2e8f0] bg-white text-[#0f172a]'}`}
+                                                    />
+                                                    <button type="button" onClick={() => stepField(item.productId, 'packs', 1)} disabled={!item.piecesPerPack} aria-label="Ko'paytirish"
+                                                        className={`flex h-11 w-11 items-center justify-center transition-colors disabled:cursor-not-allowed ${isDark ? 'bg-[#1e293b] hover:bg-[#334155] text-[#cbd5e1]' : 'bg-[#f8fafc] hover:bg-[#f1f5f9] text-[#475569]'}`}>
+                                                        <LuPlus size={15} />
+                                                    </button>
+                                                </div>
+                                                {item.piecesPerPack && item.packs > 0 && (
+                                                    <p className="mt-1 text-[11px] text-amber-400">= {item.packs * item.piecesPerPack} dona</p>
+                                                )}
+                                            </td>
+
+                                            {/* Dona */}
+                                            <td className="px-5 py-3">
+                                                <div className={`inline-flex items-center rounded-xl border overflow-hidden ${isDark ? 'border-[#334155]' : 'border-[#e2e8f0]'}`}>
+                                                    <button type="button" onClick={() => stepField(item.productId, 'pieces', -1)} aria-label="Kamaytirish"
+                                                        className={`flex h-11 w-11 items-center justify-center transition-colors disabled:cursor-not-allowed ${isDark ? 'bg-[#1e293b] hover:bg-[#334155] text-[#cbd5e1]' : 'bg-[#f8fafc] hover:bg-[#f1f5f9] text-[#475569]'}`}>
+                                                        <LuMinus size={15} />
+                                                    </button>
+                                                    <input type="number" min={0} value={item.pieces}
+                                                        onChange={(e) => setField(item.productId, 'pieces', e.target.value)}
+                                                        className={`h-11 w-20 border-x text-center text-base font-bold outline-none disabled:cursor-not-allowed ${isDark ? 'border-[#334155] bg-[#0f172a] text-white' : 'border-[#e2e8f0] bg-white text-[#0f172a]'}`}
+                                                    />
+                                                    <button type="button" onClick={() => stepField(item.productId, 'pieces', 1)} aria-label="Ko'paytirish"
+                                                        className={`flex h-11 w-11 items-center justify-center transition-colors disabled:cursor-not-allowed ${isDark ? 'bg-[#1e293b] hover:bg-[#334155] text-[#cbd5e1]' : 'bg-[#f8fafc] hover:bg-[#f1f5f9] text-[#475569]'}`}>
+                                                        <LuPlus size={15} />
                                                     </button>
                                                 </div>
                                             </td>
 
-                                            {/* Miqdor */}
-                                            <td className="px-5 py-3">
-                                                <div className="flex items-center gap-2">
-                                                    <div className={`inline-flex items-center rounded-xl border overflow-hidden ${isDark ? 'border-[#334155]' : 'border-[#e2e8f0]'}`}>
-                                                        <button type="button" onClick={() => stepQty(item.productId, -1)} aria-label="Kamaytirish"
-                                                            className={`flex h-11 w-11 items-center justify-center transition-colors ${isDark ? 'bg-[#1e293b] hover:bg-[#334155] text-[#cbd5e1]' : 'bg-[#f8fafc] hover:bg-[#f1f5f9] text-[#475569]'}`}>
-                                                            <LuMinus size={15} />
-                                                        </button>
-                                                        <input type="number" min={1} value={item.quantity}
-                                                            onChange={(e) => updateQty(item.productId, e.target.value)}
-                                                            className={`h-11 w-20 border-x text-center text-base font-bold outline-none ${isDark ? 'border-[#334155] bg-[#0f172a] text-white' : 'border-[#e2e8f0] bg-white text-[#0f172a]'}`}
-                                                        />
-                                                        <button type="button" onClick={() => stepQty(item.productId, 1)} aria-label="Ko'paytirish"
-                                                            className={`flex h-11 w-11 items-center justify-center transition-colors ${isDark ? 'bg-[#1e293b] hover:bg-[#334155] text-[#cbd5e1]' : 'bg-[#f8fafc] hover:bg-[#f1f5f9] text-[#475569]'}`}>
-                                                            <LuPlus size={15} />
-                                                        </button>
-                                                    </div>
-                                                    <span className={`text-xs font-medium ${muted}`}>
-                                                        {item.unit === 'PACK' ? 'pachka' : 'dona'}
-                                                        {item.unit === 'PACK' && item.piecesPerPack && (
-                                                            <span className="ml-1 text-amber-400">= {item.quantity * item.piecesPerPack} dona</span>
-                                                        )}
-                                                    </span>
-                                                </div>
+                                            {/* Jami */}
+                                            <td className="px-5 py-3 text-right">
+                                                <p className={`text-base font-extrabold tabular-nums ${totalPieces(item) > 0 ? head : 'text-[#f43f5e]'}`}>{totalPieces(item)} <span className={`text-xs font-medium ${muted}`}>dona</span></p>
+                                                {(item.packs > 0 || item.pieces > 0) && (
+                                                    <p className={`text-[11px] ${muted}`}>{item.packs > 0 ? `${item.packs} pachka` : ''}{item.packs > 0 && item.pieces > 0 ? ' + ' : ''}{item.pieces > 0 ? `${item.pieces} dona` : ''}</p>
+                                                )}
                                             </td>
 
                                             <td className="px-5 py-3 text-right">

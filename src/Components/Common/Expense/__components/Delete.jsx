@@ -6,7 +6,7 @@ import { useDeleteExpenseMutation } from '../../../../store/services/expense.api
 import { Alert } from '../../../Other/UI/Alert/Alert';
 import { useAppTheme } from '../../../../theme/tokens';
 
-export default function Delete({ expense }) {
+export default function Delete({ expense, label, onDeleted }) {
     const { open, onOpen, onClose } = useDisclosure();
     const [deleteExpense, { isLoading }] = useDeleteExpenseMutation();
     const { isDark, cardBg, cardBorder, textColor, subtitleColor } = useAppTheme();
@@ -14,12 +14,16 @@ export default function Delete({ expense }) {
 
     const remove = async () => {
         if (isLoading) return;
-        try { await deleteExpense(expense.id).unwrap(); Alert('Xarajat o‘chirildi', 'success'); onClose(); }
+        try { await deleteExpense(expense.id).unwrap(); Alert('Xarajat o‘chirildi', 'success'); onClose(); onDeleted?.(); }
         catch (error) { Alert(error?.data?.message || 'Xarajatni o‘chirishda xatolik', 'error'); }
     };
 
     return <>
-        <Button onClick={onOpen} variant="ghost" size="sm" color={isDark ? 'red.300' : 'red.600'} borderRadius="xl" px={3} aria-label="O‘chirish" _hover={{ bg: isDark ? 'rgba(239, 68, 68, 0.16)' : 'red.50', color: isDark ? 'red.200' : 'red.700' }}><Trash size={16}/></Button>
+        {label ? (
+            <Button onClick={onOpen} variant="outline" borderRadius="xl" h="42px" px={4} color={isDark ? 'red.300' : 'red.600'} borderColor={isDark ? 'rgba(239,68,68,.35)' : '#FECACA'} _hover={{ bg: isDark ? 'rgba(239, 68, 68, 0.12)' : 'red.50' }}><HStack gap={2}><Trash size={16}/><span>{label}</span></HStack></Button>
+        ) : (
+            <Button onClick={onOpen} variant="ghost" size="sm" w="34px" h="34px" p={0} minW={0} color={isDark ? 'red.300' : 'red.600'} borderRadius="lg" aria-label="O‘chirish" _hover={{ bg: isDark ? 'rgba(239, 68, 68, 0.16)' : 'red.50', color: isDark ? 'red.200' : 'red.700' }}><Trash size={16}/></Button>
+        )}
         <Dialog.Root open={open} onOpenChange={(event) => (event.open ? onOpen() : onClose())} size="md" placement="center"><Portal>
             <Dialog.Backdrop backdropFilter="blur(6px)" bg={isDark ? 'blackAlpha.700' : 'blackAlpha.400'} />
             <Dialog.Positioner><Dialog.Content bg={cardBg} borderColor={modalBorder} borderWidth="1px" borderRadius="2xl" boxShadow="2xl" overflow="hidden" maxW="440px" w="calc(100% - 32px)">
@@ -32,4 +36,4 @@ export default function Delete({ expense }) {
         </Portal></Dialog.Root>
     </>;
 }
-Delete.propTypes = { expense: PropTypes.object.isRequired };
+Delete.propTypes = { expense: PropTypes.object.isRequired, label: PropTypes.string, onDeleted: PropTypes.func };

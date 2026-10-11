@@ -2,23 +2,26 @@ import { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import { Box, Button, Dialog, Field, HStack, Portal, Spinner, Text, VStack } from '@chakra-ui/react';
 import { Check, ReceiptText, X } from 'lucide-react';
-import { LuCalendarDays, LuDollarSign, LuStickyNote, LuTag, LuWallet, LuLayers } from 'react-icons/lu';
+import { LuCalendarDays, LuClock3, LuStickyNote, LuTag, LuWallet, LuLayers } from 'react-icons/lu';
 import { useAppTheme } from '../../../../theme/tokens';
 import { useGetExpenseCategoriesQuery } from '../../../../store/services/expenseCategory.api';
 import FormControl from '../../../ui/FormControl';
 import { Alert } from '../../../Other/UI/Alert/Alert';
-import UsdCalculator, { CalculatorToggle } from '../../../ui/UsdCalculator';
+import { formatTypedAmount } from '../../../ui/UsdCalculator';
+import CurrencyAmountField from '../../../ui/CurrencyAmountField';
+import { buildCurrencyPayload, currencyValueFrom, emptyCurrencyValue, validateCurrencyValue } from '../../../ui/currency';
+import { formatTime, nowTime, todayIso } from '../../../ui/date-format';
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = todayIso;
 
 export default function ExpenseForm({ open, onClose, cashboxes, expense = null, onSubmit, isLoading }) {
     const [name, setName] = useState('');
     const [summary, setSummary] = useState('');
-    const [amount, setAmount] = useState('');
+    const [money, setMoney] = useState(emptyCurrencyValue);
     const [cashboxId, setCashboxId] = useState('');
     const [categoryId, setCategoryId] = useState('');
     const [expenseDate, setExpenseDate] = useState(today());
-    const [calcOpen, setCalcOpen] = useState(false);
+    const [expenseTime, setExpenseTime] = useState(nowTime());
     const { isDark, accentColor, cardBg, cardBorder, textColor, subtitleColor } = useAppTheme();
     const modalBorder = isDark ? cardBorder : '#94A3B8';
     const isEdit = Boolean(expense);
@@ -30,25 +33,26 @@ export default function ExpenseForm({ open, onClose, cashboxes, expense = null, 
         if (open) {
             setName(expense?.name || '');
             setSummary(expense?.summary || '');
-            setAmount(expense?.amount?.toString() || '');
+            setMoney(expense ? currencyValueFrom(expense, formatTypedAmount) : emptyCurrencyValue());
             setCashboxId(expense?.cashboxId || '');
             setCategoryId(expense?.category?.id || expense?.categoryId || '');
             setExpenseDate(expense?.expenseDate || today());
-            setCalcOpen(false);
+            setExpenseTime(expense ? (formatTime(expense.createdAt) || '00:00') : nowTime());
         }
     }, [open, expense]);
 
     const save = async () => {
         const trimmedName = name.trim();
         const trimmedSummary = summary.trim();
-        const numericAmount = Number(String(amount).replace(/\s/g, '').replace(',', '.'));
-        if (!trimmedName || (!isEdit && !cashboxId) || !amount || !categoryId) return Alert('Nomi, summa, kategoriya va kassa majburiy', 'error');
+        if (!trimmedName || (!isEdit && !cashboxId) || !categoryId) return Alert('Nomi, summa, kategoriya va kassa majburiy', 'error');
         if (trimmedName.length > 255 || trimmedSummary.length > 500) return Alert('Nom 255, izoh esa 500 belgidan oshmasligi kerak', 'error');
-        if (!/^\d+(?:[.,]\d{1,2})?$/.test(String(amount).replace(/\s/g, '')) || !Number.isFinite(numericAmount) || numericAmount <= 0) {
-            return Alert('Summa 0 dan katta va 2 kasr xonagacha bo‘lishi kerak', 'error');
-        }
+        const moneyError = validateCurrencyValue(money);
+        if (moneyError) return Alert(moneyError, 'error');
         if (!expenseDate || expenseDate > today()) return Alert('Xarajat sanasi bugun yoki undan oldingi kun bo‘lishi kerak', 'error');
-        await onSubmit({ name: trimmedName, summary: trimmedSummary || null, amount: numericAmount, categoryId, ...(isEdit ? {} : { cashboxId }), expenseDate });
+        if (!/^\d{2}:\d{2}$/.test(expenseTime)) return Alert('Xarajat vaqtini kiriting', 'error');
+        if (expenseDate === today() && expenseTime > nowTime()) return Alert('Xarajat vaqti hozirgi vaqtdan keyin bo‘lmasligi kerak', 'error');
+        // Backend `expenseDate` ni faqat yyyy-MM-dd ko‘rinishida qabul qiladi; vaqt qismi alohida uzatiladi
+        await onSubmit({ name: trimmedName, summary: trimmedSummary || null, ...buildCurrencyPayload(money), categoryId, ...(isEdit ? {} : { cashboxId }), expenseDate, expenseTime });
     };
 
     return (
@@ -62,7 +66,7 @@ export default function ExpenseForm({ open, onClose, cashboxes, expense = null, 
                         borderWidth="1px"
                         borderRadius="2xl"
                         overflow="hidden"
-                        maxW={calcOpen ? '760px' : '560px'}
+                        maxW="600px"
                         w="calc(100% - 32px)"
                     >
                         <Box position="absolute" top="0" left="0" right="0" h="4px" bgGradient={`linear(to-r, ${accentColor}, yellow.300)`} />
@@ -75,7 +79,7 @@ export default function ExpenseForm({ open, onClose, cashboxes, expense = null, 
                             </HStack>
                         </Dialog.Header>
                         <Dialog.CloseTrigger asChild>
-                            <Button variant="ghost" color={subtitleColor} size="sm" position="absolute" top="3" right="3" aria-label="Yopish"><X /></Button>
+                            <Button variant="ghost" color={subtitleColor} size="sm" w="32px" h="32px" p={0} minW={0} position="absolute" top="3" right="3" aria-label="Yopish"><X /></Button>
                         </Dialog.CloseTrigger>
                         <Dialog.Body py={6}>
                             <VStack gap={5} align="stretch">
@@ -119,14 +123,8 @@ export default function ExpenseForm({ open, onClose, cashboxes, expense = null, 
                                         )}
                                     {isEdit && <Text fontSize="xs" color={subtitleColor} mt={1}>Xarajat kassasini o‘zgartirib bo‘lmaydi.</Text>}
                                 </Field.Root>
+                                <CurrencyAmountField value={money} onChange={setMoney} disabled={isLoading} />
                                 <HStack align="end" gap={4} flexWrap="wrap" flexDirection={{ base: 'column', sm: 'row' }}>
-                                    <Field.Root required flex="1" w="100%" minW="180px">
-                                        <Field.Label color={textColor}>
-                                            <HStack gap={2}><LuDollarSign size={16} /><span>Summa</span></HStack>
-                                            <Field.RequiredIndicator />
-                                        </Field.Label>
-                                        <FormControl value={amount} onChange={(e) => setAmount(e.target.value.replace(',', '.'))} inputMode="decimal" placeholder="0" />
-                                    </Field.Root>
                                     <Field.Root required flex="1" w="100%" minW="180px">
                                         <Field.Label color={textColor}>
                                             <HStack gap={2}><LuCalendarDays size={16} /><span>Sana</span></HStack>
@@ -134,15 +132,17 @@ export default function ExpenseForm({ open, onClose, cashboxes, expense = null, 
                                         </Field.Label>
                                         <FormControl type="date" value={expenseDate} max={today()} onChange={(e) => setExpenseDate(e.target.value)} />
                                     </Field.Root>
-                                    <CalculatorToggle open={calcOpen} onClick={() => setCalcOpen((v) => !v)} />
+                                    <Field.Root required w={{ base: '100%', sm: '160px' }}>
+                                        <Field.Label color={textColor}>
+                                            <HStack gap={2}><LuClock3 size={16} /><span>Vaqt</span></HStack>
+                                            <Field.RequiredIndicator />
+                                        </Field.Label>
+                                        <FormControl type="time" value={expenseTime} step={60} onChange={(e) => setExpenseTime(e.target.value)} />
+                                    </Field.Root>
+                                    <Button type="button" variant="outline" borderRadius="xl" h="50px" px={4} color={subtitleColor} flexShrink={0} onClick={() => { setExpenseDate(today()); setExpenseTime(nowTime()); }}>
+                                        Hozir
+                                    </Button>
                                 </HStack>
-                                {calcOpen && (
-                                    <UsdCalculator
-                                        active={open && calcOpen}
-                                        onApply={setAmount}
-                                        applyLabel="So'mni xarajat summasiga qo'yish"
-                                    />
-                                )}
                                 <Field.Root>
                                     <Field.Label color={textColor}>
                                         <HStack gap={2}><LuStickyNote size={16} /><span>Izoh (ixtiyoriy)</span></HStack>
@@ -152,8 +152,8 @@ export default function ExpenseForm({ open, onClose, cashboxes, expense = null, 
                             </VStack>
                         </Dialog.Body>
                         <Dialog.Footer gap={3} pt={5} pb={6} borderTopWidth="1px" borderColor={modalBorder}>
-                            <Button variant="ghost" onClick={onClose} color={subtitleColor}>Bekor qilish</Button>
-                            <Button onClick={save} disabled={isLoading} bg={accentColor} color="black" borderRadius="xl" px={8}>
+                            <Button variant="ghost" onClick={onClose} color={subtitleColor} borderRadius="xl" h="44px" px={5}>Bekor qilish</Button>
+                            <Button onClick={save} disabled={isLoading} bg={accentColor} color="black" borderRadius="xl" h="44px" px={8} fontWeight="semibold" _hover={{ bg: '#EAB308' }}>
                                 {isLoading
                                     ? <HStack><Spinner size="sm" /><span>Saqlanmoqda...</span></HStack>
                                     : <HStack><Check size={18} /><span>Saqlash</span></HStack>}

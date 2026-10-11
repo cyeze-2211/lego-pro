@@ -16,7 +16,7 @@ import { useDeleteCashboxMutation } from '../../../../store/services/cashbox.api
 import { Alert } from '../../../Other/UI/Alert/Alert';
 import { useAppTheme } from '../../../../theme/tokens';
 
-export default function Delete({ cashbox }) {
+export default function Delete({ cashbox, label, onDeleted }) {
     const { open, onOpen, onClose } = useDisclosure();
     const [deleteCashbox, { isLoading }] = useDeleteCashboxMutation();
     const { isDark, cardBg, cardBorder, textColor, subtitleColor } = useAppTheme();
@@ -28,6 +28,7 @@ export default function Delete({ cashbox }) {
             await deleteCashbox(cashbox.id).unwrap();
             Alert('Kassa o‘chirildi', 'success');
             onClose();
+            onDeleted?.();
         } catch (error) {
             Alert(error?.data?.message || 'Kassani o‘chirishda xatolik', 'error');
         }
@@ -35,18 +36,27 @@ export default function Delete({ cashbox }) {
 
     return (
         <>
-            <Button
-                onClick={onOpen}
-                variant="ghost"
-                size="sm"
-                color={isDark ? 'red.300' : 'red.600'}
-                borderRadius="xl"
-                px={3}
-                aria-label="O‘chirish"
-                _hover={{ bg: isDark ? 'rgba(239, 68, 68, 0.16)' : 'red.50', color: isDark ? 'red.200' : 'red.700' }}
-            >
-                <Trash size={16} />
-            </Button>
+            {label ? (
+                <Button onClick={onOpen} variant="outline" borderRadius="xl" h="42px" px={4} color={isDark ? 'red.300' : 'red.600'} borderColor={isDark ? 'rgba(239,68,68,.35)' : '#FECACA'} _hover={{ bg: isDark ? 'rgba(239, 68, 68, 0.12)' : 'red.50' }}>
+                    <HStack gap={2}><Trash size={16} /><span>{label}</span></HStack>
+                </Button>
+            ) : (
+                <Button
+                    onClick={onOpen}
+                    variant="ghost"
+                    size="sm"
+                    w="34px"
+                    h="34px"
+                    p={0}
+                    minW={0}
+                    color={isDark ? 'red.300' : 'red.600'}
+                    borderRadius="lg"
+                    aria-label="O‘chirish"
+                    _hover={{ bg: isDark ? 'rgba(239, 68, 68, 0.16)' : 'red.50', color: isDark ? 'red.200' : 'red.700' }}
+                >
+                    <Trash size={16} />
+                </Button>
+            )}
 
             <Dialog.Root open={open} onOpenChange={(event) => (event.open ? onOpen() : onClose())} size="md" placement="center">
                 <Portal>
@@ -101,4 +111,6 @@ Delete.propTypes = {
         id: PropTypes.string.isRequired,
         name: PropTypes.string.isRequired,
     }).isRequired,
+    label: PropTypes.string,
+    onDeleted: PropTypes.func,
 };

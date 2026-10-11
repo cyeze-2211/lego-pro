@@ -24,6 +24,7 @@ import {
     LuStickyNote,
 } from 'react-icons/lu';
 import { useGetCustomersQuery } from '../../../store/services/customer.api';
+import { useGetRegionsQuery } from '../../../store/services/region.api';
 import { BRAND_COLORS, useAppTheme } from '../../../theme/tokens';
 import { Alert } from '../../Other/UI/Alert/Alert';
 import Create from './__components/Create';
@@ -52,8 +53,17 @@ const formatDate = (value) => {
 export default function Customer() {
     const [search, setSearch] = useState('');
     const [query, setQuery] = useState('');
+    const [regionId, setRegionId] = useState('');
     const [page, setPage] = useState(0);
-    const { data: customerResult, isLoading, error } = useGetCustomersQuery({ name: query || undefined, page, size: PAGE_SIZE });
+    const { data: regions = [], isError: regionsError } = useGetRegionsQuery();
+    const { data: customerResult, isLoading, error } = useGetCustomersQuery({
+        name: query || undefined,
+        regionId: regionId || undefined,
+        page,
+        size: PAGE_SIZE,
+    });
+    const selectedRegion = regions.find((region) => String(region.id) === String(regionId));
+    const hasFilter = Boolean(query || regionId);
     const { isDark, pageBg, cardBg, cardBorder, textColor, subtitleColor, accentColor } = useAppTheme();
 
     const customers = customerResult?.items || [];
@@ -78,6 +88,17 @@ export default function Customer() {
         setPage(0);
         setQuery('');
     };
+
+    const clearFilters = () => {
+        setSearch('');
+        setQuery('');
+        setRegionId('');
+        setPage(0);
+    };
+
+    useEffect(() => {
+        if (regionsError) Alert('Viloyatlar ro‘yxatini yuklashda xatolik', 'error');
+    }, [regionsError]);
 
     useEffect(() => {
         if (error) Alert(error?.data?.message || 'Mijozlarni yuklashda xatolik', 'error');
@@ -181,10 +202,50 @@ export default function Customer() {
                         </Button>
                     )}
                 </Box>
+                <Box position="relative" w={{ base: '100%', md: '260px' }} flexShrink={0}>
+                    <Box position="absolute" left={4} top="50%" transform="translateY(-50%)" color={regionId ? accentColor : subtitleColor} zIndex={1} pointerEvents="none">
+                        <LuMapPin size={16} />
+                    </Box>
+                    <FormControl
+                        as="select"
+                        value={regionId}
+                        onChange={(event) => { setRegionId(event.target.value); setPage(0); }}
+                        aria-label="Viloyat bo‘yicha filtrlash"
+                        pl={10}
+                        minH="32px"
+                    >
+                        <option value="">Barcha viloyatlar</option>
+                        {regions.map((region) => <option key={region.id} value={region.id}>{region.name}</option>)}
+                    </FormControl>
+                </Box>
                 <Button type="submit" bg={accentColor} color="black" borderRadius="xl" minH="32px" px={6} flexShrink={0} _hover={{ bg: 'yellow.500', transform: 'translateY(-1px)' }}>
                     <HStack gap={2}><LuSearch size={18} /><span>Qidirish</span></HStack>
                 </Button>
+                {hasFilter && (
+                    <Button type="button" variant="ghost" color={subtitleColor} borderRadius="xl" minH="32px" px={4} flexShrink={0} onClick={clearFilters} _hover={{ bg: isDark ? 'whiteAlpha.100' : 'gray.100', color: textColor }}>
+                        <HStack gap={2}><LuX size={16} /><span>Tozalash</span></HStack>
+                    </Button>
+                )}
             </HStack>
+
+            {hasFilter && (
+                <HStack gap={2} mb={4} flexWrap="wrap" fontSize="sm" color={subtitleColor}>
+                    <Text>Filtr:</Text>
+                    {query && (
+                        <HStack gap={1.5} px={3} py={1} borderRadius="full" borderWidth="1px" borderColor={cardBorder} bg={cardBg} color={textColor}>
+                            <LuSearch size={12} /><span>{query}</span>
+                            <Button variant="ghost" size="xs" minW={0} w="18px" h="18px" p={0} borderRadius="full" color={subtitleColor} onClick={clearSearch} aria-label="Qidiruvni olib tashlash"><LuX size={12} /></Button>
+                        </HStack>
+                    )}
+                    {selectedRegion && (
+                        <HStack gap={1.5} px={3} py={1} borderRadius="full" borderWidth="1px" borderColor={cardBorder} bg={cardBg} color={textColor}>
+                            <LuMapPin size={12} /><span>{selectedRegion.name}</span>
+                            <Button variant="ghost" size="xs" minW={0} w="18px" h="18px" p={0} borderRadius="full" color={subtitleColor} onClick={() => { setRegionId(''); setPage(0); }} aria-label="Viloyat filtrini olib tashlash"><LuX size={12} /></Button>
+                        </HStack>
+                    )}
+                    <Text>· {pagination?.totalElements ?? 0} ta natija</Text>
+                </HStack>
+            )}
 
             {isLoading ? (
                 <Loading />
@@ -192,9 +253,9 @@ export default function Customer() {
                 <Box p={8} textAlign="center" color={isDark ? 'red.300' : 'red.600'}>Ma&apos;lumotlarni yuklashda xatolik</Box>
             ) : customers.length === 0 ? (
                 <EmptyData
-                    text={query ? 'Qidiruv bo‘yicha mijoz topilmadi' : 'Hozircha mijozlar yo‘q'}
-                    description="Yangi mijoz qo‘shib ma’lumotnomani to‘ldiring."
-                    action={<Create />}
+                    text={hasFilter ? 'Filtr bo‘yicha mijoz topilmadi' : 'Hozircha mijozlar yo‘q'}
+                    description={hasFilter ? 'Boshqa nom yoki viloyatni tanlab ko‘ring, yoki filtrlarni tozalang.' : 'Yangi mijoz qo‘shib ma’lumotnomani to‘ldiring.'}
+                    action={hasFilter ? <Button variant="outline" borderRadius="xl" h="42px" px={4} onClick={clearFilters}><HStack gap={2}><LuX size={16} /><span>Filtrlarni tozalash</span></HStack></Button> : <Create />}
                 />
             ) : (
                 <>

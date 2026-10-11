@@ -5,9 +5,9 @@ import { ChevronDown, X } from "lucide-react";
 import { useAppTheme } from "../../../theme/tokens";
 import YellowLogo from "../../../Images/Yellow Unified Lego Outlined.svg";
 import { Box } from "@chakra-ui/react";
-import { SIDEBAR_GROUPS, WAREHOUSE_SIDEBAR_GROUPS, ZAYAVKACHI_SIDEBAR_GROUPS, BUXGALTER_SIDEBAR_GROUPS, KASSIR_SIDEBAR_GROUPS } from "../../../app/navigation/sidebar.config";
+import { SIDEBAR_GROUPS, WAREHOUSE_SIDEBAR_GROUPS, ZAYAVKACHI_SIDEBAR_GROUPS, BUXGALTER_SIDEBAR_GROUPS, KASSIR_SIDEBAR_GROUPS, XIMIK_SIDEBAR_GROUPS, STANOKCHI_SIDEBAR_GROUPS } from "../../../app/navigation/sidebar.config";
 import { useAppSelector } from "../../../store/hooks";
-import { WAREHOUSE_ROLES, ZAYAVKACHI_ROLES, BUXGALTER_ROLES, KASSIR_ROLES } from "../../../app/permissions/roles";
+import { ROLES, WAREHOUSE_ROLES, ZAYAVKACHI_ROLES, BUXGALTER_ROLES, KASSIR_ROLES, XIMIK_ROLES } from "../../../app/permissions/roles";
 
 const ACTIVE_LINK_CSS = `
     html body aside.sidebar a.sidebar-link-active,
@@ -23,7 +23,7 @@ const ACTIVE_LINK_CSS = `
 
 const BLACK = { color: "#000000" };
 
-export default function Sidebar({ open, mobileOpen, onMobileClose }) {
+export default function Sidebar({ open, mobileOpen, onMobileClose, footer }) {
     const { isDark } = useAppTheme();
     const { pathname } = useLocation();
     const role = useAppSelector((state) => state.auth.role);
@@ -32,7 +32,11 @@ export default function Sidebar({ open, mobileOpen, onMobileClose }) {
     const isZayavkachi = ZAYAVKACHI_ROLES.includes(role);
     const isBuxgalter = BUXGALTER_ROLES.includes(role);
     const isKassir = KASSIR_ROLES.includes(role);
-    const groups = isWarehouseStaff
+    const isXimik = XIMIK_ROLES.includes(role);
+    const isStanokchi = role === ROLES.STANOKCHI;
+    const groups = isStanokchi
+        ? STANOKCHI_SIDEBAR_GROUPS
+        : isWarehouseStaff
         ? WAREHOUSE_SIDEBAR_GROUPS
         : isZayavkachi
             ? ZAYAVKACHI_SIDEBAR_GROUPS
@@ -40,11 +44,17 @@ export default function Sidebar({ open, mobileOpen, onMobileClose }) {
                 ? BUXGALTER_SIDEBAR_GROUPS
                 : isKassir
                     ? KASSIR_SIDEBAR_GROUPS
-                    : SIDEBAR_GROUPS;
+                    : isXimik
+                        ? XIMIK_SIDEBAR_GROUPS
+                        : SIDEBAR_GROUPS;
 
-    const [expandedGroups, setExpandedGroups] = useState(() =>
-        groups.map((g) => g.label).filter((l) => l !== "Asosiy")
-    );
+    const [expandedGroups, setExpandedGroups] = useState(() => {
+        // Kichik menyular (10 tagacha punkt) — hammasi ochiq; katta menyuda faqat joriy sahifa guruhi ochiq
+        const totalItems = groups.reduce((sum, g) => sum + g.items.length, 0);
+        if (totalItems <= 10) return groups.map((g) => g.label).filter((l) => l !== "Asosiy");
+        const active = groups.find((g) => g.items.some((item) => pathname === item.path || pathname.startsWith(`${item.path}/`)));
+        return active && active.label !== "Asosiy" ? [active.label] : [];
+    });
 
     useEffect(() => {
         const activeGroup = groups.find((group) =>
@@ -66,6 +76,7 @@ export default function Sidebar({ open, mobileOpen, onMobileClose }) {
         <NavLink
             key={item.path}
             to={item.path}
+            end={Boolean(item.exact)}
             title={!open ? item.label : undefined}
             onClick={onMobileClose}
             style={({ isActive }) => (isActive ? BLACK : undefined)}
@@ -115,6 +126,7 @@ export default function Sidebar({ open, mobileOpen, onMobileClose }) {
                     pathname={pathname}
                     renderLink={renderLink}
                     isDark={isDark}
+                    footer={footer}
                 />
             </aside>
 
@@ -149,13 +161,15 @@ export default function Sidebar({ open, mobileOpen, onMobileClose }) {
                     pathname={pathname}
                     renderLink={renderLink}
                     isDark={isDark}
+                    footer={footer}
+                    onItemClick={onMobileClose}
                 />
             </aside>
         </>
     );
 }
 
-function SidebarContent({ groups, showLabels, expandedGroups, toggleGroup, pathname, renderLink, isDark }) {
+function SidebarContent({ groups, showLabels, expandedGroups, toggleGroup, pathname, renderLink, isDark, footer, onItemClick }) {
     return (
         <div className="flex h-full flex-col px-3 py-4">
             {/* Logo */}
@@ -246,6 +260,13 @@ function SidebarContent({ groups, showLabels, expandedGroups, toggleGroup, pathn
                     })}
                 </nav>
             </div>
+
+            {/* Rolga xos pastki blok (masalan, stanokchi uchun «Xodim rejimi») */}
+            {footer && (
+                <div className="mt-3 pt-3" style={{ borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.07)' : '#E2E8F0'}` }}>
+                    {footer({ showLabels, onItemClick })}
+                </div>
+            )}
         </div>
     );
 }
@@ -266,6 +287,8 @@ SidebarContent.propTypes = {
         })),
     })).isRequired,
     showLabels: PropTypes.bool.isRequired,
+    footer: PropTypes.func,
+    onItemClick: PropTypes.func,
     expandedGroups: PropTypes.arrayOf(PropTypes.string).isRequired,
     toggleGroup: PropTypes.func.isRequired,
     pathname: PropTypes.string.isRequired,
@@ -277,6 +300,7 @@ Sidebar.propTypes = {
     open: PropTypes.bool.isRequired,
     mobileOpen: PropTypes.bool,
     onMobileClose: PropTypes.func,
+    footer: PropTypes.func,
 };
 
 Sidebar.defaultProps = {

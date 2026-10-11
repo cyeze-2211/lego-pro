@@ -5,6 +5,9 @@ import { useGetMachinesQuery } from '../../../store/services/machine.api';
 import { useCreateStockTransactionMutation } from '../../../store/services/productStock.api';
 import { useAppTheme } from '../../../theme/tokens';
 import $api from '../../../store/api';
+import ProductImage from '../../ui/ProductImage';
+
+const productImageUrl = (productId) => (productId ? `/api/v1/products/${productId}/image` : null);
 
 const PAGE_SIZE = 8;
 
@@ -339,17 +342,21 @@ function WorkerMachineCard({ machine, isDark, cardBg, cardBorder, textColor, sub
                     </div>
                 )}
 
-                {/* Logo + badge row */}
+                {/* Mahsulot rasmi + badge row */}
                 <div className="flex items-start justify-between mb-3 sm:mb-4">
-                    {/* Brand logo */}
-                    {(isWorking || isDefect) && machine.currentRun?.brand ? (
-                        <BrandLogo
-                            brand={machine.currentRun.brand}
-                            isDark={isDark}
-                            accentColor={accentColor}
-                            size={52}
-                            isRectangle={true}
-                        />
+                    {(isWorking || isDefect) && machine.currentRun ? (
+                        <div className="flex items-center gap-3 min-w-0">
+                            <ProductImage imageUrl={productImageUrl(machine.currentRun.productId)} version={machine.currentRun.productId} name={machine.currentRun.productName} size={72} radius="2xl" iconSize={28} />
+                            {machine.currentRun.brand && (
+                                <BrandLogo
+                                    brand={machine.currentRun.brand}
+                                    isDark={isDark}
+                                    accentColor={accentColor}
+                                    size={36}
+                                    isRectangle={true}
+                                />
+                            )}
+                        </div>
                     ) : (
                         <div
                             className="flex items-center justify-center rounded-2xl"
@@ -441,24 +448,28 @@ function WorkerMachineCard({ machine, isDark, cardBg, cardBorder, textColor, sub
                             }`
                         }}
                     >
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-start gap-2">
                             <LuActivity
                                 size={14}
                                 style={{
                                     color: isWorking ? '#22C55E' : '#EF4444',
-                                    flexShrink: 0
+                                    flexShrink: 0,
+                                    marginTop: 4,
                                 }}
                             />
-                            <span
-                                className="text-sm sm:text-base font-semibold"
-                                style={{
-                                    color: isWorking
-                                        ? (isDark ? '#86EFAC' : '#166534')
-                                        : (isDark ? '#FCA5A5' : '#991B1B')
-                                }}
-                            >
-                                {machine.currentRun.productName}
-                            </span>
+                            <div className="min-w-0">
+                                <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: subtitleColor }}>Mahsulot</p>
+                                <span
+                                    className="block text-base sm:text-lg font-extrabold leading-tight"
+                                    style={{
+                                        color: isWorking
+                                            ? (isDark ? '#86EFAC' : '#166534')
+                                            : (isDark ? '#FCA5A5' : '#991B1B')
+                                    }}
+                                >
+                                    {machine.currentRun.productName}
+                                </span>
+                            </div>
                         </div>
                     </div>
                 ) : (

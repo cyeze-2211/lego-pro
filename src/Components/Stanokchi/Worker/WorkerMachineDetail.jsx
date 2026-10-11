@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
     LuCog, LuArrowLeft, LuActivity, LuClock, LuHistory,
-    LuChevronLeft, LuChevronRight, LuPackage, LuCirclePlus, LuHash,
+    LuChevronLeft, LuChevronRight, LuCirclePlus, LuHash,
 } from 'react-icons/lu';
 import {
     useGetMachineByIdQuery,
@@ -13,6 +13,9 @@ import {
 } from '../../../store/services/productStock.api';
 import { useGetMachineOutputsQuery } from '../../../store/services/machineOutput.api';
 import { useAppTheme } from '../../../theme/tokens';
+import ProductImage from '../../ui/ProductImage';
+
+const productImageUrl = (productId) => (productId ? `/api/v1/products/${productId}/image` : null);
 
 const HISTORY_PAGE_SIZE = 10;
 
@@ -41,7 +44,7 @@ export default function WorkerMachineDetail() {
     const navigate = useNavigate();
     const { isDark, pageBg, cardBg, cardBorder, textColor, subtitleColor, accentColor } = useAppTheme();
 
-    const { data: machine, isLoading: machineLoading } =
+    const { data: machine, isLoading: machineLoading, refetch: refetchMachine } =
         useGetMachineByIdQuery(id, { skip: !id });
 
     const [historyPage, setHistoryPage] = useState(0);
@@ -72,6 +75,7 @@ export default function WorkerMachineDetail() {
                 items: [{ productId: machine.currentRun.productId, quantity: 1, unit: 'PIECE' }],
             }).unwrap();
             showToast(`1 dona qayd etildi — ${machine.currentRun.productName}`);
+            refetchMachine();
             refetchHistory();
         } catch (err) {
             showToast(err?.data?.message || 'Qayd etishda xatolik', 'error');
@@ -194,12 +198,23 @@ export default function WorkerMachineDetail() {
                         <div className="flex items-center gap-2">
                             <LuActivity size={18} style={{ color: '#22C55E' }} />
                             <span className="text-base font-semibold" style={{ color: isDark ? '#86EFAC' : '#166634' }}>
-                                Joriy mahsulot
+                                Hozir ishlab chiqarilmoqda
                             </span>
                         </div>
-                        <p className="text-2xl font-extrabold" style={{ color: textColor }}>
-                            {machine.currentRun.productName}
-                        </p>
+                        <div className="flex items-center gap-4">
+                            <ProductImage imageUrl={productImageUrl(machine.currentRun.productId)} version={machine.currentRun.productId} name={machine.currentRun.productName} size={112} radius="2xl" iconSize={40} />
+                            <div className="min-w-0 flex-1">
+                                <p className="text-2xl sm:text-3xl font-extrabold leading-tight" style={{ color: textColor }}>
+                                    {machine.currentRun.productName}
+                                </p>
+                                {machine.currentRun.brand?.name && (
+                                    <p className="mt-1 text-base font-semibold" style={{ color: subtitleColor }}>
+                                        Brend: <span style={{ color: textColor }}>{machine.currentRun.brand.name}</span>
+                                    </p>
+                                )}
+                                <p className="mt-1 text-sm" style={{ color: subtitleColor }}>Stanok: <span className="font-semibold" style={{ color: textColor }}>{machine.name}</span></p>
+                            </div>
+                        </div>
                         <div className="flex flex-wrap gap-4">
                             <div className="flex items-center gap-2">
                                 <LuClock size={16} style={{ color: subtitleColor }} />
@@ -315,9 +330,9 @@ export default function WorkerMachineDetail() {
                                             <td className="px-5 py-4 font-semibold" style={{ color: subtitleColor }}>
                                                 {historyPage * HISTORY_PAGE_SIZE + idx + 1}
                                             </td>
-                                            <td className="px-5 py-4">
-                                                <div className="flex items-center gap-2">
-                                                    <LuPackage size={16} style={{ color: accentColor, flexShrink: 0 }} />
+                                            <td className="px-5 py-3">
+                                                <div className="flex items-center gap-3">
+                                                    <ProductImage imageUrl={productImageUrl(item.productId)} version={item.productId} name={item.productName} size={40} radius="lg" />
                                                     <span className="font-semibold" style={{ color: textColor }}>
                                                         {item.productName}
                                                     </span>

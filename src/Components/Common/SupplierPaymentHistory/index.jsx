@@ -31,6 +31,7 @@ import { Alert } from '../../Other/UI/Alert/Alert';
 import FormControl from '../../ui/FormControl';
 import { formatNumber } from '../../ui/number-format';
 import { formatDetailDate } from '../EntityDetail';
+import { CurrencyNote } from '../../ui/CurrencyAmountField';
 
 const PAGE_SIZE = 20;
 
@@ -185,7 +186,7 @@ export default function SupplierPaymentHistory({ supplier }) {
             </HStack>
 
             <VStack align="stretch" gap={4} p={{ base: 3, md: 5 }}>
-                <SimpleGrid columns={{ base: 1, md: 3 }} gap={3}>
+                <SimpleGrid columns={{ base: 1, md: 3 }} gap={3} alignItems="center">
                     <FormControl as="select" value={status} aria-label="To‘lov holati bo‘yicha filtrlash" onChange={(event) => { setStatus(event.target.value); setPage(0); }}>
                         <option value="">Barcha holatlar</option>
                         <option value="ACTIVE">Faol</option>
@@ -216,7 +217,7 @@ export default function SupplierPaymentHistory({ supplier }) {
                                 <Table.Row key={payment.id} bg={tableBg} _hover={{ bg: isDark ? 'rgba(250,204,21,.06)' : '#FFFBEB' }}>
                                     <Table.Cell {...cellBorder}><HStack gap={2} color={textColor}><LuCalendar size={14} color={subtitleColor} /><Text whiteSpace="nowrap">{formatPaidDate(payment.paidAt)}</Text></HStack></Table.Cell>
                                     <Table.Cell {...cellBorder} color={textColor}>{payment.cashboxName || '—'}</Table.Cell>
-                                    <Table.Cell {...cellBorder} textAlign="right"><Text fontWeight="bold" color={textColor} whiteSpace="nowrap">{formatNumber(payment.amount)} so‘m</Text></Table.Cell>
+                                    <Table.Cell {...cellBorder} textAlign="right"><Text fontWeight="bold" color={textColor} whiteSpace="nowrap">{formatNumber(payment.amount)} so‘m</Text><CurrencyNote currency={payment.currency} usdRate={payment.usdRate} amount={payment.amount} /></Table.Cell>
                                     <Table.Cell {...cellBorder} textAlign="right"><Text color={subtitleColor} whiteSpace="nowrap">{formatNumber(payment.supplierBalance)} so‘m</Text></Table.Cell>
                                     <Table.Cell {...cellBorder} color={subtitleColor} maxW="240px"><Text noOfLines={2}>{payment.summary || '—'}</Text></Table.Cell>
                                     <Table.Cell {...cellBorder}>

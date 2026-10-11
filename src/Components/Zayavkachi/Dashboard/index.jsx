@@ -103,7 +103,7 @@ export default function ZayavkachiDashboard() {
             loading: dashboardLoading,
         },
         {
-            label: 'Kutilmoqda',
+            label: 'Yangi',
             value: totalCreated,
             icon: LuCircleDashed,
             cls: 'bg-amber-400/10 text-amber-500',
@@ -117,14 +117,14 @@ export default function ZayavkachiDashboard() {
             loading: dashboardLoading,
         },
         {
-            label: 'Tugallangan',
+            label: 'Tugallandi',
             value: totalConfirmed,
             icon: LuCircleCheck,
             cls: 'bg-[#10b981]/10 text-[#10b981]',
             loading: dashboardLoading,
         },
         {
-            label: 'Rad etilgan',
+            label: 'Bekor qilindi',
             value: totalRejected,
             icon: LuCircleX,
             cls: 'bg-[#ef4444]/10 text-[#ef4444]',
@@ -356,7 +356,7 @@ export default function ZayavkachiDashboard() {
                                     Yetishmovchilik yo&apos;q
                                 </Text>
                                 <Text fontSize="xs" color={isDark ? '#94a3b8' : '#64748b'} maxW="320px">
-                                    Barcha CREATED holatdagi zayavkalar uchun ombor qoldig&apos;i yetarli
+                                    Barcha «Yangi» holatdagi zayavkalar uchun ombor qoldig&apos;i yetarli
                                 </Text>
                             </VStack>
                         </Box>

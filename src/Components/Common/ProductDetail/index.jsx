@@ -2,6 +2,8 @@ import { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Badge, HStack } from '@chakra-ui/react';
 import { LuBarcode, LuCalendar, LuPackage, LuWarehouse } from 'react-icons/lu';
+import ColorSwatch from '../../ui/ColorSwatch';
+import ProductImage from '../../ui/ProductImage';
 import { useGetProductByIdQuery } from '../../../store/services/product.api';
 import { useGetWarehousesQuery } from '../../../store/services/warehouse.api';
 import { Alert } from '../../Other/UI/Alert/Alert';
@@ -21,9 +23,14 @@ export default function ProductDetail() {
     return <EntityDetail title={product?.name || 'Mahsulot'} icon={LuPackage} backTo="/products" backLabel="Mahsulotlar" loading={isLoading} error={isError || !product}>
         {() => <>
             <DetailSection title="Mahsulot ma’lumotlari" icon={LuPackage}>
+                <HStack gap={4} align="center" pb={2}>
+                    <ProductImage imageUrl={product.imageUrl} version={product.lastModifiedAt} name={product.name} size={112} radius="xl" iconSize={36} />
+                    <Badge borderRadius="full" px={3} py={1} colorPalette={product.imageUrl ? 'green' : 'gray'} variant="subtle">{product.imageUrl ? 'Rasm yuklangan' : 'Rasm yo‘q'}</Badge>
+                </HStack>
                 <DetailRow label="Narxi" value={`${formatNumber(product.price)} so‘m`} emphasize />
                 <DetailRow label="Shtrix-kod" value={<HStack gap={2}><LuBarcode size={16} /><span>{product.barcode || '—'}</span></HStack>} />
                 <DetailRow label="Ombor" value={<HStack gap={2}><LuWarehouse size={16} /><span>{warehouse?.name || '—'}</span></HStack>} />
+                <DetailRow label="Rang" value={product.color?.name ? <ColorSwatch code={product.color.code} name={product.color.name} showCode size={20} /> : '—'} />
                 <DetailRow label="Holati" value={<Badge borderRadius="full" px={3} py={1} colorScheme={product.deletedAt ? 'red' : 'green'}>{product.deletedAt ? 'O‘chirilgan' : 'Faol'}</Badge>} />
             </DetailSection>
             <DetailSection title="Tizim ma’lumotlari" icon={LuCalendar}>

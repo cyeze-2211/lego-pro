@@ -11,6 +11,8 @@ import {
 } from '@chakra-ui/react';
 import { LuChevronLeft, LuChevronRight, LuCog, LuSearch, LuX } from 'react-icons/lu';
 import { useGetMachinesQuery } from '../../../store/services/machine.api';
+import { ROLES } from '../../../app/permissions/roles';
+import { useAppSelector } from '../../../store/hooks';
 import { BRAND_COLORS, useAppTheme } from '../../../theme/tokens';
 import { Alert } from '../../Other/UI/Alert/Alert';
 import Create from './__components/Create';
@@ -33,6 +35,8 @@ const formatStartedAt = (iso) => {
 };
 
 export default function Machine() {
+    const role = useAppSelector((state) => state.auth.role);
+    const canManage = role === ROLES.MANAGER;
     const [search, setSearch] = useState('');
     const [query, setQuery]   = useState('');
     const [page, setPage]     = useState(0);
@@ -97,7 +101,7 @@ export default function Machine() {
                 <Box>
                     <Heading className="text-[35px] font-semibold" color={textColor}>Stanoklar</Heading>
                 </Box>
-                <Create />
+                {canManage && <Create />}
             </HStack>
 
             {/* ── Qidiruv ── */}
@@ -165,7 +169,7 @@ export default function Machine() {
                 <EmptyData
                     text={query ? "Qidiruv bo'yicha stanok topilmadi" : "Hozircha stanoklar yo'q"}
                     description="Yangi stanok qo'shib ishlab chiqarishni boshlang."
-                    action={<Create />}
+                    action={canManage ? <Create /> : undefined}
                 />
             ) : (
                 <>
@@ -241,8 +245,7 @@ export default function Machine() {
 
                                         <Table.Cell borderWidth="0.5px" borderColor={tableBorder}>
                                             <HStack justify="center" gap={1}>
-                                                <Edit machine={machine} />
-                                                <Delete machine={machine} />
+                                                {canManage ? <><Edit machine={machine} /><Delete machine={machine} /></> : <Text fontSize="xs" color={subtitleColor}>Faqat ko‘rish</Text>}
                                             </HStack>
                                         </Table.Cell>
                                     </Table.Row>

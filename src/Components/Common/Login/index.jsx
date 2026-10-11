@@ -143,6 +143,8 @@ export default function Login() {
                 navigate("/mixer");
             } else if (userRole === "kassir") {
                 navigate("/kassir");
+            } else if (userRole === "ximik") {
+                navigate("/ximik");
             } else {
                 navigate("/");
             }

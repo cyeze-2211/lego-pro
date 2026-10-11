@@ -24,10 +24,12 @@ import DeleteOrder from '../__components/DeleteOrder';
 import {
     STATUS_LABEL,
     statusCx,
+    statusStyle,
     NEXT_STATUS,
     FINAL_STATUSES,
 } from '../__components/statusBadge';
 import { Alert } from '../../Other/UI/Alert/Alert';
+import { splitOrderItem } from '../../ui/order-items';
 import OrderPrintModal from '../__components/OrderPrintModal';
 import BuxgalterOrderDetailPage from '../BuxgalterOrderDetail';
 import logoSvg from '../../../Images/Yellow Unified Lego Outlined.svg';
@@ -43,13 +45,7 @@ function OrderStatusControl({ order, isDark }) {
     const [loadOrder] = useLoadSalesOrderMutation();
     const [updatePrices] = useUpdateSalesOrderPricesMutation();
 
-    const statusStyles = {
-        CREATED:    { bg: isDark ? 'rgba(148,163,184,.16)' : '#E2E8F0', color: isDark ? '#cbd5e1' : '#334155', border: isDark ? '#64748b' : '#94a3b8' },
-        LOADED:     { bg: isDark ? 'rgba(167,139,250,.16)' : '#EDE9FE', color: isDark ? '#c4b5fd' : '#5B21B6', border: isDark ? '#8b5cf6' : '#7c3aed' },
-        CONFIRMED:  { bg: isDark ? 'rgba(34,197,94,.16)'   : '#DCFCE7', color: isDark ? '#86efac' : '#15803d', border: '#16a34a' },
-        REJECTED:   { bg: isDark ? 'rgba(239,68,68,.16)'   : '#FEE2E2', color: isDark ? '#fca5a5' : '#b91c1c', border: '#dc2626' },
-    };
-    const style = statusStyles[order.status] || statusStyles.CREATED;
+    const style = statusStyle(order.status, isDark);
 
     const isFinal = FINAL_STATUSES.includes(order.status);
     const nextStatuses = NEXT_STATUS[order.status] || [];
@@ -157,6 +153,7 @@ function groupOrderItems(items) {
                 orderQuantityTotal: 0,
                 hasPackLine: false,
                 hasPieceLine: false,
+                piecesPerPack: 0,
                 rawItems: [],
             });
         }
@@ -165,19 +162,11 @@ function groupOrderItems(items) {
         g.rawItems.push(item);
         g.lineTotal += Number(item.lineTotal) || 0;
 
-        const qty = Number(item.quantity) || 0;
-        const entered = Number(item.enteredQuantity);
-        const unit = String(item.unit ?? '').toUpperCase();
-
-        g.orderQuantityTotal += qty;
-
-        if (unit === 'PACK' && Number.isFinite(entered) && entered > 0) {
-            g.hasPackLine = true;
-            g.packs += entered;
-        } else {
-            g.hasPieceLine = true;
-            g.pieces += qty;
-        }
+        const split = splitOrderItem(item);
+        g.orderQuantityTotal += split.total;
+        if (split.packs > 0) { g.hasPackLine = true; g.packs += split.packs; }
+        if (split.pieces > 0 || split.packs === 0) { g.hasPieceLine = true; g.pieces += split.pieces; }
+        if (!g.piecesPerPack && split.piecesPerPack) g.piecesPerPack = split.piecesPerPack;
     }
 
     return Array.from(groups.values());
@@ -238,6 +227,7 @@ function ZayavkachiOrderDetail() {
 
             const piecesPerPack =
                 Number(stock?.productPiecesPerPack) ||
+                Number(g.piecesPerPack) ||
                 Number(g.rawItems?.[0]?.productPiecesPerPack) ||
                 Number(g.rawItems?.[0]?.piecesPerPack) ||
                 0;
@@ -268,12 +258,12 @@ function ZayavkachiOrderDetail() {
             if (pcs > 1) {
                 stockPacks += Math.floor(qty / pcs);
                 stockRemainder += qty % pcs;
-                orderPacks += Math.floor(ordQty / pcs);
-                orderRemainder += ordQty % pcs;
             } else {
                 stockRemainder += qty;
-                orderRemainder += ordQty;
             }
+            // Buyurtma jami — mijoz kiritgan pachka va donalar yig‘indisi
+            orderPacks += Number(row.packs) || 0;
+            orderRemainder += Number(row.pieces) || 0;
         });
 
         return {
@@ -345,11 +335,7 @@ function ZayavkachiOrderDetail() {
     const fmtDateTime = (v) => v ? new Date(v).toLocaleString('uz-UZ') : '—';
     const fmtNum      = (v) => { const n = Number(v ?? 0); return n.toLocaleString('ru-RU').replace(/\u00A0/g, ' '); };
 
-    const printStatusColor = order.status === 'CONFIRMED'
-        ? '#15803d'
-        : order.status === 'REJECTED'
-        ? '#b91c1c'
-        : '#92400E';
+    const printStatusColor = statusStyle(order.status, false).solid;
 
     /* ── Общие итоги ── */
     const totalPacks = groupedItems.reduce((s, g) => s + g.packs, 0);
@@ -605,9 +591,9 @@ function ZayavkachiOrderDetail() {
                                         /* Ombordagi pachka / dona */
                                         const stockPacks = pcs > 1 ? Math.floor(row.stockQty / pcs) : 0;
                                         const stockRem   = pcs > 1 ? row.stockQty % pcs : 0;
-                                        /* Buyurtmadagi pachka / dona */
-                                        const orderPacks = pcs > 1 ? Math.floor(row.orderQuantityTotal / pcs) : 0;
-                                        const orderRem   = pcs > 1 ? row.orderQuantityTotal % pcs : 0;
+                                        /* Buyurtmadagi pachka / dona — mijoz kiritgan ko‘rinishda (packQuantity + pieceQuantity) */
+                                        const orderPacks = Number(row.packs) || 0;
+                                        const orderRem   = Number(row.pieces) || 0;
                                         /* Farq pachka */
                                         const diffPacks  = pcs > 1 ? Math.floor(Math.abs(diff) / pcs) : 0;
                                         const diffRem    = pcs > 1 ? Math.abs(diff) % pcs : 0;
@@ -647,17 +633,11 @@ function ZayavkachiOrderDetail() {
                                                 {/* Buyurtmada — dona + pachka */}
                                                 <td className="px-5 py-3 text-right">
                                                     <div className="flex flex-col items-end gap-0.5">
-                                                        <span className={`font-bold tabular-nums ${head}`}>
-                                                            {fmtNum(row.orderQuantityTotal)} dona
+                                                        <span className={`inline-flex items-center gap-1 font-bold tabular-nums ${head}`}>
+                                                            {orderPacks > 0 && <LuBoxes size={12} className={isDark ? 'text-violet-300' : 'text-violet-600'} />}
+                                                            {orderPacks > 0 ? `${fmtNum(orderPacks)} pachka` : ''}{orderPacks > 0 && orderRem > 0 ? ' + ' : ''}{orderRem > 0 || orderPacks === 0 ? `${fmtNum(orderRem)} dona` : ''}
                                                         </span>
-                                                        {pcs > 1 && row.orderQuantityTotal > 0 && (
-                                                            <span className={`inline-flex items-center gap-1 text-[10px] font-semibold ${
-                                                                isDark ? 'text-violet-300' : 'text-violet-600'
-                                                            }`}>
-                                                                <LuBoxes size={10} />   
-                                                                {orderPacks} pachka{orderRem > 0 ? ` + ${orderRem} dona` : ''}
-                                                            </span>
-                                                        )}
+                                                     
                                                     </div>
                                                 </td>
 
@@ -713,17 +693,11 @@ function ZayavkachiOrderDetail() {
                                         {/* Buyurtmada jami */}
                                         <td className="px-5 py-3 text-right">
                                             <div className="flex flex-col items-end gap-0.5">
-                                                <span className={`font-bold tabular-nums ${head}`}>
-                                                    {fmtNum(orderTotals.pieces)} dona
+                                                <span className={`inline-flex items-center gap-1 font-bold tabular-nums ${head}`}>
+                                                    {orderTotals.packs > 0 && <LuBoxes size={12} className={isDark ? 'text-violet-300' : 'text-violet-600'} />}
+                                                    {orderTotals.packs > 0 ? `${fmtNum(orderTotals.packs)} pachka` : ''}{orderTotals.packs > 0 && orderTotals.remainder > 0 ? ' + ' : ''}{orderTotals.remainder > 0 || orderTotals.packs === 0 ? `${fmtNum(orderTotals.remainder)} dona` : ''}
                                                 </span>
-                                                {orderTotals.packs > 0 && (
-                                                    <span className={`inline-flex items-center gap-1 text-[10px] font-semibold ${
-                                                        isDark ? 'text-violet-300' : 'text-violet-600'
-                                                    }`}>
-                                                        <LuBoxes size={10} />
-                                                        {orderTotals.packs} pachka{orderTotals.remainder > 0 ? ` + ${orderTotals.remainder} dona` : ''}
-                                                    </span>
-                                                )}
+                                                <span className={`text-[10px] font-semibold ${muted}`}>jami {fmtNum(orderTotals.pieces)} dona</span>
                                             </div>
                                         </td>
 

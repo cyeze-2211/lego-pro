@@ -18,6 +18,7 @@ import { useCreateStockTransactionMutation } from '../../../store/services/produ
 import Loading from '../../Other/UI/Loadings/Loading';
 import { STATUS_LABEL, statusCx } from '../../Zayavkachi/__components/statusBadge';
 import { Alert } from '../../Other/UI/Alert/Alert';
+import { splitOrderItem, toStockItem } from '../../ui/order-items';
 
 /* ──────────────────────────────────────────────────────────────── */
 /*  Группировка одинаковых товаров (PACK + PIECE) в одну строку      */
@@ -53,32 +54,14 @@ function groupOrderItems(items) {
         const g = groups.get(key);
         g.rawItems.push(item);
 
-        const qty = Number(item.quantity) || 0;
-        const entered = Number(item.enteredQuantity);
-        const unit = String(item.unit ?? '').toUpperCase();
-        const ppp = Number(item.productPiecesPerPack ?? item.piecesPerPack) || 0;
-
-        if (unit === 'PACK' && Number.isFinite(entered) && entered > 0) {
-            g.orderedPacks += entered;
-            if (ppp > 0) g.piecesPerPack = ppp;
-        } else {
-            g.orderedPiecesOnly += qty;
-        }
-
-        g.orderedPiecesTotal += qty;
+        const split = splitOrderItem(item);
+        g.orderedPacks += split.packs;
+        g.orderedPiecesOnly += split.pieces;
+        g.orderedPiecesTotal += split.total;
+        if (split.piecesPerPack > 0) g.piecesPerPack = split.piecesPerPack;
     }
 
-    /* Если piecesPerPack = 0 и есть пачки — считаем ppp из qty/entered */
-    return Array.from(groups.values()).map((g) => {
-        let ppp = g.piecesPerPack;
-        if (!ppp && g.orderedPacks > 0) {
-            const packQty = g.rawItems
-                .filter((it) => String(it.unit ?? '').toUpperCase() === 'PACK')
-                .reduce((sum, it) => sum + (Number(it.quantity) || 0), 0);
-            ppp = packQty > 0 && g.orderedPacks > 0 ? packQty / g.orderedPacks : 1;
-        }
-        return { ...g, piecesPerPack: ppp || 1 };
-    });
+    return Array.from(groups.values()).map((g) => ({ ...g, piecesPerPack: g.piecesPerPack || 1 }));
 }
 
 export default function StaffOrderDetail() {
@@ -158,7 +141,7 @@ export default function StaffOrderDetail() {
 
     const allEnough = comparison.length > 0 && comparison.every((c) => c.enough);
     const someShort = comparison.some((c) => !c.enough);
-    const isLoadingOrder = ['CREATED', 'APPROVED'].includes(
+    const isLoadingOrder = ['CREATED'].includes(
         String(order?.status ?? '').toUpperCase()
     );
 
@@ -324,19 +307,10 @@ export default function StaffOrderDetail() {
                 return;
             }
 
-            /* Формируем payload: каждая группа может дать 1-2 строки */
-            const items = comparison.flatMap((item) => {
-                const lines = [];
-                const packs = scannedPacks[item.key] ?? 0;
-                const pieces = scannedPieces[item.key] ?? 0;
-                if (packs > 0) {
-                    lines.push({ productId: item.productId, quantity: packs, unit: 'PACK' });
-                }
-                if (pieces > 0) {
-                    lines.push({ productId: item.productId, quantity: pieces, unit: 'PIECE' });
-                }
-                return lines;
-            });
+            /* Payload: har bir mahsulot uchun bitta qator (API bitta productId ni takrorlashga ruxsat bermaydi) */
+            const items = comparison
+                .map((item) => toStockItem(item.productId, scannedPacks[item.key] ?? 0, scannedPieces[item.key] ?? 0, item.piecesPerPack))
+                .filter((line) => line.quantity > 0);
 
             if (items.length === 0) {
                 Alert('Hech narsa yuklanmagan', 'error');

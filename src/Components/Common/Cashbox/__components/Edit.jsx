@@ -20,7 +20,7 @@ import { useAppTheme } from '../../../../theme/tokens';
 import FormControl from '../../../ui/FormControl';
 import { formatNumber } from '../../../ui/number-format';
 
-export default function Edit({ cashbox }) {
+export default function Edit({ cashbox, label }) {
     const { open, onOpen, onClose } = useDisclosure();
     const [name, setName] = useState(cashbox.name);
     const [summary, setSummary] = useState(cashbox.summary || '');
@@ -68,18 +68,27 @@ export default function Edit({ cashbox }) {
 
     return (
         <>
-            <Button
-                onClick={onOpen}
-                variant="ghost"
-                size="sm"
-                color={accentColor}
-                borderRadius="xl"
-                px={3}
-                aria-label="Tahrirlash"
-                _hover={{ bg: isDark ? 'rgba(250, 204, 21, 0.16)' : 'yellow.50', color: isDark ? 'yellow.200' : 'yellow.700' }}
-            >
-                <LuPen size={16} />
-            </Button>
+            {label ? (
+                <Button onClick={onOpen} variant="outline" borderRadius="xl" h="42px" px={4} color={accentColor} borderColor={isDark ? 'rgba(250,204,21,.4)' : '#FDE68A'} _hover={{ bg: isDark ? 'rgba(250, 204, 21, 0.12)' : '#FEF3C7' }}>
+                    <HStack gap={2}><LuPen size={16} /><span>{label}</span></HStack>
+                </Button>
+            ) : (
+                <Button
+                    onClick={onOpen}
+                    variant="ghost"
+                    size="sm"
+                    w="34px"
+                    h="34px"
+                    p={0}
+                    minW={0}
+                    color={accentColor}
+                    borderRadius="lg"
+                    aria-label="Tahrirlash"
+                    _hover={{ bg: isDark ? 'rgba(250, 204, 21, 0.16)' : 'yellow.50', color: isDark ? 'yellow.200' : 'yellow.700' }}
+                >
+                    <LuPen size={16} />
+                </Button>
+            )}
 
             <Dialog.Root open={open} onOpenChange={(event) => (event.open ? onOpen() : onClose())} size="md" placement="center">
                 <Portal>
@@ -142,4 +151,5 @@ Edit.propTypes = {
         summary: PropTypes.string,
         balance: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
     }).isRequired,
+    label: PropTypes.string,
 };

@@ -12,14 +12,15 @@ import {
     VStack,
 } from '@chakra-ui/react';
 import { X } from 'lucide-react';
-import { LuCalendarDays, LuDollarSign, LuStickyNote, LuWallet } from 'react-icons/lu';
+import { LuCalendarDays, LuStickyNote, LuWallet } from 'react-icons/lu';
 import { useGetCashboxesQuery } from '../../../../store/services/cashbox.api';
 import { useCreateSupplierPaymentMutation } from '../../../../store/services/supplierPayment.api';
 import { useAppTheme } from '../../../../theme/tokens';
 import { Alert } from '../../../Other/UI/Alert/Alert';
 import FormControl from '../../../ui/FormControl';
-import { formatNumber, parseNumber } from '../../../ui/number-format';
-import { formatTypedAmount } from '../../../ui/UsdCalculator';
+import { formatNumber } from '../../../ui/number-format';
+import CurrencyAmountField from '../../../ui/CurrencyAmountField';
+import { buildCurrencyPayload, emptyCurrencyValue, validateCurrencyValue } from '../../../ui/currency';
 
 const today = () => {
     const date = new Date();
@@ -29,7 +30,7 @@ const today = () => {
 
 export default function PaymentModal({ open, onClose, supplierId, supplierName }) {
     const [cashboxId, setCashboxId] = useState('');
-    const [amount, setAmount] = useState('');
+    const [money, setMoney] = useState(emptyCurrencyValue);
     const [paidAt, setPaidAt] = useState(today());
     const [summary, setSummary] = useState('');
     const { isDark, accentColor, cardBg, cardBorder, textColor, subtitleColor } = useAppTheme();
@@ -39,7 +40,7 @@ export default function PaymentModal({ open, onClose, supplierId, supplierName }
     useEffect(() => {
         if (open) {
             setCashboxId('');
-            setAmount('');
+            setMoney(emptyCurrencyValue());
             setPaidAt(today());
             setSummary('');
         }
@@ -49,22 +50,17 @@ export default function PaymentModal({ open, onClose, supplierId, supplierName }
         if (cashboxesError) Alert('Kassalar ro‘yxatini yuklashda xatolik', 'error');
     }, [cashboxesError]);
 
-    const handleAmountChange = (event) => {
-        const formatted = formatTypedAmount(event.target.value);
-        if (formatted !== null) setAmount(formatted);
-    };
-
     const handleSubmit = async (event) => {
         event.preventDefault();
         if (isLoading) return;
 
-        const numericAmount = Number(parseNumber(amount));
         if (!cashboxId) {
             Alert('Kassani tanlang', 'error');
             return;
         }
-        if (!amount || !Number.isFinite(numericAmount) || numericAmount <= 0) {
-            Alert('Summa 0 dan katta bo‘lishi kerak', 'error');
+        const moneyError = validateCurrencyValue(money);
+        if (moneyError) {
+            Alert(moneyError, 'error');
             return;
         }
         if (!paidAt || paidAt > today()) {
@@ -76,7 +72,7 @@ export default function PaymentModal({ open, onClose, supplierId, supplierName }
             await createSupplierPayment({
                 supplierId,
                 cashboxId,
-                amount: numericAmount,
+                ...buildCurrencyPayload(money),
                 paidAt,
                 ...(summary.trim() ? { summary: summary.trim() } : {}),
             }).unwrap();
@@ -132,13 +128,8 @@ export default function PaymentModal({ open, onClose, supplierId, supplierName }
                                             </FormControl>
                                         )}
                                     </Field.Root>
-                                    <Field.Root required>
-                                        <Field.Label color={textColor}>
-                                            <HStack gap={2}><LuDollarSign size={16} /><span>Summa (so‘m)</span><Field.RequiredIndicator /></HStack>
-                                        </Field.Label>
-                                        <FormControl value={amount} onChange={handleAmountChange} inputMode="decimal" placeholder="Masalan, 300 000" />
-                                        <Field.HelperText color={subtitleColor}>Kassa qoldig‘i yetarli bo‘lmasa ham to‘lov rasmiylashtiriladi.</Field.HelperText>
-                                    </Field.Root>
+                                    <CurrencyAmountField value={money} onChange={setMoney} disabled={isLoading} />
+                                    <Text fontSize="xs" color={subtitleColor} mt={-3}>Kassa qoldig‘i yetarli bo‘lmasa ham to‘lov rasmiylashtiriladi.</Text>
                                     <Field.Root required>
                                         <Field.Label color={textColor}>
                                             <HStack gap={2}><LuCalendarDays size={16} /><span>To‘lov sanasi</span><Field.RequiredIndicator /></HStack>
