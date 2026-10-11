@@ -3,13 +3,12 @@ import { Link } from 'react-router-dom';
 import {
     Badge,
     Box,
-    Button,
     HStack,
     Heading,
     Table,
     Text,
 } from '@chakra-ui/react';
-import { LuChevronLeft, LuChevronRight, LuListOrdered, LuUtensils } from 'react-icons/lu';
+import { LuListOrdered, LuUtensils } from 'react-icons/lu';
 import { useGetAllRecipesQuery } from '../../../store/services/productRecept.api';
 import { useGetRawMaterialsQuery } from '../../../store/services/raw.api';
 import { BRAND_COLORS, useAppTheme } from '../../../theme/tokens';
@@ -19,18 +18,25 @@ import Edit from './__components/Edit';
 import Delete from './__components/Delete';
 import Loading from '../../Other/UI/Loadings/Loading';
 import EmptyData from '../../Other/UI/NoData/EmptyData';
+import { useInfiniteList } from '../../ui/useInfiniteList';
+import InfiniteSentinel from '../../ui/InfiniteSentinel';
 
 const PAGE_SIZE = 12;
 const UNIT_LABELS = { GRAM: 'g', KG: 'kg', TON: 't' };
 
 export default function Recipe() {
     const [page, setPage] = useState(0);
-    const { data: recipeResult, isLoading, error } = useGetAllRecipesQuery({ page, size: PAGE_SIZE });
+    const { data: recipeResult, isLoading, isFetching, error } = useGetAllRecipesQuery({ page, size: PAGE_SIZE });
     const { data: rawResult } = useGetRawMaterialsQuery({ page: 0, size: 100 });
     const { isDark, pageBg, cardBg, cardBorder, textColor, subtitleColor, accentColor } = useAppTheme();
-    const recipes = recipeResult?.items || [];
-    const pagination = recipeResult?.pagination;
-    const totalPages = pagination?.totalPages || 0;
+    const { items: recipes, hasMore, sentinelRef, loadingMore, loadMore } = useInfiniteList({
+        items: recipeResult?.items,
+        pagination: recipeResult?.pagination,
+        page,
+        setPage,
+        isFetching,
+        resetKey: JSON.stringify({  }),
+    });
     const rawMaterials = rawResult?.items || [];
     const tableBg = isDark ? BRAND_COLORS.darkCardBg : cardBg;
     const tableHeaderBg = isDark ? tableBg : '#F8FAFC';
@@ -100,7 +106,7 @@ export default function Recipe() {
                 <Create rawMaterials={rawMaterials} />
             </HStack>
 
-            {isLoading ? (
+            {(isLoading || (isFetching && recipes.length === 0)) ? (
                 <Loading />
             ) : error ? (
                 <Box p={8} textAlign="center" color={isDark ? 'red.300' : 'red.600'}>Ma&apos;lumotlarni yuklashda xatolik</Box>
@@ -130,7 +136,7 @@ export default function Recipe() {
                                         bg={tableBg}
                                         _hover={{ bg: isDark ? 'rgba(250, 204, 21, 0.06)' : '#FFFBEB' }}
                                     >
-                                        <Table.Cell borderWidth="0.5px" borderColor={tableBorder} textAlign="center" color={subtitleColor}>{page * PAGE_SIZE + index + 1}</Table.Cell>
+                                        <Table.Cell borderWidth="0.5px" borderColor={tableBorder} textAlign="center" color={subtitleColor}>{index + 1}</Table.Cell>
                                         <Table.Cell borderWidth="0.5px" borderColor={tableBorder}>
                                             <HStack gap={3}>
                                                 <Box p={2} borderRadius="lg" bg={isDark ? 'rgba(250, 204, 21, 0.12)' : '#FEF3C7'} color={accentColor}><LuUtensils size={18} /></Box>
@@ -149,11 +155,7 @@ export default function Recipe() {
                             </Table.Body>
                         </Table.Root>
                     </Box>
-                    {totalPages > 1 && <HStack justify="center" mt={8} gap={3}>
-                        <Button size="sm" variant="outline" disabled={page === 0} onClick={() => setPage((value) => value - 1)}><LuChevronLeft /></Button>
-                        <Text color={subtitleColor} fontSize="sm">{page + 1} / {totalPages}</Text>
-                        <Button size="sm" variant="outline" disabled={page >= totalPages - 1} onClick={() => setPage((value) => value + 1)}><LuChevronRight /></Button>
-                    </HStack>}
+                    <InfiniteSentinel sentinelRef={sentinelRef} hasMore={hasMore} loadingMore={loadingMore} loaded={recipes.length} total={recipeResult?.pagination?.totalElements ?? recipes.length} unit="ta retsept" onLoadMore={loadMore} />
                 </>
             )}
         </Box>

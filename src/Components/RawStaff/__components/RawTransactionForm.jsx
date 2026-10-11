@@ -81,13 +81,18 @@ export default function RawTransactionForm({ action }) {
 
     const stepQty = (id, delta) => {
         setItems((p) => p.map((i) =>
-            i.rawMaterialId === id ? { ...i, quantity: Math.max(1, i.quantity + delta) } : i
+            i.rawMaterialId === id ? { ...i, quantity: Math.max(0, (i.quantity || 0) + delta) } : i
         ));
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!warehouseId || items.length === 0) return;
+        const empty = items.find((i) => !(Number(i.quantity) > 0));
+        if (empty) {
+            showToast('error', `«${empty.rawMaterialName}» uchun miqdorni kiriting`);
+            return;
+        }
         try {
             await createTx({
                 warehouseId,
@@ -309,10 +314,11 @@ export default function RawTransactionForm({ action }) {
                                                             className={`flex h-11 w-11 items-center justify-center transition-colors ${isDark ? 'bg-[#1e293b] hover:bg-[#334155] text-[#cbd5e1]' : 'bg-[#f8fafc] hover:bg-[#f1f5f9] text-[#475569]'}`}>
                                                             <LuMinus size={15} />
                                                         </button>
-                                                        <input type="number" min={1} value={item.quantity}
+                                                        <input type="number" min={0} value={item.quantity || ''} placeholder="0"
                                                             onChange={(e) => {
-                                                                const v = parseInt(e.target.value, 10);
-                                                                if (!isNaN(v) && v >= 1) updateField(item.rawMaterialId, 'quantity', v);
+                                                                // Bo‘sh maydon = 0, shunda «1» ni o‘chirib yangi son terish mumkin
+                                                                const v = e.target.value === '' ? 0 : parseInt(e.target.value, 10);
+                                                                if (!isNaN(v) && v >= 0) updateField(item.rawMaterialId, 'quantity', v);
                                                             }}
                                                             className={`h-11 w-20 border-x text-center text-base font-bold outline-none ${isDark ? 'border-[#334155] bg-[#0f172a] text-white' : 'border-[#e2e8f0] bg-white text-[#0f172a]'}`}
                                                         />

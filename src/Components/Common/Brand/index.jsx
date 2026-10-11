@@ -9,8 +9,6 @@ import {
     VStack,
 } from '@chakra-ui/react';
 import {
-    LuChevronLeft,
-    LuChevronRight,
     LuSearch,
     LuTag,
     LuX,
@@ -27,6 +25,8 @@ import FormControl from '../../ui/FormControl';
 import Delete from './__components/Delete';
 import Edit from './__components/Edit';
 import $api from '../../../store/api';
+import { useInfiniteList } from '../../ui/useInfiniteList';
+import InfiniteSentinel from '../../ui/InfiniteSentinel';
 
 const PAGE_SIZE = 12;
 
@@ -141,7 +141,7 @@ export default function Brand() {
     const [query, setQuery] = useState('');
     const [page, setPage] = useState(0);
 
-    const { data, isLoading, error, refetch } = useGetBrandsQuery({
+    const { data, isLoading, isFetching, error, refetch } = useGetBrandsQuery({
         name: query || undefined,
         page,
         size: PAGE_SIZE,
@@ -150,9 +150,15 @@ export default function Brand() {
     const { isDark, pageBg, cardBg, cardBorder, textColor, subtitleColor, accentColor } =
         useAppTheme();
 
-    const brands = data?.items ?? [];
+    const { items: brands, hasMore, sentinelRef, loadingMore, loadMore } = useInfiniteList({
+        items: data?.items,
+        pagination: data?.pagination,
+        page,
+        setPage,
+        isFetching,
+        resetKey: JSON.stringify({ name: query || undefined }),
+    });
     const pagination = data?.pagination;
-    const totalPages = pagination?.totalPages ?? 0;
     const totalElements = pagination?.totalElements ?? 0;
 
     const tableBg = isDark ? BRAND_COLORS.darkCardBg : cardBg;
@@ -289,7 +295,7 @@ export default function Brand() {
             </HStack>
 
             {/* ── Content ── */}
-            {isLoading ? (
+            {(isLoading || (isFetching && brands.length === 0)) ? (
                 <Loading />
             ) : error ? (
                 <Box p={8} textAlign="center" color={isDark ? 'red.300' : 'red.600'}>
@@ -358,7 +364,7 @@ export default function Brand() {
                                             color={subtitleColor}
                                             fontSize="sm"
                                         >
-                                            {page * PAGE_SIZE + index + 1}
+                                            {index + 1}
                                         </Table.Cell>
 
                                         {/* Logo */}
@@ -427,31 +433,7 @@ export default function Brand() {
                     </Box>
 
                     {/* ── Pagination ── */}
-                    {totalPages > 1 && (
-                        <HStack justify="center" mt={6} gap={3}>
-                            <Button
-                                size="sm"
-                                variant="outline"
-                                borderRadius="lg"
-                                disabled={page === 0}
-                                onClick={() => setPage((v) => v - 1)}
-                            >
-                                <LuChevronLeft size={14} />
-                            </Button>
-                            <Text color={subtitleColor} fontSize="sm" fontWeight="medium">
-                                {page + 1} / {totalPages}
-                            </Text>
-                            <Button
-                                size="sm"
-                                variant="outline"
-                                borderRadius="lg"
-                                disabled={page >= totalPages - 1}
-                                onClick={() => setPage((v) => v + 1)}
-                            >
-                                <LuChevronRight size={14} />
-                            </Button>
-                        </HStack>
-                    )}
+                    <InfiniteSentinel sentinelRef={sentinelRef} hasMore={hasMore} loadingMore={loadingMore} loaded={brands.length} total={data?.pagination?.totalElements ?? brands.length} unit="ta brend" onLoadMore={loadMore} />
                 </>
             )}
         </Box>

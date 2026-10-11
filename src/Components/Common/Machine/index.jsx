@@ -9,7 +9,7 @@ import {
     Table,
     Text,
 } from '@chakra-ui/react';
-import { LuChevronLeft, LuChevronRight, LuCog, LuSearch, LuX } from 'react-icons/lu';
+import { LuClock3, LuCog, LuSearch, LuX } from 'react-icons/lu';
 import { useGetMachinesQuery } from '../../../store/services/machine.api';
 import { ROLES } from '../../../app/permissions/roles';
 import { useAppSelector } from '../../../store/hooks';
@@ -21,8 +21,20 @@ import Delete from './__components/Delete';
 import Loading from '../../Other/UI/Loadings/Loading';
 import EmptyData from '../../Other/UI/NoData/EmptyData';
 import FormControl from '../../ui/FormControl';
+import { useInfiniteList } from '../../ui/useInfiniteList';
+import InfiniteSentinel from '../../ui/InfiniteSentinel';
 
 const PAGE_SIZE = 12;
+
+/** Ishlayotgan stanok uchun jonli hisoblagich: 01:23:45 */
+const formatClock = (ms) => {
+    if (!Number.isFinite(ms) || ms < 0) return '00:00:00';
+    const total = Math.floor(ms / 1000);
+    const pad = (v) => String(v).padStart(2, '0');
+    return `${pad(Math.floor(total / 3600))}:${pad(Math.floor((total % 3600) / 60))}:${pad(total % 60)}`;
+};
+
+const isMachineWorking = (machine) => Boolean(machine?.currentRun && !machine.currentRun.endedAt && machine.status !== 'IDLE');
 
 const formatStartedAt = (iso) => {
     if (!iso) return '';
@@ -41,17 +53,33 @@ export default function Machine() {
     const [query, setQuery]   = useState('');
     const [page, setPage]     = useState(0);
 
-    const { data: machineResult, isLoading, error } = useGetMachinesQuery({
-        name: query || undefined, page, size: PAGE_SIZE,
-    });
+    const { data: machineResult, isLoading, isFetching, error } = useGetMachinesQuery(
+        { name: query || undefined, page, size: PAGE_SIZE },
+        { pollingInterval: 30_000 }, // holat va joriy seans yangilanib tursin
+    );
+    const [now, setNow] = useState(() => Date.now());
     const { isDark, pageBg, cardBg, cardBorder, textColor, subtitleColor, accentColor } = useAppTheme();
 
-    const machines   = machineResult?.items || [];
-    const pagination = machineResult?.pagination;
-    const totalPages = pagination?.totalPages || 0;
+    const { items: machines, hasMore, sentinelRef, loadingMore, loadMore } = useInfiniteList({
+        items: machineResult?.items,
+        pagination: machineResult?.pagination,
+        page,
+        setPage,
+        isFetching,
+        resetKey: JSON.stringify({ name: query || undefined }),
+    });
     const tableBg       = isDark ? BRAND_COLORS.darkCardBg : cardBg;
     const tableHeaderBg = isDark ? tableBg : '#F8FAFC';
     const tableBorder   = isDark ? cardBorder : '#CBD5E1';
+
+    // Kamida bitta stanok ishlayotgan bo‘lsa, har soniyada vaqtni yangilaymiz
+    const anyWorking = machines.some(isMachineWorking);
+    useEffect(() => {
+        if (!anyWorking) return undefined;
+        setNow(Date.now());
+        const timer = setInterval(() => setNow(Date.now()), 1000);
+        return () => clearInterval(timer);
+    }, [anyWorking]);
 
     const submitSearch = (e) => { e.preventDefault(); setPage(0); setQuery(search.trim()); };
     const clearSearch  = () => { setSearch(''); setPage(0); setQuery(''); };
@@ -60,9 +88,31 @@ export default function Machine() {
         if (error) Alert(error?.data?.message || 'Stanoklarni yuklashda xatolik', 'error');
     }, [error]);
 
+    /* ── Ish vaqti: ishlayotgan bo‘lsa jonli soat + boshlangan vaqt ── */
+    const renderWorkTime = (machine) => {
+        if (!isMachineWorking(machine)) return <Text fontSize="sm" color={subtitleColor}>—</Text>;
+        const startedAt = machine.currentRun?.startedAt;
+        const started = startedAt ? new Date(startedAt).getTime() : NaN;
+        const isDefect = machine.status === 'DEFECT';
+        const color = isDefect ? (isDark ? 'red.300' : '#991B1B') : (isDark ? 'green.300' : 'green.700');
+        return (
+            <HStack gap={2} align="center">
+                <Box color={color} flexShrink={0}><LuClock3 size={14} /></Box>
+                <Box lineHeight="1.2">
+                    <Text fontFamily="mono" fontWeight="bold" fontSize="sm" color={color} whiteSpace="nowrap">
+                        {Number.isFinite(started) ? formatClock(now - started) : '—'}
+                    </Text>
+                    <Text fontSize="xs" color={subtitleColor} whiteSpace="nowrap">
+                        {formatStartedAt(startedAt) ? `dan: ${formatStartedAt(startedAt)}` : ''}
+                    </Text>
+                </Box>
+            </HStack>
+        );
+    };
+
     /* ── Holat badge ── */
     const renderStatus = (machine) => {
-        const isWorking = !!machine.currentRun && machine.status !== 'IDLE';
+        const isWorking = isMachineWorking(machine);
         const isDefect  = isWorking && machine.status === 'DEFECT';
 
         if (isDefect) return (
@@ -159,7 +209,7 @@ export default function Machine() {
             </HStack>
 
             {/* ── Kontent ── */}
-            {isLoading ? (
+            {(isLoading || (isFetching && machines.length === 0)) ? (
                 <Loading />
             ) : error ? (
                 <Box p={8} textAlign="center" color={isDark ? 'red.300' : 'red.600'}>
@@ -199,6 +249,9 @@ export default function Machine() {
                                     <Table.ColumnHeader bg={tableHeaderBg} borderWidth="0.5px" borderColor={tableBorder} color={subtitleColor}>
                                         Holati
                                     </Table.ColumnHeader>
+                                    <Table.ColumnHeader bg={tableHeaderBg} borderWidth="0.5px" borderColor={tableBorder} color={subtitleColor} whiteSpace="nowrap">
+                                        Ish vaqti
+                                    </Table.ColumnHeader>
                                     <Table.ColumnHeader textAlign="center"
                                         bg={tableHeaderBg} borderWidth="0.5px" borderColor={tableBorder} color={subtitleColor}>
                                         Amallar
@@ -213,7 +266,7 @@ export default function Machine() {
                                         _hover={{ bg: isDark ? 'rgba(250,204,21,0.06)' : '#FFFBEB' }}
                                     >
                                         <Table.Cell borderWidth="0.5px" borderColor={tableBorder} textAlign="center" color={subtitleColor}>
-                                            {page * PAGE_SIZE + index + 1}
+                                            {index + 1}
                                         </Table.Cell>
 
                                         <Table.Cell borderWidth="0.5px" borderColor={tableBorder}>
@@ -244,6 +297,10 @@ export default function Machine() {
                                         </Table.Cell>
 
                                         <Table.Cell borderWidth="0.5px" borderColor={tableBorder}>
+                                            {renderWorkTime(machine)}
+                                        </Table.Cell>
+
+                                        <Table.Cell borderWidth="0.5px" borderColor={tableBorder}>
                                             <HStack justify="center" gap={1}>
                                                 {canManage ? <><Edit machine={machine} /><Delete machine={machine} /></> : <Text fontSize="xs" color={subtitleColor}>Faqat ko‘rish</Text>}
                                             </HStack>
@@ -254,21 +311,7 @@ export default function Machine() {
                         </Table.Root>
                     </Box>
 
-                    {totalPages > 1 && (
-                        <HStack justify="center" mt={8} gap={3}>
-                            <Button size="sm" variant="outline"
-                                disabled={page === 0}
-                                onClick={() => setPage((v) => v - 1)}>
-                                <LuChevronLeft />
-                            </Button>
-                            <Text color={subtitleColor} fontSize="sm">{page + 1} / {totalPages}</Text>
-                            <Button size="sm" variant="outline"
-                                disabled={page >= totalPages - 1}
-                                onClick={() => setPage((v) => v + 1)}>
-                                <LuChevronRight />
-                            </Button>
-                        </HStack>
-                    )}
+                    <InfiniteSentinel sentinelRef={sentinelRef} hasMore={hasMore} loadingMore={loadingMore} loaded={machines.length} total={machineResult?.pagination?.totalElements ?? machines.length} unit="ta stanok" onLoadMore={loadMore} />
                 </>
             )}
         </Box>

@@ -297,13 +297,13 @@ export default function StaffStockWarehouse() {
                             {pagination.totalElements ?? allStocks.length} qator
                         </span>
                         {stats.lowStock > 0 && (
-                            <span className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold ${isDark ? 'border-rose-400/30 bg-rose-500/10 text-rose-200' : 'border-rose-400/50 bg-rose-50 text-rose-700'}`}>
+                            <span className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold ${isDark ? 'border-amber-400/40 bg-amber-400/15 text-amber-200' : 'border-amber-400/60 bg-amber-100 text-amber-800'}`} title="Qoldiq minimum chizig‘iga tushgan">
                                 <LuTriangleAlert size={13} />
-                                {stats.lowStock} kam qoldiq
+                                {stats.lowStock} kam qoldi
                             </span>
                         )}
                         {stats.outOfStock > 0 && (
-                            <span className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold ${isDark ? 'border-rose-400/30 bg-rose-500/10 text-rose-200' : 'border-rose-400/50 bg-rose-50 text-rose-700'}`}>
+                            <span className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold ${isDark ? 'border-rose-400/40 bg-rose-500/15 text-rose-200' : 'border-rose-400/60 bg-rose-100 text-rose-800'}`} title="Omborda qolmagan">
                                 <LuCircleX size={13} />
                                 {stats.outOfStock} tugagan
                             </span>
@@ -581,14 +581,13 @@ export default function StaffStockWarehouse() {
                                         const qty = Number(s.quantity) || 0;
                                         const isLow = qty > 0 && min > 0 && qty <= min;
                                         const isOut = qty === 0;
-                                        const rowBg = isOut || isLow
-                                            ? (isDark ? 'bg-rose-500/[0.04]' : 'bg-rose-50/40')
-                                            : '';
+                                        const rowCls = isOut ? 'stock-row-out' : isLow ? 'stock-row-low' : '';
 
                                         return (
                                             <tr
                                                 key={`${s.productId}-${s.warehouseId}`}
-                                                className={`transition-colors ${rowHov} ${rowBg}`}
+                                                className={`transition-colors ${rowCls || rowHov} ${rowCls}`}
+                                                title={isOut ? 'Qoldiq tugagan' : isLow ? `Kam qoldi — minimum ${min} dona` : undefined}
                                             >
                                                 <td className={`px-5 py-3.5 text-xs text-center ${muted} ${cellBorder}`}>
                                                     {idx + 1}
@@ -597,9 +596,11 @@ export default function StaffStockWarehouse() {
                                                 <td className={`px-5 py-3.5 ${cellBorder}`}>
                                                     <div className="flex items-start gap-3">
                                                         <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
-                                                            isOut || isLow
-                                                                ? 'bg-rose-500/10 text-rose-500'
-                                                                : isDark ? 'bg-amber-400/10 text-amber-300' : 'bg-amber-50 text-amber-600'
+                                                            isOut
+                                                                ? 'bg-rose-500/15 text-rose-500'
+                                                                : isLow
+                                                                ? 'bg-amber-400/20 text-amber-600'
+                                                                : isDark ? 'bg-emerald-400/10 text-emerald-300' : 'bg-emerald-50 text-emerald-600'
                                                         }`}>
                                                             <LuPackage size={16} />
                                                         </span>
@@ -721,13 +722,21 @@ export default function StaffStockWarehouse() {
                                 return (
                                     <div
                                         key={`${s.productId}-${s.warehouseId}`}
-                                        className={`flex items-start justify-between gap-3 px-4 py-3.5 transition-colors ${rowHov}`}
+                                        className={`flex items-start justify-between gap-3 px-4 py-3.5 transition-colors border-l-4 ${
+                                            isOut
+                                                ? (isDark ? 'border-rose-500 bg-rose-500/10' : 'border-rose-500 bg-rose-50')
+                                                : isLow
+                                                ? (isDark ? 'border-amber-400 bg-amber-400/10' : 'border-amber-400 bg-amber-50')
+                                                : `border-transparent ${rowHov}`
+                                        }`}
                                     >
                                         <div className="flex items-start gap-3 min-w-0 flex-1">
                                             <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
-                                                isOut || isLow
-                                                    ? 'bg-rose-500/10 text-rose-500'
-                                                    : isDark ? 'bg-amber-400/10 text-amber-300' : 'bg-amber-50 text-amber-600'
+                                                isOut
+                                                    ? 'bg-rose-500/15 text-rose-500'
+                                                    : isLow
+                                                    ? 'bg-amber-400/20 text-amber-600'
+                                                    : isDark ? 'bg-emerald-400/10 text-emerald-300' : 'bg-emerald-50 text-emerald-600'
                                             }`}>
                                                 <LuPackage size={16} />
                                             </span>
@@ -764,7 +773,7 @@ export default function StaffStockWarehouse() {
                                                 )}
                                                 {min > 0 && (
                                                     <p className={`text-xs mt-0.5 font-semibold ${
-                                                        isLow ? (isDark ? 'text-rose-300' : 'text-rose-600') : muted
+                                                        isLow ? (isDark ? 'text-amber-300' : 'text-amber-700') : muted
                                                     }`}>
                                                         Min: {min}
                                                     </p>
@@ -884,9 +893,9 @@ function QtyBadge({ qty, minimumLine, isDark }) {
     const isLow = !isOut && minimumLine > 0 && qty <= minimumLine;
 
     const cls = isOut
-        ? (isDark ? 'bg-rose-500/15 text-rose-300 ring-1 ring-rose-400/40' : 'bg-rose-500/10 text-rose-600 ring-1 ring-rose-400/50')
+        ? 'bg-rose-500 text-white ring-1 ring-rose-600/50 shadow-sm'
         : isLow
-        ? (isDark ? 'bg-rose-500/15 text-rose-300 ring-1 ring-rose-400/40' : 'bg-rose-500/10 text-rose-600 ring-1 ring-rose-400/50')
+        ? (isDark ? 'bg-amber-400/25 text-amber-200 ring-1 ring-amber-400/60' : 'bg-amber-100 text-amber-800 ring-1 ring-amber-400/70')
         : (isDark ? 'bg-emerald-500/15 text-emerald-300' : 'bg-emerald-500/10 text-emerald-600');
 
     return (
@@ -897,11 +906,14 @@ function QtyBadge({ qty, minimumLine, isDark }) {
                 {qty} dona
             </span>
 
+            {isOut && (
+                <span className="text-[10px] font-bold whitespace-nowrap text-rose-500">Tugagan</span>
+            )}
             {isLow && (
                 <span className={`text-[10px] font-bold whitespace-nowrap ${
-                    isDark ? 'text-rose-300' : 'text-rose-600'
+                    isDark ? 'text-amber-300' : 'text-amber-700'
                 }`}>
-                    ⚠ minimumdan kam
+                    ⚠ Kam qoldi (min {minimumLine})
                 </span>
             )}
         </div>

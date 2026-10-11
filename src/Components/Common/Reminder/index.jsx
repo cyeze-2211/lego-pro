@@ -25,7 +25,7 @@ import {
     CheckCircle2,
 } from 'lucide-react';
 import {
-    LuChevronLeft, LuChevronRight, LuClock3, LuStickyNote, LuUserRound,
+    LuClock3, LuStickyNote, LuUserRound,
     LuTriangleAlert, LuCalendarCheck, LuCalendarDays, LuFilter,
 } from 'react-icons/lu';
 import { ROLES } from '../../../app/permissions/roles';
@@ -43,6 +43,8 @@ import { Alert } from '../../Other/UI/Alert/Alert';
 import EmptyData from '../../Other/UI/NoData/EmptyData';
 import Loading from '../../Other/UI/Loadings/Loading';
 import FormControl from '../../ui/FormControl';
+import InfiniteSentinel from '../../ui/InfiniteSentinel';
+import { useInfiniteList } from '../../ui/useInfiniteList';
 
 const PAGE_SIZE = 20;
 
@@ -164,11 +166,18 @@ export default function Reminder() {
     const [deleteReminder, { isLoading: isDeleting }] = useDeletePaymentReminderMutation();
     const { isDark, pageBg, cardBg, cardBorder, textColor, subtitleColor, accentColor } = useAppTheme();
 
-    const reminders = reminderResult?.items ?? [];
+    const { items: reminders, hasMore, sentinelRef, loadingMore, loadMore } = useInfiniteList({
+        items: reminderResult?.items,
+        pagination: reminderResult?.pagination,
+        page,
+        setPage,
+        isFetching,
+        resetKey: JSON.stringify({ paymentDate: paymentDateFilter || undefined }),
+    });
     const customers = customersResult?.items ?? [];
     const pagination = reminderResult?.pagination;
     const totalElements = pagination?.totalElements ?? reminders.length;
-    const totalPages = pagination?.totalPages ?? 0;
+    const showFullLoader = isLoading || (isFetching && reminders.length === 0);
     const isSaving = isCreating || isUpdating;
     const modalBorder = isDark ? cardBorder : '#CBD5E1';
 
@@ -177,7 +186,7 @@ export default function Reminder() {
     const isAll = paymentDateFilter === '';
     const hasFilter = !isToday; // отличается от дефолтного
 
-    /* ── Aggregate status counts (current page) ── */
+    /* ── Aggregate status counts (loaded items) ── */
     const overdueCount = reminders.filter((r) => (dayDifference(r.paymentDate) ?? 0) < 0).length;
     const todayCount = reminders.filter((r) => dayDifference(r.paymentDate) === 0).length;
     const upcomingCount = reminders.filter((r) => (dayDifference(r.paymentDate) ?? 0) > 0).length;
@@ -261,7 +270,7 @@ export default function Reminder() {
             await deleteReminder(deletingReminder.id).unwrap();
             Alert('Eslatma o‘chirildi', 'success');
             setDeletingReminder(null);
-            if (reminders.length === 1 && page > 0) setPage(page - 1);
+            setPage(0);
         } catch (deleteError) {
             Alert(deleteError?.data?.message || 'Eslatmani o‘chirishda xatolik', 'error');
         }
@@ -477,24 +486,24 @@ export default function Reminder() {
                     <HStack gap={2}>
                         <Search size={17} color={accentColor} />
                         <Text fontWeight="semibold">Eslatmalar ro‘yxati</Text>
-                        {!isLoading && (
+                        {!showFullLoader && (
                             <Badge colorPalette="yellow" borderRadius="full" px={2}>{totalElements}</Badge>
                         )}
                     </HStack>
                     <HStack gap={3}>
                         {/* Summary pills */}
-                        {!isLoading && reminders.length > 0 && (
+                        {!showFullLoader && reminders.length > 0 && (
                             <HStack gap={2} display={{ base: 'none', md: 'flex' }}>
                                 {overdueCount > 0 && <StatPill label="o‘tgan" value={overdueCount} tone="danger" isDark={isDark} />}
                                 {todayCount > 0 && <StatPill label="bugun" value={todayCount} tone="warning" isDark={isDark} />}
                                 {upcomingCount > 0 && <StatPill label="kelgusi" value={upcomingCount} tone="success" isDark={isDark} />}
                             </HStack>
                         )}
-                        {isFetching && !isLoading && <Spinner size="sm" color={accentColor} />}
+                        {isFetching && !showFullLoader && <Spinner size="sm" color={accentColor} />}
                     </HStack>
                 </HStack>
 
-                {isLoading ? (
+                {showFullLoader ? (
                     <Loading />
                 ) : error ? (
                     <Box py={10} px={5} textAlign="center" color={isDark ? 'red.300' : 'red.600'}>
@@ -676,51 +685,18 @@ export default function Reminder() {
                 )}
 
                 {/* Pagination */}
-                {totalPages > 1 && (
-                    <HStack
-                        justify="space-between"
-                        flexWrap="wrap"
-                        gap={3}
-                        px={{ base: 4, md: 5 }}
-                        py={3}
-                        borderTopWidth="1px"
-                        borderColor={cardBorder}
-                        bg={isDark ? 'rgba(255,255,255,.01)' : '#FCFDFE'}
-                    >
-                        <Text color={subtitleColor} fontSize="sm">
-                            <Text as="span" fontWeight="bold" color={textColor}>
-                                {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, totalElements)}
-                            </Text>
-                            {' '}/ {totalElements}
-                        </Text>
-                        <HStack gap={2}>
-                            <Button
-                                size="sm"
-                                variant="outline"
-                                borderColor={cardBorder}
-                                borderRadius="lg"
-                                disabled={page === 0 || isFetching}
-                                onClick={() => setPage(page - 1)}
-                                aria-label="Oldingi sahifa"
-                            >
-                                <LuChevronLeft />
-                            </Button>
-                            <Text color={subtitleColor} fontSize="sm" fontWeight="semibold" minW="60px" textAlign="center">
-                                {page + 1} / {totalPages}
-                            </Text>
-                            <Button
-                                size="sm"
-                                variant="outline"
-                                borderColor={cardBorder}
-                                borderRadius="lg"
-                                disabled={page >= totalPages - 1 || isFetching}
-                                onClick={() => setPage(page + 1)}
-                                aria-label="Keyingi sahifa"
-                            >
-                                <LuChevronRight />
-                            </Button>
-                        </HStack>
-                    </HStack>
+                {!showFullLoader && !error && reminders.length > 0 && (
+                    <Box borderTopWidth="1px" borderColor={cardBorder} bg={isDark ? 'rgba(255,255,255,.01)' : '#FCFDFE'}>
+                        <InfiniteSentinel
+                            sentinelRef={sentinelRef}
+                            hasMore={hasMore}
+                            loadingMore={loadingMore}
+                            loaded={reminders.length}
+                            total={totalElements}
+                            unit="ta eslatma"
+                            onLoadMore={loadMore}
+                        />
+                    </Box>
                 )}
             </Box>
 

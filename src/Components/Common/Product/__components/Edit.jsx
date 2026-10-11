@@ -23,7 +23,6 @@ import {
     LuTriangleAlert,
     LuBoxes,
     LuWarehouse,
-    LuGift,
 } from 'react-icons/lu';
 import { useUpdateProductMutation, useUploadProductImageMutation } from '../../../../store/services/product.api';
 import ImageField from './ImageField';
@@ -54,7 +53,6 @@ const parseNumber = (raw) => {
 const buildInitial = (product) => ({
     name: toStr(product?.name),
     price: toStr(product?.price),
-    bonusPrice: toStr(product?.bonusPrice),
     warehouseId: product?.warehouseId || '',
     article: toStr(product?.article),
     size: toStr(product?.size),
@@ -120,7 +118,6 @@ export default function Edit({ product }) {
 
         const trimmedName = toStr(form.name).trim();
         const priceNum = parseNumber(form.price);
-        const bonusPriceNum = parseNumber(form.bonusPrice);
         const minLineNum = parseNumber(form.minimumLine);
         const piecesNum = parseNumber(form.piecesPerPack);
 
@@ -130,14 +127,6 @@ export default function Edit({ product }) {
         }
         if (Number.isNaN(priceNum) || priceNum <= 0) {
             Alert('Narx 0 dan katta bo‘lishi kerak', 'error');
-            return;
-        }
-        if (
-            form.bonusPrice !== '' &&
-            !Number.isNaN(bonusPriceNum) &&
-            bonusPriceNum < 0
-        ) {
-            Alert('Bonus narx manfiy bo‘lishi mumkin emas', 'error');
             return;
         }
         if (!form.warehouseId) {
@@ -166,13 +155,6 @@ export default function Edit({ product }) {
             categoryId: form.categoryId,
             lowProductAlert: Boolean(form.lowProductAlert),
         };
-
-        /* Bonus narx — faqat kiritilgan bo'lsa yuboriladi,
-         * bo'sh bo'lsa null (backend tozalab qo'yishi uchun). */
-        payload.bonusPrice =
-            form.bonusPrice !== '' && !Number.isNaN(bonusPriceNum)
-                ? bonusPriceNum
-                : null;
 
         try {
             await updateProduct({ id: product.id, data: payload }).unwrap();
@@ -509,28 +491,6 @@ export default function Edit({ product }) {
                                                 />
                                             </Field.Root>
 
-                                            {/* Bonus narx — ixtiyoriy */}
-                                            <Field.Root>
-                                                <Field.Label color={textColor} fontWeight="medium">
-                                                    <HStack gap={2}>
-                                                        <LuGift size={16} />
-                                                        <span>Bonus narx (so‘m)</span>
-                                                    </HStack>
-                                                </Field.Label>
-                                                <FormattedNumberInput
-                                                    value={form.bonusPrice}
-                                                    onChange={(v) => setField('bonusPrice', v)}
-                                                    placeholder="100 (ixtiyoriy)"
-                                                    size="lg"
-                                                    min="0"
-                                                    step="0.01"
-                                                    minH="52px"
-                                                    disabled={isLoading}
-                                                />
-                                                <Field.HelperText color={subtitleColor}>
-                                                    Bonus ball yig‘ish uchun narx
-                                                </Field.HelperText>
-                                            </Field.Root>
                                         </SimpleGrid>
 
                                         <Field.Root required>
@@ -696,7 +656,6 @@ Edit.propTypes = {
         id: PropTypes.string.isRequired,
         name: PropTypes.string.isRequired,
         price: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
-        bonusPrice: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
         warehouseId: PropTypes.string,
         article: PropTypes.string,
         size: PropTypes.string,

@@ -3,8 +3,7 @@ import PropTypes from 'prop-types';
 import { Link, useLocation } from 'react-router-dom';
 import { Badge, Box, Button, HStack, Heading, SimpleGrid, Table, Text } from '@chakra-ui/react';
 import {
-    LuArrowDown, LuArrowDownWideNarrow, LuArrowUp, LuArrowUpDown, LuCalendarDays, LuChevronDown, LuChevronLeft,
-    LuChevronRight, LuChevronUp, LuClock3, LuExternalLink, LuLayers, LuReceiptText, LuRotateCcw, LuSearch,
+    LuArrowDown, LuArrowDownWideNarrow, LuArrowUp, LuArrowUpDown, LuCalendarDays, LuChevronDown, LuChevronUp, LuClock3, LuExternalLink, LuLayers, LuReceiptText, LuRotateCcw, LuSearch,
     LuSlidersHorizontal, LuWallet, LuX,
 } from 'react-icons/lu';
 import { useGetExpensesQuery } from '../../../store/services/expense.api';
@@ -23,6 +22,8 @@ import { CurrencyNote } from '../../ui/CurrencyAmountField';
 import Create from './__components/Create';
 import Edit from './__components/Edit';
 import Delete from './__components/Delete';
+import { useInfiniteList } from '../../ui/useInfiniteList';
+import InfiniteSentinel from '../../ui/InfiniteSentinel';
 
 const PAGE_SIZE = 20;
 
@@ -130,9 +131,15 @@ export default function Expense() {
 
     const { isDark, pageBg, cardBg, cardBorder, textColor, subtitleColor, accentColor } = useAppTheme();
 
-    const expenses = useMemo(() => result?.items ?? [], [result]);
+    const { items: expenses, hasMore, sentinelRef, loadingMore, loadMore } = useInfiniteList({
+        items: result?.items,
+        pagination: result?.pagination,
+        page,
+        setPage,
+        isFetching,
+        resetKey: JSON.stringify({ ...applied, sort: [sort, 'id,DESC'] }),
+    });
     const pagination = result?.pagination;
-    const totalPages = pagination?.totalPages || 0;
     const totalElements = pagination?.totalElements ?? 0;
     const pageSum = useMemo(() => expenses.reduce((acc, item) => acc + (Number(item.amount) || 0), 0), [expenses]);
 
@@ -341,7 +348,7 @@ export default function Expense() {
             )}
 
             {/* ── Jadval ── */}
-            {isLoading ? (
+            {(isLoading || (isFetching && expenses.length === 0)) ? (
                 <Loading />
             ) : error ? (
                 <Box p={8} textAlign="center" color={dangerColor}>Ma&apos;lumotlarni yuklashda xatolik</Box>
@@ -371,7 +378,7 @@ export default function Expense() {
                             <Table.Body bg={tableBg}>
                                 {expenses.map((expense, index) => (
                                     <Table.Row key={expense.id} bg={tableBg} _hover={{ bg: isDark ? 'rgba(250, 204, 21, 0.06)' : '#FFFBEB' }}>
-                                        <Table.Cell {...cellBorder} textAlign="center" color={subtitleColor} fontSize="sm">{page * PAGE_SIZE + index + 1}</Table.Cell>
+                                        <Table.Cell {...cellBorder} textAlign="center" color={subtitleColor} fontSize="sm">{index + 1}</Table.Cell>
                                         <Table.Cell {...cellBorder}>
                                             <HStack gap={3}>
                                                 <Box p={2} borderRadius="lg" bg={accentSoft} color={accentColor} flexShrink={0}><LuReceiptText size={16} /></Box>
@@ -421,13 +428,7 @@ export default function Expense() {
                             <Text>Jami: <Text as="span" fontWeight="bold" color={textColor}>{formatNumber(totalElements)}</Text> ta xarajat</Text>
                             <Text>Shu sahifa: <Text as="span" fontWeight="bold" color={dangerColor}>-{formatNumber(pageSum)} so‘m</Text></Text>
                         </HStack>
-                        {totalPages > 1 && (
-                            <HStack gap={2}>
-                                <Button size="sm" variant="outline" borderRadius="lg" w="34px" h="34px" p={0} minW={0} disabled={page === 0} onClick={() => setPage(page - 1)} aria-label="Oldingi sahifa"><LuChevronLeft size={14} /></Button>
-                                <Text color={subtitleColor} fontSize="sm" fontWeight="medium" px={2}>{page + 1} / {totalPages}</Text>
-                                <Button size="sm" variant="outline" borderRadius="lg" w="34px" h="34px" p={0} minW={0} disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)} aria-label="Keyingi sahifa"><LuChevronRight size={14} /></Button>
-                            </HStack>
-                        )}
+                        <InfiniteSentinel sentinelRef={sentinelRef} hasMore={hasMore} loadingMore={loadingMore} loaded={expenses.length} total={result?.pagination?.totalElements ?? expenses.length} unit="ta xarajat" onLoadMore={loadMore} />
                     </HStack>
                 </>
             )}

@@ -10,8 +10,6 @@ import {
     VStack,
 } from '@chakra-ui/react';
 import {
-    LuChevronLeft,
-    LuChevronRight,
     LuHash,
     LuMapPin,
     LuPhone,
@@ -34,6 +32,8 @@ import FormControl from '../../ui/FormControl';
 import Create from './__components/Create';
 import Edit from './__components/Edit';
 import Delete from './__components/Delete';
+import { useInfiniteList } from '../../ui/useInfiniteList';
+import InfiniteSentinel from '../../ui/InfiniteSentinel';
 
 const PAGE_SIZE = 12;
 
@@ -47,7 +47,7 @@ export default function Supplier() {
     const { pathname } = useLocation();
     const base = pathname.startsWith('/kassir') ? '/kassir' : '';
     const { data: regions = [], isError: regionsError } = useGetRegionsQuery();
-    const { data: supplierResult, isLoading, error } = useGetSuppliersQuery({
+    const { data: supplierResult, isLoading, isFetching, error } = useGetSuppliersQuery({
         name: query || undefined,
         regionId: regionId || undefined,
         page,
@@ -56,9 +56,14 @@ export default function Supplier() {
     });
     const { isDark, pageBg, cardBg, cardBorder, textColor, subtitleColor, accentColor } = useAppTheme();
 
-    const suppliers = supplierResult?.items ?? [];
-    const pagination = supplierResult?.pagination;
-    const totalPages = pagination?.totalPages ?? 0;
+    const { items: suppliers, hasMore, sentinelRef, loadingMore, loadMore } = useInfiniteList({
+        items: supplierResult?.items,
+        pagination: supplierResult?.pagination,
+        page,
+        setPage,
+        isFetching,
+        resetKey: JSON.stringify({ name: query || undefined, regionId: regionId || undefined, sort: ['createdAt,DESC', 'id,DESC'] }),
+    });
     const tableBg = isDark ? BRAND_COLORS.darkCardBg : cardBg;
     const tableHeaderBg = isDark ? tableBg : '#F8FAFC';
     const tableBorder = isDark ? cardBorder : '#CBD5E1';
@@ -203,7 +208,7 @@ export default function Supplier() {
                 </Button>
             </HStack>
 
-            {isLoading ? (
+            {(isLoading || (isFetching && suppliers.length === 0)) ? (
                 <Loading />
             ) : error ? (
                 <Box p={8} textAlign="center" color={isDark ? 'red.300' : 'red.600'}>Ma&apos;lumotlarni yuklashda xatolik</Box>
@@ -240,7 +245,7 @@ export default function Supplier() {
                                 {suppliers.map((supplier, index) => (
                                     <Table.Row key={supplier.id} bg={tableBg} _hover={{ bg: isDark ? 'rgba(250, 204, 21, 0.06)' : '#FFFBEB' }}>
                                         <Table.Cell {...cellBorder} textAlign="center" color={subtitleColor} fontSize="sm">
-                                            {page * PAGE_SIZE + index + 1}
+                                            {index + 1}
                                         </Table.Cell>
                                         <Table.Cell {...cellBorder}>
                                             <HStack gap={2.5}>
@@ -299,17 +304,7 @@ export default function Supplier() {
                             </Table.Body>
                         </Table.Root>
                     </Box>
-                    {totalPages > 1 && (
-                        <HStack justify="center" mt={8} gap={3}>
-                            <Button size="sm" variant="outline" disabled={page === 0} onClick={() => setPage((value) => value - 1)}>
-                                <LuChevronLeft />
-                            </Button>
-                            <Text color={subtitleColor} fontSize="sm">{page + 1} / {totalPages}</Text>
-                            <Button size="sm" variant="outline" disabled={page >= totalPages - 1} onClick={() => setPage((value) => value + 1)}>
-                                <LuChevronRight />
-                            </Button>
-                        </HStack>
-                    )}
+                    <InfiniteSentinel sentinelRef={sentinelRef} hasMore={hasMore} loadingMore={loadingMore} loaded={suppliers.length} total={supplierResult?.pagination?.totalElements ?? suppliers.length} unit="ta yetkazib beruvchi" onLoadMore={loadMore} />
                 </>
             )}
         </Box>

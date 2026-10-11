@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-    LuHistory, LuSearch, LuChevronLeft, LuChevronRight,
+    LuHistory, LuSearch,
     LuLogIn, LuLogOut, LuX, LuPackage, LuWarehouse, LuCalendar, LuEye,
     LuTrendingUp, LuTrendingDown,
 } from 'react-icons/lu';
@@ -11,6 +11,8 @@ import {
     useGetRawMaterialTransactionsSummaryQuery,
 } from '../../../store/services/rawMaterialStock.api';
 import { useGetWarehousesQuery } from '../../../store/services/warehouse.api';
+import { useInfiniteList } from '../../ui/useInfiniteList';
+import InfiniteSentinel from '../../ui/InfiniteSentinel';
 
 const PAGE_SIZE = 20;
 const UNITS = ['GRAM', 'KG', 'TON'];
@@ -51,8 +53,15 @@ export default function RawStaffHistory() {
 
     const totalQuantity = summaryData.reduce((sum, item) => sum + (item.quantity || 0), 0);
 
-    const transactions = data?.data ?? [];
     const pagination = data?.pagination ?? {};
+    const { items: transactions, hasMore, sentinelRef, loadingMore, loadMore } = useInfiniteList({
+        items: data?.data,
+        pagination,
+        page,
+        setPage,
+        isFetching,
+        resetKey: `${warehouseFilter}|${actionFilter}|${unit}|${dateFrom}|${dateTo}`,
+    });
     const filtered = search
         ? transactions.filter((t) => t.rawMaterialName?.toLowerCase().includes(search.toLowerCase()))
         : transactions;
@@ -244,7 +253,7 @@ export default function RawStaffHistory() {
 
             {/* Table */}
             <div className={`rounded-2xl border shadow-md overflow-hidden ${panel}`}>
-                {isFetching ? (
+                {isFetching && transactions.length === 0 ? (
                     <div className={`flex flex-col items-center gap-3 py-20 ${muted}`}>
                         <svg className="h-7 w-7 animate-spin text-amber-400" viewBox="0 0 24 24" fill="none">
                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -281,7 +290,7 @@ export default function RawStaffHistory() {
                                 <tbody className={`divide-y ${divider}`}>
                                     {filtered.map((t, idx) => (
                                         <tr key={t.id} className={`transition-colors ${rowHov}`}>
-                                            <td className={`px-5 py-3.5 text-xs ${muted}`}>{page * PAGE_SIZE + idx + 1}</td>
+                                            <td className={`px-5 py-3.5 text-xs ${muted}`}>{idx + 1}</td>
                                             <td className="px-5 py-3.5">
                                                 <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ${t.action === 'IN' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
                                                     {t.action === 'IN' ? <LuLogIn size={11} /> : <LuLogOut size={11} />}
@@ -339,23 +348,9 @@ export default function RawStaffHistory() {
                     </>
                 )}
 
-                {/* Pagination */}
-                {pagination.totalPages > 1 && (
-                    <div className={`flex items-center justify-between gap-3 border-t px-5 py-3.5 ${isDark ? 'border-slate-700/50' : 'border-slate-100'}`}>
-                        <p className={`text-xs ${muted}`}>
-                            {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, pagination.totalElements)} / {pagination.totalElements}
-                        </p>
-                        <div className="flex items-center gap-1.5">
-                            <button type="button" disabled={pagination.first} onClick={() => setPage((p) => p - 1)}
-                                className={`flex h-8 w-8 items-center justify-center rounded-lg border transition-colors disabled:opacity-40 ${isDark ? 'border-slate-700 hover:bg-slate-700' : 'border-slate-200 hover:bg-slate-100'}`}>
-                                <LuChevronLeft size={14} />
-                            </button>
-                            <span className={`px-3 text-sm font-semibold ${head}`}>{page + 1} / {pagination.totalPages}</span>
-                            <button type="button" disabled={pagination.last} onClick={() => setPage((p) => p + 1)}
-                                className={`flex h-8 w-8 items-center justify-center rounded-lg border transition-colors disabled:opacity-40 ${isDark ? 'border-slate-700 hover:bg-slate-700' : 'border-slate-200 hover:bg-slate-100'}`}>
-                                <LuChevronRight size={14} />
-                            </button>
-                        </div>
+{transactions.length > 0 && (
+                    <div className={`border-t ${isDark ? 'border-slate-700/50' : 'border-slate-100'}`}>
+                        <InfiniteSentinel sentinelRef={sentinelRef} hasMore={hasMore} loadingMore={loadingMore} loaded={transactions.length} total={pagination.totalElements ?? transactions.length} unit="ta yozuv" onLoadMore={loadMore} />
                     </div>
                 )}
             </div>

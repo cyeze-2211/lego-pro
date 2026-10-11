@@ -12,21 +12,28 @@ import {
     useDisclosure,
 } from '@chakra-ui/react';
 import { Check, Layers3, X } from 'lucide-react';
-import { LuPen, LuTag } from 'react-icons/lu';
+import { LuGift, LuPen, LuTag } from 'react-icons/lu';
 import { useUpdateProductCategoryMutation } from '../../../../store/services/productCategory.api';
 import { useAppTheme } from '../../../../theme/tokens';
 import { Alert } from '../../../Other/UI/Alert/Alert';
 import FormControl from '../../../ui/FormControl';
+import FormattedNumberInput from '../../../ui/FormattedNumberInput';
+
+const toBonusStr = (value) => (value === null || value === undefined || Number(value) === 0 ? '' : String(value));
 
 export default function Edit({ category }) {
     const { open, onOpen, onClose } = useDisclosure();
     const [name, setName] = useState(category.name);
+    const [bonusPrice, setBonusPrice] = useState(toBonusStr(category.bonusPrice));
     const [updateCategory, { isLoading }] = useUpdateProductCategoryMutation();
     const { isDark, accentColor, cardBg, cardBorder, textColor, subtitleColor } = useAppTheme();
     const modalBorder = isDark ? cardBorder : '#94A3B8';
 
     useEffect(() => {
-        if (open) setName(category.name);
+        if (open) {
+            setName(category.name);
+            setBonusPrice(toBonusStr(category.bonusPrice));
+        }
     }, [open, category]);
 
     const handleSubmit = async () => {
@@ -40,8 +47,13 @@ export default function Edit({ category }) {
             Alert('Kategoriya nomi 255 belgidan oshmasligi kerak', 'error');
             return;
         }
+        const bonusNum = bonusPrice === '' ? 0 : Number(bonusPrice);
+        if (!Number.isFinite(bonusNum) || bonusNum < 0) {
+            Alert('Bonus narx 0 dan kichik bo‘lmasligi kerak', 'error');
+            return;
+        }
         try {
-            await updateCategory({ id: category.id, data: { name: trimmedName } }).unwrap();
+            await updateCategory({ id: category.id, data: { name: trimmedName, bonusPrice: bonusNum } }).unwrap();
             Alert('Kategoriya yangilandi', 'success');
             onClose();
         } catch (error) {
@@ -77,6 +89,11 @@ export default function Edit({ category }) {
                                         <Field.Label color={textColor} fontWeight="medium"><HStack gap={2}><LuTag size={16} /><span>Kategoriya nomi</span></HStack><Field.RequiredIndicator /></Field.Label>
                                         <FormControl value={name} onChange={(event) => setName(event.target.value)} placeholder="Masalan, Profil" maxLength={255} autoFocus disabled={isLoading} size="lg" minH="52px" />
                                     </Field.Root>
+                                    <Field.Root>
+                                        <Field.Label color={textColor} fontWeight="medium"><HStack gap={2}><LuGift size={16} /><span>Bonus narx (so‘m)</span></HStack></Field.Label>
+                                        <FormattedNumberInput value={bonusPrice} onChange={setBonusPrice} placeholder="100 (ixtiyoriy)" min="0" step="0.01" disabled={isLoading} size="lg" minH="52px" />
+                                        <Field.HelperText color={subtitleColor}>Shu kategoriyadagi mahsulotning 1 donasi sotilganda agentga beriladigan bonus. Bo‘sh qoldirsangiz bonus yo‘q.</Field.HelperText>
+                                    </Field.Root>
                                 </VStack>
                             </Dialog.Body>
                             <Dialog.Footer gap={3} pt={5} pb={6} borderTopWidth="1px" borderColor={modalBorder}>
@@ -97,5 +114,6 @@ Edit.propTypes = {
     category: PropTypes.shape({
         id: PropTypes.string.isRequired,
         name: PropTypes.string.isRequired,
+        bonusPrice: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     }).isRequired,
 };

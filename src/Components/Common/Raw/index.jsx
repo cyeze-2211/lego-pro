@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Box, Button, HStack, Heading, Table, Text } from '@chakra-ui/react';
-import { LuChevronLeft, LuChevronRight, LuFileText, LuSearch, LuX } from 'react-icons/lu';
+import { LuFileText, LuSearch, LuX } from 'react-icons/lu';
 import { useGetRawMaterialsQuery } from '../../../store/services/raw.api';
 import { useGetWarehousesQuery } from '../../../store/services/warehouse.api';
 import { BRAND_COLORS, useAppTheme } from '../../../theme/tokens';
@@ -12,6 +12,8 @@ import FormControl from '../../ui/FormControl';
 import Create from './__components/Create';
 import Edit from './__components/Edit';
 import Delete from './__components/Delete';
+import { useInfiniteList } from '../../ui/useInfiniteList';
+import InfiniteSentinel from '../../ui/InfiniteSentinel';
 
 const PAGE_SIZE = 12;
 
@@ -25,7 +27,7 @@ export default function Raw() {
     const [search, setSearch] = useState('');
     const [query, setQuery] = useState('');
     const [page, setPage] = useState(0);
-    const { data: result, isLoading, error } = useGetRawMaterialsQuery({
+    const { data: result, isLoading, isFetching, error } = useGetRawMaterialsQuery({
         name: query || undefined,
         page,
         size: PAGE_SIZE,
@@ -42,10 +44,16 @@ export default function Raw() {
     } = useAppTheme();
 
     // Ответ API: { data: [...], pagination: {...}, message, status }
-    const materials = result?.items || [];
+    const { items: materials, hasMore, sentinelRef, loadingMore, loadMore } = useInfiniteList({
+        items: result?.items,
+        pagination: result?.pagination,
+        page,
+        setPage,
+        isFetching,
+        resetKey: JSON.stringify({ name: query || undefined }),
+    });
 
     console.log('Raw materials:', materials);
-    const totalPages = result?.pagination?.totalPages || 0;
     const tableBg = isDark ? BRAND_COLORS.darkCardBg : cardBg;
     const tableHeaderBg = isDark ? tableBg : '#F8FAFC';
     const tableBorder = isDark ? cardBorder : '#CBD5E1';
@@ -139,7 +147,7 @@ export default function Raw() {
                 <Table.Body bg={tableBg}>
                     {materials?.map((material, index) => (
                         <Table.Row key={material.id} bg={tableBg} _hover={{ bg: isDark ? 'rgba(250, 204, 21, 0.06)' : '#FFFBEB' }}>
-                            <Table.Cell borderWidth="0.5px" borderColor={tableBorder} color={subtitleColor} textAlign="center">{page * PAGE_SIZE + index + 1}</Table.Cell>
+                            <Table.Cell borderWidth="0.5px" borderColor={tableBorder} color={subtitleColor} textAlign="center">{index + 1}</Table.Cell>
                             <Table.Cell borderWidth="0.5px" borderColor={tableBorder}>
                                 <HStack gap={3}>
                                     <Box p={2} borderRadius="lg" bg={isDark ? 'rgba(250, 204, 21, 0.12)' : '#FEF3C7'} color={accentColor}><LuFileText size={18} /></Box>
@@ -171,7 +179,7 @@ export default function Raw() {
 
             {renderSearch()}
 
-            {isLoading ? (
+            {(isLoading || (isFetching && materials.length === 0)) ? (
                 <Loading />
             ) : error ? (
                 <Box p={8} textAlign="center" color={isDark ? 'red.300' : 'red.600'}>Ma&apos;lumotlarni yuklashda xatolik</Box>
@@ -184,13 +192,7 @@ export default function Raw() {
             ) : (
                 <>
                     {renderTable()}
-                    {totalPages > 1 && (
-                        <HStack justify="center" mt={8} gap={3}>
-                            <Button size="sm" variant="outline" disabled={page === 0} onClick={() => setPage((value) => value - 1)}><LuChevronLeft /></Button>
-                            <Text color={subtitleColor} fontSize="sm">{page + 1} / {totalPages}</Text>
-                            <Button size="sm" variant="outline" disabled={page >= totalPages - 1} onClick={() => setPage((value) => value + 1)}><LuChevronRight /></Button>
-                        </HStack>
-                    )}
+                    <InfiniteSentinel sentinelRef={sentinelRef} hasMore={hasMore} loadingMore={loadingMore} loaded={materials.length} total={result?.pagination?.totalElements ?? materials.length} unit="ta xom ashyo" onLoadMore={loadMore} />
                 </>
             )}
         </Box>

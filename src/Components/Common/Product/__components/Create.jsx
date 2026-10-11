@@ -25,7 +25,6 @@ import {
     LuTag,
     LuClipboardPaste,
     LuBoxes,
-    LuGift,
 } from 'react-icons/lu';
 import { useCreateProductMutation, useUploadProductImageMutation } from '../../../../store/services/product.api';
 import ImageField from './ImageField';
@@ -43,7 +42,6 @@ const CLIPBOARD_EVENT = 'product-clipboard-changed';
 const EMPTY_FORM = {
     name: '',
     price: '',
-    bonusPrice: '',
     warehouseId: '',
     article: '',
     size: '',
@@ -65,12 +63,6 @@ const clearClipboard = () => {
 const buildFromClipboard = (clip) => ({
     name: clip.name ? `${clip.name} (nusxa)` : '',
     price: String(clip.price ?? ''),
-    bonusPrice:
-        clip.bonusPrice !== null &&
-        clip.bonusPrice !== undefined &&
-        clip.bonusPrice !== ''
-            ? String(clip.bonusPrice)
-            : '',
     warehouseId: clip.warehouseId || '',
     article: clip.article || '',
     size: clip.size || '',
@@ -210,17 +202,6 @@ export default function Create({ warehouses }) {
             return;
         }
 
-        /* ── Bonus narx — ixtiyoriy ── */
-        const bonusPriceNum = parseNumber(form.bonusPrice);
-        if (
-            form.bonusPrice !== '' &&
-            !Number.isNaN(bonusPriceNum) &&
-            bonusPriceNum < 0
-        ) {
-            Alert('Bonus narx manfiy bo‘lishi mumkin emas', 'error');
-            return;
-        }
-
         const payload = {
             name: trimmedName,
             warehouseId: form.warehouseId,
@@ -231,11 +212,6 @@ export default function Create({ warehouses }) {
         // Narx faqat kiritilgan bo'lsa yuboriladi
         if (form.price !== '' && !Number.isNaN(priceNum)) {
             payload.price = priceNum;
-        }
-
-        // Bonus narx faqat kiritilgan bo'lsa yuboriladi
-        if (form.bonusPrice !== '' && !Number.isNaN(bonusPriceNum)) {
-            payload.bonusPrice = bonusPriceNum;
         }
 
         if (form.article.trim()) payload.article = form.article.trim();
@@ -679,28 +655,6 @@ export default function Create({ warehouses }) {
                                                 </Field.HelperText>
                                             </Field.Root>
 
-                                            {/* Bonus narx — ixtiyoriy */}
-                                            <Field.Root>
-                                                <Field.Label color={textColor} fontWeight="medium">
-                                                    <HStack gap={2}>
-                                                        <LuGift size={16} />
-                                                        <span>Bonus narx (so‘m)</span>
-                                                    </HStack>
-                                                </Field.Label>
-                                                <FormattedNumberInput
-                                                    value={form.bonusPrice}
-                                                    onChange={(v) => setField('bonusPrice', v)}
-                                                    placeholder="100 (ixtiyoriy)"
-                                                    size="lg"
-                                                    min="0"
-                                                    step="0.01"
-                                                    minH="52px"
-                                                    disabled={isLoading}
-                                                />
-                                                <Field.HelperText color={subtitleColor}>
-                                                    Bonus ball yig‘ish uchun narx
-                                                </Field.HelperText>
-                                            </Field.Root>
                                         </SimpleGrid>
 
                                         <Field.Root required>

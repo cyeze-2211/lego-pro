@@ -320,3 +320,20 @@ table thead th {
 .theme-light .sverka-paper table tbody tr:hover td {
   background: inherit !important;
 }
+
+/* ── Ombor qoldiqlari: kam qolgan (sariq) va tugagan (qizil) qatorlar ──
+   Global `table tbody td { background: ... !important }` qoidalaridan ustun turishi uchun td ga yoziladi */
+.theme-light table tbody tr.stock-row-low td,
+.theme-light table tbody tr.stock-row-low:hover td { background: #FEF9C3 !important; }
+.theme-dark table tbody tr.stock-row-low td,
+.theme-dark table tbody tr.stock-row-low:hover td,
+.dark table tbody tr.stock-row-low td { background: rgba(250, 204, 21, 0.12) !important; }
+
+.theme-light table tbody tr.stock-row-out td,
+.theme-light table tbody tr.stock-row-out:hover td { background: #FEE2E2 !important; }
+.theme-dark table tbody tr.stock-row-out td,
+.theme-dark table tbody tr.stock-row-out:hover td,
+.dark table tbody tr.stock-row-out td { background: rgba(239, 68, 68, 0.14) !important; }
+
+table tbody tr.stock-row-low td:first-child { box-shadow: inset 4px 0 0 #F59E0B; }
+table tbody tr.stock-row-out td:first-child { box-shadow: inset 4px 0 0 #EF4444; }

@@ -7,7 +7,7 @@ import {
     Table,
     Text,
 } from '@chakra-ui/react';
-import { LuChevronLeft, LuChevronRight, LuLayoutGrid, LuList, LuSearch, LuX } from 'react-icons/lu';
+import { LuLayoutGrid, LuList, LuSearch, LuX } from 'react-icons/lu';
 import { useGetProductColorsQuery } from '../../../store/services/productColor.api';
 import { BRAND_COLORS, useAppTheme } from '../../../theme/tokens';
 import { Alert } from '../../Other/UI/Alert/Alert';
@@ -20,6 +20,8 @@ import Delete from './__components/Delete';
 import ColorSwatch, { ColorDot } from '../../ui/ColorSwatch';
 import { isValidHex } from '../../ui/color-utils';
 import { formatDateTime } from '../../ui/date-format';
+import { useInfiniteList } from '../../ui/useInfiniteList';
+import InfiniteSentinel from '../../ui/InfiniteSentinel';
 
 const PAGE_SIZE = 20;
 
@@ -28,15 +30,21 @@ export default function ProductColor() {
     const [query, setQuery] = useState('');
     const [page, setPage] = useState(0);
     const [view, setView] = useState('table');
-    const { data: result, isLoading, error } = useGetProductColorsQuery({
+    const { data: result, isLoading, isFetching, error } = useGetProductColorsQuery({
         name: query || undefined,
         page,
         size: PAGE_SIZE,
     });
     const { isDark, pageBg, cardBg, cardBorder, textColor, subtitleColor, accentColor } = useAppTheme();
 
-    const colors = result?.items ?? [];
-    const totalPages = result?.pagination?.totalPages ?? 0;
+    const { items: colors, hasMore, sentinelRef, loadingMore, loadMore } = useInfiniteList({
+        items: result?.items,
+        pagination: result?.pagination,
+        page,
+        setPage,
+        isFetching,
+        resetKey: JSON.stringify({ name: query || undefined }),
+    });
     const totalElements = result?.pagination?.totalElements ?? 0;
     const withCode = colors.filter((c) => isValidHex(c.code)).length;
     const tableBg = isDark ? BRAND_COLORS.darkCardBg : cardBg;
@@ -133,7 +141,7 @@ export default function ProductColor() {
                 </Button>
             </HStack>
 
-            {isLoading ? (
+            {(isLoading || (isFetching && colors.length === 0)) ? (
                 <Loading />
             ) : error ? (
                 <Box p={8} textAlign="center" color={isDark ? 'red.300' : 'red.600'}>
@@ -163,13 +171,7 @@ export default function ProductColor() {
                             </Box>
                         ))}
                     </Box>
-                    {totalPages > 1 && (
-                        <HStack justify="center" mt={8} gap={3}>
-                            <Button size="sm" variant="outline" w="34px" h="34px" p={0} minW={0} borderRadius="lg" disabled={page === 0} onClick={() => setPage(page - 1)} aria-label="Oldingi sahifa"><LuChevronLeft /></Button>
-                            <Text color={subtitleColor} fontSize="sm">{page + 1} / {totalPages}</Text>
-                            <Button size="sm" variant="outline" w="34px" h="34px" p={0} minW={0} borderRadius="lg" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)} aria-label="Keyingi sahifa"><LuChevronRight /></Button>
-                        </HStack>
-                    )}
+                    <InfiniteSentinel sentinelRef={sentinelRef} hasMore={hasMore} loadingMore={loadingMore} loaded={colors.length} total={result?.pagination?.totalElements ?? colors.length} unit="ta rang" onLoadMore={loadMore} />
                 </>
             ) : (
                 <>
@@ -195,7 +197,7 @@ export default function ProductColor() {
                                 {colors.map((color, index) => (
                                     <Table.Row key={color.id} bg={tableBg} _hover={{ bg: isDark ? 'rgba(250, 204, 21, 0.06)' : '#FFFBEB' }}>
                                         <Table.Cell textAlign="center" color={subtitleColor} borderWidth="0.5px" borderColor={tableBorder}>
-                                            {page * PAGE_SIZE + index + 1}
+                                            {index + 1}
                                         </Table.Cell>
                                         <Table.Cell borderWidth="0.5px" borderColor={tableBorder}>
                                             <ColorSwatch code={color.code} name={color.name} size={26} fontSize="md" />
@@ -216,13 +218,7 @@ export default function ProductColor() {
                             </Table.Body>
                         </Table.Root>
                     </Box>
-                    {totalPages > 1 && (
-                        <HStack justify="center" mt={8} gap={3}>
-                            <Button size="sm" variant="outline" disabled={page === 0} onClick={() => setPage(page - 1)} aria-label="Oldingi sahifa"><LuChevronLeft /></Button>
-                            <Text color={subtitleColor} fontSize="sm">{page + 1} / {totalPages}</Text>
-                            <Button size="sm" variant="outline" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)} aria-label="Keyingi sahifa"><LuChevronRight /></Button>
-                        </HStack>
-                    )}
+                    <InfiniteSentinel sentinelRef={sentinelRef} hasMore={hasMore} loadingMore={loadingMore} loaded={colors.length} total={result?.pagination?.totalElements ?? colors.length} unit="ta rang" onLoadMore={loadMore} />
                 </>
             )}
         </Box>

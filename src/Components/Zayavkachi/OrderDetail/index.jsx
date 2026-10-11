@@ -26,8 +26,7 @@ import {
     statusCx,
     statusStyle,
     NEXT_STATUS,
-    FINAL_STATUSES,
-} from '../__components/statusBadge';
+    FINAL_STATUSES, canSetOrderStatus } from '../__components/statusBadge';
 import { Alert } from '../../Other/UI/Alert/Alert';
 import { splitOrderItem } from '../../ui/order-items';
 import OrderPrintModal from '../__components/OrderPrintModal';
@@ -48,7 +47,8 @@ function OrderStatusControl({ order, isDark }) {
     const style = statusStyle(order.status, isDark);
 
     const isFinal = FINAL_STATUSES.includes(order.status);
-    const nextStatuses = NEXT_STATUS[order.status] || [];
+    // Omborchidan boshqa rollar «Ortildi» ga o‘tkaza olmaydi
+    const nextStatuses = (NEXT_STATUS[order.status] || []).filter((s) => canSetOrderStatus(role, s));
 
     if (role === ROLES.ZAYAVKACHI) {
         return (
@@ -60,6 +60,10 @@ function OrderStatusControl({ order, isDark }) {
 
     const changeStatus = async (nextStatus) => {
         if (!nextStatus || nextStatus === order.status) return;
+        if (!canSetOrderStatus(role, nextStatus)) {
+            Alert('Buyurtmani «Ortildi» holatiga faqat omborchi o‘tkaza oladi', 'error');
+            return false;
+        }
         setAction(nextStatus);
         try {
             if (nextStatus === 'CONFIRMED') {

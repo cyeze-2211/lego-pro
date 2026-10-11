@@ -53,7 +53,6 @@ const DEFAULT_SORT = ['createdAt,DESC', 'id,DESC'];
 const SORT_FIELDS = [
     ['name', 'Mahsulot nomi'],
     ['price', 'Narxi'],
-    ['bonusPrice', 'Bonus narx'],
     ['barcode', 'Shtrix-kod'],
     ['article', 'Artikul'],
     ['size', 'O‘lcham'],
@@ -73,10 +72,6 @@ const saveToClipboard = (product) => {
     window.__productClipboard = {
         name: product.name || '',
         price: product.price ?? '',
-        bonusPrice:
-            product.bonusPrice !== null && product.bonusPrice !== undefined
-                ? product.bonusPrice
-                : '',
         article: product.article || '',
         size: product.size || '',
         minimumLine:
@@ -729,7 +724,9 @@ export default function Product() {
                                     {sortableHeader('Rang', 'color.name', '130px')}
                                     {sortableHeader('O‘lcham', 'size', '110px')}
                                     {sortableHeader('Narxi', 'price', '130px', 'right')}
-                                    {sortableHeader('Bonus narx', 'bonusPrice', '130px', 'right')}
+                                    <Table.ColumnHeader {...headerCell} textAlign="right" minW="130px" title="Kategoriya bo‘yicha, 1 dona uchun">
+                                        Bonus narx
+                                    </Table.ColumnHeader>
                                     {sortableHeader('Min. qoldiq', 'minimumLine', '110px', 'right')}
                                     {sortableHeader('Qadoqdagi dona', 'piecesPerPack', '130px', 'center')}
                                     <Table.ColumnHeader {...headerCell} minW="170px">
@@ -966,15 +963,13 @@ export default function Product() {
                                                 </Text>
                                             </Table.Cell>
 
-                                            {/* Bonus narx */}
+                                            {/* Bonus narx — kategoriyadan olinadi */}
                                             <Table.Cell
                                                 {...cellBorder}
                                                 textAlign="right"
                                                 whiteSpace="nowrap"
                                             >
-                                                {product.bonusPrice !== null &&
-                                                product.bonusPrice !== undefined &&
-                                                product.bonusPrice !== '' ? (
+                                                {Number(product.category?.bonusPrice) > 0 ? (
                                                     <HStack gap={1.5} justify="flex-end">
                                                         <Box
                                                             p={1}
@@ -999,7 +994,7 @@ export default function Product() {
                                                             fontSize="sm"
                                                             color={textColor}
                                                         >
-                                                            {formatNumber(product.bonusPrice)}{' '}
+                                                            {formatNumber(product.category.bonusPrice)}{' '}
                                                             <Text
                                                                 as="span"
                                                                 fontSize="xs"

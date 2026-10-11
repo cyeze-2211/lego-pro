@@ -1,6 +1,7 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
 import { axiosBaseQuery } from '../baseQuary/axiosBaseQuery';
 import { customerApi } from './customer.api';
+import { cashboxApi } from './cashbox.api';
 
 const refreshCustomer = (customerId, dispatch) => {
     if (customerId) {
@@ -49,8 +50,9 @@ export const paymentApi = createApi({
             onQueryStarted: async (arg, { dispatch, queryFulfilled }) => {
                 try {
                     await queryFulfilled;
-                    // mijoz balansini yangilash
+                    // mijoz balansini va kassa qoldig'ini yangilash
                     refreshCustomer(arg.customerId, dispatch);
+                    dispatch(cashboxApi.util.invalidateTags([{ type: 'Cashbox', id: arg.cashboxId }, { type: 'Cashbox', id: 'LIST' }]));
                 } catch { /* caller handles errors */ }
             },
         }),

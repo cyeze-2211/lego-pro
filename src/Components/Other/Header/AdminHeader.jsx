@@ -6,6 +6,9 @@ import { useAppDispatch } from "../../../store/hooks";
 import { logoutUser } from "../../../store/slices/auth.slice";
 import { useLogoutMutation } from "../../../store/services/auth.api";
 import { useHeaderContext } from "../../../context/HeaderContext";
+import { useAppSelector } from "../../../store/hooks";
+import { ROLES } from "../../../app/permissions/roles";
+import QuickCashActions from "../../Kassir/__components/QuickCashActions";
 
 export default function AdminHeader({ 
     active, 
@@ -19,6 +22,8 @@ export default function AdminHeader({
     const { isDark, toggleColorMode } = useAppTheme();
     const [logoutApi] = useLogoutMutation();
     const { pageHeader } = useHeaderContext();
+    const role = useAppSelector((state) => state.auth.role);
+    const isKassir = role === ROLES.KASSIR;
 
     const [isHovered, setIsHovered] = useState(false);
     const [openMenu, setOpenMenu] = useState(false);
@@ -120,6 +125,9 @@ export default function AdminHeader({
 
                 {/* ── O'ng tomon ── */}
                 <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+                    {/* Kassir: tez kirim / chiqim */}
+                    {isKassir && <QuickCashActions />}
+
                     {/* Dark / Light toggle */}
                     <button
                         onClick={toggleColorMode}

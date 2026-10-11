@@ -417,7 +417,7 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
     const removeItem = (id) => setItems((p) => p.filter((i) => i.productId !== id));
 
     const updateQty = (id, val) => {
-        const qty = Number(val);
+        const qty = val === '' ? 0 : Number(val);
         if (!Number.isInteger(qty) || qty < 0) return;
         setItems((p) => p.map((i) => {
             if (i.productId !== id) return i;
@@ -453,7 +453,7 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
     };
 
     const updatePacks = (id, val) => {
-        const packs = Number(val);
+        const packs = val === '' ? 0 : Number(val);
         if (!Number.isInteger(packs) || packs < 0) return;
         setItems((p) => p.map((i) => {
             if (i.productId !== id) return i;
@@ -1162,7 +1162,7 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                                                     className={`flex h-9 w-9 items-center justify-center transition-colors ${isDark ? 'bg-[#1e293b] hover:bg-[#334155] text-[#cbd5e1]' : 'bg-[#f8fafc] hover:bg-[#f1f5f9] text-[#475569]'}`}>
                                                                     <LuMinus size={14} />
                                                                 </button>
-                                                                <input type="number" min={0} step={1} value={item.packs ?? 0}
+                                                                <input type="number" min={0} step={1} value={item.packs || ''} placeholder="0"
                                                                     onChange={(e) => updatePacks(item.productId, e.target.value)}
                                                                     aria-label={`Qadoq soni, ${item.productName}`}
                                                                     className={`h-9 w-14 border-x text-center text-sm font-bold outline-none ${isDark ? 'border-[#334155] bg-[#0f172a] text-white' : 'border-[#e2e8f0] bg-white text-[#0f172a]'}`}
@@ -1186,7 +1186,7 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                                                 className={`flex h-9 w-9 items-center justify-center transition-colors ${isDark ? 'bg-[#1e293b] hover:bg-[#334155] text-[#cbd5e1]' : 'bg-[#f8fafc] hover:bg-[#f1f5f9] text-[#475569]'}`}>
                                                                 <LuMinus size={14} />
                                                             </button>
-                                                            <input type="number" min={0} step={1} value={item.pieces}
+                                                            <input type="number" min={0} step={1} value={item.pieces || ''} placeholder="0"
                                                                 onChange={(e) => updateQty(item.productId, e.target.value)}
                                                                 className={`h-9 w-16 border-x text-center text-sm font-bold outline-none ${isDark ? 'border-[#334155] bg-[#0f172a] text-white' : 'border-[#e2e8f0] bg-white text-[#0f172a]'}`}
                                                             />
@@ -1312,7 +1312,7 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                                             className={`flex h-8 w-8 shrink-0 items-center justify-center transition-colors ${isDark ? 'bg-[#1e293b] hover:bg-[#334155] text-[#cbd5e1]' : 'bg-white hover:bg-[#f1f5f9] text-[#475569]'}`}>
                                                             <LuMinus size={13} />
                                                         </button>
-                                                        <input type="number" min={0} step={1} value={item.pieces}
+                                                        <input type="number" min={0} step={1} value={item.pieces || ''} placeholder="0"
                                                             onChange={(e) => updateQty(item.productId, e.target.value)}
                                                             className={`h-8 flex-1 min-w-0 border-x text-center text-sm font-bold outline-none ${isDark ? 'border-[#334155] bg-[#0f172a] text-white' : 'border-[#e2e8f0] bg-white text-[#0f172a]'}`}
                                                         />
@@ -1335,7 +1335,7 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                                                     className={`flex h-8 w-8 shrink-0 items-center justify-center transition-colors ${isDark ? 'bg-[#1e293b] hover:bg-[#334155] text-[#cbd5e1]' : 'bg-white hover:bg-[#f1f5f9] text-[#475569]'}`}>
                                                                     <LuMinus size={13} />
                                                                 </button>
-                                                                <input type="number" min={0} step={1} value={item.packs ?? 0}
+                                                                <input type="number" min={0} step={1} value={item.packs || ''} placeholder="0"
                                                                     onChange={(e) => updatePacks(item.productId, e.target.value)}
                                                                     aria-label={`Qadoq soni, ${item.productName}`}
                                                                     className={`h-8 flex-1 min-w-0 border-x text-center text-sm font-bold outline-none ${isDark ? 'border-[#334155] bg-[#0f172a] text-white' : 'border-[#e2e8f0] bg-white text-[#0f172a]'}`}

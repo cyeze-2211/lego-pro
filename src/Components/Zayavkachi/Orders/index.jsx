@@ -2,7 +2,7 @@ import { Fragment, useState } from 'react';
 import PropTypes from 'prop-types';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
-    LuClipboardList, LuSearch, LuChevronLeft, LuChevronRight,
+    LuClipboardList, LuSearch,
     LuPlus, LuX, LuEye, LuPencil, LuPackage,
     LuSlidersHorizontal, LuChevronDown,
     LuCircleX, LuCircleCheckBig, LuBan, LuChevronUp,
@@ -11,6 +11,8 @@ import {
 import { useAppTheme } from '../../../theme/tokens';
 import { formatNumber } from '../../ui/number-format';
 import { formatPackPiece, splitOrderItem } from '../../ui/order-items';
+import { useInfiniteList } from '../../ui/useInfiniteList';
+import InfiniteSentinel from '../../ui/InfiniteSentinel';
 import { useAppSelector } from '../../../store/hooks';
 import { ROLES } from '../../../app/permissions/roles';
 import {
@@ -21,7 +23,7 @@ import {
     useConfirmSalesOrderMutation,
 } from '../../../store/services/salesOrder.api';
 import DeleteOrder from '../__components/DeleteOrder';
-import { STATUS_LABEL, statusCx, statusStyle, NEXT_STATUS, FINAL_STATUSES } from '../__components/statusBadge';
+import { STATUS_LABEL, statusCx, statusStyle, NEXT_STATUS, FINAL_STATUSES, canSetOrderStatus } from '../__components/statusBadge';
 import { Alert } from '../../Other/UI/Alert/Alert';
 
 const PAGE_SIZE = 20;
@@ -117,7 +119,8 @@ function OrderListStatusControl({ order, isDark }) {
     const style = statusStyle(order.status, isDark);
 
     const isFinal = isFinalStatus(order.status);
-    const nextStatuses = effectiveNextStatuses(order.status);
+    // Omborchidan boshqa rollar «Ortildi» ga o‘tkaza olmaydi
+    const nextStatuses = effectiveNextStatuses(order.status).filter((s) => canSetOrderStatus(role, s));
 
     if (role === ROLES.ZAYAVKACHI) {
         const Icon = STATUS_ICON[order.status];
@@ -134,6 +137,10 @@ function OrderListStatusControl({ order, isDark }) {
 
     const changeStatus = async (nextStatus) => {
         if (!nextStatus || nextStatus === order.status) return;
+        if (!canSetOrderStatus(role, nextStatus)) {
+            Alert('Buyurtmani «Ortildi» holatiga faqat omborchi o‘tkaza oladi', 'error');
+            return;
+        }
         setAction(nextStatus);
         try {
             if (nextStatus === 'LOADED') {
@@ -348,14 +355,16 @@ export default function ZayavkachiOrders() {
 
     const { data, isFetching, isError, error } = useGetSalesOrdersQuery(queryArgs);
 
-    const rawList = Array.isArray(data)
-        ? data
-        : data?.items ?? data?.data ?? [];
-    const orders = Array.isArray(rawList) ? rawList : [];
     const pagination = (data && typeof data === 'object' && data.pagination) || {};
-
-    const totalPages = Number.isFinite(pagination?.totalPages) ? pagination.totalPages : 0;
     const totalElements = Number.isFinite(pagination?.totalElements) ? pagination.totalElements : 0;
+    const { items: orders, hasMore, sentinelRef, loadingMore, loadMore } = useInfiniteList({
+        items: data?.items,
+        pagination,
+        page,
+        setPage,
+        isFetching,
+        resetKey: `${tab}|${statusFilter}|${dateFrom}|${dateTo}`,
+    });
 
     const restrictToActive = tab === 'active' && !statusFilter;
 
@@ -580,7 +589,7 @@ export default function ZayavkachiOrders() {
                     </div>
                 </div>
 
-                {isFetching ? (
+                {isFetching && orders.length === 0 ? (
                     renderLoading()
                 ) : isError ? (
                     <div className={`flex flex-col items-center gap-2 py-14 ${muted}`}>
@@ -613,6 +622,8 @@ export default function ZayavkachiOrders() {
                             <tbody className={`divide-y ${divider}`}>
                                 {filtered.map((o, idx) => {
                                     const editable = o?.status === 'CREATED';
+                                    // O‘chirish: yangi va bekor qilingan buyurtmalar uchun
+                                    const deletable = o?.status === 'CREATED' || o?.status === 'REJECTED';
                                     const canExpand = o?.status === 'CONFIRMED' || o?.status === 'REJECTED';
                                     const isExpanded = expandedId === o?.id;
                                     return (
@@ -622,7 +633,7 @@ export default function ZayavkachiOrders() {
                                                 title="Batafsil ko'rish uchun bosing"
                                                 className={`cursor-pointer transition-colors ${rowHov}`}
                                             >
-                                                <td className={`px-5 py-3 text-xs ${muted}`}>{page * PAGE_SIZE + idx + 1}</td>
+                                                <td className={`px-5 py-3 text-xs ${muted}`}>{idx + 1}</td>
                                                 <td className="px-5 py-3">
                                                     <p className={`font-semibold ${head}`}>{o?.customerName || '—'}</p>
                                                     {o?.summary && <p className={`truncate max-w-xs text-xs ${muted}`}>{o.summary}</p>}
@@ -664,11 +675,11 @@ export default function ZayavkachiOrders() {
                                                         <button type="button" onClick={() => navigate(`${ordersPath}/${o.id}/edit`)}
                                                             disabled={!editable}
                                                             aria-label="Tahrirlash"
-                                                            title={editable ? 'Tahrirlash' : "Faqat “Yaratilgan” holatidagi buyurtma tahrirlanadi"}
+                                                            title={editable ? 'Tahrirlash' : "Faqat “Yangi” holatidagi buyurtma tahrirlanadi"}
                                                             className={`${iconBtn} disabled:cursor-not-allowed disabled:opacity-30`}>
                                                             <LuPencil size={16} />
                                                         </button>
-                                                        <DeleteOrder order={o} disabled={!editable} />
+                                                        <DeleteOrder order={o} disabled={!deletable} />
                                                     </div>
                                                 </td>
                                             </tr>
@@ -683,22 +694,9 @@ export default function ZayavkachiOrders() {
                     </div>
                 )}
 
-                {totalPages > 1 && (
-                    <div className={`flex items-center justify-between gap-3 border-t px-5 py-3.5 ${line}`}>
-                        <p className={`text-xs ${muted}`}>
-                            {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, totalElements)} / {totalElements}
-                        </p>
-                        <div className="flex items-center gap-1.5">
-                            <button type="button" disabled={page === 0} onClick={() => setPage((p) => Math.max(0, p - 1))}
-                                className={`flex h-8 w-8 items-center justify-center rounded-lg border transition-colors disabled:opacity-40 ${isDark ? 'border-[#334155] hover:bg-[#334155]' : 'border-[#e2e8f0] hover:bg-[#f1f5f9]'}`}>
-                                <LuChevronLeft size={14} />
-                            </button>
-                            <span className={`px-3 text-sm font-semibold ${head}`}>{page + 1} / {totalPages}</span>
-                            <button type="button" disabled={page >= totalPages - 1} onClick={() => setPage((p) => p + 1)}
-                                className={`flex h-8 w-8 items-center justify-center rounded-lg border transition-colors disabled:opacity-40 ${isDark ? 'border-[#334155] hover:bg-[#334155]' : 'border-[#e2e8f0] hover:bg-[#f1f5f9]'}`}>
-                                <LuChevronRight size={14} />
-                            </button>
-                        </div>
+                {!isError && orders.length > 0 && (
+                    <div className={`border-t ${line}`}>
+                        <InfiniteSentinel sentinelRef={sentinelRef} hasMore={hasMore} loadingMore={loadingMore} loaded={orders.length} total={totalElements} unit="ta buyurtma" onLoadMore={loadMore} />
                     </div>
                 )}
             </div>

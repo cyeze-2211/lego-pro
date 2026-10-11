@@ -1,7 +1,7 @@
 import { Fragment, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-    LuClipboardList, LuSearch, LuChevronLeft, LuChevronRight,
+    LuClipboardList, LuSearch,
     LuX, LuEye, LuPackage, LuSlidersHorizontal, LuChevronDown,
     LuInbox, LuCircleCheckBig, LuBan,
 } from 'react-icons/lu';
@@ -10,6 +10,8 @@ import { formatNumber } from '../../ui/number-format';
 import { useGetSalesOrdersQuery } from '../../../store/services/salesOrder.api';
 import { useGetWarehousesQuery } from '../../../store/services/warehouse.api';
 import { STATUS_LABEL, statusCx } from '../../Zayavkachi/__components/statusBadge';
+import { useInfiniteList } from '../../ui/useInfiniteList';
+import InfiniteSentinel from '../../ui/InfiniteSentinel';
 
 const PAGE_SIZE = 20;
 
@@ -103,11 +105,16 @@ export default function StaffOrders() {
 
     const { data, isFetching, isError, error } = useGetSalesOrdersQuery(queryArgs);
 
-    const orders = data?.items ?? [];
     const pagination = data?.pagination ?? {};
-
-    const totalPages = Number.isFinite(pagination?.totalPages) ? pagination.totalPages : 0;
     const totalElements = Number.isFinite(pagination?.totalElements) ? pagination.totalElements : 0;
+    const { items: orders, hasMore, sentinelRef, loadingMore, loadMore } = useInfiniteList({
+        items: data?.items,
+        pagination,
+        page,
+        setPage,
+        isFetching,
+        resetKey: `${tab}|${statusFilter}|${warehouseFilter}|${dateFrom}|${dateTo}`,
+    });
 
     /* ── Client-side filter: active tab → только CREATED/LOADED ── */
     const restrictToActive = tab === 'active' && !statusFilter;
@@ -367,7 +374,7 @@ export default function StaffOrders() {
                     </div>
                 </div>
 
-                {isFetching ? (
+                {isFetching && orders.length === 0 ? (
                     renderLoading()
                 ) : isError ? (
                     <div className={`flex flex-col items-center gap-2 py-14 ${muted}`}>
@@ -405,7 +412,7 @@ export default function StaffOrders() {
                                             className={`cursor-pointer transition-colors ${rowHov}`}
                                         >
                                             <td className={`px-5 py-3 text-center text-xs tabular-nums ${muted}`}>
-                                                {page * PAGE_SIZE + idx + 1}
+                                                {idx + 1}
                                             </td>
                                             <td className="px-5 py-3">
                                                 <p className={`truncate font-semibold ${head}`}>{o.customerName || '—'}</p>
@@ -462,7 +469,7 @@ export default function StaffOrders() {
                                     <div className="flex items-start justify-between gap-2 mb-2">
                                         <div className="flex items-center gap-2 min-w-0">
                                             <span className={`text-[11px] tabular-nums shrink-0 ${muted}`}>
-                                                #{page * PAGE_SIZE + idx + 1}
+                                                #{idx + 1}
                                             </span>
                                             <p className={`font-semibold text-sm truncate ${head}`}>
                                                 {o.customerName || '—'}
@@ -516,41 +523,9 @@ export default function StaffOrders() {
                     </>
                 )}
 
-                {totalPages > 1 && (
-                    <div className={`flex items-center justify-between gap-3 border-t px-5 py-3.5 ${line}`}>
-                        <p className={`text-xs ${muted}`}>
-                            {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, totalElements)} /{' '}
-                            {totalElements}
-                        </p>
-                        <div className="flex items-center gap-1.5">
-                            <button
-                                type="button"
-                                disabled={page === 0}
-                                onClick={() => setPage((p) => Math.max(0, p - 1))}
-                                className={`flex h-8 w-8 items-center justify-center rounded-lg border transition-colors disabled:opacity-40 ${
-                                    isDark
-                                        ? 'border-[#334155] hover:bg-[#334155]'
-                                        : 'border-[#e2e8f0] hover:bg-[#f1f5f9]'
-                                }`}
-                            >
-                                <LuChevronLeft size={14} />
-                            </button>
-                            <span className={`px-3 text-sm font-semibold ${head}`}>
-                                {page + 1} / {totalPages}
-                            </span>
-                            <button
-                                type="button"
-                                disabled={page >= totalPages - 1}
-                                onClick={() => setPage((p) => p + 1)}
-                                className={`flex h-8 w-8 items-center justify-center rounded-lg border transition-colors disabled:opacity-40 ${
-                                    isDark
-                                        ? 'border-[#334155] hover:bg-[#334155]'
-                                        : 'border-[#e2e8f0] hover:bg-[#f1f5f9]'
-                                }`}
-                            >
-                                <LuChevronRight size={14} />
-                            </button>
-                        </div>
+{!isError && orders.length > 0 && (
+                    <div className={`border-t ${line}`}>
+                        <InfiniteSentinel sentinelRef={sentinelRef} hasMore={hasMore} loadingMore={loadingMore} loaded={orders.length} total={totalElements} unit="ta buyurtma" onLoadMore={loadMore} />
                     </div>
                 )}
             </div>

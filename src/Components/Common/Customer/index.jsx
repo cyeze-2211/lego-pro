@@ -10,8 +10,6 @@ import {
     VStack,
 } from '@chakra-ui/react';
 import {
-    LuChevronLeft,
-    LuChevronRight,
     LuPhone,
     LuSearch,
     LuUsers,
@@ -34,6 +32,8 @@ import Loading from '../../Other/UI/Loadings/Loading';
 import EmptyData from '../../Other/UI/NoData/EmptyData';
 import FormControl from '../../ui/FormControl';
 import { formatNumber } from '../../ui/number-format';
+import { useInfiniteList } from '../../ui/useInfiniteList';
+import InfiniteSentinel from '../../ui/InfiniteSentinel';
 
 const PAGE_SIZE = 12;
 
@@ -56,7 +56,7 @@ export default function Customer() {
     const [regionId, setRegionId] = useState('');
     const [page, setPage] = useState(0);
     const { data: regions = [], isError: regionsError } = useGetRegionsQuery();
-    const { data: customerResult, isLoading, error } = useGetCustomersQuery({
+    const { data: customerResult, isLoading, isFetching, error } = useGetCustomersQuery({
         name: query || undefined,
         regionId: regionId || undefined,
         page,
@@ -66,9 +66,15 @@ export default function Customer() {
     const hasFilter = Boolean(query || regionId);
     const { isDark, pageBg, cardBg, cardBorder, textColor, subtitleColor, accentColor } = useAppTheme();
 
-    const customers = customerResult?.items || [];
     const pagination = customerResult?.pagination;
-    const totalPages = pagination?.totalPages || 0;
+    const { items: customers, hasMore, sentinelRef, loadingMore, loadMore } = useInfiniteList({
+        items: customerResult?.items,
+        pagination,
+        page,
+        setPage,
+        isFetching,
+        resetKey: `${query}|${regionId}`,
+    });
 
     const tableBg = isDark ? BRAND_COLORS.darkCardBg : cardBg;
     const tableHeaderBg = isDark ? tableBg : '#F8FAFC';
@@ -247,7 +253,7 @@ export default function Customer() {
                 </HStack>
             )}
 
-            {isLoading ? (
+            {(isLoading || (isFetching && customers.length === 0)) ? (
                 <Loading />
             ) : error ? (
                 <Box p={8} textAlign="center" color={isDark ? 'red.300' : 'red.600'}>Ma&apos;lumotlarni yuklashda xatolik</Box>
@@ -291,7 +297,7 @@ export default function Customer() {
                                         _hover={{ bg: isDark ? 'rgba(250, 204, 21, 0.06)' : '#FFFBEB' }}
                                     >
                                         <Table.Cell {...cellBorder} textAlign="center" color={subtitleColor} fontSize="sm">
-                                            {page * PAGE_SIZE + index + 1}
+                                            {index + 1}
                                         </Table.Cell>
 
                                         {/* Mijoz */}
@@ -411,17 +417,7 @@ export default function Customer() {
                         </Table.Root>
                     </Box>
 
-                    {totalPages > 1 && (
-                        <HStack justify="center" mt={8} gap={3}>
-                            <Button size="sm" variant="outline" disabled={page === 0} onClick={() => setPage((value) => value - 1)}>
-                                <LuChevronLeft />
-                            </Button>
-                            <Text color={subtitleColor} fontSize="sm">{page + 1} / {totalPages}</Text>
-                            <Button size="sm" variant="outline" disabled={page >= totalPages - 1} onClick={() => setPage((value) => value + 1)}>
-                                <LuChevronRight />
-                            </Button>
-                        </HStack>
-                    )}
+                    <InfiniteSentinel sentinelRef={sentinelRef} hasMore={hasMore} loadingMore={loadingMore} loaded={customers.length} total={pagination?.totalElements ?? customers.length} unit="ta mijoz" onLoadMore={loadMore} />
                 </>
             )}
         </Box>

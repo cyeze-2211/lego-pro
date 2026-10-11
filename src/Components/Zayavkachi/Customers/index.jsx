@@ -10,7 +10,7 @@ import {
     VStack,
 } from '@chakra-ui/react';
 import {
-    LuChevronLeft, LuChevronRight, LuPhone, LuSearch,
+    LuPhone, LuSearch,
     LuUsers, LuX, LuClock3, LuTriangleAlert, LuCalendarCheck,
     LuCalendarDays, LuStickyNote, LuSlidersHorizontal, LuChevronDown,
     LuChevronUp, LuRotateCcw, LuArrowUp, LuArrowDown, LuArrowUpDown, LuMapPin,
@@ -25,6 +25,8 @@ import CustomerEdit from '../../Common/Customer/__components/Edit';
 import Loading from '../../Other/UI/Loadings/Loading';
 import EmptyData from '../../Other/UI/NoData/EmptyData';
 import { formatNumber } from '../../ui/number-format';
+import { useInfiniteList } from '../../ui/useInfiniteList';
+import InfiniteSentinel from '../../ui/InfiniteSentinel';
 
 const DEFAULT_PAGE_SIZE = 20;
 const EMPTY_CUSTOMERS = [];
@@ -162,7 +164,7 @@ export default function ZayavkachiCustomers() {
     const serverSortDir = activeSortOption.server ? sortDir : DEFAULT_SORT_DIR;
 
     const { data: regions = [], isError: regionsError } = useGetRegionsQuery();
-    const { data: customerResult, isLoading, error } = useGetCustomersQuery({
+    const { data: customerResult, isLoading, isFetching, error } = useGetCustomersQuery({
         name: query || undefined,
         regionId: regionId || undefined,
         page,
@@ -172,7 +174,16 @@ export default function ZayavkachiCustomers() {
 
     const { isDark, pageBg, cardBg, cardBorder, textColor, subtitleColor, accentColor } = useAppTheme();
 
-    const rawCustomers = customerResult?.items ?? EMPTY_CUSTOMERS;
+    const pagination = customerResult?.pagination;
+    const { items: loadedCustomers, hasMore, sentinelRef, loadingMore, loadMore } = useInfiniteList({
+        items: customerResult?.items,
+        pagination,
+        page,
+        setPage,
+        isFetching,
+        resetKey: `${query}|${regionId}|${pageSize}|${serverSortKey}|${serverSortDir}`,
+    });
+    const rawCustomers = loadedCustomers.length ? loadedCustomers : EMPTY_CUSTOMERS;
 
     /* ── Клиентская сортировка (для phone / balance) ── */
     const customers = useMemo(() => {
@@ -180,8 +191,6 @@ export default function ZayavkachiCustomers() {
         return applyClientSort(rawCustomers, sortKey, sortDir);
     }, [rawCustomers, isClientSort, sortKey, sortDir]);
 
-    const pagination = customerResult?.pagination;
-    const totalPages = pagination?.totalPages || 0;
     const totalElements = pagination?.totalElements ?? rawCustomers.length;
     const tableBg = isDark ? BRAND_COLORS.darkCardBg : cardBg;
     const tableHeaderBg = isDark ? tableBg : '#F8FAFC';
@@ -436,7 +445,7 @@ export default function ZayavkachiCustomers() {
             </Box>
 
             {/* ── Content ── */}
-            {isLoading ? (
+            {(isLoading || (isFetching && rawCustomers.length === 0)) ? (
                 <Loading />
             ) : error ? (
                 <Box p={8} textAlign="center" color={isDark ? 'red.300' : 'red.600'}>Ma&apos;lumotlarni yuklashda xatolik</Box>
@@ -533,7 +542,7 @@ export default function ZayavkachiCustomers() {
                                     return (
                                         <Table.Row key={customer.id} bg={tableBg} _hover={{ bg: isDark ? 'rgba(250, 204, 21, 0.06)' : '#FFFBEB' }}>
                                             <Table.Cell borderWidth="0.5px" borderColor={tableBorder} textAlign="center" color={subtitleColor}>
-                                                {page * pageSize + index + 1}
+                                                {index + 1}
                                             </Table.Cell>
 
                                             <Table.Cell borderWidth="0.5px" borderColor={tableBorder}>
@@ -612,20 +621,7 @@ export default function ZayavkachiCustomers() {
                         </Table.Root>
                     </Box>
 
-                    {/* ── Pagination ── */}
-                    {totalPages > 1 && (
-                        <HStack justify="center" mt={6} gap={3}>
-                            <Button size="sm" variant="outline" disabled={page === 0} onClick={() => setPage((v) => v - 1)} aria-label="Oldingi sahifa">
-                                <LuChevronLeft />
-                            </Button>
-                            <Text color={subtitleColor} fontSize="sm" fontWeight="semibold">
-                                {page + 1} / {totalPages}
-                            </Text>
-                            <Button size="sm" variant="outline" disabled={page >= totalPages - 1} onClick={() => setPage((v) => v + 1)} aria-label="Keyingi sahifa">
-                                <LuChevronRight />
-                            </Button>
-                        </HStack>
-                    )}
+                    <InfiniteSentinel sentinelRef={sentinelRef} hasMore={hasMore} loadingMore={loadingMore} loaded={rawCustomers.length} total={totalElements} unit="ta mijoz" onLoadMore={loadMore} />
                 </>
             )}
         </Box>

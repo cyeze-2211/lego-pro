@@ -27,7 +27,6 @@ import { useAppTheme } from '../../../theme/tokens';
 import {
     useGetSalesOrderByIdQuery,
     useGetSalesOrdersQuery,
-    useLoadSalesOrderMutation,
     useRejectSalesOrderMutation,
     useUpdateSalesOrderPricesMutation,
     useConfirmSalesOrderMutation,
@@ -202,7 +201,6 @@ export default function BuxgalterOrderDetail() {
     );
     const [updatePrices, { isLoading: isSavingPrices }] = useUpdateSalesOrderPricesMutation();
     const [confirmOrder, { isLoading: isConfirmingOrder }] = useConfirmSalesOrderMutation();
-    const [loadOrder, { isLoading: isLoadingOrder }] = useLoadSalesOrderMutation();
     const [rejectOrder, { isLoading: isRejectingOrder }] = useRejectSalesOrderMutation();
     const [priceDraft, setPriceDraft] = useState({});
     const [isEditingPrices, setIsEditingPrices] = useState(false);
@@ -326,15 +324,6 @@ export default function BuxgalterOrderDetail() {
         }
     };
 
-    const loadCurrentOrder = async () => {
-        try {
-            await loadOrder(order.id).unwrap();
-            Alert('Buyurtma omborga yuklashga o‘tkazildi', 'success');
-        } catch (loadError) {
-            Alert(loadError?.data?.message || 'Buyurtmani yuklashda xatolik', 'error');
-        }
-    };
-
     const rejectCurrentOrder = async () => {
         if (!window.confirm('Ushbu buyurtmani rad etishni tasdiqlaysizmi?')) return;
         try {
@@ -415,7 +404,7 @@ export default function BuxgalterOrderDetail() {
                             <button
                                 type="button"
                                 onClick={rejectCurrentOrder}
-                                disabled={isLoadingOrder || isRejectingOrder}
+                                disabled={isRejectingOrder}
                                 className="inline-flex items-center gap-2 rounded-xl border border-rose-500/30 px-4 py-2.5 text-sm font-bold text-rose-500 transition hover:bg-rose-500/10 disabled:opacity-50"
                             >
                                 <LuCircleX size={16} />

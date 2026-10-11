@@ -1,16 +1,19 @@
 import { useEffect, useState } from 'react';
 import { Box, Button, HStack, Heading, Table, Text } from '@chakra-ui/react';
 import { Layers3 } from 'lucide-react';
-import { LuChevronLeft, LuChevronRight, LuSearch, LuX } from 'react-icons/lu';
+import { LuGift, LuSearch, LuX } from 'react-icons/lu';
 import { useGetProductCategoriesQuery } from '../../../store/services/productCategory.api';
 import { BRAND_COLORS, useAppTheme } from '../../../theme/tokens';
 import { Alert } from '../../Other/UI/Alert/Alert';
 import Loading from '../../Other/UI/Loadings/Loading';
 import EmptyData from '../../Other/UI/NoData/EmptyData';
 import FormControl from '../../ui/FormControl';
+import { formatNumber } from '../../ui/number-format';
 import Create from './__components/Create';
 import Edit from './__components/Edit';
 import Delete from './__components/Delete';
+import { useInfiniteList } from '../../ui/useInfiniteList';
+import InfiniteSentinel from '../../ui/InfiniteSentinel';
 
 const PAGE_SIZE = 20;
 
@@ -18,15 +21,21 @@ export default function ProductCategory() {
     const [search, setSearch] = useState('');
     const [query, setQuery] = useState('');
     const [page, setPage] = useState(0);
-    const { data: result, isLoading, error } = useGetProductCategoriesQuery({
+    const { data: result, isLoading, isFetching, error } = useGetProductCategoriesQuery({
         name: query || undefined,
         page,
         size: PAGE_SIZE,
     });
     const { isDark, pageBg, cardBg, cardBorder, textColor, subtitleColor, accentColor } = useAppTheme();
 
-    const categories = result?.items ?? [];
-    const totalPages = result?.pagination?.totalPages ?? 0;
+    const { items: categories, hasMore, sentinelRef, loadingMore, loadMore } = useInfiniteList({
+        items: result?.items,
+        pagination: result?.pagination,
+        page,
+        setPage,
+        isFetching,
+        resetKey: JSON.stringify({ name: query || undefined }),
+    });
     const tableBg = isDark ? BRAND_COLORS.darkCardBg : cardBg;
     const tableHeaderBg = isDark ? tableBg : '#F8FAFC';
     const tableBorder = isDark ? cardBorder : '#CBD5E1';
@@ -79,20 +88,30 @@ export default function ProductCategory() {
                         <Table.Root size="md" interactive bg={tableBg} borderCollapse="collapse">
                             <Table.Header bg={tableHeaderBg}>
                                 <Table.Row bg={tableHeaderBg}>
-                                    {['№', 'Kategoriya nomi', 'Yaratilgan sana', 'Yangilangan sana', 'Amallar'].map((label) => (
-                                        <Table.ColumnHeader key={label} textAlign={label === '№' || label === 'Amallar' ? 'center' : undefined} bg={tableHeaderBg} borderWidth="0.5px" borderColor={tableBorder} color={subtitleColor}>{label}</Table.ColumnHeader>
+                                    {['№', 'Kategoriya nomi', 'Bonus narx (1 dona)', 'Yaratilgan sana', 'Yangilangan sana', 'Amallar'].map((label) => (
+                                        <Table.ColumnHeader key={label} textAlign={label === '№' || label === 'Amallar' ? 'center' : label.startsWith('Bonus') ? 'right' : undefined} bg={tableHeaderBg} borderWidth="0.5px" borderColor={tableBorder} color={subtitleColor}>{label}</Table.ColumnHeader>
                                     ))}
                                 </Table.Row>
                             </Table.Header>
                             <Table.Body bg={tableBg}>
                                 {categories.map((category, index) => (
                                     <Table.Row key={category.id} bg={tableBg} _hover={{ bg: isDark ? 'rgba(250, 204, 21, 0.06)' : '#FFFBEB' }}>
-                                        <Table.Cell textAlign="center" color={subtitleColor} borderWidth="0.5px" borderColor={tableBorder}>{page * PAGE_SIZE + index + 1}</Table.Cell>
+                                        <Table.Cell textAlign="center" color={subtitleColor} borderWidth="0.5px" borderColor={tableBorder}>{index + 1}</Table.Cell>
                                         <Table.Cell borderWidth="0.5px" borderColor={tableBorder}>
                                             <HStack gap={3}>
                                                 <Box p={2} borderRadius="lg" bg={isDark ? 'rgba(250,204,21,.12)' : '#FEF3C7'} color={accentColor}><Layers3 size={18} /></Box>
                                                 <Text fontWeight="semibold" color={textColor}>{category.name}</Text>
                                             </HStack>
+                                        </Table.Cell>
+                                        <Table.Cell textAlign="right" whiteSpace="nowrap" borderWidth="0.5px" borderColor={tableBorder}>
+                                            {Number(category.bonusPrice) > 0 ? (
+                                                <HStack gap={1.5} justify="flex-end">
+                                                    <Box p={1} borderRadius="md" bg={isDark ? 'rgba(16, 185, 129, 0.15)' : '#D1FAE5'} color={isDark ? 'green.300' : 'green.600'} display="inline-flex"><LuGift size={12} /></Box>
+                                                    <Text fontWeight="bold" fontSize="sm" color={textColor}>{formatNumber(category.bonusPrice)} <Text as="span" fontSize="xs" color={subtitleColor} fontWeight="normal">so‘m</Text></Text>
+                                                </HStack>
+                                            ) : (
+                                                <Text fontSize="sm" color={subtitleColor}>—</Text>
+                                            )}
                                         </Table.Cell>
                                         <Table.Cell color={subtitleColor} borderWidth="0.5px" borderColor={tableBorder}>{category.createdAt ? new Date(category.createdAt).toLocaleString() : '—'}</Table.Cell>
                                         <Table.Cell color={subtitleColor} borderWidth="0.5px" borderColor={tableBorder}>{category.lastModifiedAt ? new Date(category.lastModifiedAt).toLocaleString() : '—'}</Table.Cell>
@@ -104,13 +123,7 @@ export default function ProductCategory() {
                             </Table.Body>
                         </Table.Root>
                     </Box>
-                    {totalPages > 1 && (
-                        <HStack justify="center" mt={8} gap={3}>
-                            <Button size="sm" variant="outline" disabled={page === 0} onClick={() => setPage(page - 1)} aria-label="Oldingi sahifa"><LuChevronLeft /></Button>
-                            <Text color={subtitleColor} fontSize="sm">{page + 1} / {totalPages}</Text>
-                            <Button size="sm" variant="outline" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)} aria-label="Keyingi sahifa"><LuChevronRight /></Button>
-                        </HStack>
-                    )}
+                    <InfiniteSentinel sentinelRef={sentinelRef} hasMore={hasMore} loadingMore={loadingMore} loaded={categories.length} total={result?.pagination?.totalElements ?? categories.length} unit="ta kategoriya" onLoadMore={loadMore} />
                 </>
             )}
         </Box>

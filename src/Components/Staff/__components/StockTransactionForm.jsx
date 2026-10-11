@@ -255,7 +255,8 @@ export default function StockTransactionForm({ action }) {
 
     /* Pachka va dona — ikkalasi birga kiritiladi, jami dona avtomatik hisoblanadi */
     const setField = (id, field, val) => {
-        const n = parseInt(val, 10);
+        // Bo‘sh maydon = 0 (foydalanuvchi «0» ni o‘chirib, keyin raqam tera olsin — «012» chiqmasin)
+        const n = val === '' ? 0 : parseInt(val, 10);
         if (Number.isNaN(n) || n < 0) return;
         setItems((p) => p.map((i) => (i.productId === id ? { ...i, [field]: n } : i)));
     };
@@ -709,7 +710,7 @@ export default function StockTransactionForm({ action }) {
                                                         className={`flex h-11 w-11 items-center justify-center transition-colors disabled:cursor-not-allowed ${isDark ? 'bg-[#1e293b] hover:bg-[#334155] text-[#cbd5e1]' : 'bg-[#f8fafc] hover:bg-[#f1f5f9] text-[#475569]'}`}>
                                                         <LuMinus size={15} />
                                                     </button>
-                                                    <input type="number" min={0} value={item.packs} disabled={!item.piecesPerPack}
+                                                    <input type="number" min={0} value={item.packs || ''} placeholder="0" disabled={!item.piecesPerPack}
                                                         onChange={(e) => setField(item.productId, 'packs', e.target.value)}
                                                         className={`h-11 w-20 border-x text-center text-base font-bold outline-none disabled:cursor-not-allowed ${isDark ? 'border-[#334155] bg-[#0f172a] text-white' : 'border-[#e2e8f0] bg-white text-[#0f172a]'}`}
                                                     />
@@ -718,9 +719,7 @@ export default function StockTransactionForm({ action }) {
                                                         <LuPlus size={15} />
                                                     </button>
                                                 </div>
-                                                {item.piecesPerPack && item.packs > 0 && (
-                                                    <p className="mt-1 text-[11px] text-amber-400">= {item.packs * item.piecesPerPack} dona</p>
-                                                )}
+                                          
                                             </td>
 
                                             {/* Dona */}
@@ -730,7 +729,7 @@ export default function StockTransactionForm({ action }) {
                                                         className={`flex h-11 w-11 items-center justify-center transition-colors disabled:cursor-not-allowed ${isDark ? 'bg-[#1e293b] hover:bg-[#334155] text-[#cbd5e1]' : 'bg-[#f8fafc] hover:bg-[#f1f5f9] text-[#475569]'}`}>
                                                         <LuMinus size={15} />
                                                     </button>
-                                                    <input type="number" min={0} value={item.pieces}
+                                                    <input type="number" min={0} value={item.pieces || ''} placeholder="0"
                                                         onChange={(e) => setField(item.productId, 'pieces', e.target.value)}
                                                         className={`h-11 w-20 border-x text-center text-base font-bold outline-none disabled:cursor-not-allowed ${isDark ? 'border-[#334155] bg-[#0f172a] text-white' : 'border-[#e2e8f0] bg-white text-[#0f172a]'}`}
                                                     />

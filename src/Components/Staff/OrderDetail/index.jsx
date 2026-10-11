@@ -684,7 +684,8 @@ export default function StaffOrderDetail() {
                                                                     type="number"
                                                                     min="0"
                                                                     step="1"
-                                                                    value={loadedPacks}
+                                                                    value={loadedPacks || ''}
+                                                                    placeholder="0"
                                                                     onChange={(e) => setScannedPacksValue(item, e.target.value)}
                                                                     aria-label={`${item.productName} pachka soni`}
                                                                     className={`h-9 w-16 rounded-lg border text-center text-sm font-extrabold tabular-nums outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 ${
@@ -730,7 +731,8 @@ export default function StaffOrderDetail() {
                                                                     type="number"
                                                                     min="0"
                                                                     step="1"
-                                                                    value={loadedPieces}
+                                                                    value={loadedPieces || ''}
+                                                                    placeholder="0"
                                                                     onChange={(e) => setScannedPiecesValue(item, e.target.value)}
                                                                     aria-label={`${item.productName} dona soni`}
                                                                     className={`h-9 w-16 rounded-lg border text-center text-sm font-extrabold tabular-nums outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 ${

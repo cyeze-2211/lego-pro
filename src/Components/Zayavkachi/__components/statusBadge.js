@@ -1,3 +1,4 @@
+import { PRODUCT_WAREHOUSE_ROLES } from '../../../app/permissions/roles';
 // Zayavka holatlari — butun ERP uchun yagona manba.
 // Backend holatlari: CREATED → LOADED → CONFIRMED, CREATED → REJECTED, CONFIRMED → RETURNED.
 
@@ -55,3 +56,13 @@ export const NEXT_STATUS = {
 
 // Yakuniy (o‘zgartirib bo‘lmaydigan) holatlar
 export const FINAL_STATUSES = ['CONFIRMED', 'REJECTED', 'RETURNED'];
+
+/** «Ortildi» (LOADED) holatiga faqat mahsulot omborchisi o‘tkaza oladi. */
+export const canSetOrderStatus = (role, nextStatus) => {
+    if (nextStatus === 'LOADED') return PRODUCT_WAREHOUSE_ROLES.includes(role);
+    return true;
+};
+
+/** Rol uchun ruxsat etilgan keyingi holatlar */
+export const nextStatusesForRole = (status, role) =>
+    (NEXT_STATUS[status] ?? []).filter((next) => canSetOrderStatus(role, next));

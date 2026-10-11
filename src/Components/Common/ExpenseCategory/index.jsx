@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Box, Button, HStack, Heading, Table, Text } from '@chakra-ui/react';
 import { ReceiptText } from 'lucide-react';
-import { LuChevronLeft, LuChevronRight, LuSearch, LuX } from 'react-icons/lu';
+import { LuSearch, LuX } from 'react-icons/lu';
 import { useGetExpenseCategoriesQuery } from '../../../store/services/expenseCategory.api';
 import { BRAND_COLORS, useAppTheme } from '../../../theme/tokens';
 import { Alert } from '../../Other/UI/Alert/Alert';
@@ -11,6 +11,8 @@ import FormControl from '../../ui/FormControl';
 import Create from './__components/Create';
 import Edit from './__components/Edit';
 import Delete from './__components/Delete';
+import { useInfiniteList } from '../../ui/useInfiniteList';
+import InfiniteSentinel from '../../ui/InfiniteSentinel';
 
 const PAGE_SIZE = 20;
 
@@ -18,14 +20,20 @@ export default function ExpenseCategory() {
     const [search, setSearch] = useState('');
     const [query, setQuery] = useState('');
     const [page, setPage] = useState(0);
-    const { data: result, isLoading, error } = useGetExpenseCategoriesQuery({
+    const { data: result, isLoading, isFetching, error } = useGetExpenseCategoriesQuery({
         name: query || undefined,
         page,
         size: PAGE_SIZE,
     });
     const { isDark, pageBg, cardBg, cardBorder, textColor, subtitleColor, accentColor } = useAppTheme();
-    const categories = result?.items ?? [];
-    const totalPages = result?.pagination?.totalPages ?? 0;
+    const { items: categories, hasMore, sentinelRef, loadingMore, loadMore } = useInfiniteList({
+        items: result?.items,
+        pagination: result?.pagination,
+        page,
+        setPage,
+        isFetching,
+        resetKey: JSON.stringify({ name: query || undefined }),
+    });
     const tableBg = isDark ? BRAND_COLORS.darkCardBg : cardBg;
     const tableHeaderBg = isDark ? tableBg : '#F8FAFC';
     const tableBorder = isDark ? cardBorder : '#CBD5E1';
@@ -86,7 +94,7 @@ export default function ExpenseCategory() {
                             <Table.Body bg={tableBg}>
                                 {categories.map((category, index) => (
                                     <Table.Row key={category.id} bg={tableBg} _hover={{ bg: isDark ? 'rgba(250, 204, 21, 0.06)' : '#FFFBEB' }}>
-                                        <Table.Cell textAlign="center" color={subtitleColor} borderWidth="0.5px" borderColor={tableBorder}>{page * PAGE_SIZE + index + 1}</Table.Cell>
+                                        <Table.Cell textAlign="center" color={subtitleColor} borderWidth="0.5px" borderColor={tableBorder}>{index + 1}</Table.Cell>
                                         <Table.Cell borderWidth="0.5px" borderColor={tableBorder}>
                                             <HStack gap={3}>
                                                 <Box p={2} borderRadius="lg" bg={isDark ? 'rgba(250,204,21,.12)' : '#FEF3C7'} color={accentColor}><ReceiptText size={18} /></Box>
@@ -101,13 +109,7 @@ export default function ExpenseCategory() {
                             </Table.Body>
                         </Table.Root>
                     </Box>
-                    {totalPages > 1 && (
-                        <HStack justify="center" mt={8} gap={3}>
-                            <Button size="sm" variant="outline" disabled={page === 0} onClick={() => setPage(page - 1)} aria-label="Oldingi sahifa"><LuChevronLeft /></Button>
-                            <Text color={subtitleColor} fontSize="sm">{page + 1} / {totalPages}</Text>
-                            <Button size="sm" variant="outline" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)} aria-label="Keyingi sahifa"><LuChevronRight /></Button>
-                        </HStack>
-                    )}
+                    <InfiniteSentinel sentinelRef={sentinelRef} hasMore={hasMore} loadingMore={loadingMore} loaded={categories.length} total={result?.pagination?.totalElements ?? categories.length} unit="ta kategoriya" onLoadMore={loadMore} />
                 </>
             )}
         </Box>

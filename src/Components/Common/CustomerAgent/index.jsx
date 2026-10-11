@@ -11,8 +11,6 @@ import {
     VStack,
 } from '@chakra-ui/react';
 import {
-    LuChevronLeft,
-    LuChevronRight,
     LuPhone,
     LuSearch,
     LuX,
@@ -21,6 +19,8 @@ import {
     LuSend,
 } from 'react-icons/lu';
 import { useGetCustomerAgentsQuery } from '../../../store/services/customerAgent.api';
+import { useInfiniteList } from '../../ui/useInfiniteList';
+import InfiniteSentinel from '../../ui/InfiniteSentinel';
 import { BRAND_COLORS, useAppTheme } from '../../../theme/tokens';
 import { Alert } from '../../Other/UI/Alert/Alert';
 import Create from './__components/Create';
@@ -66,16 +66,22 @@ export default function CustomerAgent() {
         return () => clearTimeout(t);
     }, [phoneSearch]);
 
-    const { data, isLoading, error } = useGetCustomerAgentsQuery({
+    const { data, isLoading, isFetching, error } = useGetCustomerAgentsQuery({
         name:  nameQuery  || undefined,
         phone: phoneQuery || undefined,
         page,
         size: PAGE_SIZE,
     });
 
-    const agents     = data?.items      ?? [];
     const pagination = data?.pagination ?? {};
-    const totalPages = pagination.totalPages ?? 0;
+    const { items: agents, hasMore, sentinelRef, loadingMore, loadMore } = useInfiniteList({
+        items: data?.items,
+        pagination,
+        page,
+        setPage,
+        isFetching,
+        resetKey: `${nameQuery}|${phoneQuery}`,
+    });
 
     const tableBg       = isDark ? BRAND_COLORS.darkCardBg : cardBg;
     const tableHeaderBg = isDark ? tableBg : '#F8FAFC';
@@ -176,7 +182,7 @@ export default function CustomerAgent() {
             </HStack>
 
             {/* Content */}
-            {isLoading ? (
+            {(isLoading || (isFetching && agents.length === 0)) ? (
                 <Loading />
             ) : error ? (
                 <Box p={8} textAlign="center" color={isDark ? 'red.300' : 'red.600'}>
@@ -218,7 +224,7 @@ export default function CustomerAgent() {
                                         transition="background 0.15s"
                                     >
                                         <Table.Cell {...cellBorder} textAlign="center" color={subtitleColor} fontSize="sm">
-                                            {page * PAGE_SIZE + index + 1}
+                                            {index + 1}
                                         </Table.Cell>
 
                                         {/* Agent nomi */}
@@ -296,24 +302,7 @@ export default function CustomerAgent() {
                         </Table.Root>
                     </Box>
 
-                    {/* Pagination */}
-                    {totalPages > 1 && (
-                        <HStack justify="center" mt={6} gap={3}>
-                            <Button size="sm" variant="outline" borderRadius="lg"
-                                disabled={page === 0}
-                                onClick={() => setPage((v) => v - 1)}>
-                                <LuChevronLeft size={14} />
-                            </Button>
-                            <Text color={subtitleColor} fontSize="sm" fontWeight="medium">
-                                {page + 1} / {totalPages}
-                            </Text>
-                            <Button size="sm" variant="outline" borderRadius="lg"
-                                disabled={page >= totalPages - 1}
-                                onClick={() => setPage((v) => v + 1)}>
-                                <LuChevronRight size={14} />
-                            </Button>
-                        </HStack>
-                    )}
+                    <InfiniteSentinel sentinelRef={sentinelRef} hasMore={hasMore} loadingMore={loadingMore} loaded={agents.length} total={pagination.totalElements ?? agents.length} unit="ta agent" onLoadMore={loadMore} />
                 </>
             )}
         </Box>

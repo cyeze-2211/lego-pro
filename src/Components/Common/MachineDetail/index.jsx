@@ -1,12 +1,14 @@
 ﻿import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Badge, Box, Button, HStack, Table, Text } from '@chakra-ui/react';
-import { LuActivity, LuCalendar, LuChevronLeft, LuChevronRight, LuCog, LuHistory, LuPackage } from 'react-icons/lu';
+import { Badge, Box, HStack, Table, Text } from '@chakra-ui/react';
+import { LuActivity, LuCalendar, LuCog, LuHistory, LuPackage } from 'react-icons/lu';
 import { useGetMachineByIdQuery, useGetMachineRunsQuery } from '../../../store/services/machine.api';
 import EntityDetail, { DetailRow, DetailSection, formatDetailDate } from '../EntityDetail';
 import { formatNumber } from '../../ui/number-format';
+import { useInfiniteList } from '../../ui/useInfiniteList';
+import InfiniteSentinel from '../../ui/InfiniteSentinel';
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 20;
 
 function formatClock(ms) {
     if (!Number.isFinite(ms) || ms < 0) return '00:00:00';
@@ -50,10 +52,18 @@ export default function MachineDetail() {
         return () => clearInterval(timer);
     }, [isWorking]);
 
-    const runs       = runResult?.items || [];
+    // Sahifa tugmalari o‘rniga pastga aylantirganda yuklash
+    const { items: runs, hasMore, sentinelRef, loadingMore, loadMore } = useInfiniteList({
+        items: runResult?.items,
+        pagination: runResult?.pagination,
+        page,
+        setPage,
+        isFetching: runsFetching,
+        resetKey: id,
+        getId: (item) => item?.runId,
+    });
     const pagination = runResult?.pagination;
-    const totalPages = pagination?.totalPages || 0;
-    const totalRuns  = pagination?.totalElements ?? 0;
+    const totalRuns  = pagination?.totalElements ?? runs.length;
     const elapsed    = run?.startedAt ? now - new Date(run.startedAt).getTime() : 0;
 
     /* ── Holat badge helper ── */
@@ -184,7 +194,7 @@ export default function MachineDetail() {
                                                         _hover={{ bg: isDark ? 'rgba(250,204,21,.06)' : '#FFFBEB' }}
                                                     >
                                                         <Table.Cell color={subtitleColor} textAlign="center">
-                                                            {page * PAGE_SIZE + index + 1}
+                                                            {index + 1}
                                                         </Table.Cell>
                                                         <Table.Cell color={textColor} fontWeight="semibold">
                                                             {item.productName}
@@ -222,28 +232,15 @@ export default function MachineDetail() {
                                         </Table.Body>
                                     </Table.Root>
                                 </Box>
-                                <HStack justify="space-between" mt={4} flexWrap="wrap" gap={3}>
-                                    <Text color={subtitleColor} fontSize="sm">
-                                        Jami: {formatNumber(totalRuns)} ta seans
-                                    </Text>
-                                    {totalPages > 1 && (
-                                        <HStack gap={3}>
-                                            <Button size="sm" variant="outline"
-                                                disabled={page === 0}
-                                                onClick={() => setPage((v) => v - 1)}>
-                                                <LuChevronLeft />
-                                            </Button>
-                                            <Text color={subtitleColor} fontSize="sm">
-                                                {page + 1} / {totalPages}
-                                            </Text>
-                                            <Button size="sm" variant="outline"
-                                                disabled={page >= totalPages - 1}
-                                                onClick={() => setPage((v) => v + 1)}>
-                                                <LuChevronRight />
-                                            </Button>
-                                        </HStack>
-                                    )}
-                                </HStack>
+                                <InfiniteSentinel
+                                    sentinelRef={sentinelRef}
+                                    hasMore={hasMore}
+                                    loadingMore={loadingMore}
+                                    loaded={runs.length}
+                                    total={totalRuns}
+                                    unit="ta seans"
+                                    onLoadMore={loadMore}
+                                />
                             </>
                         )}
                     </DetailSection>

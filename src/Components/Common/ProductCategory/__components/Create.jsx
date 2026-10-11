@@ -11,15 +11,17 @@ import {
     useDisclosure,
 } from '@chakra-ui/react';
 import { Check, Layers3, X } from 'lucide-react';
-import { LuPlus, LuTag } from 'react-icons/lu';
+import { LuGift, LuPlus, LuTag } from 'react-icons/lu';
 import { useCreateProductCategoryMutation } from '../../../../store/services/productCategory.api';
 import { useAppTheme } from '../../../../theme/tokens';
 import { Alert } from '../../../Other/UI/Alert/Alert';
 import FormControl from '../../../ui/FormControl';
+import FormattedNumberInput from '../../../ui/FormattedNumberInput';
 
 export default function Create() {
     const { open, onOpen, onClose } = useDisclosure();
     const [name, setName] = useState('');
+    const [bonusPrice, setBonusPrice] = useState('');
     const [createCategory, { isLoading }] = useCreateProductCategoryMutation();
     const { isDark, accentColor, cardBg, cardBorder, textColor, subtitleColor } = useAppTheme();
     const modalBorder = isDark ? cardBorder : '#94A3B8';
@@ -35,11 +37,17 @@ export default function Create() {
             Alert('Kategoriya nomi 255 belgidan oshmasligi kerak', 'error');
             return;
         }
+        const bonusNum = bonusPrice === '' ? 0 : Number(bonusPrice);
+        if (!Number.isFinite(bonusNum) || bonusNum < 0) {
+            Alert('Bonus narx 0 dan kichik bo‘lmasligi kerak', 'error');
+            return;
+        }
         try {
-            await createCategory({ name: trimmedName }).unwrap();
+            await createCategory({ name: trimmedName, bonusPrice: bonusNum }).unwrap();
             Alert('Kategoriya muvaffaqiyatli yaratildi', 'success');
             onClose();
             setName('');
+            setBonusPrice('');
         } catch (error) {
             Alert(error?.data?.message || 'Kategoriya yaratishda xatolik', 'error');
         }
@@ -72,6 +80,11 @@ export default function Create() {
                                     <Field.Root required>
                                         <Field.Label color={textColor} fontWeight="medium"><HStack gap={2}><LuTag size={16} /><span>Kategoriya nomi</span></HStack><Field.RequiredIndicator /></Field.Label>
                                         <FormControl value={name} onChange={(event) => setName(event.target.value)} placeholder="Masalan, Profil" maxLength={255} autoFocus disabled={isLoading} size="lg" minH="52px" />
+                                    </Field.Root>
+                                    <Field.Root>
+                                        <Field.Label color={textColor} fontWeight="medium"><HStack gap={2}><LuGift size={16} /><span>Bonus narx (so‘m)</span></HStack></Field.Label>
+                                        <FormattedNumberInput value={bonusPrice} onChange={setBonusPrice} placeholder="100 (ixtiyoriy)" min="0" step="0.01" disabled={isLoading} size="lg" minH="52px" />
+                                        <Field.HelperText color={subtitleColor}>Shu kategoriyadagi mahsulotning 1 donasi sotilganda agentga beriladigan bonus. Bo‘sh qoldirsangiz bonus yo‘q.</Field.HelperText>
                                     </Field.Root>
                                 </VStack>
                             </Dialog.Body>

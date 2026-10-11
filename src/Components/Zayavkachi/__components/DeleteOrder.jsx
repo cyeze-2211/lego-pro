@@ -45,7 +45,7 @@ export default function DeleteOrder({ order, disabled = false, onDeleted }) {
                 borderRadius="xl"
                 px={3}
                 aria-label="O‘chirish"
-                title={disabled ? 'Faqat “Kutilmoqda” holatidagi buyurtma o‘chiriladi' : 'O‘chirish'}
+                title={disabled ? 'Faqat “Yangi” yoki “Bekor qilindi” holatidagi buyurtma o‘chiriladi' : 'O‘chirish'}
                 _hover={{ bg: isDark ? 'rgba(239, 68, 68, 0.16)' : 'red.50', color: isDark ? 'red.200' : 'red.700' }}
             >
                 <Trash size={16} />
@@ -75,12 +75,12 @@ export default function DeleteOrder({ order, disabled = false, onDeleted }) {
                                         <HStack gap={3} align="start">
                                             <LuTriangleAlert size={20} color={isDark ? '#f87171' : '#dc2626'} />
                                             <Text fontSize="sm" color={isDark ? 'red.300' : 'red.700'}>
-                                                Siz <strong>“{order.customerName}”</strong> uchun yaratilgan buyurtmani o‘chirmoqchisiz. Bu amalni qaytarib bo‘lmaydi.
+                                                Siz <strong>“{order.customerName}”</strong> uchun {order.status === 'REJECTED' ? 'bekor qilingan' : 'yaratilgan'} buyurtmani o‘chirmoqchisiz. Bu amalni qaytarib bo‘lmaydi.
                                             </Text>
                                         </HStack>
                                     </Box>
                                     <Text fontSize="sm" color={subtitleColor} pl={1}>
-                                        Buyurtma ro‘yxatdan olib tashlanadi.
+                                        {order.status === 'REJECTED' ? 'Bekor qilingan buyurtma ro‘yxatdan butunlay olib tashlanadi.' : 'Buyurtma ro‘yxatdan olib tashlanadi.'}
                                     </Text>
                                 </VStack>
                             </Dialog.Body>
@@ -103,6 +103,7 @@ DeleteOrder.propTypes = {
     order: PropTypes.shape({
         id: PropTypes.string.isRequired,
         customerName: PropTypes.string.isRequired,
+        status: PropTypes.string,
     }).isRequired,
     disabled: PropTypes.bool,
     onDeleted: PropTypes.func,
