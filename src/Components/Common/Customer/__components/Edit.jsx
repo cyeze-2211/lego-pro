@@ -95,6 +95,10 @@ export default function Edit({ customer, openOnMount = false, hideTrigger = fals
             Alert('Telefon formati: +998XXXXXXXXX (9 raqam)', 'error');
             return;
         }
+        if (!form.regionId) {
+            Alert('Viloyatni tanlang', 'error');
+            return;
+        }
 
         try {
             await updateCustomer({
@@ -107,7 +111,7 @@ export default function Edit({ customer, openOnMount = false, hideTrigger = fals
                     inn: form.inn.trim() || null,
                     agentId: form.agentId || null,
                     telegramChatId: form.telegramChatId.trim() || null,
-                    regionId: form.regionId ? Number(form.regionId) : null,
+                    regionId: Number(form.regionId),
                 },
             }).unwrap();
             Alert('Mijoz yangilandi', 'success');

@@ -129,6 +129,10 @@ export default function Edit({ product }) {
             Alert('Narx 0 dan katta bo‘lishi kerak', 'error');
             return;
         }
+        if (Number.isNaN(piecesNum) || piecesNum <= 0 || !Number.isInteger(piecesNum)) {
+            Alert('Qadoqdagi dona sonini kiriting (butun son, 1 yoki undan ko‘p)', 'error');
+            return;
+        }
         if (!form.warehouseId) {
             Alert('Omborni tanlang', 'error');
             return;
@@ -149,7 +153,7 @@ export default function Edit({ product }) {
             article: toStr(form.article).trim(),
             size: toStr(form.size).trim(),
             minimumLine: Number.isNaN(minLineNum) ? 0 : minLineNum,
-            piecesPerPack: Number.isNaN(piecesNum) ? null : piecesNum,
+            piecesPerPack: piecesNum,
             brandId: form.brandId || null,
             colorId: form.colorId,
             categoryId: form.categoryId,

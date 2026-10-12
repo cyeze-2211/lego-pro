@@ -60,7 +60,7 @@ export default function Create({ warehouses }) {
         warehouseId,
         minimumLine: minimumLine
           ? Number(minimumLine.replace(/\s/g, ''))
-          : undefined,
+          : 0,
       }).unwrap();
       Alert('Xom ashyo muvaffaqiyatli yaratildi', 'success');
       onClose();

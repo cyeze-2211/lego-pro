@@ -223,6 +223,10 @@ export default function Create({
             Alert('Telefon formati: +998-XX-XXX-XX-XX', 'error');
             return;
         }
+        if (!form.regionId) {
+            Alert('Viloyatni tanlang', 'error');
+            return;
+        }
         const balanceAmount = form.balance === '' ? 0 : Number(form.balance);
         if (!Number.isFinite(balanceAmount) || balanceAmount < 0) {
             Alert('Boshlang‘ich qoldiqni kiriting (masalan, 0)', 'error');
@@ -242,7 +246,7 @@ export default function Create({
                 inn: form.inn.trim() || null,
                 agentId: form.agentId || null,
                 telegramChatId: form.telegramChatId.trim() || null,
-                regionId: form.regionId ? Number(form.regionId) : null,
+                regionId: Number(form.regionId),
             }).unwrap();
 
             Alert('Mijoz muvaffaqiyatli yaratildi', 'success');

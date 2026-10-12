@@ -202,11 +202,20 @@ export default function Create({ warehouses }) {
             return;
         }
 
+        const piecesPerPackNum = Number(form.piecesPerPack);
+        if (form.piecesPerPack === '' || !Number.isInteger(piecesPerPackNum) || piecesPerPackNum <= 0) {
+            Alert('Qadoqdagi dona sonini kiriting (butun son, 1 yoki undan ko‘p)', 'error');
+            return;
+        }
+
         const payload = {
             name: trimmedName,
             warehouseId: form.warehouseId,
             colorId: form.colorId,
             categoryId: form.categoryId,
+            piecesPerPack: piecesPerPackNum,
+            // minimumLine majburiy: bo‘sh bo‘lsa 0 (ogohlantirish o‘chiq)
+            minimumLine: form.minimumLine !== '' && !Number.isNaN(Number(form.minimumLine)) ? Number(form.minimumLine) : 0,
         };
 
         // Narx faqat kiritilgan bo'lsa yuboriladi
@@ -216,12 +225,6 @@ export default function Create({ warehouses }) {
 
         if (form.article.trim()) payload.article = form.article.trim();
         if (form.size.trim()) payload.size = form.size.trim();
-        if (form.minimumLine !== '' && !Number.isNaN(Number(form.minimumLine))) {
-            payload.minimumLine = Number(form.minimumLine);
-        }
-        if (form.piecesPerPack !== '' && !Number.isNaN(Number(form.piecesPerPack))) {
-            payload.piecesPerPack = Number(form.piecesPerPack);
-        }
         if (form.brandId) payload.brandId = form.brandId;
 
         let created;

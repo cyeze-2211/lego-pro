@@ -75,10 +75,11 @@ export default function Edit({ material }) {
 
         const payload = {
             name: name.trim(),
-            summary: summary.trim() || undefined,
+            summary: summary.trim() || null,
+            // minimumLine majburiy: bo‘sh bo‘lsa 0 (ogohlantirish o‘chiq)
             minimumLine: minimumLine
                 ? Number(minimumLine.replace(/\s/g, ''))
-                : undefined,
+                : 0,
         };
 
         try {
