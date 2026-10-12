@@ -107,7 +107,7 @@ export default function WarehousePage() {
                 bg: isActive ? accentColor : (isDark ? 'whiteAlpha.100' : 'gray.50'),
               }}
               border="none"
-              boxShadow={isActive ? '0 2px 8px rgba(250,204,21,0.3)' : 'none'}
+              boxShadow={isActive ? '0 2px 8px rgb(var(--accent-400) / 0.3)' : 'none'}
             >
               {option.label}
             </Button>
@@ -175,8 +175,8 @@ export default function WarehousePage() {
                     <Box
                       p={2.5}
                       borderRadius="xl"
-                      bg={isDark ? 'rgba(250, 204, 21, 0.1)' : '#fefce8'}
-                      borderColor={isDark ? 'rgba(250, 204, 21, 0.2)' : '#FDE68A'}
+                      bg={isDark ? 'rgb(var(--accent-400) / 0.1)' : 'rgb(var(--accent-50))'}
+                      borderColor={isDark ? 'rgb(var(--accent-400) / 0.2)' : 'rgb(var(--accent-warm-200))'}
                       borderWidth="1px"
                       flexShrink={0}
                     >

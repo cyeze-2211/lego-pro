@@ -220,7 +220,7 @@ export default function CustomerAgent() {
                                     <Table.Row
                                         key={agent.id}
                                         bg={tableBg}
-                                        _hover={{ bg: isDark ? 'rgba(250,204,21,0.06)' : '#FFFBEB' }}
+                                        _hover={{ bg: isDark ? 'rgb(var(--accent-400) / 0.06)' : 'rgb(var(--accent-warm-50))' }}
                                         transition="background 0.15s"
                                     >
                                         <Table.Cell {...cellBorder} textAlign="center" color={subtitleColor} fontSize="sm">
@@ -232,7 +232,7 @@ export default function CustomerAgent() {
                                             <HStack gap={2.5}>
                                                 <Box
                                                     p={1.5} borderRadius="md" flexShrink={0}
-                                                    bg={isDark ? 'rgba(250,204,21,0.12)' : '#FEF3C7'}
+                                                    bg={isDark ? 'rgb(var(--accent-400) / 0.12)' : 'rgb(var(--accent-warm-100))'}
                                                     color={accentColor}
                                                     display="inline-flex" alignItems="center" justifyContent="center"
                                                 >

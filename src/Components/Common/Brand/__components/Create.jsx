@@ -213,9 +213,9 @@ export default function Create({ onCreated }) {
                                     <Box
                                         p={3}
                                         borderRadius="xl"
-                                        bg={isDark ? 'rgba(250, 204, 21, 0.1)' : '#FEFCE8'}
+                                        bg={isDark ? 'rgb(var(--accent-400) / 0.1)' : 'rgb(var(--accent-50))'}
                                         borderColor={
-                                            isDark ? 'rgba(250, 204, 21, 0.2)' : '#FDE68A'
+                                            isDark ? 'rgb(var(--accent-400) / 0.2)' : 'rgb(var(--accent-warm-200))'
                                         }
                                         borderWidth="1px"
                                         color={accentColor}
@@ -408,8 +408,8 @@ export default function Create({ onCreated }) {
                                                 bg={
                                                     isDragging
                                                         ? isDark
-                                                            ? 'rgba(250,204,21,0.08)'
-                                                            : '#FEFCE8'
+                                                            ? 'rgb(var(--accent-400) / 0.08)'
+                                                            : 'rgb(var(--accent-50))'
                                                         : isDark
                                                         ? 'rgba(148,163,184,0.04)'
                                                         : 'gray.50'
@@ -420,8 +420,8 @@ export default function Create({ onCreated }) {
                                                 _hover={{
                                                     borderColor: accentColor,
                                                     bg: isDark
-                                                        ? 'rgba(250,204,21,0.05)'
-                                                        : '#FEFCE8',
+                                                        ? 'rgb(var(--accent-400) / 0.05)'
+                                                        : 'rgb(var(--accent-50))',
                                                 }}
                                                 textAlign="center"
                                             >
@@ -432,8 +432,8 @@ export default function Create({ onCreated }) {
                                                         bg={
                                                             isDragging
                                                                 ? isDark
-                                                                    ? 'rgba(250,204,21,0.2)'
-                                                                    : '#FEF3C7'
+                                                                    ? 'rgb(var(--accent-400) / 0.2)'
+                                                                    : 'rgb(var(--accent-warm-100))'
                                                                 : isDark
                                                                 ? 'rgba(148,163,184,0.12)'
                                                                 : 'white'

@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from "react";
-import { LogOut, User, ChevronDown, Moon, Sun, ArrowLeft } from "lucide-react";
+import { LogOut, User, ChevronDown, Moon, Sun, ArrowLeft, Settings } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAppTheme } from "../../theme/tokens";
+import { clearStorageKeepingPreferences } from "../../theme/preferences";
 import { useAppDispatch } from "../../store/hooks";
 import { logoutUser } from "../../store/slices/auth.slice";
 import { useLogoutMutation } from "../../store/services/auth.api";
@@ -21,7 +22,7 @@ export default function MixerHeader({ user }) {
     const handleLogout = async () => {
         try { await logoutApi().unwrap(); } catch {}
         dispatch(logoutUser());
-        localStorage.clear();
+        clearStorageKeepingPreferences();
         navigate("/login");
     };
 
@@ -68,7 +69,7 @@ export default function MixerHeader({ user }) {
                         <>
                             <div
                                 className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex-shrink-0"
-                                style={{ background: "#FACC15" }}
+                                style={{ background: "rgb(var(--accent-400))" }}
                             >
                                 {/* Flask icon */}
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
@@ -128,6 +129,17 @@ export default function MixerHeader({ user }) {
                                         : "border-slate-200 bg-white text-slate-800 shadow-slate-200/70"
                                 }`}
                             >
+                                <button
+                                    type="button"
+                                    role="menuitem"
+                                    onClick={() => { setOpenMenu(false); navigate("/mixer/settings"); }}
+                                    className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors ${
+                                        isDark ? "hover:bg-slate-800" : "hover:bg-amber-50"
+                                    }`}
+                                >
+                                    <Settings className="h-4 w-4 text-amber-500" />
+                                    <span>Sozlamalar</span>
+                                </button>
                                 <button
                                     type="button"
                                     role="menuitem"

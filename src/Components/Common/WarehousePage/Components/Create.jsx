@@ -113,8 +113,8 @@ export default function Create() {
                   <Box
                     p={3}
                     borderRadius="xl"
-                    bg={isDark ? 'rgba(250, 204, 21, 0.1)' : '#fefce8'}
-                    borderColor={isDark ? 'rgba(250, 204, 21, 0.2)' : '#FDE68A'}
+                    bg={isDark ? 'rgb(var(--accent-400) / 0.1)' : 'rgb(var(--accent-50))'}
+                    borderColor={isDark ? 'rgb(var(--accent-400) / 0.2)' : 'rgb(var(--accent-warm-200))'}
                     borderWidth="1px"
                   >
                     <Warehouse size={24} color={accentColor} />
@@ -195,7 +195,7 @@ export default function Create() {
                         borderWidth="1px"
                         borderStyle="solid"
                         borderColor={category === 'PRODUCT' ? accentColor : fieldBorder}
-                        bg={category === 'PRODUCT' ? (isDark ? 'rgba(250, 204, 21, 0.16)' : '#FEF3C7') : fieldBg}
+                        bg={category === 'PRODUCT' ? (isDark ? 'rgb(var(--accent-400) / 0.16)' : 'rgb(var(--accent-warm-100))') : fieldBg}
                         color={isDark ? textColor : '#0F172A'}
                         boxShadow={category === 'PRODUCT' ? `0 0 0 2px ${accentColor}33` : 'none'}
                         _hover={{ borderColor: accentColor }}
@@ -214,7 +214,7 @@ export default function Create() {
                         borderWidth="1px"
                         borderStyle="solid"
                         borderColor={category === 'RAW_MATERIAL' ? accentColor : fieldBorder}
-                        bg={category === 'RAW_MATERIAL' ? (isDark ? 'rgba(250, 204, 21, 0.16)' : '#FEF3C7') : fieldBg}
+                        bg={category === 'RAW_MATERIAL' ? (isDark ? 'rgb(var(--accent-400) / 0.16)' : 'rgb(var(--accent-warm-100))') : fieldBg}
                         color={isDark ? textColor : '#0F172A'}
                         boxShadow={category === 'RAW_MATERIAL' ? `0 0 0 2px ${accentColor}33` : 'none'}
                         _hover={{ borderColor: accentColor }}

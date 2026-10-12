@@ -119,7 +119,7 @@ export default function Supplier() {
     const miniIconBox = {
         p: 1,
         borderRadius: 'md',
-        bg: isDark ? 'rgba(250, 204, 21, 0.12)' : '#FEF3C7',
+        bg: isDark ? 'rgb(var(--accent-400) / 0.12)' : 'rgb(var(--accent-warm-100))',
         color: accentColor,
         flexShrink: 0,
         display: 'inline-flex',
@@ -243,7 +243,7 @@ export default function Supplier() {
                             </Table.Header>
                             <Table.Body bg={tableBg}>
                                 {suppliers.map((supplier, index) => (
-                                    <Table.Row key={supplier.id} bg={tableBg} _hover={{ bg: isDark ? 'rgba(250, 204, 21, 0.06)' : '#FFFBEB' }}>
+                                    <Table.Row key={supplier.id} bg={tableBg} _hover={{ bg: isDark ? 'rgb(var(--accent-400) / 0.06)' : 'rgb(var(--accent-warm-50))' }}>
                                         <Table.Cell {...cellBorder} textAlign="center" color={subtitleColor} fontSize="sm">
                                             {index + 1}
                                         </Table.Cell>

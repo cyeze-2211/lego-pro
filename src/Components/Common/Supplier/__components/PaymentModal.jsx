@@ -94,7 +94,7 @@ export default function PaymentModal({ open, onClose, supplierId, supplierName }
                         <Box position="absolute" top="0" left="0" right="0" h="4px" bgGradient={`linear(to-r, ${accentColor}, yellow.300)`} />
                         <Dialog.Header color={textColor} fontSize="2xl" fontWeight="bold" pt={7} pb={5} borderBottomWidth="1px" borderColor={modalBorder}>
                             <HStack gap={3}>
-                                <Box p={3} borderRadius="xl" bg={isDark ? 'rgba(250,204,21,.1)' : '#FEFCE8'} color={accentColor}>
+                                <Box p={3} borderRadius="xl" bg={isDark ? 'rgb(var(--accent-400) / .1)' : 'rgb(var(--accent-50))'} color={accentColor}>
                                     <LuWallet size={24} />
                                 </Box>
                                 <VStack align="start" gap={0}>

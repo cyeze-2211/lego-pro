@@ -574,7 +574,7 @@ export default function Product() {
                             <Box
                                 p={2.5}
                                 borderRadius="xl"
-                                bg={isDark ? 'rgba(250, 204, 21, 0.14)' : '#FEF3C7'}
+                                bg={isDark ? 'rgb(var(--accent-400) / 0.14)' : 'rgb(var(--accent-warm-100))'}
                                 color={accentColor}
                                 display="inline-flex"
                             >
@@ -762,8 +762,8 @@ export default function Product() {
                                             aria-label={`${product.name} tafsilotlarini ochish`}
                                             _hover={{
                                                 bg: isDark
-                                                    ? 'rgba(250, 204, 21, 0.06)'
-                                                    : '#FFFBEB',
+                                                    ? 'rgb(var(--accent-400) / 0.06)'
+                                                    : 'rgb(var(--accent-warm-50))',
                                             }}
                                             transition="background 0.15s"
                                         >

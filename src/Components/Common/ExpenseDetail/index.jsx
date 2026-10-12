@@ -100,7 +100,7 @@ export default function ExpenseDetail() {
     }
 
     const amount = Number(expense.amount) || 0;
-    const accentSoft = isDark ? 'rgba(250,204,21,.12)' : '#FEF3C7';
+    const accentSoft = isDark ? 'rgb(var(--accent-400) / .12)' : 'rgb(var(--accent-warm-100))';
     const dangerColor = isDark ? 'red.300' : 'red.600';
     const dangerSoft = isDark ? 'rgba(239,68,68,.12)' : '#FEF2F2';
     const violetSoft = isDark ? 'rgba(139,92,246,.12)' : '#EDE9FE';
@@ -115,7 +115,7 @@ export default function ExpenseDetail() {
         <Box bg={pageBg} color={textColor} minH="100%" w="100%">
             {/* ── Sarlavha ── */}
             <Box overflow="hidden" borderWidth="1px" borderColor={cardBorder} borderRadius="2xl" boxShadow={cardShadow} mb={4}>
-                <Box h="5px" bg={`linear-gradient(90deg, ${accentColor}, #FDE68A)`} />
+                <Box h="5px" bg={`linear-gradient(90deg, ${accentColor}, rgb(var(--accent-warm-200)))`} />
                 <Box bg={cardBg} p={{ base: 4, md: 6 }}>
                     <HStack justify="space-between" align="start" flexWrap="wrap" gap={4}>
                         <HStack gap={4} minW={0} align="start">

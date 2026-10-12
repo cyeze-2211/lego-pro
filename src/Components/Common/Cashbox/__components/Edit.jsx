@@ -69,7 +69,7 @@ export default function Edit({ cashbox, label }) {
     return (
         <>
             {label ? (
-                <Button onClick={onOpen} variant="outline" borderRadius="xl" h="42px" px={4} color={accentColor} borderColor={isDark ? 'rgba(250,204,21,.4)' : '#FDE68A'} _hover={{ bg: isDark ? 'rgba(250, 204, 21, 0.12)' : '#FEF3C7' }}>
+                <Button onClick={onOpen} variant="outline" borderRadius="xl" h="42px" px={4} color={accentColor} borderColor={isDark ? 'rgb(var(--accent-400) / .4)' : 'rgb(var(--accent-warm-200))'} _hover={{ bg: isDark ? 'rgb(var(--accent-400) / 0.12)' : 'rgb(var(--accent-warm-100))' }}>
                     <HStack gap={2}><LuPen size={16} /><span>{label}</span></HStack>
                 </Button>
             ) : (
@@ -84,7 +84,7 @@ export default function Edit({ cashbox, label }) {
                     color={accentColor}
                     borderRadius="lg"
                     aria-label="Tahrirlash"
-                    _hover={{ bg: isDark ? 'rgba(250, 204, 21, 0.16)' : 'yellow.50', color: isDark ? 'yellow.200' : 'yellow.700' }}
+                    _hover={{ bg: isDark ? 'rgb(var(--accent-400) / 0.16)' : 'yellow.50', color: isDark ? 'yellow.200' : 'yellow.700' }}
                 >
                     <LuPen size={16} />
                 </Button>
@@ -98,7 +98,7 @@ export default function Edit({ cashbox, label }) {
                             <Box position="absolute" top="0" left="0" right="0" h="4px" bgGradient={`linear(to-r, ${accentColor}, yellow.300)`} />
                             <Dialog.Header color={textColor} fontSize="2xl" fontWeight="bold" pt={7} pb={5} borderBottomWidth="1px" borderColor={modalBorder}>
                                 <HStack gap={3}>
-                                    <Box p={3} borderRadius="xl" bg={isDark ? 'rgba(250, 204, 21, 0.1)' : '#FEFCE8'} borderColor={isDark ? 'rgba(250, 204, 21, 0.2)' : '#FDE68A'} borderWidth="1px" color={accentColor}>
+                                    <Box p={3} borderRadius="xl" bg={isDark ? 'rgb(var(--accent-400) / 0.1)' : 'rgb(var(--accent-50))'} borderColor={isDark ? 'rgb(var(--accent-400) / 0.2)' : 'rgb(var(--accent-warm-200))'} borderWidth="1px" color={accentColor}>
                                         <Wallet size={24} />
                                     </Box>
                                     <span>Kassani tahrirlash</span>

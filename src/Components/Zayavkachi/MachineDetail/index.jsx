@@ -177,7 +177,7 @@ export default function ZayavkachiMachineDetail() {
                                     onClick={() => { setStatusFilter(option.value); setPage(0); }}
                                     className={`h-9 rounded-xl border px-3.5 text-xs font-bold transition-colors ${
                                         active
-                                            ? 'border-[#FACC15] bg-[#FACC15] text-[#0F172A]'
+                                            ? 'border-yellow-400 bg-yellow-400 text-[#0F172A]'
                                             : ghostBtn
                                     }`}>
                                     {option.label}

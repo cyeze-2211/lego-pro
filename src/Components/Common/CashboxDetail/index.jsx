@@ -192,7 +192,7 @@ export default function CashboxDetail() {
     const balance = Number(cashbox.balance) || 0;
     const balanceTone = balance < 0 ? 'red' : balance > 0 ? 'green' : 'gray';
     const balanceLabel = balance < 0 ? 'Qoldiq manfiy' : balance > 0 ? 'Qoldiq musbat' : 'Qoldiq nol';
-    const accentSoft = isDark ? 'rgba(250,204,21,.12)' : '#FEF3C7';
+    const accentSoft = isDark ? 'rgb(var(--accent-400) / .12)' : 'rgb(var(--accent-warm-100))';
     const inputCx = { h: '42px', px: 3, borderRadius: 'xl', borderWidth: '1px', borderColor: inputBorder, bg: inputBg, color: textColor, fontSize: 'sm', outline: 'none', _focus: { borderColor: accentColor, boxShadow: `0 0 0 3px ${accentColor}44` } };
     const th = { color: subtitleColor, fontSize: '11px', fontWeight: 'semibold', textTransform: 'uppercase', letterSpacing: 'wider', whiteSpace: 'nowrap', bg: isDark ? 'rgba(148,163,184,0.06)' : '#F8FAFC' };
 
@@ -200,7 +200,7 @@ export default function CashboxDetail() {
         <Box bg={pageBg} color={textColor} minH="100%" w="100%">
             {/* ── Sarlavha ── */}
             <Box overflow="hidden" borderWidth="1px" borderColor={cardBorder} borderRadius="2xl" boxShadow={cardShadow} mb={4}>
-                <Box h="5px" bg={`linear-gradient(90deg, ${accentColor}, #FDE68A)`} />
+                <Box h="5px" bg={`linear-gradient(90deg, ${accentColor}, rgb(var(--accent-warm-200)))`} />
                 <Box bg={cardBg} p={{ base: 4, md: 6 }}>
                     <HStack justify="space-between" align="start" flexWrap="wrap" gap={4}>
                         <HStack gap={4} minW={0} align="start">
@@ -352,7 +352,7 @@ export default function CashboxDetail() {
                                                 who = { Icon: LuReceiptText, title: tx.name || '—', sub: 'Xarajat', to: expensePath(tx.id) };
                                             }
                                             return (
-                                                <Table.Row key={`${tx.type}-${tx.id}`} _hover={{ bg: isDark ? 'rgba(250,204,21,.04)' : '#FFFBEB' }}>
+                                                <Table.Row key={`${tx.type}-${tx.id}`} _hover={{ bg: isDark ? 'rgb(var(--accent-400) / .04)' : 'rgb(var(--accent-warm-50))' }}>
                                                     <Table.Cell color={subtitleColor} textAlign="center" fontSize="sm">{page * PAGE_SIZE + idx + 1}</Table.Cell>
                                                     <Table.Cell whiteSpace="nowrap">
                                                         <Text color={textColor} fontSize="sm" fontWeight="medium">{formatDate(tx.operationDate)}</Text>

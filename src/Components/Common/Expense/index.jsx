@@ -148,7 +148,7 @@ export default function Expense() {
     const tableBorder = isDark ? cardBorder : '#CBD5E1';
     const cellBorder = { borderWidth: '0.5px', borderColor: tableBorder, verticalAlign: 'middle', px: 3, py: 2.5 };
     const headerCell = { ...cellBorder, bg: tableHeaderBg, color: subtitleColor, fontSize: 'xs', fontWeight: 'semibold', textTransform: 'uppercase', letterSpacing: 'wider', whiteSpace: 'nowrap' };
-    const accentSoft = isDark ? 'rgba(250,204,21,.12)' : '#FEF3C7';
+    const accentSoft = isDark ? 'rgb(var(--accent-400) / .12)' : 'rgb(var(--accent-warm-100))';
     const dangerColor = isDark ? 'red.300' : 'red.600';
 
     useEffect(() => { if (error) Alert(error?.data?.message || 'Xarajatlarni yuklashda xatolik', 'error'); }, [error]);
@@ -321,7 +321,7 @@ export default function Expense() {
                                         <HStack gap={2}><LuX size={16} /><span>Tozalash</span></HStack>
                                     </Button>
                                 )}
-                                <Button type="submit" bg={accentColor} color="black" borderRadius="xl" h="42px" px={6} fontWeight="semibold" _hover={{ bg: '#EAB308' }} position="relative">
+                                <Button type="submit" bg={accentColor} color="black" borderRadius="xl" h="42px" px={6} fontWeight="semibold" _hover={{ bg: 'rgb(var(--accent-500))' }} position="relative">
                                     <HStack gap={2}><LuSearch size={16} /><span>Qo‘llash</span></HStack>
                                     {hasPending && <Box position="absolute" top="-3px" right="-3px" w="10px" h="10px" borderRadius="full" bg="red.500" borderWidth="2px" borderColor={cardBg} />}
                                 </Button>
@@ -377,7 +377,7 @@ export default function Expense() {
                             </Table.Header>
                             <Table.Body bg={tableBg}>
                                 {expenses.map((expense, index) => (
-                                    <Table.Row key={expense.id} bg={tableBg} _hover={{ bg: isDark ? 'rgba(250, 204, 21, 0.06)' : '#FFFBEB' }}>
+                                    <Table.Row key={expense.id} bg={tableBg} _hover={{ bg: isDark ? 'rgb(var(--accent-400) / 0.06)' : 'rgb(var(--accent-warm-50))' }}>
                                         <Table.Cell {...cellBorder} textAlign="center" color={subtitleColor} fontSize="sm">{index + 1}</Table.Cell>
                                         <Table.Cell {...cellBorder}>
                                             <HStack gap={3}>

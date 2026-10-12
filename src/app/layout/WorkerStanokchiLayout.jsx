@@ -2,8 +2,9 @@
 import { Suspense, useRef, useState, useEffect } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
 import Cookies from "js-cookie";
-import { Moon, Sun, LogOut, ChevronDown, User, ShieldCheck } from "lucide-react";
+import { Moon, Sun, LogOut, ChevronDown, User, ShieldCheck, Settings } from "lucide-react";
 import { useAppTheme } from "../../theme/tokens";
+import { clearStorageKeepingPreferences } from "../../theme/preferences";
 import { useGetUserByIdQuery } from "../../store/services/user.api";
 import { useAppDispatch } from "../../store/hooks";
 import { logoutUser } from "../../store/slices/auth.slice";
@@ -38,7 +39,7 @@ export default function WorkerStanokchiLayout() {
         try { await logoutApi().unwrap(); } catch { /* ignore */ }
         dispatch(logoutUser());
         resetMode();
-        localStorage.clear();
+        clearStorageKeepingPreferences();
         navigate("/login");
     };
 
@@ -69,7 +70,7 @@ export default function WorkerStanokchiLayout() {
                     <div className="flex items-center gap-2.5 sm:gap-3">
                         <div
                             className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-xl"
-                            style={{ background: "#FACC15" }}
+                            style={{ background: "rgb(var(--accent-400))" }}
                         >
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
                                 stroke="#0F172A" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -136,6 +137,19 @@ export default function WorkerStanokchiLayout() {
                                             : "border-slate-200 bg-white text-slate-800 shadow-slate-200/70"
                                     }`}
                                 >
+                                    {/* Sozlamalar (bu rejimda sidebar yo‘q) */}
+                                    <button
+                                        type="button"
+                                        role="menuitem"
+                                        onClick={() => { setOpenMenu(false); navigate("/stanokchi/settings"); }}
+                                        className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors ${
+                                            isDark ? "hover:bg-slate-800" : "hover:bg-amber-50"
+                                        }`}
+                                    >
+                                        <Settings className="h-4 w-4 text-amber-500" />
+                                        <span>Sozlamalar</span>
+                                    </button>
+
                                     {/* Logout only — to switch to head the user must re-login */}
                                     <button
                                         type="button"

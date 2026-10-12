@@ -4,6 +4,11 @@ import { ROLES, WAREHOUSE_ROLES, ZAYAVKACHI_ROLES, BUXGALTER_ROLES, KASSIR_ROLES
 export const STANOKCHI_ROLES = [ROLES.STANOKCHI];
 export const MIKSERCHI_ROLES = [ROLES.MIKSERCHI];
 
+// Sozlamalar sahifasi barcha rollar uchun bitta umumiy komponent.
+// Stanokchi va mikserchi o‘z layoutida ishlaydi (AppRouter), shuning uchun ularga alohida yo‘l beriladi.
+const Settings = lazy(() => import('../../Components/Common/Settings'));
+const MAIN_LAYOUT_ROLES = Object.values(ROLES).filter((role) => role !== ROLES.STANOKCHI && role !== ROLES.MIKSERCHI);
+
 
 export const ROUTES = [
     // ── Manager routes ───────────────────────────────────────────────────
@@ -21,6 +26,21 @@ export const ROUTES = [
         path: '/profile',
         component: lazy(() => import('../../Components/Common/Profile')),
         roles: [ROLES.MANAGER, ...WAREHOUSE_ROLES, ...ZAYAVKACHI_ROLES, ...BUXGALTER_ROLES, ...KASSIR_ROLES, ...XIMIK_ROLES],
+    },
+    {
+        path: '/settings',
+        component: Settings,
+        roles: MAIN_LAYOUT_ROLES,
+    },
+    {
+        path: '/stanokchi/settings',
+        component: Settings,
+        roles: STANOKCHI_ROLES,
+    },
+    {
+        path: '/mixer/settings',
+        component: Settings,
+        roles: MIKSERCHI_ROLES,
     },
     {
         path: '/warehouses',

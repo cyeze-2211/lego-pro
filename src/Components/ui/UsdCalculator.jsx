@@ -40,7 +40,7 @@ export function CalculatorToggle({ open, onClick }) {
             flexShrink={0}
             alignSelf="end"
             borderColor={open ? accentColor : undefined}
-            bg={open ? (isDark ? 'rgba(250,204,21,.12)' : '#FEF3C7') : 'transparent'}
+            bg={open ? (isDark ? 'rgb(var(--accent-400) / .12)' : 'rgb(var(--accent-warm-100))') : 'transparent'}
             color={open ? accentColor : subtitleColor}
             onClick={onClick}
             title="Dollar kalkulyatori"
@@ -113,7 +113,7 @@ export default function UsdCalculator({ active, onApply, applyLabel = "So'mni su
             borderRadius="xl"
             borderWidth="1px"
             borderColor={modalBorder}
-            bg={isDark ? 'rgba(250,204,21,.05)' : '#FFFBEB'}
+            bg={isDark ? 'rgb(var(--accent-400) / .05)' : 'rgb(var(--accent-warm-50))'}
         >
             <HStack justify="space-between" mb={4}>
                 <HStack gap={2}>

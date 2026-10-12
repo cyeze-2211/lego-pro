@@ -104,7 +104,7 @@ export default function Edit({ material }) {
                 px={3}
                 aria-label="Tahrirlash"
                 _hover={{
-                    bg: isDark ? 'rgba(250,204,21,.16)' : 'yellow.50',
+                    bg: isDark ? 'rgb(var(--accent-400) / .16)' : 'yellow.50',
                 }}
             >
                 <LuPen size={16} />
@@ -154,7 +154,7 @@ export default function Edit({ material }) {
                                     <Box
                                         p={3}
                                         borderRadius="xl"
-                                        bg={isDark ? 'rgba(250,204,21,.1)' : '#FEFCE8'}
+                                        bg={isDark ? 'rgb(var(--accent-400) / .1)' : 'rgb(var(--accent-50))'}
                                         color={accentColor}
                                     >
                                         <Package size={24} />

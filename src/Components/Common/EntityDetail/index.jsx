@@ -20,7 +20,7 @@ export default function EntityDetail({ title, icon: Icon, backTo, payment, onPay
     const navigate = useNavigate();
     const { isDark, pageBg, cardBg, cardBorder, textColor, subtitleColor, accentColor, cardShadow } = useAppTheme();
     const detailAccent = accentColorOverride || accentColor;
-    const detailAccentSoft = accentSoftBackground || (isDark ? 'rgba(250, 204, 21, 0.12)' : '#FEF3C7');
+    const detailAccentSoft = accentSoftBackground || (isDark ? 'rgb(var(--accent-400) / 0.12)' : 'rgb(var(--accent-warm-100))');
 
     if (loading) {
         return <Box minH="60vh" display="flex" alignItems="center" justifyContent="center"><Loading /></Box>;
@@ -39,7 +39,7 @@ export default function EntityDetail({ title, icon: Icon, backTo, payment, onPay
     return (
         <Box bg={pageBg} color={textColor} minH="100%" w="100%">
             <Box overflow="hidden" borderWidth="1px" borderColor={cardBorder} borderRadius="2xl" boxShadow={cardShadow} mb={5}>
-                <Box h="5px" bgGradient={accentGradient || `linear(to-r, ${detailAccent}, #FDE68A)`} />
+                <Box h="5px" bgGradient={accentGradient || `linear(to-r, ${detailAccent}, rgb(var(--accent-warm-200)))`} />
                 <Box bg={cardBg} p={{ base: 4, md: 6 }}>
                     <HStack justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={4}>
                         <HStack gap={3} minW={0}>

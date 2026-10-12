@@ -106,7 +106,7 @@ export default function PaymentModal({ open, onClose, customerId, order = null }
                                 <Box
                                     p={3}
                                     borderRadius="xl"
-                                    bg={isDark ? 'rgba(250,204,21,.1)' : '#FEFCE8'}
+                                    bg={isDark ? 'rgb(var(--accent-400) / .1)' : 'rgb(var(--accent-50))'}
                                     color={accentColor}
                                 >
                                     <LuWallet size={24} />
@@ -139,7 +139,7 @@ export default function PaymentModal({ open, onClose, customerId, order = null }
                                         borderRadius="xl"
                                         borderWidth="1px"
                                         borderColor={modalBorder}
-                                        bg={isDark ? 'rgba(250,204,21,.06)' : '#FFFBEB'}
+                                        bg={isDark ? 'rgb(var(--accent-400) / .06)' : 'rgb(var(--accent-warm-50))'}
                                     >
                                         <Text fontSize="xs" color={subtitleColor} mb={1}>
                                             Zayavka bo&apos;yicha to&apos;lov

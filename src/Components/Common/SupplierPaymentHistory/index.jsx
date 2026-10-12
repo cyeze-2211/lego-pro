@@ -214,7 +214,7 @@ export default function SupplierPaymentHistory({ supplier }) {
                         </Table.Header>
                         <Table.Body bg={tableBg}>
                             {payments.map((payment) => (
-                                <Table.Row key={payment.id} bg={tableBg} _hover={{ bg: isDark ? 'rgba(250,204,21,.06)' : '#FFFBEB' }}>
+                                <Table.Row key={payment.id} bg={tableBg} _hover={{ bg: isDark ? 'rgb(var(--accent-400) / .06)' : 'rgb(var(--accent-warm-50))' }}>
                                     <Table.Cell {...cellBorder}><HStack gap={2} color={textColor}><LuCalendar size={14} color={subtitleColor} /><Text whiteSpace="nowrap">{formatPaidDate(payment.paidAt)}</Text></HStack></Table.Cell>
                                     <Table.Cell {...cellBorder} color={textColor}>{payment.cashboxName || '—'}</Table.Cell>
                                     <Table.Cell {...cellBorder} textAlign="right"><Text fontWeight="bold" color={textColor} whiteSpace="nowrap">{formatNumber(payment.amount)} so‘m</Text><CurrencyNote currency={payment.currency} usdRate={payment.usdRate} amount={payment.amount} /></Table.Cell>

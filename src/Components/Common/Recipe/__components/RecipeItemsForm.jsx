@@ -72,7 +72,7 @@ export default function RecipeItemsForm({ items, setItems, rawMaterials }) {
                     >
                         <HStack justify="space-between" mb={3}>
                             <HStack gap={2}>
-                                <Box p={2} borderRadius="lg" bg={isDark ? 'rgba(250, 204, 21, 0.12)' : '#FEF3C7'} color={accentColor} fontSize="sm" fontWeight="bold" minW="32px" textAlign="center">
+                                <Box p={2} borderRadius="lg" bg={isDark ? 'rgb(var(--accent-400) / 0.12)' : 'rgb(var(--accent-warm-100))'} color={accentColor} fontSize="sm" fontWeight="bold" minW="32px" textAlign="center">
                                     {item.stepOrder}
                                 </Box>
                                 <Text fontSize="sm" color={subtitleColor}>Qadam {item.stepOrder}</Text>
@@ -119,7 +119,7 @@ export default function RecipeItemsForm({ items, setItems, rawMaterials }) {
                     color={accentColor}
                     borderRadius="xl"
                     minH="46px"
-                    _hover={{ bg: isDark ? 'rgba(250, 204, 21, 0.08)' : 'yellow.50' }}
+                    _hover={{ bg: isDark ? 'rgb(var(--accent-400) / 0.08)' : 'yellow.50' }}
                 >
                     <HStack gap={2}><LuPlus size={18} /><span>Qator qo‘shish</span></HStack>
                 </Button>

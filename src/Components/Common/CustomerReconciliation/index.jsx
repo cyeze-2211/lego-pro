@@ -316,8 +316,8 @@ export default function CustomerReconciliation() {
 
     /* react-select */
     const selectStyles = {
-        control: (base, state) => ({ ...base, minHeight: 44, borderRadius: 12, borderColor: state.isFocused ? '#FACC15' : (isDark ? 'rgba(255,255,255,0.1)' : '#e2e8f0'), backgroundColor: isDark ? 'rgba(30,41,59,0.8)' : '#fff', boxShadow: state.isFocused ? '0 0 0 2px rgba(250,204,21,.2)' : 'none', '&:hover': { borderColor: '#FACC15' }, fontSize: 14 }),
-        option: (base, state) => ({ ...base, backgroundColor: state.isSelected ? '#FACC15' : state.isFocused ? (isDark ? 'rgba(250,204,21,.12)' : '#FFFBEB') : (isDark ? '#141C2B' : '#fff'), color: state.isSelected ? '#0F172A' : (isDark ? '#e2e8f0' : '#0f172a'), fontSize: 14, cursor: 'pointer' }),
+        control: (base, state) => ({ ...base, minHeight: 44, borderRadius: 12, borderColor: state.isFocused ? 'rgb(var(--accent-400))' : (isDark ? 'rgba(255,255,255,0.1)' : '#e2e8f0'), backgroundColor: isDark ? 'rgba(30,41,59,0.8)' : '#fff', boxShadow: state.isFocused ? '0 0 0 2px rgb(var(--accent-400) / .2)' : 'none', '&:hover': { borderColor: 'rgb(var(--accent-400))' }, fontSize: 14 }),
+        option: (base, state) => ({ ...base, backgroundColor: state.isSelected ? 'rgb(var(--accent-400))' : state.isFocused ? (isDark ? 'rgb(var(--accent-400) / .12)' : 'rgb(var(--accent-warm-50))') : (isDark ? '#141C2B' : '#fff'), color: state.isSelected ? '#0F172A' : (isDark ? '#e2e8f0' : '#0f172a'), fontSize: 14, cursor: 'pointer' }),
         menu: (base) => ({ ...base, backgroundColor: isDark ? '#141C2B' : '#fff', border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : '#e2e8f0'}`, borderRadius: 12, zIndex: 50 }),
         singleValue: (base) => ({ ...base, color: isDark ? '#f1f5f9' : '#0f172a' }),
         placeholder: (base) => ({ ...base, color: isDark ? '#64748b' : '#94a3b8', fontSize: 14 }),
@@ -337,7 +337,7 @@ export default function CustomerReconciliation() {
     };
 
     const inputCx = { h: '44px', px: 3, w: '100%', borderRadius: 'xl', borderWidth: '1px', borderColor: inputBorder, bg: inputBg, color: textColor, fontSize: 'sm', outline: 'none', _focus: { borderColor: accentColor, boxShadow: `0 0 0 3px ${accentColor}44` } };
-    const accentSoft = isDark ? 'rgba(250,204,21,.12)' : '#FEF3C7';
+    const accentSoft = isDark ? 'rgb(var(--accent-400) / .12)' : 'rgb(var(--accent-warm-100))';
     const red = isDark ? '#FCA5A5' : '#B91C1C';
     const redSoft = isDark ? 'rgba(239,68,68,.14)' : '#FEE2E2';
     const green = isDark ? '#86EFAC' : '#15803D';
@@ -363,7 +363,7 @@ export default function CustomerReconciliation() {
                     <Button variant="outline" borderRadius="xl" h="42px" px={4} disabled={!hasData || Boolean(exporting)} onClick={downloadExcel}>
                         <HStack gap={2}>{exporting === 'xlsx' ? <Spinner size="sm" /> : <LuFileSpreadsheet size={16} />}<span>Excel</span></HStack>
                     </Button>
-                    <Button bg={accentColor} color="black" borderRadius="xl" h="42px" px={5} fontWeight="semibold" _hover={{ bg: '#EAB308' }} disabled={!hasData || Boolean(exporting)} onClick={downloadPng}>
+                    <Button bg={accentColor} color="black" borderRadius="xl" h="42px" px={5} fontWeight="semibold" _hover={{ bg: 'rgb(var(--accent-500))' }} disabled={!hasData || Boolean(exporting)} onClick={downloadPng}>
                         <HStack gap={2}>{exporting === 'png' ? <Spinner size="sm" /> : <LuImage size={16} />}<span>{exporting === 'png' ? 'Tayyorlanmoqda...' : 'Aktni yuklab olish'}</span></HStack>
                     </Button>
                 </HStack>
@@ -465,7 +465,7 @@ export default function CustomerReconciliation() {
                                                 ? { label: 'Qaytarish', Icon: LuUndo2, color: isDark ? '#C4B5FD' : '#6D28D9', bg: isDark ? 'rgba(139,92,246,.14)' : '#EDE9FE' }
                                                 : { label: 'To‘lov', Icon: LuArrowDownLeft, color: green, bg: greenSoft };
                                         return (
-                                            <Table.Row key={row.id} _hover={{ bg: isDark ? 'rgba(250,204,21,.04)' : '#FFFBEB' }}>
+                                            <Table.Row key={row.id} _hover={{ bg: isDark ? 'rgb(var(--accent-400) / .04)' : 'rgb(var(--accent-warm-50))' }}>
                                                 <Table.Cell textAlign="center" color={subtitleColor} fontSize="sm">{index + 1}</Table.Cell>
                                                 <Table.Cell>
                                                     <HStack gap={2.5}>

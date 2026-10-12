@@ -75,7 +75,7 @@ export default function CurrencyAmountField({ value, onChange, disabled = false,
                     {uzs > 0 && <Field.HelperText color={subtitleColor}>{formatNumber(uzs)} so‘m</Field.HelperText>}
                 </>
             ) : (
-                <Box w="100%" p={3} borderRadius="xl" borderWidth="1px" borderColor={isDark ? 'rgba(250,204,21,.3)' : '#FDE68A'} bg={isDark ? 'rgba(250,204,21,.06)' : '#FFFBEB'}>
+                <Box w="100%" p={3} borderRadius="xl" borderWidth="1px" borderColor={isDark ? 'rgb(var(--accent-400) / .3)' : 'rgb(var(--accent-warm-200))'} bg={isDark ? 'rgb(var(--accent-400) / .06)' : 'rgb(var(--accent-warm-50))'}>
                     <SimpleGrid columns={{ base: 1, sm: 2 }} gap={3}>
                         <Box>
                             <Text fontSize="xs" fontWeight="semibold" color={subtitleColor} mb={1}>Summa, USD ($)</Text>

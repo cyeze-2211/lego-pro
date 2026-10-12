@@ -209,7 +209,7 @@ function CreateRole({ onDone }) {
                                 pt={7} pb={5} borderBottomWidth="1px" borderColor={cardBorder}>
                                 <HStack gap={3}>
                                     <Box p={3} borderRadius="xl"
-                                        bg={isDark ? 'rgba(250,204,21,.1)' : '#FEFCE8'}
+                                        bg={isDark ? 'rgb(var(--accent-400) / .1)' : 'rgb(var(--accent-50))'}
                                         color={accentColor}>
                                         <LuShieldCheck size={24} />
                                     </Box>
@@ -304,7 +304,7 @@ function CreateRole({ onDone }) {
                                                                             cursor="pointer"
                                                                             p={2}
                                                                             borderRadius="lg"
-                                                                            bg={checked ? (isDark ? 'rgba(250,204,21,0.12)' : '#FEF3C7') : 'transparent'}
+                                                                            bg={checked ? (isDark ? 'rgb(var(--accent-400) / 0.12)' : 'rgb(var(--accent-warm-100))') : 'transparent'}
                                                                             borderWidth="1px"
                                                                             borderColor={checked ? accentColor : 'transparent'}
                                                                             _hover={{ bg: isDark ? 'rgba(255,255,255,0.04)' : 'gray.100' }}
@@ -417,7 +417,7 @@ function EditRole({ role, onClose, onDone }) {
                             pt={7} pb={5} borderBottomWidth="1px" borderColor={cardBorder}>
                             <HStack gap={3}>
                                 <Box p={3} borderRadius="xl"
-                                    bg={isDark ? 'rgba(250,204,21,.1)' : '#FEFCE8'}
+                                    bg={isDark ? 'rgb(var(--accent-400) / .1)' : 'rgb(var(--accent-50))'}
                                     color={accentColor}>
                                     <LuPencil size={24} />
                                 </Box>
@@ -574,7 +574,7 @@ export default function Role() {
                                 const palette = ROLE_COLORS[meta.color] || ROLE_COLORS.gray;
                                 const isKnownRole = Boolean(ROLE_LABELS[normalizeRoleKey(role.roleName)]);
                                 return (
-                                    <Table.Row key={role.id} bg={tableBg} _hover={{ bg: isDark ? 'rgba(250,204,21,.06)' : '#FFFBEB' }}>
+                                    <Table.Row key={role.id} bg={tableBg} _hover={{ bg: isDark ? 'rgb(var(--accent-400) / .06)' : 'rgb(var(--accent-warm-50))' }}>
                                         <Table.Cell bg={tableBg} borderWidth="1px" borderColor={cardBorder}>
                                             <HStack gap={3}>
                                                 <Box

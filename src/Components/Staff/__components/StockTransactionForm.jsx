@@ -213,10 +213,10 @@ export default function StockTransactionForm({ action }) {
     const line    = isDark ? 'border-[#334155]/60' : 'border-[#f1f5f9]';
     const rowBg   = isDark ? 'hover:bg-[#1e293b]/60' : 'hover:bg-amber-50/50';
     const badge   = isIn
-        ? 'bg-[#FACC15]/10 text-[#EAB308] border-[#FACC15]/30'
+        ? 'bg-yellow-400/10 text-yellow-500 border-yellow-400/30'
         : 'bg-[#f43f5e]/10 text-[#f43f5e] border-[#f43f5e]/20';
     const submitBtn = isIn
-        ? 'bg-[#FACC15] hover:bg-[#EAB308] text-[#0F172A] shadow-[#FACC15]/30'
+        ? 'bg-yellow-400 hover:bg-yellow-500 text-[#0F172A] shadow-yellow-400/30'
         : 'bg-[#f43f5e] hover:bg-[#e11d48] text-white shadow-[#f43f5e]/20';
     const fieldCx = isDark
         ? 'border-[#334155] bg-[#1e293b]/80 text-white placeholder:text-[#64748b] focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20'

@@ -24,7 +24,7 @@ export default function UserDetail() {
                         <DetailRow label="Username" value={user.username} emphasize />
                         <DetailRow label="Rol" value={
                             <Badge borderRadius="full" px={3} py={1}
-                                bg="rgba(250,204,21,.14)" color="yellow.700">
+                                bg="rgb(var(--accent-400) / .14)" color="yellow.700">
                                 {user.roleName}
                             </Badge>
                         } />

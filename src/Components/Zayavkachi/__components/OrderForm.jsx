@@ -356,8 +356,8 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
     const divider = isDark ? 'divide-[#334155]/50' : 'divide-[#f1f5f9]';
     const line    = isDark ? 'border-[#334155]/60' : 'border-[#f1f5f9]';
     const rowBg   = isDark ? 'hover:bg-[#1e293b]/60' : 'hover:bg-amber-50/50';
-    const badge   = 'bg-[#FACC15]/10 text-[#EAB308] border-[#FACC15]/30';
-    const submitBtn = 'bg-[#FACC15] hover:bg-[#EAB308] text-[#0F172A] shadow-[#FACC15]/30';
+    const badge   = 'bg-yellow-400/10 text-yellow-500 border-yellow-400/30';
+    const submitBtn = 'bg-yellow-400 hover:bg-yellow-500 text-[#0F172A] shadow-yellow-400/30';
     const ghostBtn = isDark
         ? 'border-[#334155] text-[#94a3b8] hover:bg-[#1e293b]'
         : 'border-[#e2e8f0] text-[#64748b] hover:bg-[#f1f5f9]';

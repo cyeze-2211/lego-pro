@@ -219,7 +219,7 @@ export default function StaffOrders() {
                             onClick={() => handleTabChange(key)}
                             className={`flex flex-1 min-w-[160px] items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all duration-200 ${
                                 isActive
-                                    ? 'bg-[#FACC15] text-[#0F172A] shadow-sm shadow-[#FACC15]/30'
+                                    ? 'bg-yellow-400 text-[#0F172A] shadow-sm shadow-yellow-400/30'
                                     : `${muted} hover:bg-amber-400/10 hover:text-amber-500`
                             }`}
                         >

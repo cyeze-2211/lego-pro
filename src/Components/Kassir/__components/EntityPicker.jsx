@@ -57,9 +57,9 @@ export default function EntityPicker({
         else if (event.key === 'Escape') setOpen(false);
     };
 
-    const hoverBg = isDark ? 'whiteAlpha.100' : '#FFFBEB';
-    const selectedBorder = isDark ? 'rgba(250,204,21,.45)' : '#FDE68A';
-    const selectedBg = isDark ? 'rgba(250,204,21,.06)' : '#FFFBEB';
+    const hoverBg = isDark ? 'whiteAlpha.100' : 'rgb(var(--accent-warm-50))';
+    const selectedBorder = isDark ? 'rgb(var(--accent-400) / .45)' : 'rgb(var(--accent-warm-200))';
+    const selectedBg = isDark ? 'rgb(var(--accent-400) / .06)' : 'rgb(var(--accent-warm-50))';
 
     return (
         <Field.Root required>

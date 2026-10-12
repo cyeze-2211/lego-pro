@@ -39,7 +39,7 @@ export default function Edit({ category }) {
 
     return (
         <>
-            <Button onClick={onOpen} variant="ghost" size="sm" color={accentColor} borderRadius="xl" px={3} aria-label="Tahrirlash" _hover={{ bg: isDark ? 'rgba(250, 204, 21, 0.16)' : 'yellow.50', color: isDark ? 'yellow.200' : 'yellow.700' }}><LuPen size={16} /></Button>
+            <Button onClick={onOpen} variant="ghost" size="sm" color={accentColor} borderRadius="xl" px={3} aria-label="Tahrirlash" _hover={{ bg: isDark ? 'rgb(var(--accent-400) / 0.16)' : 'yellow.50', color: isDark ? 'yellow.200' : 'yellow.700' }}><LuPen size={16} /></Button>
             <Dialog.Root open={open} onOpenChange={(event) => (event.open ? onOpen() : close())} size="md" placement="center">
                 <Portal>
                     <Dialog.Backdrop backdropFilter="blur(6px)" bg={isDark ? 'blackAlpha.700' : 'blackAlpha.400'} />
@@ -47,7 +47,7 @@ export default function Edit({ category }) {
                         <Dialog.Content bg={cardBg} borderColor={modalBorder} borderWidth="1px" borderRadius="2xl" boxShadow="2xl" overflow="hidden" maxW="520px" w="calc(100% - 32px)">
                             <Box position="absolute" top="0" left="0" right="0" h="4px" bgGradient={`linear(to-r, ${accentColor}, yellow.300)`} />
                             <Dialog.Header color={textColor} fontSize="2xl" fontWeight="bold" pt={7} pb={5} borderBottomWidth="1px" borderColor={modalBorder}>
-                                <HStack gap={3}><Box p={3} borderRadius="xl" bg={isDark ? 'rgba(250, 204, 21, 0.1)' : '#FEFCE8'} borderColor={isDark ? 'rgba(250, 204, 21, 0.2)' : '#FDE68A'} borderWidth="1px" color={accentColor}><ReceiptText size={24} /></Box><span>Kategoriyani tahrirlash</span></HStack>
+                                <HStack gap={3}><Box p={3} borderRadius="xl" bg={isDark ? 'rgb(var(--accent-400) / 0.1)' : 'rgb(var(--accent-50))'} borderColor={isDark ? 'rgb(var(--accent-400) / 0.2)' : 'rgb(var(--accent-warm-200))'} borderWidth="1px" color={accentColor}><ReceiptText size={24} /></Box><span>Kategoriyani tahrirlash</span></HStack>
                             </Dialog.Header>
                             <Dialog.CloseTrigger asChild><Button variant="ghost" color={subtitleColor} size="sm" position="absolute" top="3" right="3" aria-label="Yopish" disabled={isLoading}><X /></Button></Dialog.CloseTrigger>
                             <Dialog.Body py={6}>

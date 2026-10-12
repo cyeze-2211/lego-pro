@@ -49,10 +49,10 @@ export default function RawTransactionForm({ action }) {
     const line    = isDark ? 'border-[#334155]/60' : 'border-[#f1f5f9]';
     const rowBg   = isDark ? 'hover:bg-[#1e293b]/60' : 'hover:bg-amber-50/50';
     const badge   = isIn
-        ? 'bg-[#FACC15]/10 text-[#EAB308] border-[#FACC15]/30'
+        ? 'bg-yellow-400/10 text-yellow-500 border-yellow-400/30'
         : 'bg-[#f43f5e]/10 text-[#f43f5e] border-[#f43f5e]/20';
     const submitBtn = isIn
-        ? 'bg-[#FACC15] hover:bg-[#EAB308] text-[#0F172A] shadow-[#FACC15]/30'
+        ? 'bg-yellow-400 hover:bg-yellow-500 text-[#0F172A] shadow-yellow-400/30'
         : 'bg-[#f43f5e] hover:bg-[#e11d48] text-white shadow-[#f43f5e]/20';
     const inputCx = [
         'w-full rounded-xl border px-4 text-sm outline-none transition-all duration-200 h-12',
@@ -336,7 +336,7 @@ export default function RawTransactionForm({ action }) {
                                                                 onClick={() => updateField(item.rawMaterialId, 'unit', u)}
                                                                 className={`h-11 px-4 text-xs font-bold transition-colors ${
                                                                     item.unit === u
-                                                                        ? isIn ? 'bg-[#FACC15] text-[#0F172A]' : 'bg-[#f43f5e] text-white'
+                                                                        ? isIn ? 'bg-yellow-400 text-[#0F172A]' : 'bg-[#f43f5e] text-white'
                                                                         : isDark ? 'bg-[#1e293b] text-[#94a3b8] hover:text-[#e2e8f0]' : 'bg-[#f8fafc] text-[#64748b] hover:text-[#334155]'
                                                                 }`}>
                                                                 {u}

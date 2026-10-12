@@ -91,7 +91,7 @@ export default function MixerRecipeDetail() {
             <div className="flex items-center gap-3 mb-5">
                 <div
                     className="flex items-center justify-center w-10 h-10 rounded-xl flex-shrink-0"
-                    style={{ background: isDark ? 'rgba(250,204,21,0.12)' : '#FEF3C7' }}
+                    style={{ background: isDark ? 'rgb(var(--accent-400) / 0.12)' : 'rgb(var(--accent-warm-100))' }}
                 >
                     <LuFlaskConical size={20} style={{ color: accentColor }} />
                 </div>
@@ -112,7 +112,7 @@ export default function MixerRecipeDetail() {
                     style={{
                         background: cardBg,
                         borderColor: warehouseSelected
-                            ? (isDark ? 'rgba(250,204,21,0.4)' : '#FDE68A')
+                            ? (isDark ? 'rgb(var(--accent-400) / 0.4)' : 'rgb(var(--accent-warm-200))')
                             : cardBorder,
                         boxShadow: isDark ? '0 2px 10px rgba(0,0,0,0.18)' : '0 2px 8px rgba(15,23,42,0.05)',
                         transition: 'border-color 0.2s',
@@ -136,7 +136,7 @@ export default function MixerRecipeDetail() {
                                 paddingRight: 32,
                                 borderRadius: 12,
                                 border: `1.5px solid ${warehouseId
-                                    ? (isDark ? 'rgba(250,204,21,0.55)' : '#FDE68A')
+                                    ? (isDark ? 'rgb(var(--accent-400) / 0.55)' : 'rgb(var(--accent-warm-200))')
                                     : cardBorder}`,
                                 background: isDark ? BRAND_COLORS.darkInputBg : '#fff',
                                 color: warehouseId ? textColor : subtitleColor,
@@ -221,9 +221,9 @@ export default function MixerRecipeDetail() {
                             disabled={isSaving || !warehouseId}
                             className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl font-bold text-sm transition-all hover:opacity-90 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed"
                             style={{
-                                background: 'linear-gradient(135deg,#FACC15,#EAB308)',
+                                background: 'linear-gradient(135deg,rgb(var(--accent-400)),rgb(var(--accent-500)))',
                                 color: '#0F172A',
-                                boxShadow: '0 6px 20px rgba(250,204,21,0.3)',
+                                boxShadow: '0 6px 20px rgb(var(--accent-400) / 0.3)',
                                 border: 'none',
                                 cursor: isSaving || !warehouseId ? 'not-allowed' : 'pointer',
                             }}
@@ -266,7 +266,7 @@ function RawItemCard({
     const borderColor = isDone
         ? (isDark ? 'rgba(34,197,94,0.5)'    : '#86EFAC')
         : isActive
-            ? (isDark ? 'rgba(250,204,21,0.55)' : '#FCD34D')
+            ? (isDark ? 'rgb(var(--accent-400) / 0.55)' : 'rgb(var(--accent-warm-300))')
             : cardBorder;
 
     const bg = isDone
@@ -278,7 +278,7 @@ function RawItemCard({
     const numBg = isDone
         ? (isDark ? 'rgba(34,197,94,0.18)'    : '#DCFCE7')
         : isActive
-            ? (isDark ? 'rgba(250,204,21,0.18)' : '#FEF9C3')
+            ? (isDark ? 'rgb(var(--accent-400) / 0.18)' : 'rgb(var(--accent-100))')
             : (isDark ? 'rgba(255,255,255,0.05)' : '#F1F5F9');
 
     const numColor = isDone
@@ -294,8 +294,8 @@ function RawItemCard({
                 opacity: isLocked ? 0.42 : 1,
                 boxShadow: isActive
                     ? (isDark
-                        ? '0 0 0 2px rgba(250,204,21,0.22), 0 4px 16px rgba(0,0,0,0.2)'
-                        : '0 0 0 3px rgba(250,204,21,0.18), 0 4px 12px rgba(15,23,42,0.07)')
+                        ? '0 0 0 2px rgb(var(--accent-400) / 0.22), 0 4px 16px rgba(0,0,0,0.2)'
+                        : '0 0 0 3px rgb(var(--accent-400) / 0.18), 0 4px 12px rgba(15,23,42,0.07)')
                     : isDone
                         ? (isDark ? '0 0 0 1.5px rgba(34,197,94,0.2)' : '0 0 0 2px rgba(34,197,94,0.1)')
                         : (isDark ? '0 1px 6px rgba(0,0,0,0.15)'     : '0 1px 4px rgba(15,23,42,0.04)'),
@@ -308,7 +308,7 @@ function RawItemCard({
                     background: isDone
                         ? 'linear-gradient(180deg,#22C55E,#16A34A)'
                         : isActive
-                            ? 'linear-gradient(180deg,#FACC15,#EAB308)'
+                            ? 'linear-gradient(180deg,rgb(var(--accent-400)),rgb(var(--accent-500)))'
                             : (isDark ? 'rgba(255,255,255,0.06)' : '#E2E8F0'),
                 }}
             />
@@ -355,8 +355,8 @@ function RawItemCard({
                 <div
                     className="flex items-center justify-center rounded-xl text-sm font-bold px-4 py-2.5"
                     style={{
-                        background: isDark ? 'rgba(250,204,21,0.09)' : '#FEF9C3',
-                        border: `1px solid ${isDark ? 'rgba(250,204,21,0.2)' : '#FDE68A'}`,
+                        background: isDark ? 'rgb(var(--accent-400) / 0.09)' : 'rgb(var(--accent-100))',
+                        border: `1px solid ${isDark ? 'rgb(var(--accent-400) / 0.2)' : 'rgb(var(--accent-warm-200))'}`,
                         color: accentColor,
                         minWidth: 48,
                     }}
@@ -404,11 +404,11 @@ function RawItemCard({
                             onClick={onDone}
                             className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all hover:opacity-90 active:scale-[0.97]"
                             style={{
-                                background: 'linear-gradient(135deg,#FACC15,#EAB308)',
+                                background: 'linear-gradient(135deg,rgb(var(--accent-400)),rgb(var(--accent-500)))',
                                 color: '#0F172A',
                                 border: 'none',
                                 cursor: 'pointer',
-                                boxShadow: '0 3px 12px rgba(250,204,21,0.3)',
+                                boxShadow: '0 3px 12px rgb(var(--accent-400) / 0.3)',
                                 whiteSpace: 'nowrap',
                             }}
                         >

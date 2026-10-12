@@ -72,7 +72,7 @@ function EditRoleInfoModal({ role, open, onClose, onDone }) {
                             pt={7} pb={5} borderBottomWidth="1px" borderColor={cardBorder}>
                             <HStack gap={3}>
                                 <Box p={3} borderRadius="xl"
-                                    bg={isDark ? 'rgba(250,204,21,.1)' : '#FEFCE8'}
+                                    bg={isDark ? 'rgb(var(--accent-400) / .1)' : 'rgb(var(--accent-50))'}
                                     color={accentColor}>
                                     <LuPencil size={24} />
                                 </Box>
@@ -269,7 +269,7 @@ export default function RoleDetail() {
                     >
                         <HStack justify="space-between" align="center" flexWrap="wrap" gap={4} mb={5}>
                             <HStack gap={3}>
-                                <Box p={2.5} borderRadius="xl" bg={isDark ? 'rgba(250,204,21,.12)' : '#FEF3C7'} color={accentColor}>
+                                <Box p={2.5} borderRadius="xl" bg={isDark ? 'rgb(var(--accent-400) / .12)' : 'rgb(var(--accent-warm-100))'} color={accentColor}>
                                     <LuShieldAlert size={20} />
                                 </Box>
                                 <Box>
@@ -356,7 +356,7 @@ export default function RoleDetail() {
                                                             cursor="pointer"
                                                             p={2.5}
                                                             borderRadius="lg"
-                                                            bg={checked ? (isDark ? 'rgba(250,204,21,0.12)' : '#FEF3C7') : 'transparent'}
+                                                            bg={checked ? (isDark ? 'rgb(var(--accent-400) / 0.12)' : 'rgb(var(--accent-warm-100))') : 'transparent'}
                                                             borderWidth="1px"
                                                             borderColor={checked ? accentColor : 'transparent'}
                                                             _hover={{ bg: isDark ? 'rgba(255,255,255,0.05)' : 'gray.100' }}

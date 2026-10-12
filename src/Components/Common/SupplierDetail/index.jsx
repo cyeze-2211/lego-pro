@@ -202,14 +202,14 @@ export default function SupplierDetail() {
     const balanceMeta = getBalanceMeta(balance, isDark);
     const lastPayment = lastPaymentResult?.items?.[0] ?? null;
     const activePaymentsCount = lastPaymentResult?.pagination?.totalElements ?? 0;
-    const accentSoft = isDark ? 'rgba(250,204,21,.12)' : '#FEF3C7';
+    const accentSoft = isDark ? 'rgb(var(--accent-400) / .12)' : 'rgb(var(--accent-warm-100))';
     const phoneHref = supplier.phone ? `tel:${String(supplier.phone).replace(/[^\d+]/g, '')}` : undefined;
 
     return (
         <Box bg={pageBg} color={textColor} minH="100%" w="100%">
             {/* ── Sarlavha ── */}
             <Box overflow="hidden" borderWidth="1px" borderColor={cardBorder} borderRadius="2xl" boxShadow={cardShadow} mb={4}>
-                <Box h="5px" bg={`linear-gradient(90deg, ${accentColor}, #FDE68A)`} />
+                <Box h="5px" bg={`linear-gradient(90deg, ${accentColor}, rgb(var(--accent-warm-200)))`} />
                 <Box bg={cardBg} p={{ base: 4, md: 6 }}>
                     <HStack justify="space-between" align="start" flexWrap="wrap" gap={4}>
                         <HStack gap={4} minW={0} align="start">
@@ -245,12 +245,12 @@ export default function SupplierDetail() {
                         <HStack gap={2} flexWrap="wrap" flexShrink={0}>
                           
                             {canManageSupplier && (
-                                <Button px={'10px'} variant="outline" borderRadius="xl" color={accentColor} borderColor={isDark ? 'rgba(250,204,21,.4)' : '#FDE68A'} _hover={{ bg: accentSoft }} onClick={() => setEditOpen(true)}>
+                                <Button px={'10px'} variant="outline" borderRadius="xl" color={accentColor} borderColor={isDark ? 'rgb(var(--accent-400) / .4)' : 'rgb(var(--accent-warm-200))'} _hover={{ bg: accentSoft }} onClick={() => setEditOpen(true)}>
                                     <HStack gap={2}><LuPen size={16} /><span>Tahrirlash</span></HStack>
                                 </Button>
                             )}
                             {canManageSupplier && (
-                                <Button bg={accentColor} color="black" borderRadius="xl" h="42px" px={5} fontWeight="semibold" _hover={{ bg: '#EAB308' }} onClick={() => setPaymentOpen(true)}>
+                                <Button bg={accentColor} color="black" borderRadius="xl" h="42px" px={5} fontWeight="semibold" _hover={{ bg: 'rgb(var(--accent-500))' }} onClick={() => setPaymentOpen(true)}>
                                     <HStack gap={2}><LuWallet size={16} /><span>Balansni to‘ldirish</span></HStack>
                                 </Button>
                             )}

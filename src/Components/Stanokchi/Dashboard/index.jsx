@@ -149,8 +149,8 @@ function HeadDashboard() {
 
             {/* ── Sarlavha: smena va progress ── */}
             <section className={`relative overflow-hidden rounded-2xl border shadow-lg ${panel}`}>
-                <div className="h-1.5 w-full" style={{ background: 'linear-gradient(90deg,#FACC15,#F59E0B,#FDE68A)' }} />
-                <div className="pointer-events-none absolute right-0 top-0 h-full w-1/2" style={{ background: isDark ? 'radial-gradient(circle at 80% 20%, rgba(250,204,21,.12), transparent 55%)' : 'radial-gradient(circle at 80% 20%, rgba(250,204,21,.18), transparent 55%)' }} />
+                <div className="h-1.5 w-full" style={{ background: 'linear-gradient(90deg,rgb(var(--accent-400)),rgb(var(--accent-warm-500)),rgb(var(--accent-warm-200)))' }} />
+                <div className="pointer-events-none absolute right-0 top-0 h-full w-1/2" style={{ background: isDark ? 'radial-gradient(circle at 80% 20%, rgb(var(--accent-400) / .12), transparent 55%)' : 'radial-gradient(circle at 80% 20%, rgb(var(--accent-400) / .18), transparent 55%)' }} />
                 <div className="relative grid gap-5 p-4 sm:p-6 lg:grid-cols-[1fr_auto] lg:items-center">
                     <div>
                         <div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-amber-500"><LuShieldCheck size={14} /> Stanokchi boshqaruvi</div>
@@ -163,7 +163,7 @@ function HeadDashboard() {
                         <div className="mt-4 max-w-xl">
                             <div className={`mb-1.5 flex items-center justify-between text-xs ${muted}`}><span>Smena jarayoni</span><span className={`font-bold ${heading}`}>{shiftProgress}%</span></div>
                             <div className="h-2 w-full overflow-hidden rounded-full" style={{ background: track }}>
-                                <div className="h-full rounded-full" style={{ width: `${shiftProgress}%`, background: 'linear-gradient(90deg,#FACC15,#F59E0B)', transition: 'width .6s ease' }} />
+                                <div className="h-full rounded-full" style={{ width: `${shiftProgress}%`, background: 'linear-gradient(90deg,rgb(var(--accent-400)),rgb(var(--accent-warm-500)))', transition: 'width .6s ease' }} />
                             </div>
                         </div>
                     </div>
