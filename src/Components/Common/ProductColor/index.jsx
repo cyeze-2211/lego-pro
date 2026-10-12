@@ -195,7 +195,7 @@ export default function ProductColor() {
                             </Table.Header>
                             <Table.Body bg={tableBg}>
                                 {colors.map((color, index) => (
-                                    <Table.Row key={color.id} bg={tableBg} _hover={{ bg: isDark ? 'rgba(250, 204, 21, 0.06)' : '#FFFBEB' }}>
+                                    <Table.Row key={color.id} bg={tableBg} _hover={{ bg: isDark ? 'rgb(var(--accent-400) / 0.06)' : 'rgb(var(--accent-warm-50))' }}>
                                         <Table.Cell textAlign="center" color={subtitleColor} borderWidth="0.5px" borderColor={tableBorder}>
                                             {index + 1}
                                         </Table.Cell>

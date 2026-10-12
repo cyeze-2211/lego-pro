@@ -354,7 +354,7 @@ export default function Brand() {
                                         key={brand.id}
                                         bg={tableBg}
                                         _hover={{
-                                            bg: isDark ? 'rgba(250, 204, 21, 0.06)' : '#FFFBEB',
+                                            bg: isDark ? 'rgb(var(--accent-400) / 0.06)' : 'rgb(var(--accent-warm-50))',
                                         }}
                                         transition="background 0.15s"
                                     >
@@ -382,8 +382,8 @@ export default function Brand() {
                                                     borderRadius="md"
                                                     bg={
                                                         isDark
-                                                            ? 'rgba(250, 204, 21, 0.10)'
-                                                            : '#FEF3C7'
+                                                            ? 'rgb(var(--accent-400) / 0.10)'
+                                                            : 'rgb(var(--accent-warm-100))'
                                                     }
                                                     color={accentColor}
                                                     flexShrink={0}

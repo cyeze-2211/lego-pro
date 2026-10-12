@@ -263,7 +263,7 @@ export default function Machine() {
                                     <Table.Row
                                         key={machine.id}
                                         bg={tableBg}
-                                        _hover={{ bg: isDark ? 'rgba(250,204,21,0.06)' : '#FFFBEB' }}
+                                        _hover={{ bg: isDark ? 'rgb(var(--accent-400) / 0.06)' : 'rgb(var(--accent-warm-50))' }}
                                     >
                                         <Table.Cell borderWidth="0.5px" borderColor={tableBorder} textAlign="center" color={subtitleColor}>
                                             {index + 1}
@@ -272,7 +272,7 @@ export default function Machine() {
                                         <Table.Cell borderWidth="0.5px" borderColor={tableBorder}>
                                             <HStack gap={3}>
                                                 <Box p={2} borderRadius="lg"
-                                                    bg={isDark ? 'rgba(250,204,21,0.12)' : '#FEF3C7'}
+                                                    bg={isDark ? 'rgb(var(--accent-400) / 0.12)' : 'rgb(var(--accent-warm-100))'}
                                                     color={accentColor}>
                                                     <LuCog size={18} />
                                                 </Box>

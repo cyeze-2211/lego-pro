@@ -79,7 +79,7 @@ export default function Edit({ id, name: initialName, summary: initialSummary })
 				px={3}
 				aria-label="Tahrirlash"
 				_hover={{
-					bg: isDark ? 'rgba(250, 204, 21, 0.16)' : 'yellow.50',
+					bg: isDark ? 'rgb(var(--accent-400) / 0.16)' : 'yellow.50',
 					color: isDark ? 'yellow.200' : 'yellow.700',
 				}}
 			>
@@ -121,8 +121,8 @@ export default function Edit({ id, name: initialName, summary: initialSummary })
 									<Box
 										p={3}
 										borderRadius="xl"
-										bg={isDark ? 'rgba(250, 204, 21, 0.1)' : '#fefce8'}
-										borderColor={isDark ? 'rgba(250, 204, 21, 0.2)' : '#FDE68A'}
+										bg={isDark ? 'rgb(var(--accent-400) / 0.1)' : 'rgb(var(--accent-50))'}
+										borderColor={isDark ? 'rgb(var(--accent-400) / 0.2)' : 'rgb(var(--accent-warm-200))'}
 										borderWidth="1px"
 									>
 										<Warehouse size={24} color={accentColor} />

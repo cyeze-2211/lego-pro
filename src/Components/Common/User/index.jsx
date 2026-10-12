@@ -183,7 +183,7 @@ function CreateUser({ devices, onDone }) {
                                 pt={7} pb={5} borderBottomWidth="1px" borderColor={cardBorder}>
                                 <HStack gap={3}>
                                     <Box p={3} borderRadius="xl"
-                                        bg={isDark ? 'rgba(250,204,21,.1)' : '#FEFCE8'}
+                                        bg={isDark ? 'rgb(var(--accent-400) / .1)' : 'rgb(var(--accent-50))'}
                                         color={accentColor}>
                                         <LuUserRound size={24} />
                                     </Box>
@@ -337,10 +337,10 @@ export default function User() {
                         </Table.Header>
                         <Table.Body bg={tableBg}>
                             {users.map((user) => (
-                                <Table.Row key={user.id} bg={tableBg} _hover={{ bg: isDark ? 'rgba(250,204,21,.06)' : '#FFFBEB' }}>
+                                <Table.Row key={user.id} bg={tableBg} _hover={{ bg: isDark ? 'rgb(var(--accent-400) / .06)' : 'rgb(var(--accent-warm-50))' }}>
                                     <Table.Cell bg={tableBg} borderWidth="1px" borderColor={cardBorder}>
                                         <HStack gap={3}>
-                                            <Box p={2} borderRadius="lg" bg={isDark ? 'rgba(250,204,21,.12)' : '#FEF3C7'} color={accentColor}>
+                                            <Box p={2} borderRadius="lg" bg={isDark ? 'rgb(var(--accent-400) / .12)' : 'rgb(var(--accent-warm-100))'} color={accentColor}>
                                                 <LuUserRound />
                                             </Box>
                                             <Text as={Link} to={`/users/${user.id}`} fontWeight="semibold" color={textColor} _hover={{ color: accentColor }}>

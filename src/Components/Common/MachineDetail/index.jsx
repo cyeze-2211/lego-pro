@@ -191,7 +191,7 @@ export default function MachineDetail() {
                                                 return (
                                                     <Table.Row
                                                         key={item.runId}
-                                                        _hover={{ bg: isDark ? 'rgba(250,204,21,.06)' : '#FFFBEB' }}
+                                                        _hover={{ bg: isDark ? 'rgb(var(--accent-400) / .06)' : 'rgb(var(--accent-warm-50))' }}
                                                     >
                                                         <Table.Cell color={subtitleColor} textAlign="center">
                                                             {index + 1}

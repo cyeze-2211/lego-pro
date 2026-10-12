@@ -526,7 +526,7 @@ export default function OrderPrintModal({ order, onClose, showPrices = true }) {
                     <button
                         onClick={handlePrint}
                         disabled={logoLoading || brandsLoading}
-                        className="flex items-center gap-2 rounded-xl bg-[#FACC15] px-6 py-3 text-sm font-bold text-[#0F172A] shadow-lg shadow-[#FACC15]/30 transition-all hover:-translate-y-px hover:bg-[#EAB308] hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-60"
+                        className="flex items-center gap-2 rounded-xl bg-yellow-400 px-6 py-3 text-sm font-bold text-[#0F172A] shadow-lg shadow-yellow-400/30 transition-all hover:-translate-y-px hover:bg-yellow-500 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-60"
                     >
                         {logoLoading ? <LuLoader size={16} className="animate-spin" /> : <LuPrinter size={16} />}
                         Chop etish

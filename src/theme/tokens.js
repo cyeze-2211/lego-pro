@@ -1,6 +1,9 @@
 import { useColorMode, useColorModeValue } from "../Components/ui/color-mode";
+import { usePreferences } from "./preferences";
 
 // PLASTPRO Brand Theme Design Tokens
+// yellow/yellowHover — standart (sariq) mavzu qiymatlari. Amaldagi accent rang foydalanuvchi
+// sozlamasiga bog‘liq, uni useAppTheme().accentColor / accentHover orqali oling.
 export const BRAND_COLORS = {
     yellow: "#FACC15",
     yellowHover: "#EAB308",
@@ -25,6 +28,7 @@ export const BRAND_COLORS = {
 
 export function useAppTheme() {
     const { colorMode, toggleColorMode, setColorMode } = useColorMode();
+    const { accent } = usePreferences();
     const isDark = colorMode === "dark";
 
     const pageBg = useColorModeValue(BRAND_COLORS.lightBg, BRAND_COLORS.darkBg);
@@ -76,8 +80,10 @@ export function useAppTheme() {
         labelColor,
         iconColor,
 
-        accentColor: BRAND_COLORS.yellow,
-        accentHover: BRAND_COLORS.yellowHover,
-        accentDarkText: BRAND_COLORS.yellowDarkText,
+        // HEX qiymatlar (`${accentColor}55` kabi shaffoflik qo‘shish ishlashi uchun)
+        accentColor: accent.solid,
+        accentHover: accent.hover,
+        accentActive: accent.active,
+        accentDarkText: accent.contrast,
     };
 }

@@ -88,7 +88,7 @@ export default function ZayavkachiCustomerDetail() {
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                         <button type="button" onClick={() => navigate(`${base}/customers/${customer.id}/orders/new`)}
-                            className="flex h-12 items-center gap-2 rounded-xl bg-[#FACC15] px-6 text-sm font-bold text-[#0F172A] shadow-lg shadow-[#FACC15]/30 transition-all duration-200 hover:-translate-y-px hover:bg-[#EAB308] hover:shadow-xl">
+                            className="flex h-12 items-center gap-2 rounded-xl bg-yellow-400 px-6 text-sm font-bold text-[#0F172A] shadow-lg shadow-yellow-400/30 transition-all duration-200 hover:-translate-y-px hover:bg-yellow-500 hover:shadow-xl">
                             <LuPlus size={16} /> Buyurtma yaratish
                         </button>
                         <button type="button" onClick={() => navigate(`${base}/customers/${customer.id}/edit`)}

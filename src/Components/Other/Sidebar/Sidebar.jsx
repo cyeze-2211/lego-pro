@@ -116,7 +116,7 @@ export default function Sidebar({ open, mobileOpen, onMobileClose, footer }) {
             {/* ── Desktop sidebar ─────────────────────────────────────────── */}
             <aside
                 className={`sidebar fixed left-0 top-0 bottom-0 z-40 hidden lg:flex flex-col transition-all duration-300 ${isDark ? "theme-dark" : "theme-light"
-                    } ${open ? "w-[220px]" : "w-[88px]"}`}
+                    } ${open ? "w-[13.75rem]" : "w-[5.5rem]"}`}
             >
                 <SidebarContent
                     groups={groups}
@@ -132,7 +132,7 @@ export default function Sidebar({ open, mobileOpen, onMobileClose, footer }) {
 
             {/* ── Mobile sidebar (slide-in overlay) ───────────────────────── */}
             <aside
-                className={`sidebar fixed left-0 top-0 bottom-0 z-50 flex flex-col w-[280px] max-w-[85vw] lg:hidden transition-transform duration-300 ease-in-out ${isDark ? "theme-dark" : "theme-light"
+                className={`sidebar fixed left-0 top-0 bottom-0 z-50 flex flex-col w-[17.5rem] max-w-[85vw] lg:hidden transition-transform duration-300 ease-in-out ${isDark ? "theme-dark" : "theme-light"
                     } ${mobileOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full"}`}
             >
                 {/* Header qismi: logo + yopish tugmasi */}
@@ -184,7 +184,7 @@ function SidebarContent({ groups, showLabels, expandedGroups, toggleGroup, pathn
                         borderRadius="10px"
                         bg={isDark ? "rgba(255, 255, 255, 0.03)" : "rgba(15, 23, 42, 0.04)"}
                         border="1px solid"
-                        borderColor={isDark ? "rgba(250, 204, 21, 0.2)" : "rgba(148, 163, 184, 0.2)"}
+                        borderColor={isDark ? "rgb(var(--accent-400) / 0.2)" : "rgba(148, 163, 184, 0.2)"}
                         w="max-content"
                         mx="auto"
                     >
@@ -197,7 +197,8 @@ function SidebarContent({ groups, showLabels, expandedGroups, toggleGroup, pathn
             <div className="sidebar-scrollbar flex-1 overflow-y-auto">
                 <nav className="space-y-2">
                     {groups.map((group) => {
-                        const isBasic = group.label === "Asosiy";
+                        // "Asosiy" va mustaqil punktlar (masalan, Sozlamalar) sarlavhasiz ko‘rsatiladi
+                        const isBasic = group.label === "Asosiy" || group.standalone;
                         const expanded = expandedGroups.includes(group.label);
                         const hasActiveItem = group.items.some((item) => pathname === item.path || pathname.startsWith(`${item.path}/`));
 
@@ -280,6 +281,7 @@ const sidebarItemPropType = PropTypes.shape({
 SidebarContent.propTypes = {
     groups: PropTypes.arrayOf(PropTypes.shape({
         label: PropTypes.string.isRequired,
+        standalone: PropTypes.bool,
         items: PropTypes.arrayOf(sidebarItemPropType).isRequired,
         sections: PropTypes.arrayOf(PropTypes.shape({
             label: PropTypes.string.isRequired,

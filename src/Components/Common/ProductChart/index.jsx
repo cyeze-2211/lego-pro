@@ -74,7 +74,7 @@ const prettyDate = (iso) => {
 /* ──────────────────────────────────────────────────────────────── */
 const RANK_STYLES = {
     1: {
-        bg: 'linear-gradient(135deg, #FACC15 0%, #EAB308 100%)',
+        bg: 'linear-gradient(135deg, rgb(var(--accent-400)) 0%, rgb(var(--accent-500)) 100%)',
         color: '#422006',
         ring: 'ring-4 ring-amber-400/30',
     },
@@ -84,8 +84,8 @@ const RANK_STYLES = {
         ring: 'ring-4 ring-slate-400/20',
     },
     3: {
-        bg: 'linear-gradient(135deg, #F59E0B 0%, #B45309 100%)',
-        color: '#FEF3C7',
+        bg: 'linear-gradient(135deg, rgb(var(--accent-warm-500)) 0%, rgb(var(--accent-warm-700)) 100%)',
+        color: 'rgb(var(--accent-warm-100))',
         ring: 'ring-4 ring-orange-500/20',
     },
 };

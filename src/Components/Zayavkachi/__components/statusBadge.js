@@ -35,7 +35,7 @@ export const statusCx = (status) => {
 /** Inline uslublar (style={{...}}) uchun ranglar */
 export const statusStyle = (status, isDark) => {
     const map = {
-        CREATED:   { bg: isDark ? 'rgba(250,204,21,.16)'  : '#FEF3C7', color: isDark ? '#fde68a' : '#92400E', border: isDark ? '#ca8a04' : '#d97706', solid: '#F59E0B' },
+        CREATED:   { bg: isDark ? 'rgb(var(--accent-400) / .16)'  : 'rgb(var(--accent-warm-100))', color: isDark ? 'rgb(var(--accent-warm-200))' : 'rgb(var(--accent-warm-800))', border: isDark ? 'rgb(var(--accent-600))' : 'rgb(var(--accent-warm-600))', solid: '#F59E0B' }, // solid — chop etiladigan hujjatda ham ishlatiladi (CSS o‘zgaruvchisiz)
         LOADED:    { bg: isDark ? 'rgba(167,139,250,.16)' : '#EDE9FE', color: isDark ? '#c4b5fd' : '#5B21B6', border: isDark ? '#8b5cf6' : '#7c3aed', solid: '#8B5CF6' },
         CONFIRMED: { bg: isDark ? 'rgba(34,197,94,.16)'   : '#DCFCE7', color: isDark ? '#86efac' : '#15803d', border: '#16a34a', solid: '#16A34A' },
         REJECTED:  { bg: isDark ? 'rgba(239,68,68,.16)'   : '#FEE2E2', color: isDark ? '#fca5a5' : '#b91c1c', border: '#dc2626', solid: '#DC2626' },

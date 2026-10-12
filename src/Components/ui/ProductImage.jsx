@@ -26,7 +26,7 @@ export default function ProductImage({ imageUrl, version, name = '', size = 40, 
     }, [imageUrl, version, bust]);
 
     const px = typeof size === 'number' ? `${size}px` : size;
-    const placeholderBg = isDark ? 'rgba(250, 204, 21, 0.10)' : '#FEF3C7';
+    const placeholderBg = isDark ? 'rgb(var(--accent-400) / 0.10)' : 'rgb(var(--accent-warm-100))';
 
     return (
         <Box

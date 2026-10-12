@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { LogOut, User, ChevronDown, Moon, Sun } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAppTheme } from "../../theme/tokens";
+import { clearStorageKeepingPreferences } from "../../theme/preferences";
 import { useAppDispatch } from "../../store/hooks";
 import { logoutUser } from "../../store/slices/auth.slice";
 import { useLogoutMutation } from "../../store/services/auth.api";
@@ -23,7 +24,7 @@ export default function StanokchiHeader({ user, title = "Stanokchi Panel" }) {
             // token allaqachon yaroqsiz bo'lsa ham davom etamiz
         }
         dispatch(logoutUser());
-        localStorage.clear();
+        clearStorageKeepingPreferences();
         navigate("/login");
     };
 
@@ -57,7 +58,7 @@ export default function StanokchiHeader({ user, title = "Stanokchi Panel" }) {
                 <div className="flex items-center gap-3">
                     <div
                         className="flex items-center justify-center w-9 h-9 rounded-xl"
-                        style={{ background: "#FACC15" }}
+                        style={{ background: "rgb(var(--accent-400))" }}
                     >
                         <svg
                             width="20"

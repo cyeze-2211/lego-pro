@@ -182,7 +182,7 @@ export function AuditSection({ deviceId, userId }) {
                     {pagination && (
                         <span className="text-xs px-2.5 py-0.5 rounded-full font-medium"
                             style={{
-                                background: isDark ? 'rgba(250,204,21,0.12)' : '#FEF3C7',
+                                background: isDark ? 'rgb(var(--accent-400) / 0.12)' : 'rgb(var(--accent-warm-100))',
                                 color: accentColor,
                             }}>
                             {pagination.totalElements} ta

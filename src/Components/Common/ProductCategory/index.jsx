@@ -95,11 +95,11 @@ export default function ProductCategory() {
                             </Table.Header>
                             <Table.Body bg={tableBg}>
                                 {categories.map((category, index) => (
-                                    <Table.Row key={category.id} bg={tableBg} _hover={{ bg: isDark ? 'rgba(250, 204, 21, 0.06)' : '#FFFBEB' }}>
+                                    <Table.Row key={category.id} bg={tableBg} _hover={{ bg: isDark ? 'rgb(var(--accent-400) / 0.06)' : 'rgb(var(--accent-warm-50))' }}>
                                         <Table.Cell textAlign="center" color={subtitleColor} borderWidth="0.5px" borderColor={tableBorder}>{index + 1}</Table.Cell>
                                         <Table.Cell borderWidth="0.5px" borderColor={tableBorder}>
                                             <HStack gap={3}>
-                                                <Box p={2} borderRadius="lg" bg={isDark ? 'rgba(250,204,21,.12)' : '#FEF3C7'} color={accentColor}><Layers3 size={18} /></Box>
+                                                <Box p={2} borderRadius="lg" bg={isDark ? 'rgb(var(--accent-400) / .12)' : 'rgb(var(--accent-warm-100))'} color={accentColor}><Layers3 size={18} /></Box>
                                                 <Text fontWeight="semibold" color={textColor}>{category.name}</Text>
                                             </HStack>
                                         </Table.Cell>

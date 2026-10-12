@@ -52,8 +52,8 @@ export default function ProductionTaskForm({ machine, onSent }) {
     const head    = isDark ? 'text-white' : 'text-[#0f172a]';
     const divider = isDark ? 'divide-[#334155]/50' : 'divide-[#f1f5f9]';
     const line    = isDark ? 'border-[#334155]/60' : 'border-[#f1f5f9]';
-    const badge   = 'bg-[#FACC15]/10 text-[#EAB308] border-[#FACC15]/30';
-    const submitBtn = 'bg-[#FACC15] hover:bg-[#EAB308] text-[#0F172A] shadow-[#FACC15]/30';
+    const badge   = 'bg-yellow-400/10 text-yellow-500 border-yellow-400/30';
+    const submitBtn = 'bg-yellow-400 hover:bg-yellow-500 text-[#0F172A] shadow-yellow-400/30';
     const fieldCx = isDark
         ? 'border-[#334155] bg-[#1e293b]/80 text-white placeholder:text-[#64748b] focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20'
         : 'border-[#e2e8f0] bg-white text-[#0f172a] placeholder:text-[#94a3b8] focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20';

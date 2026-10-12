@@ -71,9 +71,9 @@ const getStatusMeta = (paymentDate, isDark) => {
         return {
             label: 'Bugun',
             Icon: LuClock3,
-            color: isDark ? '#fde68a' : '#b45309',
-            bg: isDark ? 'rgba(250,204,21,.14)' : '#FFFBEB',
-            border: isDark ? 'rgba(250,204,21,.35)' : '#FDE68A',
+            color: isDark ? 'rgb(var(--accent-warm-200))' : 'rgb(var(--accent-warm-700))',
+            bg: isDark ? 'rgb(var(--accent-400) / .14)' : 'rgb(var(--accent-warm-50))',
+            border: isDark ? 'rgb(var(--accent-400) / .35)' : 'rgb(var(--accent-warm-200))',
         };
     }
     if (diff <= 3) {
@@ -540,14 +540,14 @@ export default function ZayavkachiCustomers() {
                                     const StatusIcon = status?.Icon;
 
                                     return (
-                                        <Table.Row key={customer.id} bg={tableBg} _hover={{ bg: isDark ? 'rgba(250, 204, 21, 0.06)' : '#FFFBEB' }}>
+                                        <Table.Row key={customer.id} bg={tableBg} _hover={{ bg: isDark ? 'rgb(var(--accent-400) / 0.06)' : 'rgb(var(--accent-warm-50))' }}>
                                             <Table.Cell borderWidth="0.5px" borderColor={tableBorder} textAlign="center" color={subtitleColor}>
                                                 {index + 1}
                                             </Table.Cell>
 
                                             <Table.Cell borderWidth="0.5px" borderColor={tableBorder}>
                                                 <HStack gap={3}>
-                                                    <Box p={2} borderRadius="lg" bg={isDark ? 'rgba(250, 204, 21, 0.12)' : '#FEF3C7'} color={accentColor}><LuUsers size={18} /></Box>
+                                                    <Box p={2} borderRadius="lg" bg={isDark ? 'rgb(var(--accent-400) / 0.12)' : 'rgb(var(--accent-warm-100))'} color={accentColor}><LuUsers size={18} /></Box>
                                                     <Text as={Link} to={`${base}/customers/${customer.id}`} fontWeight="semibold" color={textColor} _hover={{ color: accentColor }}>{customer.name}</Text>
                                                 </HStack>
                                             </Table.Cell>

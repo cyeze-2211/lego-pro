@@ -1,5 +1,11 @@
 const withMT = require("@material-tailwind/react/utils/withMT");
 const colors = require("tailwindcss/colors");
+
+// Accent rang (sariq yoki foydalanuvchi tanlagani) CSS o‘zgaruvchilardan olinadi — src/theme/accent.js.
+// `<alpha-value>` tufayli `bg-amber-400/10` kabi shaffoflik ham ishlaydi.
+const ACCENT_SHADES = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950];
+const accentScale = (prefix) =>
+  Object.fromEntries(ACCENT_SHADES.map((shade) => [shade, `rgb(var(--${prefix}-${shade}) / <alpha-value>)`]));
  
 module.exports = withMT({
   content: [
@@ -21,6 +27,9 @@ module.exports = withMT({
         violet: colors.violet,
         fuchsia: colors.fuchsia,
         rose: colors.rose,
+        // Loyihaning accent oilalari (Sozlamalar → Ko‘rinish)
+        yellow: accentScale("accent"),
+        amber: accentScale("accent-warm"),
       },
     },
   },

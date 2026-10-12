@@ -146,11 +146,11 @@ export default function Raw() {
                 </Table.Header>
                 <Table.Body bg={tableBg}>
                     {materials?.map((material, index) => (
-                        <Table.Row key={material.id} bg={tableBg} _hover={{ bg: isDark ? 'rgba(250, 204, 21, 0.06)' : '#FFFBEB' }}>
+                        <Table.Row key={material.id} bg={tableBg} _hover={{ bg: isDark ? 'rgb(var(--accent-400) / 0.06)' : 'rgb(var(--accent-warm-50))' }}>
                             <Table.Cell borderWidth="0.5px" borderColor={tableBorder} color={subtitleColor} textAlign="center">{index + 1}</Table.Cell>
                             <Table.Cell borderWidth="0.5px" borderColor={tableBorder}>
                                 <HStack gap={3}>
-                                    <Box p={2} borderRadius="lg" bg={isDark ? 'rgba(250, 204, 21, 0.12)' : '#FEF3C7'} color={accentColor}><LuFileText size={18} /></Box>
+                                    <Box p={2} borderRadius="lg" bg={isDark ? 'rgb(var(--accent-400) / 0.12)' : 'rgb(var(--accent-warm-100))'} color={accentColor}><LuFileText size={18} /></Box>
                                     <Text as={Link} to={`/raw/${material.id}`} fontWeight="semibold" color={textColor} _hover={{ color: accentColor }}>{material.name}</Text>
                                 </HStack>
                             </Table.Cell>

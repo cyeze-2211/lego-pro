@@ -41,9 +41,9 @@ export default function EmptyData({
                     w="76px"
                     h="76px"
                     borderRadius="2xl"
-                    bg={isDark ? 'rgba(250, 204, 21, 0.12)' : '#FEFCE8'}
+                    bg={isDark ? 'rgb(var(--accent-400) / 0.12)' : 'rgb(var(--accent-50))'}
                     borderWidth="1px"
-                    borderColor={isDark ? 'rgba(250, 204, 21, 0.24)' : '#FDE68A'}
+                    borderColor={isDark ? 'rgb(var(--accent-400) / 0.24)' : 'rgb(var(--accent-warm-200))'}
                     color={accentColor}
                 >
                     <Inbox size={36} strokeWidth={1.8} />

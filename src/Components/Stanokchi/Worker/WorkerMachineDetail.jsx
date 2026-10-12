@@ -163,7 +163,7 @@ export default function WorkerMachineDetail() {
                 <div className="flex items-center gap-4 mb-5">
                     <div
                         className="flex items-center justify-center w-16 h-16 rounded-2xl"
-                        style={{ background: isDark ? 'rgba(250,204,21,0.14)' : '#FEF3C7' }}
+                        style={{ background: isDark ? 'rgb(var(--accent-400) / 0.14)' : 'rgb(var(--accent-warm-100))' }}
                     >
                         <LuCog size={32} style={{ color: accentColor }} />
                     </div>
@@ -240,12 +240,12 @@ export default function WorkerMachineDetail() {
                         className="flex items-center justify-center gap-3 w-full py-5 rounded-2xl font-extrabold text-xl transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                         style={{
                             background: producing
-                                ? (isDark ? 'rgba(250,204,21,0.18)' : '#FEF9C3')
-                                : 'linear-gradient(135deg,#FACC15,#EAB308)',
+                                ? (isDark ? 'rgb(var(--accent-400) / 0.18)' : 'rgb(var(--accent-100))')
+                                : 'linear-gradient(135deg,rgb(var(--accent-400)),rgb(var(--accent-500)))',
                             color: '#0F172A',
                             border: 'none',
                             cursor: producing ? 'not-allowed' : 'pointer',
-                            boxShadow: producing ? 'none' : '0 6px 24px rgba(250,204,21,0.35)',
+                            boxShadow: producing ? 'none' : '0 6px 24px rgb(var(--accent-400) / 0.35)',
                         }}
                     >
                         <LuCirclePlus size={26} />
@@ -286,7 +286,7 @@ export default function WorkerMachineDetail() {
                     {historyResult?.pagination && (
                         <span
                             className="text-sm font-bold px-3 py-1 rounded-full"
-                            style={{ background: isDark ? 'rgba(250,204,21,0.12)' : '#FEF3C7', color: accentColor }}
+                            style={{ background: isDark ? 'rgb(var(--accent-400) / 0.12)' : 'rgb(var(--accent-warm-100))', color: accentColor }}
                         >
                             {historyResult.pagination.totalElements} ta
                         </span>

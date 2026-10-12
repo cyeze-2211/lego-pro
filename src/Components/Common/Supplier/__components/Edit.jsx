@@ -18,7 +18,7 @@ export default function Edit({ supplier }) {
                 borderRadius="xl"
                 px={3}
                 aria-label="Tahrirlash"
-                _hover={{ bg: isDark ? 'rgba(250, 204, 21, 0.16)' : 'yellow.50', color: isDark ? 'yellow.200' : 'yellow.700' }}
+                _hover={{ bg: isDark ? 'rgb(var(--accent-400) / 0.16)' : 'yellow.50', color: isDark ? 'yellow.200' : 'yellow.700' }}
             >
                 <LuPen size={16} />
             </Button>

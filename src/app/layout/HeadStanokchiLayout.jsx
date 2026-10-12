@@ -4,6 +4,7 @@ import { Outlet, useNavigate } from 'react-router-dom';
 import Cookies from 'js-cookie';
 import { Menu, Moon, Sun, ChevronDown, User, LogOut, UserCog, ArrowLeft } from 'lucide-react';
 import { useAppTheme } from '../../theme/tokens';
+import { clearStorageKeepingPreferences } from '../../theme/preferences';
 import { useGetUserByIdQuery } from '../../store/services/user.api';
 import { useAppDispatch } from '../../store/hooks';
 import { logoutUser } from '../../store/slices/auth.slice';
@@ -67,7 +68,7 @@ function HeadStanokchiLayoutInner() {
     const handleLogout = async () => {
         try { await logoutApi().unwrap(); } catch { /* ignore */ }
         dispatch(logoutUser());
-        localStorage.clear();
+        clearStorageKeepingPreferences();
         navigate('/login');
     };
 
@@ -101,9 +102,9 @@ function HeadStanokchiLayoutInner() {
                         title={!showLabels ? 'Xodim rejimi' : undefined}
                         className={`flex w-full items-center ${showLabels ? 'justify-start gap-3' : 'justify-center'} rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150 hover:-translate-y-px`}
                         style={{
-                            background: isDark ? 'rgba(250,204,21,0.08)' : '#FFFBEB',
-                            color: isDark ? '#FACC15' : '#92400E',
-                            border: `1px solid ${isDark ? 'rgba(250,204,21,0.2)' : '#FDE68A'}`,
+                            background: isDark ? 'rgb(var(--accent-400) / 0.08)' : 'rgb(var(--accent-warm-50))',
+                            color: isDark ? 'rgb(var(--accent-400))' : 'rgb(var(--accent-warm-800))',
+                            border: `1px solid ${isDark ? 'rgb(var(--accent-400) / 0.2)' : 'rgb(var(--accent-warm-200))'}`,
                         }}
                     >
                         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"><UserCog className="h-5 w-5" /></span>
@@ -114,7 +115,7 @@ function HeadStanokchiLayoutInner() {
 
             <div
                 className={`relative min-h-screen transition-all duration-300 ${
-                    effectiveSidebarOpen ? 'lg:pl-[220px]' : 'lg:pl-[88px]'
+                    effectiveSidebarOpen ? 'lg:pl-[13.75rem]' : 'lg:pl-[5.5rem]'
                 }`}
             >
                 {/* ── Header ── */}

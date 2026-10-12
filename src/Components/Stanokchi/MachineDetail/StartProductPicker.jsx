@@ -61,7 +61,7 @@ export default function StartProductPicker({ selectedId, onSelect, error, isDark
     const chipStyle = (active) => ({
         display: 'inline-flex', alignItems: 'center', gap: 6, height: 34, padding: '0 12px', borderRadius: 10, fontSize: 12, fontWeight: 600, cursor: 'pointer',
         border: `1px solid ${active ? accentColor : cardBorder}`, color: active ? accentColor : subtitleColor,
-        background: active ? (isDark ? 'rgba(250,204,21,0.12)' : '#FEF3C7') : 'transparent',
+        background: active ? (isDark ? 'rgb(var(--accent-400) / 0.12)' : 'rgb(var(--accent-warm-100))') : 'transparent',
     });
 
     return (
@@ -152,8 +152,8 @@ export default function StartProductPicker({ selectedId, onSelect, error, isDark
                                 onClick={() => onSelect(product.id)}
                                 className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-left transition-all"
                                 style={{
-                                    background: isSelected ? (isDark ? 'rgba(250,204,21,0.15)' : '#FEF3C7') : (isDark ? 'rgba(255,255,255,0.03)' : '#fff'),
-                                    border: `1px solid ${isSelected ? (isDark ? 'rgba(250,204,21,0.5)' : '#FCD34D') : cardBorder}`,
+                                    background: isSelected ? (isDark ? 'rgb(var(--accent-400) / 0.15)' : 'rgb(var(--accent-warm-100))') : (isDark ? 'rgba(255,255,255,0.03)' : '#fff'),
+                                    border: `1px solid ${isSelected ? (isDark ? 'rgb(var(--accent-400) / 0.5)' : 'rgb(var(--accent-warm-300))') : cardBorder}`,
                                     cursor: 'pointer',
                                 }}
                                 aria-pressed={isSelected}>

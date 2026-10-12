@@ -322,7 +322,7 @@ export default function CustomerDetail() {
     const balance = Number(customer.balance) || 0;
     const balanceMeta = getBalanceMeta(balance);
     const balanceTone = tones[balanceMeta.tone];
-    const accentSoft = isDark ? 'rgba(250,204,21,.12)' : '#FEF3C7';
+    const accentSoft = isDark ? 'rgb(var(--accent-400) / .12)' : 'rgb(var(--accent-warm-100))';
     const phoneHref = customer.phone ? `tel:${String(customer.phone).replace(/[^\d+]/g, '')}` : undefined;
     const tableHeaderBg = isDark ? 'rgba(148,163,184,0.06)' : '#F8FAFC';
     const th = { color: subtitleColor, fontSize: '11px', fontWeight: 'semibold', textTransform: 'uppercase', letterSpacing: 'wider', whiteSpace: 'nowrap', bg: tableHeaderBg };
@@ -367,7 +367,7 @@ export default function CustomerDetail() {
         <Box bg={pageBg} color={textColor} minH="100%" w="100%">
             {/* ── Sarlavha ── */}
             <Box overflow="hidden" borderWidth="1px" borderColor={cardBorder} borderRadius="2xl" boxShadow={cardShadow} mb={4}>
-                <Box h="5px" bg={`linear-gradient(90deg, ${accentColor}, #FDE68A)`} />
+                <Box h="5px" bg={`linear-gradient(90deg, ${accentColor}, rgb(var(--accent-warm-200)))`} />
                 <Box bg={cardBg} p={{ base: 4, md: 6 }}>
                     <HStack justify="space-between" align="start" flexWrap="wrap" gap={4}>
                         <HStack gap={4} minW={0} align="start">
@@ -394,11 +394,11 @@ export default function CustomerDetail() {
                                 <HStack gap={2}><LuArrowLeft size={16} /><span>Ro‘yxatga</span></HStack>
                             </Button>
                             {canEdit && (
-                                <Button variant="outline" borderRadius="xl" h="42px" px={4} color={accentColor} borderColor={isDark ? 'rgba(250,204,21,.4)' : '#FDE68A'} _hover={{ bg: accentSoft }} onClick={() => setEditOpen(true)}>
+                                <Button variant="outline" borderRadius="xl" h="42px" px={4} color={accentColor} borderColor={isDark ? 'rgb(var(--accent-400) / .4)' : 'rgb(var(--accent-warm-200))'} _hover={{ bg: accentSoft }} onClick={() => setEditOpen(true)}>
                                     <HStack gap={2}><LuPen size={16} /><span>Tahrirlash</span></HStack>
                                 </Button>
                             )}
-                            <Button bg={accentColor} color="black" borderRadius="xl" h="42px" px={5} fontWeight="semibold" _hover={{ bg: '#EAB308' }} onClick={() => setPaymentModal({ open: true, order: null })}>
+                            <Button bg={accentColor} color="black" borderRadius="xl" h="42px" px={5} fontWeight="semibold" _hover={{ bg: 'rgb(var(--accent-500))' }} onClick={() => setPaymentModal({ open: true, order: null })}>
                                 <HStack gap={2}><LuWallet size={16} /><span>To‘lov qabul qilish</span></HStack>
                             </Button>
                         </HStack>
@@ -457,10 +457,10 @@ export default function CustomerDetail() {
                                 <Button
                                     key={tab.value} size="sm" borderRadius="lg" px={4} h="36px" fontWeight="semibold" fontSize="sm"
                                     onClick={() => setActiveTab(tab.value)}
-                                    bg={isActive ? (isDark ? 'rgba(250,204,21,0.15)' : 'white') : 'transparent'}
+                                    bg={isActive ? (isDark ? 'rgb(var(--accent-400) / 0.15)' : 'white') : 'transparent'}
                                     color={isActive ? accentColor : subtitleColor}
                                     boxShadow={isActive && !isDark ? '0 1px 3px rgba(15,23,42,0.08)' : 'none'}
-                                    _hover={{ bg: isActive ? (isDark ? 'rgba(250,204,21,0.18)' : 'white') : (isDark ? 'whiteAlpha.50' : 'whiteAlpha.700') }}
+                                    _hover={{ bg: isActive ? (isDark ? 'rgb(var(--accent-400) / 0.18)' : 'white') : (isDark ? 'whiteAlpha.50' : 'whiteAlpha.700') }}
                                 >
                                     <HStack gap={2}>
                                         <tab.icon size={14} />
@@ -523,7 +523,7 @@ export default function CustomerDetail() {
                                             const items = order.items || [];
                                             const itemNames = items.map((i) => i.productName).filter(Boolean);
                                             return (
-                                                <Table.Row key={order.id} _hover={{ bg: isDark ? 'rgba(250,204,21,.04)' : '#FFFBEB' }}>
+                                                <Table.Row key={order.id} _hover={{ bg: isDark ? 'rgb(var(--accent-400) / .04)' : 'rgb(var(--accent-warm-50))' }}>
                                                     <Table.Cell color={subtitleColor} textAlign="center" fontSize="sm">{orderPage * PAGE_SIZE + index + 1}</Table.Cell>
                                                     <Table.Cell color={textColor} fontSize="sm" whiteSpace="nowrap">
                                                         <Text fontWeight="medium">{formatDateOnly(order.createdAt)}</Text>
@@ -549,7 +549,7 @@ export default function CustomerDetail() {
                                                                 </Button>
                                                             )}
                                                             {order.status === 'CONFIRMED' && debt > 0 && (
-                                                                <Button size="xs" h="30px" px={3} borderRadius="lg" bg={accentColor} color="black" fontWeight="semibold" _hover={{ bg: '#EAB308' }} onClick={() => setPaymentModal({ open: true, order })}>
+                                                                <Button size="xs" h="30px" px={3} borderRadius="lg" bg={accentColor} color="black" fontWeight="semibold" _hover={{ bg: 'rgb(var(--accent-500))' }} onClick={() => setPaymentModal({ open: true, order })}>
                                                                     <HStack gap={1}><LuBanknote size={13} /><span>To‘lov</span></HStack>
                                                                 </Button>
                                                             )}
@@ -597,7 +597,7 @@ export default function CustomerDetail() {
                                             const cancelled = payment.status === 'CANCELLED';
                                             const advance = Number(payment.unallocatedAmount) || 0;
                                             return (
-                                                <Table.Row key={payment.id} opacity={cancelled ? 0.55 : 1} _hover={{ bg: isDark ? 'rgba(250,204,21,.04)' : '#FFFBEB' }}>
+                                                <Table.Row key={payment.id} opacity={cancelled ? 0.55 : 1} _hover={{ bg: isDark ? 'rgb(var(--accent-400) / .04)' : 'rgb(var(--accent-warm-50))' }}>
                                                     <Table.Cell color={subtitleColor} textAlign="center" fontSize="sm">{paymentPage * PAGE_SIZE + index + 1}</Table.Cell>
                                                     <Table.Cell color={textColor} fontSize="sm" whiteSpace="nowrap" fontWeight="medium">{formatDateOnly(payment.paidAt)}</Table.Cell>
                                                     <Table.Cell color={textColor} fontSize="sm" whiteSpace="nowrap"><HStack gap={1.5}><LuWallet size={13} color={subtitleColor} /><span>{payment.cashboxName || '—'}</span></HStack></Table.Cell>

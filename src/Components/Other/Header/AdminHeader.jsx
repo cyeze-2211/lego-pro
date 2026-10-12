@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { LogOut, User, ChevronDown, Moon, Sun, Menu, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAppTheme } from "../../../theme/tokens";
+import { clearStorageKeepingPreferences } from "../../../theme/preferences";
 import { useAppDispatch } from "../../../store/hooks";
 import { logoutUser } from "../../../store/slices/auth.slice";
 import { useLogoutMutation } from "../../../store/services/auth.api";
@@ -36,7 +37,7 @@ export default function AdminHeader({
             // token allaqachon yaroqsiz bo'lsa ham davom etamiz
         }
         dispatch(logoutUser());
-        localStorage.clear();
+        clearStorageKeepingPreferences();
         navigate("/login");
     };
 

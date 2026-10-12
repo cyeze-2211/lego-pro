@@ -107,7 +107,7 @@ export default function RecipeDetail() {
                                                 <Table.Row
                                                     key={item.itemId}
                                                     _hover={{
-                                                        bg: isDark ? 'rgba(250,204,21,.06)' : '#FFFBEB',
+                                                        bg: isDark ? 'rgb(var(--accent-400) / .06)' : 'rgb(var(--accent-warm-50))',
                                                     }}
                                                 >
                                                     <Table.Cell>
@@ -115,8 +115,8 @@ export default function RecipeDetail() {
                                                             borderRadius="full"
                                                             bg={
                                                                 isDark
-                                                                    ? 'rgba(250,204,21,.12)'
-                                                                    : '#FEF3C7'
+                                                                    ? 'rgb(var(--accent-400) / .12)'
+                                                                    : 'rgb(var(--accent-warm-100))'
                                                             }
                                                             color={accentColor}
                                                         >
@@ -145,9 +145,9 @@ export default function RecipeDetail() {
                                     mt={4}
                                     p={4}
                                     borderRadius="xl"
-                                    bg={isDark ? 'rgba(250,204,21,.08)' : '#FEF3C7'}
+                                    bg={isDark ? 'rgb(var(--accent-400) / .08)' : 'rgb(var(--accent-warm-100))'}
                                     borderWidth="1px"
-                                    borderColor={isDark ? 'rgba(250,204,21,.2)' : '#FDE68A'}
+                                    borderColor={isDark ? 'rgb(var(--accent-400) / .2)' : 'rgb(var(--accent-warm-200))'}
                                 >
                                     <HStack justify="space-between" align="center">
                                         <Text fontSize="sm" fontWeight="semibold" color={subtitleColor}>

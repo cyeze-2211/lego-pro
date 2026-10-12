@@ -10,7 +10,7 @@ export default function Edit({ expense, label }) {
     const { open, onOpen, onClose } = useDisclosure();
     const [updateExpense, { isLoading }] = useUpdateExpenseMutation();
     const { isDark, accentColor } = useAppTheme();
-    const accentSoft = isDark ? 'rgba(250,204,21,.12)' : '#FEF3C7';
+    const accentSoft = isDark ? 'rgb(var(--accent-400) / .12)' : 'rgb(var(--accent-warm-100))';
 
     const save = async (data) => {
         try {
@@ -25,7 +25,7 @@ export default function Edit({ expense, label }) {
     return (
         <>
             {label ? (
-                <Button variant="outline" borderRadius="xl" h="42px" px={4} color={accentColor} borderColor={isDark ? 'rgba(250,204,21,.4)' : '#FDE68A'} _hover={{ bg: accentSoft }} onClick={onOpen}>
+                <Button variant="outline" borderRadius="xl" h="42px" px={4} color={accentColor} borderColor={isDark ? 'rgb(var(--accent-400) / .4)' : 'rgb(var(--accent-warm-200))'} _hover={{ bg: accentSoft }} onClick={onOpen}>
                     <HStack gap={2}><LuPen size={16} /><span>{label}</span></HStack>
                 </Button>
             ) : (

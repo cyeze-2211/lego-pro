@@ -64,7 +64,7 @@ export default function MainLayout() {
 
                 <div
                     className={`relative min-h-screen transition-all duration-300 ${
-                        effectiveSidebarOpen ? "lg:pl-[220px]" : "lg:pl-[88px]"
+                        effectiveSidebarOpen ? "lg:pl-[13.75rem]" : "lg:pl-[5.5rem]"
                     }`}
                 >
                     <AdminHeader

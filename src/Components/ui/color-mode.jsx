@@ -1,26 +1,31 @@
 'use client'
 
 import { ClientOnly, IconButton, Skeleton, Span } from '@chakra-ui/react'
-import { ThemeProvider, useTheme } from 'next-themes'
+import { ThemeProvider } from 'next-themes'
 
 import * as React from 'react'
 import { LuMoon, LuSun } from 'react-icons/lu'
+import { updatePreferences, usePreferences } from '../../theme/preferences'
 
+// Rejim foydalanuvchi sozlamalaridan olinadi (theme/preferences.js); next-themes faqat
+// <html> ga `light`/`dark` sinfini qo‘yadi, shuning uchun mavzu `forcedTheme` orqali beriladi.
 export function ColorModeProvider(props) {
+  const { preferences } = usePreferences()
   return (
-    <ThemeProvider attribute='class' disableTransitionOnChange {...props} />
+    <ThemeProvider attribute='class' disableTransitionOnChange forcedTheme={preferences.mode} {...props} />
   )
 }
 
 export function useColorMode() {
-  const { resolvedTheme, setTheme, forcedTheme } = useTheme()
-  const colorMode = forcedTheme || resolvedTheme
+  const { preferences } = usePreferences()
+  const colorMode = preferences.mode
+  const setColorMode = (mode) => updatePreferences({ mode })
   const toggleColorMode = () => {
-    setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')
+    setColorMode(colorMode === 'dark' ? 'light' : 'dark')
   }
   return {
-    colorMode: colorMode,
-    setColorMode: setTheme,
+    colorMode,
+    setColorMode,
     toggleColorMode,
   }
 }

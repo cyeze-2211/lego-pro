@@ -3,8 +3,13 @@ import { ROLES, WAREHOUSE_ROLES, ZAYAVKACHI_ROLES, BUXGALTER_ROLES, KASSIR_ROLES
 import {
     Boxes, ClipboardList, Cog, History, LayoutDashboard, LogIn, LogOut,
     CalendarClock, Layers3, MonitorCog, Package, Palette, ReceiptText, ShieldCheck, UserRound, Users, Wallet, Warehouse, FileSpreadsheet, UserCheck, Truck,
-    ChartArea, FlaskConical,
+    ChartArea, FlaskConical, Settings,
 } from 'lucide-react';
+
+// ── Sozlamalar (barcha rollar) ─────────────────────────────────────────────
+// "Tizim" bo‘limi bor rolda — shu bo‘lim ichida; yo‘q rollarda — sarlavhasiz mustaqil punkt.
+const settingsItem = (path = '/settings') => ({ label: 'Sozlamalar', path, icon: Settings });
+const settingsGroup = (path) => ({ label: 'Sozlamalar', standalone: true, items: [settingsItem(path)] });
 
 // ── Manager ────────────────────────────────────────────────────────────────
 // Tartib: kundalik ish (savdo) → katalog → ishlab chiqarish → moliya → tizim
@@ -41,6 +46,7 @@ export const SIDEBAR_CONFIG = [
     { label: 'Foydalanuvchilar', path: '/users', icon: UserRound, roles: [ROLES.MANAGER] },
     { label: 'Rollar', path: '/roles', icon: ShieldCheck, roles: [ROLES.MANAGER] },
     { label: 'Qurilmalar', path: '/devices', icon: MonitorCog, roles: [ROLES.MANAGER] },
+    { ...settingsItem(), roles: [ROLES.MANAGER] },
 ];
 
 const pick = (paths) => paths.map((path) => SIDEBAR_CONFIG.find((i) => i.path === path)).filter(Boolean);
@@ -51,7 +57,7 @@ export const SIDEBAR_GROUPS = [
     { label: 'Katalog', items: pick(['/products', '/product-categories', '/product-colors', '/brand']) },
     { label: 'Ishlab chiqarish', items: pick(['/warehouses', '/raw', '/recipes', '/machines']) },
     { label: 'Moliya', items: pick(['/cashboxes', '/expenses', '/expense-categories', '/suppliers']) },
-    { label: 'Tizim', items: pick(['/users', '/roles', '/devices']) },
+    { label: 'Tizim', items: pick(['/users', '/roles', '/devices', '/settings']) },
 ];
 
 // ── Unified Storekeeper ────────────────────────────────────────────────────
@@ -85,6 +91,7 @@ export const WAREHOUSE_SIDEBAR_GROUPS = [
         label: 'Xom ashyo ombori',
         items: RAW_STOREKEEPER_ITEMS,
     },
+    settingsGroup(),
 ];
 
 // ── Zayavkachi ─────────────────────────────────────────────────────────────
@@ -104,6 +111,7 @@ export const ZAYAVKACHI_SIDEBAR_GROUPS = [
     { label: 'Asosiy', items: ZAYAVKACHI_SIDEBAR_CONFIG.filter((i) => i.path === '/zayavkachi') },
     { label: 'Savdo', items: ZAYAVKACHI_SIDEBAR_CONFIG.filter((i) => ['/zayavkachi/orders', '/zayavkachi/customers', '/zayavkachi/reconciliation', '/zayavkachi/cashboxes', '/reminders'].includes(i.path)) },
     { label: 'Ombor qoldiqlari', items: ZAYAVKACHI_SIDEBAR_CONFIG.filter((i) => ['/zayavkachi/warehouse', '/zayavkachi/raw-warehouse'].includes(i.path)) },
+    settingsGroup(),
 ];
 
 // ── Buxgalter ──────────────────────────────────────────────────────────────
@@ -122,6 +130,7 @@ export const BUXGALTER_SIDEBAR_GROUPS = [
     { label: 'Asosiy', items: BUXGALTER_SIDEBAR_CONFIG.filter((i) => i.path === '/buxgalter') },
     { label: 'Savdo', items: BUXGALTER_SIDEBAR_CONFIG.filter((i) => ['/zayavkachi/orders', '/customers', '/customer-agents', '/reconciliation'].includes(i.path)) },
     { label: 'Ombor va katalog', items: BUXGALTER_SIDEBAR_CONFIG.filter((i) => ['/products', '/zayavkachi/warehouse','/zayavkachi/chart'].includes(i.path)) },
+    settingsGroup(),
 ];
 
 // ── Kassir ─────────────────────────────────────────────────────────────────
@@ -139,6 +148,7 @@ export const KASSIR_SIDEBAR_GROUPS = [
     { label: 'Asosiy', items: KASSIR_SIDEBAR_CONFIG.filter((i) => i.path === '/kassir') },
     { label: 'Moliya', items: KASSIR_SIDEBAR_CONFIG.filter((i) => ['/kassir/cashboxes', '/kassir/expenses', '/kassir/expense-categories', '/kassir/suppliers', '/kassir/reconciliation'].includes(i.path)) },
     { label: 'Savdo', items: KASSIR_SIDEBAR_CONFIG.filter((i) => ['/kassir/customers'].includes(i.path)) },
+    settingsGroup(),
 ];
 
 // ── Ximik ──────────────────────────────────────────────────────────────────
@@ -157,6 +167,7 @@ export const XIMIK_SIDEBAR_GROUPS = [
     { label: 'Asosiy', items: XIMIK_SIDEBAR_CONFIG.filter((i) => i.path === '/ximik') },
     { label: 'Ishlab chiqarish', items: XIMIK_SIDEBAR_CONFIG.filter((i) => ['/recipes', '/raw', '/machines', '/ximik/warehouse'].includes(i.path)) },
     { label: 'Moliya (ko‘rish)', items: XIMIK_SIDEBAR_CONFIG.filter((i) => ['/suppliers', '/expenses', '/cashboxes'].includes(i.path)) },
+    settingsGroup(),
 ];
 
 // ── Stanokchi (bosh rejim) ─────────────────────────────────────────────────
@@ -168,4 +179,5 @@ export const STANOKCHI_SIDEBAR_CONFIG = [
 export const STANOKCHI_SIDEBAR_GROUPS = [
     { label: 'Asosiy', items: STANOKCHI_SIDEBAR_CONFIG.filter((i) => i.path === '/stanokchi') },
     { label: 'Ishlab chiqarish', items: STANOKCHI_SIDEBAR_CONFIG.filter((i) => ['/stanokchi/machines'].includes(i.path)) },
+    settingsGroup('/stanokchi/settings'),
 ];

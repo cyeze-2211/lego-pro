@@ -176,7 +176,7 @@ export default function Login() {
                 position="absolute"
                 w="500px"
                 h="500px"
-                bg={isDark ? "rgba(250, 204, 21, 0.05)" : "rgba(234, 179, 8, 0.07)"}
+                bg={isDark ? "rgb(var(--accent-400) / 0.05)" : "rgb(var(--accent-500) / 0.07)"}
                 borderRadius="full"
                 filter="blur(130px)"
                 top="-120px"
@@ -250,8 +250,8 @@ export default function Login() {
                                 borderRadius="20px"
                                 bg={isDark ? "rgba(255, 255, 255, 0.03)" : "#0F172A"}
                                 border="1px solid"
-                                borderColor={isDark ? "rgba(250, 204, 21, 0.2)" : "transparent"}
-                                boxShadow={isDark ? "0 0 20px rgba(250, 204, 21, 0.08)" : "0 8px 20px rgba(15, 23, 42, 0.15)"}
+                                borderColor={isDark ? "rgb(var(--accent-400) / 0.2)" : "transparent"}
+                                boxShadow={isDark ? "0 0 20px rgb(var(--accent-400) / 0.08)" : "0 8px 20px rgba(15, 23, 42, 0.15)"}
                                 w="max-content"
                                 mx="auto"
                             >
@@ -320,8 +320,8 @@ export default function Login() {
                                                 color={textColor}
                                                 _hover={{ borderColor: inputHoverBorder }}
                                                 _focus={{
-                                                    borderColor: "#FACC15",
-                                                    boxShadow: "0 0 0 2px rgba(250, 204, 21, 0.35)",
+                                                    borderColor: "rgb(var(--accent-400))",
+                                                    boxShadow: "0 0 0 2px rgb(var(--accent-400) / 0.35)",
                                                     bg: isDark ? "#141C2B" : "#FFFFFF",
                                                 }}
                                                 transition="all 0.2s"
@@ -360,8 +360,8 @@ export default function Login() {
                                             bg={inputBg}
                                             color={textColor}
                                             _focus={{
-                                                borderColor: "#FACC15",
-                                                boxShadow: "0 0 0 2px rgba(250, 204, 21, 0.35)",
+                                                borderColor: "rgb(var(--accent-400))",
+                                                boxShadow: "0 0 0 2px rgb(var(--accent-400) / 0.35)",
                                             }}
                                         >
                                             <option value="" disabled>Foydalanuvchini tanlang</option>
@@ -435,8 +435,8 @@ export default function Login() {
                                             color={textColor}
                                             _hover={{ borderColor: inputHoverBorder }}
                                             _focus={{
-                                                borderColor: "#FACC15",
-                                                boxShadow: "0 0 0 2px rgba(250, 204, 21, 0.35)",
+                                                borderColor: "rgb(var(--accent-400))",
+                                                boxShadow: "0 0 0 2px rgb(var(--accent-400) / 0.35)",
                                                 bg: isDark ? "#141C2B" : "#FFFFFF",
                                             }}
                                             transition="all 0.2s"
@@ -467,7 +467,7 @@ export default function Login() {
                                     type="submit"
                                     h="50px"
                                     borderRadius="14px"
-                                    bg="#FACC15"
+                                    bg="rgb(var(--accent-400))"
                                     color="#0F172A"
                                     fontSize="15px"
                                     fontWeight="700"
@@ -475,9 +475,9 @@ export default function Login() {
                                     disabled={isLoading || (step === "user" && !userId)}
                                     transition="all 0.2s ease-in-out"
                                     _hover={{
-                                        bg: "#EAB308",
+                                        bg: "rgb(var(--accent-500))",
                                         transform: "translateY(-1px)",
-                                        boxShadow: "0 10px 25px rgba(250, 204, 21, 0.35)",
+                                        boxShadow: "0 10px 25px rgb(var(--accent-400) / 0.35)",
                                     }}
                                     _active={{ transform: "translateY(0)" }}
                                 >

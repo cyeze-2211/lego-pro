@@ -335,8 +335,8 @@ export default function Create({
                                     <Box
                                         p={3}
                                         borderRadius="xl"
-                                        bg={isDark ? 'rgba(250, 204, 21, 0.1)' : '#FEFCE8'}
-                                        borderColor={isDark ? 'rgba(250, 204, 21, 0.2)' : '#FDE68A'}
+                                        bg={isDark ? 'rgb(var(--accent-400) / 0.1)' : 'rgb(var(--accent-50))'}
+                                        borderColor={isDark ? 'rgb(var(--accent-400) / 0.2)' : 'rgb(var(--accent-warm-200))'}
                                         borderWidth="1px"
                                         color={accentColor}
                                     >

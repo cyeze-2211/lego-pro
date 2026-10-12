@@ -72,7 +72,7 @@ export default function ExpenseForm({ open, onClose, cashboxes, expense = null, 
                         <Box position="absolute" top="0" left="0" right="0" h="4px" bgGradient={`linear(to-r, ${accentColor}, yellow.300)`} />
                         <Dialog.Header color={textColor} fontSize="2xl" fontWeight="bold" pt={7} pb={5} borderBottomWidth="1px" borderColor={modalBorder}>
                             <HStack gap={3}>
-                                <Box p={3} borderRadius="xl" bg={isDark ? 'rgba(250,204,21,.1)' : '#FEFCE8'} color={accentColor}>
+                                <Box p={3} borderRadius="xl" bg={isDark ? 'rgb(var(--accent-400) / .1)' : 'rgb(var(--accent-50))'} color={accentColor}>
                                     <ReceiptText size={24} />
                                 </Box>
                                 <span>{isEdit ? 'Xarajatni tahrirlash' : 'Yangi xarajat'}</span>
@@ -153,7 +153,7 @@ export default function ExpenseForm({ open, onClose, cashboxes, expense = null, 
                         </Dialog.Body>
                         <Dialog.Footer gap={3} pt={5} pb={6} borderTopWidth="1px" borderColor={modalBorder}>
                             <Button variant="ghost" onClick={onClose} color={subtitleColor} borderRadius="xl" h="44px" px={5}>Bekor qilish</Button>
-                            <Button onClick={save} disabled={isLoading} bg={accentColor} color="black" borderRadius="xl" h="44px" px={8} fontWeight="semibold" _hover={{ bg: '#EAB308' }}>
+                            <Button onClick={save} disabled={isLoading} bg={accentColor} color="black" borderRadius="xl" h="44px" px={8} fontWeight="semibold" _hover={{ bg: 'rgb(var(--accent-500))' }}>
                                 {isLoading
                                     ? <HStack><Spinner size="sm" /><span>Saqlanmoqda...</span></HStack>
                                     : <HStack><Check size={18} /><span>Saqlash</span></HStack>}

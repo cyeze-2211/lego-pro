@@ -87,8 +87,8 @@ export default function Recipe() {
                     px={3}
                     py={1}
                     title={`${item.rawMaterialName} — ${item.quantity} ${UNIT_LABELS[item.unit] || item.unit} (${item.stepOrder}-qadam)`}
-                    bg={isDark ? 'rgba(250, 204, 21, 0.1)' : '#FEF3C7'}
-                    color={isDark ? 'yellow.200' : '#92400E'}
+                    bg={isDark ? 'rgb(var(--accent-400) / 0.1)' : 'rgb(var(--accent-warm-100))'}
+                    color={isDark ? 'yellow.200' : 'rgb(var(--accent-warm-800))'}
                     whiteSpace="nowrap"
                 >
                     {item.stepOrder}. {item.rawMaterialName} — {item.quantity} {UNIT_LABELS[item.unit] || item.unit}
@@ -134,12 +134,12 @@ export default function Recipe() {
                                     <Table.Row
                                         key={recipe.recipeId}
                                         bg={tableBg}
-                                        _hover={{ bg: isDark ? 'rgba(250, 204, 21, 0.06)' : '#FFFBEB' }}
+                                        _hover={{ bg: isDark ? 'rgb(var(--accent-400) / 0.06)' : 'rgb(var(--accent-warm-50))' }}
                                     >
                                         <Table.Cell borderWidth="0.5px" borderColor={tableBorder} textAlign="center" color={subtitleColor}>{index + 1}</Table.Cell>
                                         <Table.Cell borderWidth="0.5px" borderColor={tableBorder}>
                                             <HStack gap={3}>
-                                                <Box p={2} borderRadius="lg" bg={isDark ? 'rgba(250, 204, 21, 0.12)' : '#FEF3C7'} color={accentColor}><LuUtensils size={18} /></Box>
+                                                <Box p={2} borderRadius="lg" bg={isDark ? 'rgb(var(--accent-400) / 0.12)' : 'rgb(var(--accent-warm-100))'} color={accentColor}><LuUtensils size={18} /></Box>
                                                 <Text as={Link} to={`/recipes/${recipe.recipeId}`} fontWeight="semibold" color={textColor} _hover={{ color: accentColor }}>{recipe.name}</Text>
                                             </HStack>
                                         </Table.Cell>

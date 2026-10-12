@@ -3,6 +3,42 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Sozlamalar → Ko‘rinish ──────────────────────────────────────────────
+   Accent rang palitrasi ("R G B" kanallari) va shrift masshtabi.
+   Standart qiymatlar — sariq mavzu; tanlangan mavzu src/theme/preferences.js orqali
+   <html> elementiga yoziladi. Tailwind (yellow/amber) va Chakra (yellow) shu o‘zgaruvchilardan foydalanadi. */
+:root {
+  --accent-50: 254 252 232;
+  --accent-100: 254 249 195;
+  --accent-200: 254 240 138;
+  --accent-300: 253 224 71;
+  --accent-400: 250 204 21;
+  --accent-500: 234 179 8;
+  --accent-600: 202 138 4;
+  --accent-700: 161 98 7;
+  --accent-800: 133 77 14;
+  --accent-900: 113 63 18;
+  --accent-950: 66 32 6;
+  --accent-warm-50: 255 251 235;
+  --accent-warm-100: 254 243 199;
+  --accent-warm-200: 253 230 138;
+  --accent-warm-300: 252 211 77;
+  --accent-warm-400: 251 191 36;
+  --accent-warm-500: 245 158 11;
+  --accent-warm-600: 217 119 6;
+  --accent-warm-700: 180 83 9;
+  --accent-warm-800: 146 64 14;
+  --accent-warm-900: 120 53 15;
+  --accent-warm-950: 69 26 3;
+  --accent-contrast: #0f172a;
+  --app-font-scale: 1;
+}
+
+/* Barcha rem o‘lchamlar (Chakra va Tailwind matn shkalasi) shu qiymatdan hisoblanadi */
+html {
+  font-size: calc(100% * var(--app-font-scale));
+}
+
 :root {
   --page-bg: #f8fafc;
   --page-text: #0f172a;
@@ -11,15 +47,15 @@
   --header-bg: rgba(255, 255, 255, 0.9);
   --header-border: rgba(148, 163, 184, 0.3);
   --header-color: #0f172a;
-  --accent: #facc15;
-  --accent-text: #111827;
+  --accent: rgb(var(--accent-400));
+  --accent-text: var(--accent-contrast);
   --nav-hover: rgba(148, 163, 184, 0.08);
   --card-bg: #ffffff;
   --card-border: #e2e8f0;
   --text-color: #334155;
   --heading-color: #0f172a;
   --muted-color: #64748b;
-  --icon-bg: #fefce8;
+  --icon-bg: rgb(var(--accent-50));
   --icon-border: transparent;
   --danger: #dc2626;
 }
@@ -32,16 +68,16 @@
   --header-bg: #0f172a;
   --header-border: rgba(148, 163, 184, 0.2);
   --header-color: #e2e8f0;
-  --accent: #facc15;
-  --accent-text: #111827;
+  --accent: rgb(var(--accent-400));
+  --accent-text: var(--accent-contrast);
   --nav-hover: rgba(15, 23, 42, 0.85);
   --card-bg: #141c2b;
   --card-border: rgba(255, 255, 255, 0.12);
   --text-color: #e2e8f0;
   --heading-color: #ffffff;
   --muted-color: #94a3b8;
-  --icon-bg: rgba(250, 204, 21, 0.1);
-  --icon-border: rgba(250, 204, 21, 0.2);
+  --icon-bg: rgb(var(--accent-400) / 0.1);
+  --icon-border: rgb(var(--accent-400) / 0.2);
   --danger: #f87171;
   background: var(--page-bg);
   color: var(--page-text);
@@ -55,15 +91,15 @@
   --header-bg: rgba(255, 255, 255, 0.94);
   --header-border: rgba(148, 163, 184, 0.3);
   --header-color: #0f172a;
-  --accent: #facc15;
-  --accent-text: #111827;
+  --accent: rgb(var(--accent-400));
+  --accent-text: var(--accent-contrast);
   --nav-hover: rgba(148, 163, 184, 0.08);
   --card-bg: #ffffff;
   --card-border: #e2e8f0;
   --text-color: #334155;
   --heading-color: #0f172a;
   --muted-color: #64748b;
-  --icon-bg: #fefce8;
+  --icon-bg: rgb(var(--accent-50));
   --icon-border: transparent;
   --danger: #dc2626;
   background: var(--page-bg);
@@ -117,14 +153,14 @@ table thead th {
 
 .theme-light table tbody tr:hover td,
 .theme-light table [data-part="row"]:hover [data-part="cell"] {
-  background: #fffbeb !important;
+  background: rgb(var(--accent-warm-50)) !important;
 }
 
 .theme-dark table tbody tr:hover td,
 .theme-dark table [data-part="row"]:hover [data-part="cell"],
 .dark table tbody tr:hover td,
 .dark table [data-part="row"]:hover [data-part="cell"] {
-  background: rgba(250, 204, 21, 0.06) !important;
+  background: rgb(var(--accent-400) / 0.06) !important;
 }
 
 .sidebar {
@@ -194,20 +230,20 @@ table thead th {
 }
 
 .header-open {
-  left: 220px;
+  left: 13.75rem; /* 220px; shrift masshtabi bilan birga o‘zgaradi */
 }
 
 .header-collapsed {
-  left: 88px;
+  left: 5.5rem; /* 88px */
 }
 
 /* Responsive header positioning — only shift on lg+ */
 @media (min-width: 1024px) {
   .lg\:header-open {
-    left: 220px;
+    left: 13.75rem;
   }
   .lg\:header-collapsed {
-    left: 88px;
+    left: 5.5rem;
   }
 }
 
@@ -244,16 +280,16 @@ table thead th {
 .warehouse-card {
   background: #ffffff;
   border-color: #e2e8f0;
-  border-top: 4px solid #facc15;
+  border-top: 4px solid rgb(var(--accent-400));
 }
 
 .warehouse-icon {
-  background: #fefce8;
+  background: rgb(var(--accent-50));
   border-color: transparent;
 }
 
 .warehouse-accent {
-  color: #facc15;
+  color: rgb(var(--accent-400));
 }
 
 .warehouse-error {
@@ -275,16 +311,16 @@ table thead th {
 .dark .warehouse-card {
   background: #141c2b;
   border-color: rgba(255, 255, 255, 0.12);
-  border-top-color: #facc15;
+  border-top-color: rgb(var(--accent-400));
 }
 
 .dark .warehouse-icon {
-  background: rgba(250, 204, 21, 0.1);
-  border-color: rgba(250, 204, 21, 0.2);
+  background: rgb(var(--accent-400) / 0.1);
+  border-color: rgb(var(--accent-400) / 0.2);
 }
 
 .dark .warehouse-accent {
-  color: #facc15;
+  color: rgb(var(--accent-400));
 }
 
 .dark .warehouse-error {

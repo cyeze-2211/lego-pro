@@ -90,9 +90,9 @@ const getStatusMeta = (paymentDate, isDark) => {
             tone: 'warning',
             label: 'Bugun',
             Icon: AlertCircle,
-            color: isDark ? '#fde68a' : '#b45309',
-            bg: isDark ? 'rgba(250,204,21,.14)' : '#FFFBEB',
-            border: isDark ? 'rgba(250,204,21,.35)' : '#FDE68A',
+            color: isDark ? 'rgb(var(--accent-warm-200))' : 'rgb(var(--accent-warm-700))',
+            bg: isDark ? 'rgb(var(--accent-400) / .14)' : 'rgb(var(--accent-warm-50))',
+            border: isDark ? 'rgb(var(--accent-400) / .35)' : 'rgb(var(--accent-warm-200))',
         };
     }
     if (diff <= 3) {
@@ -119,7 +119,7 @@ const getStatusMeta = (paymentDate, isDark) => {
 function StatPill({ label, value, tone, isDark }) {
     const palette = {
         danger: { color: isDark ? '#fca5a5' : '#dc2626', bg: isDark ? 'rgba(239,68,68,.1)' : '#FEF2F2', border: isDark ? 'rgba(239,68,68,.25)' : '#FECACA' },
-        warning: { color: isDark ? '#fde68a' : '#b45309', bg: isDark ? 'rgba(250,204,21,.12)' : '#FFFBEB', border: isDark ? 'rgba(250,204,21,.3)' : '#FDE68A' },
+        warning: { color: isDark ? 'rgb(var(--accent-warm-200))' : 'rgb(var(--accent-warm-700))', bg: isDark ? 'rgb(var(--accent-400) / .12)' : 'rgb(var(--accent-warm-50))', border: isDark ? 'rgb(var(--accent-400) / .3)' : 'rgb(var(--accent-warm-200))' },
         success: { color: isDark ? '#86efac' : '#15803d', bg: isDark ? 'rgba(34,197,94,.1)' : '#F0FDF4', border: isDark ? 'rgba(34,197,94,.25)' : '#BBF7D0' },
         neutral: { color: isDark ? '#cbd5e1' : '#475569', bg: isDark ? 'rgba(148,163,184,.1)' : '#F1F5F9', border: isDark ? 'rgba(148,163,184,.25)' : '#E2E8F0' },
     }[tone] || {};
@@ -291,7 +291,7 @@ export default function PaymentReminders({ customerId }) {
                     top={0} right={0}
                     w="40%" h="100%"
                     bgGradient={`linear(to-l, ${
-                        isDark ? 'rgba(250,204,21,.04)' : 'rgba(250,204,21,.06)'
+                        isDark ? 'rgb(var(--accent-400) / .04)' : 'rgb(var(--accent-400) / .06)'
                     }, transparent)`}
                     pointerEvents="none"
                 />
@@ -300,9 +300,9 @@ export default function PaymentReminders({ customerId }) {
                         <Box
                             p={2.5}
                             borderRadius="xl"
-                            bg={isDark ? 'rgba(250,204,21,.12)' : '#FEF3C7'}
-                            border={`1.5px solid ${isDark ? 'rgba(250,204,21,.25)' : '#FDE047'}`}
-                            color={isDark ? '#fde68a' : '#CA8A04'}
+                            bg={isDark ? 'rgb(var(--accent-400) / .12)' : 'rgb(var(--accent-warm-100))'}
+                            border={`1.5px solid ${isDark ? 'rgb(var(--accent-400) / .25)' : 'rgb(var(--accent-300))'}`}
+                            color={isDark ? 'rgb(var(--accent-warm-200))' : 'rgb(var(--accent-600))'}
                             flexShrink={0}
                             display="flex"
                             alignItems="center"
@@ -343,8 +343,8 @@ export default function PaymentReminders({ customerId }) {
                         fontWeight="bold"
                         px={5}
                         minH="44px"
-                        boxShadow={`0 4px 12px ${isDark ? 'rgba(250,204,21,.15)' : 'rgba(250, 204, 21, 0.25)'}`}
-                        _hover={{ bg: isDark ? '#EAB308' : '#F5B800', transform: 'translateY(-1px)', boxShadow: 'lg' }}
+                        boxShadow={`0 4px 12px ${isDark ? 'rgb(var(--accent-400) / .15)' : 'rgb(var(--accent-400) / 0.25)'}`}
+                        _hover={{ bg: isDark ? 'rgb(var(--accent-500))' : 'rgb(var(--accent-500))', transform: 'translateY(-1px)', boxShadow: 'lg' }}
                         _active={{ transform: 'translateY(0)' }}
                         transition="all .2s"
                         flexShrink={0}
@@ -391,9 +391,9 @@ export default function PaymentReminders({ customerId }) {
                     <Box
                         p={5}
                         borderRadius="2xl"
-                        bg={isDark ? 'rgba(250,204,21,.06)' : '#FEF9C3'}
-                        border={`2px dashed ${isDark ? 'rgba(250,204,21,.2)' : '#FDE047'}`}
-                        color={isDark ? '#fde68a' : '#CA8A04'}
+                        bg={isDark ? 'rgb(var(--accent-400) / .06)' : 'rgb(var(--accent-100))'}
+                        border={`2px dashed ${isDark ? 'rgb(var(--accent-400) / .2)' : 'rgb(var(--accent-300))'}`}
+                        color={isDark ? 'rgb(var(--accent-warm-200))' : 'rgb(var(--accent-600))'}
                         display="flex"
                         alignItems="center"
                         justifyContent="center"
@@ -416,7 +416,7 @@ export default function PaymentReminders({ customerId }) {
                         fontWeight="bold"
                         px={5}
                         mt={1}
-                        _hover={{ bg: isDark ? '#EAB308' : '#F5B800', transform: 'translateY(-1px)' }}
+                        _hover={{ bg: isDark ? 'rgb(var(--accent-500))' : 'rgb(var(--accent-500))', transform: 'translateY(-1px)' }}
                         transition="all .2s"
                     >
                         <HStack gap={2}>
@@ -530,7 +530,7 @@ export default function PaymentReminders({ customerId }) {
                                                     title="Tahrirlash"
                                                     onClick={() => openEdit(reminder)}
                                                     _hover={{
-                                                        bg: isDark ? 'rgba(250,204,21,.12)' : '#FEF3C7',
+                                                        bg: isDark ? 'rgb(var(--accent-400) / .12)' : 'rgb(var(--accent-warm-100))',
                                                     }}
                                                 >
                                                     <Pencil size={15} />
@@ -643,9 +643,9 @@ export default function PaymentReminders({ customerId }) {
                                     <Box
                                         p={2.5}
                                         borderRadius="xl"
-                                        bg={isDark ? 'rgba(250,204,21,.12)' : '#FEFCE8'}
-                                        border={`1px solid ${isDark ? 'rgba(250,204,21,.25)' : '#FDE047'}`}
-                                        color={isDark ? '#fde68a' : '#CA8A04'}
+                                        bg={isDark ? 'rgb(var(--accent-400) / .12)' : 'rgb(var(--accent-50))'}
+                                        border={`1px solid ${isDark ? 'rgb(var(--accent-400) / .25)' : 'rgb(var(--accent-300))'}`}
+                                        color={isDark ? 'rgb(var(--accent-warm-200))' : 'rgb(var(--accent-600))'}
                                         display="flex"
                                         alignItems="center"
                                         justifyContent="center"
@@ -789,7 +789,7 @@ export default function PaymentReminders({ customerId }) {
                                         px={8}
                                         borderRadius="xl"
                                         fontWeight="bold"
-                                        _hover={{ bg: isDark ? '#EAB308' : '#F5B800', transform: 'scale(1.02)' }}
+                                        _hover={{ bg: isDark ? 'rgb(var(--accent-500))' : 'rgb(var(--accent-500))', transform: 'scale(1.02)' }}
                                         _active={{ transform: 'scale(0.98)' }}
                                         _disabled={{ opacity: 0.6, cursor: 'not-allowed' }}
                                     >

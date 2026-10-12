@@ -95,9 +95,9 @@ const getStatusMeta = (paymentDate, isDark) => {
         return {
             label: 'Bugun',
             Icon: LuClock3,
-            color: isDark ? '#fde68a' : '#b45309',
-            bg: isDark ? 'rgba(250,204,21,.14)' : '#FFFBEB',
-            border: isDark ? 'rgba(250,204,21,.35)' : '#FDE68A',
+            color: isDark ? 'rgb(var(--accent-warm-200))' : 'rgb(var(--accent-warm-700))',
+            bg: isDark ? 'rgb(var(--accent-400) / .14)' : 'rgb(var(--accent-warm-50))',
+            border: isDark ? 'rgb(var(--accent-400) / .35)' : 'rgb(var(--accent-warm-200))',
         };
     }
     if (diff <= 3) {
@@ -122,7 +122,7 @@ const getStatusMeta = (paymentDate, isDark) => {
 function StatPill({ label, value, tone, isDark }) {
     const palette = {
         danger:  { color: isDark ? '#fca5a5' : '#dc2626', bg: isDark ? 'rgba(239,68,68,.1)'   : '#FEF2F2', border: isDark ? 'rgba(239,68,68,.25)'   : '#FECACA' },
-        warning: { color: isDark ? '#fde68a' : '#b45309', bg: isDark ? 'rgba(250,204,21,.12)' : '#FFFBEB', border: isDark ? 'rgba(250,204,21,.3)'  : '#FDE68A' },
+        warning: { color: isDark ? 'rgb(var(--accent-warm-200))' : 'rgb(var(--accent-warm-700))', bg: isDark ? 'rgb(var(--accent-400) / .12)' : 'rgb(var(--accent-warm-50))', border: isDark ? 'rgb(var(--accent-400) / .3)'  : 'rgb(var(--accent-warm-200))' },
         success: { color: isDark ? '#86efac' : '#15803d', bg: isDark ? 'rgba(34,197,94,.1)'   : '#F0FDF4', border: isDark ? 'rgba(34,197,94,.25)'  : '#BBF7D0' },
     }[tone] || {};
     return (
@@ -312,7 +312,7 @@ export default function Reminder() {
                     top={0} right={0}
                     w="40%" h="100%"
                     bgGradient={`linear(to-l, ${
-                        isDark ? 'rgba(250,204,21,.04)' : 'rgba(250,204,21,.06)'
+                        isDark ? 'rgb(var(--accent-400) / .04)' : 'rgb(var(--accent-400) / .06)'
                     }, transparent)`}
                     pointerEvents="none"
                 />
@@ -321,9 +321,9 @@ export default function Reminder() {
                         <Box
                             p={3}
                             borderRadius="xl"
-                            bg={isDark ? 'rgba(250,204,21,.12)' : '#FEF3C7'}
-                            border={`1.5px solid ${isDark ? 'rgba(250,204,21,.25)' : '#FDE047'}`}
-                            color={isDark ? '#fde68a' : '#CA8A04'}
+                            bg={isDark ? 'rgb(var(--accent-400) / .12)' : 'rgb(var(--accent-warm-100))'}
+                            border={`1.5px solid ${isDark ? 'rgb(var(--accent-400) / .25)' : 'rgb(var(--accent-300))'}`}
+                            color={isDark ? 'rgb(var(--accent-warm-200))' : 'rgb(var(--accent-600))'}
                             display="flex"
                             alignItems="center"
                             justifyContent="center"
@@ -348,8 +348,8 @@ export default function Reminder() {
                             fontWeight="bold"
                             minH="44px"
                             px={5}
-                            boxShadow={`0 4px 12px ${isDark ? 'rgba(250,204,21,.15)' : 'rgba(250,204,21,.25)'}`}
-                            _hover={{ bg: isDark ? '#EAB308' : '#F5B800', transform: 'translateY(-1px)', boxShadow: 'lg' }}
+                            boxShadow={`0 4px 12px ${isDark ? 'rgb(var(--accent-400) / .15)' : 'rgb(var(--accent-400) / .25)'}`}
+                            _hover={{ bg: isDark ? 'rgb(var(--accent-500))' : 'rgb(var(--accent-500))', transform: 'translateY(-1px)', boxShadow: 'lg' }}
                             transition="all .2s"
                         >
                             <HStack gap={2}><Plus size={18} /><span>Yangi eslatma</span></HStack>
@@ -408,7 +408,7 @@ export default function Reminder() {
                             minH="48px"
                             px={4}
                             fontWeight="bold"
-                            _hover={isToday ? { bg: isDark ? '#EAB308' : '#F5B800' } : { borderColor: accentColor, color: accentColor }}
+                            _hover={isToday ? { bg: isDark ? 'rgb(var(--accent-500))' : 'rgb(var(--accent-500))' } : { borderColor: accentColor, color: accentColor }}
                         >
                             <HStack gap={2}>
                                 <LuClock3 size={15} />
@@ -427,7 +427,7 @@ export default function Reminder() {
                             minH="48px"
                             px={4}
                             fontWeight="bold"
-                            _hover={isAll ? { bg: isDark ? '#EAB308' : '#F5B800' } : { borderColor: accentColor, color: accentColor }}
+                            _hover={isAll ? { bg: isDark ? 'rgb(var(--accent-500))' : 'rgb(var(--accent-500))' } : { borderColor: accentColor, color: accentColor }}
                         >
                             <HStack gap={2}>
                                 <LuCalendarDays size={15} />
@@ -463,10 +463,10 @@ export default function Reminder() {
                     <Box
                         px={2.5} py={1}
                         borderRadius="full"
-                        bg={isDark ? 'rgba(250,204,21,.12)' : '#FEF3C7'}
-                        border={`1px solid ${isDark ? 'rgba(250,204,21,.3)' : '#FDE047'}`}
+                        bg={isDark ? 'rgb(var(--accent-400) / .12)' : 'rgb(var(--accent-warm-100))'}
+                        border={`1px solid ${isDark ? 'rgb(var(--accent-400) / .3)' : 'rgb(var(--accent-300))'}`}
                     >
-                        <Text fontSize="xs" fontWeight="bold" color={isDark ? '#fde68a' : '#92400e'}>
+                        <Text fontSize="xs" fontWeight="bold" color={isDark ? 'rgb(var(--accent-warm-200))' : 'rgb(var(--accent-warm-800))'}>
                             {isAll ? 'Barcha sanalar' : `≤ ${formatDate(paymentDateFilter)}`}
                         </Text>
                     </Box>
@@ -566,8 +566,8 @@ export default function Reminder() {
                                                     <Box
                                                         p={2}
                                                         borderRadius="lg"
-                                                        bg={isDark ? 'rgba(250,204,21,.1)' : '#FEF3C7'}
-                                                        color={isDark ? '#fde68a' : '#CA8A04'}
+                                                        bg={isDark ? 'rgb(var(--accent-400) / .1)' : 'rgb(var(--accent-warm-100))'}
+                                                        color={isDark ? 'rgb(var(--accent-warm-200))' : 'rgb(var(--accent-600))'}
                                                         display="flex"
                                                         alignItems="center"
                                                     >
@@ -657,7 +657,7 @@ export default function Reminder() {
                                                             aria-label="Eslatmani tahrirlash"
                                                             title="Tahrirlash"
                                                             onClick={() => openEdit(reminder)}
-                                                            _hover={{ bg: isDark ? 'rgba(250,204,21,.12)' : '#FEF3C7' }}
+                                                            _hover={{ bg: isDark ? 'rgb(var(--accent-400) / .12)' : 'rgb(var(--accent-warm-100))' }}
                                                         >
                                                             <Pencil size={16} />
                                                         </Button>
@@ -723,9 +723,9 @@ export default function Reminder() {
                                         <Box
                                             p={2.5}
                                             borderRadius="xl"
-                                            bg={isDark ? 'rgba(250,204,21,.12)' : '#FEFCE8'}
-                                            border={`1px solid ${isDark ? 'rgba(250,204,21,.25)' : '#FDE047'}`}
-                                            color={isDark ? '#fde68a' : '#CA8A04'}
+                                            bg={isDark ? 'rgb(var(--accent-400) / .12)' : 'rgb(var(--accent-50))'}
+                                            border={`1px solid ${isDark ? 'rgb(var(--accent-400) / .25)' : 'rgb(var(--accent-300))'}`}
+                                            color={isDark ? 'rgb(var(--accent-warm-200))' : 'rgb(var(--accent-600))'}
                                             display="flex"
                                             alignItems="center"
                                             justifyContent="center"
@@ -854,7 +854,7 @@ export default function Reminder() {
                                             px={8}
                                             borderRadius="xl"
                                             fontWeight="bold"
-                                            _hover={{ bg: isDark ? '#EAB308' : '#F5B800', transform: 'scale(1.02)' }}
+                                            _hover={{ bg: isDark ? 'rgb(var(--accent-500))' : 'rgb(var(--accent-500))', transform: 'scale(1.02)' }}
                                             _active={{ transform: 'scale(0.98)' }}
                                             _disabled={{ opacity: 0.6, cursor: 'not-allowed' }}
                                         >

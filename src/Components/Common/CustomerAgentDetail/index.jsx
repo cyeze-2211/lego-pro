@@ -185,8 +185,8 @@ function OrderRow({ order, isDark, cardBg, cardBorder, textColor, subtitleColor,
                     </Box>
                     <Box
                         px={3} py={1} borderRadius="lg"
-                        bg={isDark ? 'rgba(250,204,21,0.15)' : '#FEF3C7'}
-                        borderWidth="1px" borderColor={isDark ? 'rgba(250,204,21,0.3)' : '#FDE68A'}
+                        bg={isDark ? 'rgb(var(--accent-400) / 0.15)' : 'rgb(var(--accent-warm-100))'}
+                        borderWidth="1px" borderColor={isDark ? 'rgb(var(--accent-400) / 0.3)' : 'rgb(var(--accent-warm-200))'}
                     >
                         <Text fontSize="sm" fontWeight="bold" color={accentColor}>
                             +{formatNumber(order.bonus)} so'm
@@ -255,8 +255,8 @@ function CustomerBlock({ customer, isDark, cardBg, cardBorder, textColor, subtit
                     </Text>
                     <Box
                         px={3} py={1} borderRadius="lg"
-                        bg={isDark ? 'rgba(250,204,21,0.15)' : '#FEF3C7'}
-                        borderWidth="1px" borderColor={isDark ? 'rgba(250,204,21,0.3)' : '#FDE68A'}
+                        bg={isDark ? 'rgb(var(--accent-400) / 0.15)' : 'rgb(var(--accent-warm-100))'}
+                        borderWidth="1px" borderColor={isDark ? 'rgb(var(--accent-400) / 0.3)' : 'rgb(var(--accent-warm-200))'}
                     >
                         <Text fontSize="sm" fontWeight="bold" color={accentColor}>
                             {formatNumber(customer.bonus)} so'm
@@ -298,8 +298,8 @@ function BonusReport({ data, isDark, cardBg, cardBorder, textColor, subtitleColo
             <HStack
                 gap={3} flexWrap="wrap"
                 p={4} borderRadius="xl"
-                bg={isDark ? 'rgba(250,204,21,0.08)' : '#FFFBEB'}
-                borderWidth="1px" borderColor={isDark ? 'rgba(250,204,21,0.2)' : '#FDE68A'}
+                bg={isDark ? 'rgb(var(--accent-400) / 0.08)' : 'rgb(var(--accent-warm-50))'}
+                borderWidth="1px" borderColor={isDark ? 'rgb(var(--accent-400) / 0.2)' : 'rgb(var(--accent-warm-200))'}
             >
                 <HStack gap={2} flex="1" minW={0}>
                     <LuCoins size={20} color={accentColor} />
@@ -430,8 +430,8 @@ export default function CustomerAgentDetail() {
                     <Box
                         w="72px" h="72px" borderRadius="2xl" flexShrink={0}
                         display="flex" alignItems="center" justifyContent="center"
-                        bg={isDark ? 'rgba(250,204,21,0.12)' : '#FEF3C7'}
-                        borderWidth="2px" borderColor={isDark ? 'rgba(250,204,21,0.25)' : '#FDE68A'}
+                        bg={isDark ? 'rgb(var(--accent-400) / 0.12)' : 'rgb(var(--accent-warm-100))'}
+                        borderWidth="2px" borderColor={isDark ? 'rgb(var(--accent-400) / 0.25)' : 'rgb(var(--accent-warm-200))'}
                     >
                         <LuUserCheck size={34} color={accentColor} />
                     </Box>
@@ -507,13 +507,13 @@ export default function CustomerAgentDetail() {
                 <Box
                     px={6} py={4}
                     borderBottomWidth="1px" borderColor={cardBorder}
-                    bg={isDark ? 'rgba(250,204,21,0.05)' : '#FFFDF0'}
+                    bg={isDark ? 'rgb(var(--accent-400) / 0.05)' : '#FFFDF0'}
                 >
                     <HStack gap={3} justify="space-between" flexWrap="wrap">
                         <HStack gap={2}>
                             <Box
                                 p={2} borderRadius="lg"
-                                bg={isDark ? 'rgba(250,204,21,0.15)' : '#FEF3C7'}
+                                bg={isDark ? 'rgb(var(--accent-400) / 0.15)' : 'rgb(var(--accent-warm-100))'}
                             >
                                 <LuCoins size={18} color={accentColor} />
                             </Box>

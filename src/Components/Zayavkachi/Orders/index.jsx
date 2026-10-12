@@ -457,7 +457,7 @@ export default function ZayavkachiOrders() {
                     </div>
                     {!pathname?.startsWith('/kassir') && (
                         <button type="button" onClick={() => navigate(`${ordersPath}/new`)}
-                            className="flex h-12 items-center gap-2 rounded-xl bg-[#FACC15] px-6 text-sm font-bold text-[#0F172A] shadow-lg shadow-[#FACC15]/30 transition-all duration-200 hover:-translate-y-px hover:bg-[#EAB308] hover:shadow-xl">
+                            className="flex h-12 items-center gap-2 rounded-xl bg-yellow-400 px-6 text-sm font-bold text-[#0F172A] shadow-lg shadow-yellow-400/30 transition-all duration-200 hover:-translate-y-px hover:bg-yellow-500 hover:shadow-xl">
                             <LuPlus size={16} /> Yangi buyurtma
                         </button>
                     )}
@@ -476,7 +476,7 @@ export default function ZayavkachiOrders() {
                             onClick={() => handleTabChange(key)}
                             className={`flex flex-1 min-w-[160px] items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all duration-200 ${
                                 isActive
-                                    ? 'bg-[#FACC15] text-[#0F172A] shadow-sm shadow-[#FACC15]/30'
+                                    ? 'bg-yellow-400 text-[#0F172A] shadow-sm shadow-yellow-400/30'
                                     : `${muted} hover:bg-amber-400/10 hover:text-amber-500`
                             }`}
                         >

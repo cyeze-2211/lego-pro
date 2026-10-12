@@ -47,7 +47,7 @@ export default function ImageField({ file, onChange, currentUrl, currentVersion,
     };
 
     const hasCurrent = Boolean(currentUrl);
-    const accentSoft = isDark ? 'rgba(250,204,21,.12)' : '#FEF3C7';
+    const accentSoft = isDark ? 'rgb(var(--accent-400) / .12)' : 'rgb(var(--accent-warm-100))';
 
     return (
         <Field.Root>
@@ -92,7 +92,7 @@ export default function ImageField({ file, onChange, currentUrl, currentVersion,
                         </>
                     )}
                     <HStack gap={2} flexWrap="wrap">
-                        <Button type="button" size="sm" h="34px" px={3} borderRadius="lg" variant="outline" color={accentColor} borderColor={isDark ? 'rgba(250,204,21,.4)' : '#FDE68A'} _hover={{ bg: accentSoft }} disabled={disabled} onClick={() => inputRef.current?.click()}>
+                        <Button type="button" size="sm" h="34px" px={3} borderRadius="lg" variant="outline" color={accentColor} borderColor={isDark ? 'rgb(var(--accent-400) / .4)' : 'rgb(var(--accent-warm-200))'} _hover={{ bg: accentSoft }} disabled={disabled} onClick={() => inputRef.current?.click()}>
                             <HStack gap={1.5}>{file || hasCurrent ? <LuRefreshCw size={14} /> : <LuUpload size={14} />}<span>{file || hasCurrent ? 'Almashtirish' : 'Rasm tanlash'}</span></HStack>
                         </Button>
                         {file && (

@@ -674,26 +674,26 @@ export default function StanokchiMachineDetail() {
                         {(nextTask || tasksFetching) && (
                             <div className="flex items-center gap-3 px-5 py-3 border-b"
                                 style={{
-                                    borderColor: isDark ? 'rgba(250,204,21,0.18)' : '#FDE68A',
-                                    background: isDark ? 'rgba(250,204,21,0.04)' : '#FFFBEB',
+                                    borderColor: isDark ? 'rgb(var(--accent-400) / 0.18)' : 'rgb(var(--accent-warm-200))',
+                                    background: isDark ? 'rgb(var(--accent-400) / 0.04)' : 'rgb(var(--accent-warm-50))',
                                 }}>
                                 {/* Left: icon + info */}
                                 <div className="flex items-center gap-2 flex-1 min-w-0">
                                     <div className="flex items-center justify-center w-7 h-7 rounded-lg shrink-0"
-                                        style={{ background: isDark ? 'rgba(250,204,21,0.18)' : '#FEF3C7' }}>
+                                        style={{ background: isDark ? 'rgb(var(--accent-400) / 0.18)' : 'rgb(var(--accent-warm-100))' }}>
                                         <LuClipboardList size={13} style={{ color: accentColor }} />
                                     </div>
                                     <div className="min-w-0 flex-1">
                                         <div className="flex items-center gap-1.5 flex-wrap">
                                             <span className="text-[10px] font-semibold uppercase tracking-wide"
-                                                style={{ color: isDark ? '#FACC15' : '#92400E' }}>
+                                                style={{ color: isDark ? 'rgb(var(--accent-400))' : 'rgb(var(--accent-warm-800))' }}>
                                                 Yangi topshiriq
                                             </span>
                                             {pendingTasks.length > 1 && (
                                                 <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
                                                     style={{
-                                                        background: isDark ? 'rgba(250,204,21,0.2)' : '#FDE68A',
-                                                        color: isDark ? '#FACC15' : '#92400E',
+                                                        background: isDark ? 'rgb(var(--accent-400) / 0.2)' : 'rgb(var(--accent-warm-200))',
+                                                        color: isDark ? 'rgb(var(--accent-400))' : 'rgb(var(--accent-warm-800))',
                                                     }}>
                                                     +{pendingTasks.length - 1} ta kutmoqda
                                                 </span>
@@ -756,7 +756,7 @@ export default function StanokchiMachineDetail() {
                             </h2>
                             {historyPagination && (
                                 <span className="text-xs px-2.5 py-0.5 rounded-full font-medium"
-                                    style={{ background: isDark ? 'rgba(250,204,21,0.12)' : '#FEF3C7', color: accentColor }}>
+                                    style={{ background: isDark ? 'rgb(var(--accent-400) / 0.12)' : 'rgb(var(--accent-warm-100))', color: accentColor }}>
                                     {historyPagination.totalElements} ta
                                 </span>
                             )}
@@ -766,9 +766,9 @@ export default function StanokchiMachineDetail() {
                                     disabled={producing}
                                     className="ml-auto flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm transition-all hover:opacity-90 active:scale-95 disabled:opacity-50"
                                     style={{
-                                        background: isDark ? 'rgba(250,204,21,0.18)' : '#FEF9C3',
-                                        color: isDark ? '#FACC15' : '#78350F',
-                                        border: `1px solid ${isDark ? 'rgba(250,204,21,0.35)' : '#FDE68A'}`,
+                                        background: isDark ? 'rgb(var(--accent-400) / 0.18)' : 'rgb(var(--accent-100))',
+                                        color: isDark ? 'rgb(var(--accent-400))' : 'rgb(var(--accent-warm-900))',
+                                        border: `1px solid ${isDark ? 'rgb(var(--accent-400) / 0.35)' : 'rgb(var(--accent-warm-200))'}`,
                                         cursor: producing ? 'not-allowed' : 'pointer',
                                         whiteSpace: 'nowrap',
                                     }}
@@ -885,9 +885,9 @@ export default function StanokchiMachineDetail() {
                             <span
                                 className="rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide"
                                 style={{
-                                    background: isDark ? 'rgba(250,204,21,0.16)' : '#FEF3C7',
-                                    color: isDark ? '#FACC15' : '#92400E',
-                                    border: `1px solid ${isDark ? 'rgba(250,204,21,0.35)' : '#FDE68A'}`,
+                                    background: isDark ? 'rgb(var(--accent-400) / 0.16)' : 'rgb(var(--accent-warm-100))',
+                                    color: isDark ? 'rgb(var(--accent-400))' : 'rgb(var(--accent-warm-800))',
+                                    border: `1px solid ${isDark ? 'rgb(var(--accent-400) / 0.35)' : 'rgb(var(--accent-warm-200))'}`,
                                 }}
                             >
                                 Hozirgi smena
@@ -972,30 +972,30 @@ export default function StanokchiMachineDetail() {
                                 className="rounded-2xl p-5 border-2 transition-all duration-200 hover:scale-105"
                                 style={{
                                     background: isDark 
-                                        ? 'linear-gradient(135deg, rgba(250,204,21,0.12) 0%, rgba(250,204,21,0.05) 100%)'
+                                        ? 'linear-gradient(135deg, rgb(var(--accent-400) / 0.12) 0%, rgb(var(--accent-400) / 0.05) 100%)'
                                         : 'linear-gradient(135deg, rgba(255,251,235,1) 0%, rgba(254,243,199,0.8) 100%)',
-                                    borderColor: isDark ? 'rgba(250,204,21,0.3)' : '#FDE047',
+                                    borderColor: isDark ? 'rgb(var(--accent-400) / 0.3)' : 'rgb(var(--accent-300))',
                                     boxShadow: isDark 
-                                        ? '0 4px 16px rgba(250,204,21,0.1)' 
-                                        : '0 4px 16px rgba(250,204,21,0.15)',
+                                        ? '0 4px 16px rgb(var(--accent-400) / 0.1)' 
+                                        : '0 4px 16px rgb(var(--accent-400) / 0.15)',
                                 }}>
                                 <div className="flex items-start justify-between mb-3">
                                     <div 
                                         className="w-12 h-12 rounded-xl flex items-center justify-center"
                                         style={{
-                                            background: isDark ? 'rgba(250,204,21,0.2)' : 'rgba(250,204,21,0.15)',
+                                            background: isDark ? 'rgb(var(--accent-400) / 0.2)' : 'rgb(var(--accent-400) / 0.15)',
                                         }}
                                     >
-                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={isDark ? '#FACC15' : '#CA8A04'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" style={{ stroke: isDark ? 'rgb(var(--accent-400))' : 'rgb(var(--accent-600))' }} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                             <circle cx="12" cy="12" r="10"/>
                                             <polyline points="12 6 12 12 16 14"/>
                                         </svg>
                                     </div>
                                 </div>
-                                <p className="text-xs font-semibold mb-2 uppercase tracking-wide" style={{ color: isDark ? '#FACC15' : '#78350F' }}>
+                                <p className="text-xs font-semibold mb-2 uppercase tracking-wide" style={{ color: isDark ? 'rgb(var(--accent-400))' : 'rgb(var(--accent-warm-900))' }}>
                                     Ish vaqti
                                 </p>
-                                <p className="text-3xl font-extrabold" style={{ color: isDark ? '#FACC15' : '#78350F' }}>
+                                <p className="text-3xl font-extrabold" style={{ color: isDark ? 'rgb(var(--accent-400))' : 'rgb(var(--accent-warm-900))' }}>
                                     {summary?.workedDurationSeconds
                                         ? formatDurationSeconds(summary.workedDurationSeconds)
                                         : '0 daqiqa'}
@@ -1011,7 +1011,7 @@ export default function StanokchiMachineDetail() {
                                     <div 
                                         className="w-8 h-8 rounded-lg flex items-center justify-center"
                                         style={{
-                                            background: isDark ? 'rgba(250,204,21,0.15)' : 'rgba(250,204,21,0.2)',
+                                            background: isDark ? 'rgb(var(--accent-400) / 0.15)' : 'rgb(var(--accent-400) / 0.2)',
                                         }}
                                     >
                                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={accentColor} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -1073,7 +1073,7 @@ export default function StanokchiMachineDetail() {
                                                 <div 
                                                     className="px-3 py-2 rounded-xl flex-shrink-0"
                                                     style={{
-                                                        background: isDark ? 'rgba(250,204,21,0.15)' : 'rgba(250,204,21,0.2)',
+                                                        background: isDark ? 'rgb(var(--accent-400) / 0.15)' : 'rgb(var(--accent-400) / 0.2)',
                                                     }}
                                                 >
                                                     <p className="text-2xl font-extrabold text-center leading-none" style={{ color: accentColor }}>
@@ -1136,8 +1136,8 @@ export default function StanokchiMachineDetail() {
                         <p className="text-xs font-medium mb-1" style={{ color: subtitleColor }}>Stanok</p>
                         <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl mb-4"
                             style={{
-                                background: isDark ? 'rgba(250,204,21,0.08)' : '#FEF3C7',
-                                border: `1px solid ${isDark ? 'rgba(250,204,21,0.2)' : '#FDE68A'}`,
+                                background: isDark ? 'rgb(var(--accent-400) / 0.08)' : 'rgb(var(--accent-warm-100))',
+                                border: `1px solid ${isDark ? 'rgb(var(--accent-400) / 0.2)' : 'rgb(var(--accent-warm-200))'}`,
                             }}>
                             <LuCog size={16} style={{ color: accentColor }} />
                             <span className="font-semibold text-sm" style={{ color: textColor }}>{machine.name}</span>

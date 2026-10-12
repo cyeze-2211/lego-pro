@@ -286,7 +286,7 @@ function MachineCard({ machine, isDark, cardBg, cardBorder, textColor, subtitleC
                                     ? (isDark ? 'rgba(34,197,94,0.18)' : 'rgba(34,197,94,0.12)')
                                     : isDefect
                                     ? (isDark ? 'rgba(239,68,68,0.18)' : 'rgba(239,68,68,0.12)')
-                                    : (isDark ? 'rgba(250,204,21,0.12)' : '#FEF3C7')
+                                    : (isDark ? 'rgb(var(--accent-400) / 0.12)' : 'rgb(var(--accent-warm-100))')
                             }}
                         >
                             <LuCog 
