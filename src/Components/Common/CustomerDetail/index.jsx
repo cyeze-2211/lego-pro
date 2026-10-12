@@ -384,7 +384,7 @@ export default function CustomerDetail() {
                                 <HStack gap={4} mt={2} flexWrap="wrap" color={subtitleColor} fontSize="sm">
                                     {customer.phone && <HStack gap={1.5}><LuPhone size={14} /><Text as="a" href={phoneHref} _hover={{ color: accentColor }}>{customer.phone}</Text></HStack>}
                                     {customer.address && <HStack gap={1.5} minW={0}><LuMapPin size={14} /><Text noOfLines={1}>{customer.address}</Text></HStack>}
-                                    {customer.agentName && <HStack gap={1.5}><LuUserCheck size={14} /><span>{customer.agentName}</span></HStack>}
+                                    {(customer.agent?.name || customer.agentName) && <HStack gap={1.5}><LuUserCheck size={14} /><span>{customer.agent?.name || customer.agentName}</span></HStack>}
                                 </HStack>
                             </Box>
                         </HStack>
@@ -430,7 +430,7 @@ export default function CustomerDetail() {
                     <InfoRow icon={LuPhone} label="Telefon" value={customer.phone} href={phoneHref} />
                     <InfoRow icon={LuMapPin} label="Manzil" value={customer.address} />
                     <InfoRow icon={LuHash} label="INN / STIR" value={customer.inn} mono />
-                    <InfoRow icon={LuUserCheck} label="Agent" value={customer.agentName} emptyText="Biriktirilmagan" />
+                    <InfoRow icon={LuUserCheck} label="Agent" value={customer.agent ? [customer.agent.name, customer.agent.phone].filter(Boolean).join(' · ') : customer.agentName} emptyText="Biriktirilmagan" />
                     <InfoRow icon={LuSend} label="Telegram" value={customer.telegramChatId ? String(customer.telegramChatId) : null} emptyText="Ulanmagan" mono />
                 </InfoCard>
                 <InfoCard icon={LuStickyNote} title="Qo‘shimcha ma’lumotlar">

@@ -13,7 +13,7 @@ import {
     LuPhone, LuSearch,
     LuUsers, LuX, LuClock3, LuTriangleAlert, LuCalendarCheck,
     LuCalendarDays, LuStickyNote, LuSlidersHorizontal, LuChevronDown,
-    LuChevronUp, LuRotateCcw, LuArrowUp, LuArrowDown, LuArrowUpDown, LuMapPin,
+    LuChevronUp, LuRotateCcw, LuArrowUp, LuArrowDown, LuArrowUpDown, LuMapPin, LuUserCheck,
 } from 'react-icons/lu';
 import { useGetCustomersQuery } from '../../../store/services/customer.api';
 import { useGetRegionsQuery } from '../../../store/services/region.api';
@@ -508,6 +508,7 @@ export default function ZayavkachiCustomers() {
                                     </Table.ColumnHeader>
 
                                     <Table.ColumnHeader bg={tableHeaderBg} borderWidth="0.5px" borderColor={tableBorder} color={subtitleColor}>Izoh</Table.ColumnHeader>
+                                    <Table.ColumnHeader bg={tableHeaderBg} borderWidth="0.5px" borderColor={tableBorder} color={subtitleColor} minW="160px">Agent</Table.ColumnHeader>
                                     <Table.ColumnHeader bg={tableHeaderBg} borderWidth="0.5px" borderColor={tableBorder} color={subtitleColor} minW="230px">Eslatma</Table.ColumnHeader>
 
                                     {/* Qoldiq — sortable (client-side) */}
@@ -558,6 +559,23 @@ export default function ZayavkachiCustomers() {
 
                                             <Table.Cell borderWidth="0.5px" borderColor={tableBorder} color={subtitleColor} maxW="220px">
                                                 <Text noOfLines={2}>{customer.summary || '—'}</Text>
+                                            </Table.Cell>
+
+                                            {/* Agent */}
+                                            <Table.Cell borderWidth="0.5px" borderColor={tableBorder}>
+                                                {customer.agent?.name ? (
+                                                    <HStack gap={1.5} align="start">
+                                                        <Box p={1} borderRadius="md" bg={isDark ? 'rgba(96, 165, 250, 0.15)' : '#DBEAFE'} color={isDark ? 'blue.300' : 'blue.600'} flexShrink={0}>
+                                                            <LuUserCheck size={12} />
+                                                        </Box>
+                                                        <Box lineHeight="1.25">
+                                                            <Text color={textColor} fontSize="sm" noOfLines={1}>{customer.agent.name}</Text>
+                                                            {customer.agent.phone && <Text color={subtitleColor} fontSize="xs" whiteSpace="nowrap">{customer.agent.phone}</Text>}
+                                                        </Box>
+                                                    </HStack>
+                                                ) : (
+                                                    <Text color={subtitleColor} fontSize="sm">—</Text>
+                                                )}
                                             </Table.Cell>
 
                                             <Table.Cell borderWidth="0.5px" borderColor={tableBorder} minW="230px">

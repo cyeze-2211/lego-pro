@@ -38,10 +38,10 @@ const buildInitial = (customer) => ({
     summary:       customer.summary       || '',
     address:       customer.address       || '',
     inn:           customer.inn           || '',
-    agentId:       customer.agentId       || '',
-    agentName:     customer.agentName     || '',
+    agentId:       customer.agent?.id     || customer.agentId   || '',
+    agentName:     customer.agent?.name   || customer.agentName || '',
     telegramChatId: customer.telegramChatId ? String(customer.telegramChatId) : '',
-    regionId:      customer.regionId == null ? '' : String(customer.regionId),
+    regionId:      (customer.region?.id ?? customer.regionId) == null ? '' : String(customer.region?.id ?? customer.regionId),
 });
 
 export default function Edit({ customer, openOnMount = false, hideTrigger = false, onClosed }) {
@@ -407,6 +407,8 @@ Edit.propTypes = {
         address: PropTypes.string,
         inn: PropTypes.string,
         agentName: PropTypes.string,
+        agent: PropTypes.shape({ id: PropTypes.string, name: PropTypes.string, phone: PropTypes.string }),
+        region: PropTypes.shape({ id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]), name: PropTypes.string }),
         telegramChatId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     }).isRequired,
     openOnMount: PropTypes.bool,

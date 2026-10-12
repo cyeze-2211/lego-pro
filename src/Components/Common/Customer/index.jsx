@@ -355,12 +355,15 @@ export default function Customer() {
 
                                         {/* Agent */}
                                         <Table.Cell {...cellBorder}>
-                                            {customer.agentName ? (
-                                                <HStack gap={1.5}>
-                                                    <Box p={1} borderRadius="md" bg={isDark ? 'rgba(96, 165, 250, 0.15)' : '#DBEAFE'} color={isDark ? 'blue.300' : 'blue.600'}>
+                                            {(customer.agent?.name || customer.agentName) ? (
+                                                <HStack gap={1.5} align="start">
+                                                    <Box p={1} borderRadius="md" bg={isDark ? 'rgba(96, 165, 250, 0.15)' : '#DBEAFE'} color={isDark ? 'blue.300' : 'blue.600'} flexShrink={0}>
                                                         <LuUserCheck size={12} />
                                                     </Box>
-                                                    <Text color={textColor} fontSize="sm" noOfLines={1}>{customer.agentName}</Text>
+                                                    <Box lineHeight="1.25">
+                                                        <Text color={textColor} fontSize="sm" noOfLines={1}>{customer.agent?.name || customer.agentName}</Text>
+                                                        {customer.agent?.phone && <Text color={subtitleColor} fontSize="xs" whiteSpace="nowrap">{customer.agent.phone}</Text>}
+                                                    </Box>
                                                 </HStack>
                                             ) : (
                                                 <Text color={subtitleColor} fontSize="sm">—</Text>
