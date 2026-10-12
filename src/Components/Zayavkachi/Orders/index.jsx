@@ -6,7 +6,7 @@ import {
     LuPlus, LuX, LuEye, LuPencil, LuPackage,
     LuSlidersHorizontal, LuChevronDown,
     LuCircleX, LuCircleCheckBig, LuBan, LuChevronUp,
-    LuInbox, LuCircleDashed, LuPackageCheck,
+    LuInbox, LuCircleDashed, LuPackageCheck, LuUndo2,
 } from 'react-icons/lu';
 import { useAppTheme } from '../../../theme/tokens';
 import { formatNumber } from '../../ui/number-format';
@@ -23,7 +23,8 @@ import {
     useConfirmSalesOrderMutation,
 } from '../../../store/services/salesOrder.api';
 import DeleteOrder from '../__components/DeleteOrder';
-import { STATUS_LABEL, statusCx, statusStyle, NEXT_STATUS, FINAL_STATUSES, canSetOrderStatus } from '../__components/statusBadge';
+import { STATUS_LABEL, statusCx, statusStyle, NEXT_STATUS, FINAL_STATUSES, canSetOrderStatus, canReturnOrder } from '../__components/statusBadge';
+import ReturnOrderModal from '../__components/ReturnOrderModal';
 import { Alert } from '../../Other/UI/Alert/Alert';
 
 const PAGE_SIZE = 20;
@@ -312,6 +313,10 @@ export default function ZayavkachiOrders() {
     const { isDark } = useAppTheme();
     const navigate = useNavigate();
     const { pathname } = useLocation();
+    const role = useAppSelector((state) => state.auth.role);
+    // Tugallangan zayavkadan qaytarish — faqat admin va hisobchi
+    const canReturn = canReturnOrder(role);
+    const [returnOrderTarget, setReturnOrderTarget] = useState(null);
 
     const ordersPath = pathname?.startsWith('/orders')
         ? '/orders'
@@ -672,6 +677,17 @@ export default function ZayavkachiOrders() {
                                                         >
                                                             <LuEye size={16} />
                                                         </button>
+                                                        {canReturn && o?.status === 'CONFIRMED' && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setReturnOrderTarget(o)}
+                                                                aria-label="Qaytarish"
+                                                                title="Mahsulot qaytarish"
+                                                                className={`${iconBtn} hover:!text-orange-500`}
+                                                            >
+                                                                <LuUndo2 size={16} />
+                                                            </button>
+                                                        )}
                                                         <button type="button" onClick={() => navigate(`${ordersPath}/${o.id}/edit`)}
                                                             disabled={!editable}
                                                             aria-label="Tahrirlash"
@@ -697,6 +713,10 @@ export default function ZayavkachiOrders() {
                 {!isError && orders.length > 0 && (
                     <div className={`border-t ${line}`}>
                         <InfiniteSentinel sentinelRef={sentinelRef} hasMore={hasMore} loadingMore={loadingMore} loaded={orders.length} total={totalElements} unit="ta buyurtma" onLoadMore={loadMore} />
+
+                        {returnOrderTarget && (
+                            <ReturnOrderModal open onClose={() => setReturnOrderTarget(null)} order={returnOrderTarget} />
+                        )}
                     </div>
                 )}
             </div>

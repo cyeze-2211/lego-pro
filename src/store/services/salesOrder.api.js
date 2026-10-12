@@ -1,5 +1,7 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
 import { axiosBaseQuery } from '../baseQuary/axiosBaseQuery';
+import { customerApi } from './customer.api';
+import { paymentApi } from './payment.api';
 
 export const salesOrderApi = createApi({
   reducerPath: 'salesOrderApi',
@@ -200,6 +202,39 @@ export const salesOrderApi = createApi({
       ],
     }),
 
+    /* ── Qaytarish: POST /api/v1/sales-orders/{id}/return ──
+     * CONFIRMED zayavkadan mahsulot qaytarish (qisman yoki to'liq).
+     * data = { reason?, items?: [{ itemId, packQuantity, pieceQuantity }] }
+     * items bo'sh/yo'q bo'lsa — mijozdagi hamma qolgan mahsulot qaytadi.
+     * Natija: hammasi qaytsa RETURNED, aks holda CONFIRMED qoladi.
+     * Mijoz balansi oshadi, ortiqcha to'lov avansga o'tadi, kassadan pul chiqmaydi. */
+    returnSalesOrder: builder.mutation({
+      query: ({ id, data }) => ({
+        url: `/sales-orders/${id}/return`,
+        method: 'POST',
+        data: data ?? {},
+      }),
+      transformResponse: (response) => response.data,
+      invalidatesTags: (result, error, { id }) => [
+        { type: 'SalesOrder', id },
+        { type: 'SalesOrder', id: 'LIST' },
+        { type: 'SalesOrderDashboard', id: 'LIST' },
+        { type: 'ProductShortages', id: 'LIST' },
+        { type: 'TopProducts', id: 'LIST' },
+      ],
+      onQueryStarted: async ({ customerId }, { dispatch, queryFulfilled }) => {
+        try {
+          await queryFulfilled;
+          // mijoz balansi va to'lovlar taqsimoti o'zgaradi
+          dispatch(customerApi.util.invalidateTags([
+            ...(customerId ? [{ type: 'Customer', id: customerId }] : []),
+            { type: 'Customer', id: 'LIST' },
+          ]));
+          dispatch(paymentApi.util.invalidateTags([{ type: 'Payment', id: 'LIST' }]));
+        } catch { /* xatolik chaqiruvchi tomonda ko'rsatiladi */ }
+      },
+    }),
+
     updateSalesOrderPrices: builder.mutation({
       query: ({ id, data }) => ({
         url: `/sales-orders/${id}/prices`,
@@ -233,4 +268,5 @@ export const {
   useRejectSalesOrderMutation,
   useLoadSalesOrderMutation,
   useUpdateSalesOrderPricesMutation,
+  useReturnSalesOrderMutation,
 } = salesOrderApi;

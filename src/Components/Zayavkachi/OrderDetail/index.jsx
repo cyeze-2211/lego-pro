@@ -5,7 +5,7 @@ import {
     LuArrowLeft, LuPackage, LuBarcode, LuUser, LuWarehouse,
     LuStickyNote, LuClock3, LuCircleAlert, LuPencil,
     LuChevronDown, LuTriangleAlert, LuCircleCheck, LuCircleX,
-    LuBoxes, LuPrinter,
+    LuBoxes, LuPrinter, LuUndo2,
 } from 'react-icons/lu';
 import { useAppTheme } from '../../../theme/tokens';
 import { useAppSelector } from '../../../store/hooks';
@@ -26,10 +26,11 @@ import {
     statusCx,
     statusStyle,
     NEXT_STATUS,
-    FINAL_STATUSES, canSetOrderStatus } from '../__components/statusBadge';
+    FINAL_STATUSES, canSetOrderStatus, canReturnOrder } from '../__components/statusBadge';
 import { Alert } from '../../Other/UI/Alert/Alert';
 import { splitOrderItem } from '../../ui/order-items';
 import OrderPrintModal from '../__components/OrderPrintModal';
+import ReturnOrderModal from '../__components/ReturnOrderModal';
 import BuxgalterOrderDetailPage from '../BuxgalterOrderDetail';
 import logoSvg from '../../../Images/Yellow Unified Lego Outlined.svg';
 
@@ -157,6 +158,7 @@ function groupOrderItems(items) {
                 orderQuantityTotal: 0,
                 hasPackLine: false,
                 hasPieceLine: false,
+                returned: 0,
                 piecesPerPack: 0,
                 rawItems: [],
             });
@@ -165,6 +167,7 @@ function groupOrderItems(items) {
         const g = groups.get(key);
         g.rawItems.push(item);
         g.lineTotal += Number(item.lineTotal) || 0;
+        g.returned += Number(item.returnedQuantity) || 0;
 
         const split = splitOrderItem(item);
         g.orderQuantityTotal += split.total;
@@ -292,6 +295,7 @@ function ZayavkachiOrderDetail() {
 
     const backToList   = () => navigate(ordersPath);
     const [showPrintModal, setShowPrintModal] = useState(false);
+    const [showReturnModal, setShowReturnModal] = useState(false);
     const printInvoice = () => {
         const invoiceEl = document.querySelector('.invoice-print-root');
         if (!invoiceEl) { window.print(); return; }
@@ -355,6 +359,8 @@ function ZayavkachiOrderDetail() {
                 />
             )}
 
+            <ReturnOrderModal open={showReturnModal} onClose={() => setShowReturnModal(false)} order={order} />
+
             <style>{`
                 .invoice-print { display: none !important; }
             `}</style>
@@ -377,6 +383,13 @@ function ZayavkachiOrderDetail() {
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
                             <OrderStatusControl order={order} isDark={isDark} />
+
+                            {canReturnOrder(role) && order.status === 'CONFIRMED' && (
+                            <button type="button" onClick={() => setShowReturnModal(true)} title="Mijoz qaytargan mahsulotni qayd etish"
+                                className="flex h-12 items-center gap-2 rounded-xl border border-orange-500/40 bg-orange-500/10 px-5 text-sm font-bold text-orange-500 transition-colors hover:bg-orange-500/20">
+                                <LuUndo2 size={16} /> Qaytarish
+                            </button>
+                            )}
 
                             {BUXGALTER_ROLES.includes(role) && order.status === 'LOADED' && (
                             <button type="button" onClick={() => setShowPrintModal(true)} title="Chop etish"
@@ -424,6 +437,14 @@ function ZayavkachiOrderDetail() {
                         </div>
                     )}
 
+                    {Number(order.returnedAmount) > 0 && (
+                        <div className="mx-5 mb-4 rounded-xl border border-orange-500/30 bg-orange-500/10 px-4 py-3">
+                            <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-orange-500"><LuUndo2 size={12} /> {order.status === 'RETURNED' ? 'Hamma mahsulot qaytarilgan' : 'Qisman qaytarilgan'}</p>
+                            <p className="text-sm font-semibold text-orange-500">Qaytarilgan summa: {fmtNum(order.returnedAmount)} so&apos;m{order.returnedAt ? ` · ${fmtDateTime(order.returnedAt)}` : ''}</p>
+                            {order.returnReason && <p className={`mt-1 text-sm ${head}`}>Sabab: {order.returnReason}</p>}
+                        </div>
+                    )}
+
                     {order.status === 'REJECTED' && order.rejectionReason && (
                         <div className="mx-5 mb-4 rounded-xl border border-[#f43f5e]/30 bg-[#f43f5e]/10 px-4 py-3">
                             <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-[#f43f5e]"><LuCircleAlert size={12} /> Rad etish sababi</p>
@@ -468,6 +489,9 @@ function ZayavkachiOrderDetail() {
                                             <div className="flex items-center gap-3">
                                                 <span className={`w-4 shrink-0 text-xs font-bold ${muted}`}>{idx + 1}</span>
                                                 <span className={`font-semibold ${head}`}>{g.productName}</span>
+                                                {g.returned > 0 && (
+                                                    <span className="rounded-full border border-orange-500/30 bg-orange-500/10 px-2 py-0.5 text-[11px] font-bold text-orange-500 whitespace-nowrap">↩ {fmtNum(g.returned)} dona qaytarilgan</span>
+                                                )}
                                             </div>
                                         </td>
                                         <td className={`px-5 py-3 font-mono text-xs ${muted}`}>

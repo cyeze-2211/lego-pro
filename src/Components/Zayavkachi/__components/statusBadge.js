@@ -1,4 +1,4 @@
-import { PRODUCT_WAREHOUSE_ROLES } from '../../../app/permissions/roles';
+import { BUXGALTER_ROLES, PRODUCT_WAREHOUSE_ROLES, ROLES } from '../../../app/permissions/roles';
 // Zayavka holatlari — butun ERP uchun yagona manba.
 // Backend holatlari: CREATED → LOADED → CONFIRMED, CREATED → REJECTED, CONFIRMED → RETURNED.
 
@@ -56,6 +56,9 @@ export const NEXT_STATUS = {
 
 // Yakuniy (o‘zgartirib bo‘lmaydigan) holatlar
 export const FINAL_STATUSES = ['CONFIRMED', 'REJECTED', 'RETURNED'];
+
+/** Tugallangan zayavkadan mahsulot qaytarish — faqat admin (manager) va hisobchi. */
+export const canReturnOrder = (role) => role === ROLES.MANAGER || BUXGALTER_ROLES.includes(role);
 
 /** «Ortildi» (LOADED) holatiga faqat mahsulot omborchisi o‘tkaza oladi. */
 export const canSetOrderStatus = (role, nextStatus) => {

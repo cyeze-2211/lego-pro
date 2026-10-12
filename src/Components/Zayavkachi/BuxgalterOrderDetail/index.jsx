@@ -22,6 +22,7 @@ import {
     LuWallet,
     LuClock,
     LuPrinter,
+    LuUndo2,
 } from 'react-icons/lu';
 import { useAppTheme } from '../../../theme/tokens';
 import {
@@ -37,6 +38,7 @@ import { Alert } from '../../Other/UI/Alert/Alert';
 import { formatPackPiece, splitOrderItem } from '../../ui/order-items';
 import { STATUS_LABEL, statusCx } from '../__components/statusBadge';
 import OrderPrintModal from '../__components/OrderPrintModal';
+import ReturnOrderModal from '../__components/ReturnOrderModal';
 
 const ORDER_HISTORY_SIZE = 30;
 
@@ -207,6 +209,8 @@ export default function BuxgalterOrderDetail() {
 
     /* ── print modal ── */
     const [printOpen, setPrintOpen] = useState(false);
+    /* ── qaytarish (CONFIRMED) ── */
+    const [returnOpen, setReturnOpen] = useState(false);
 
     /* ── theme ── */
     const panel = isDark ? 'border-white/10 bg-[#141C2B]' : 'border-[#e2e8f0] bg-white';
@@ -400,6 +404,17 @@ export default function BuxgalterOrderDetail() {
                                 {isConfirmingOrder ? 'Tasdiqlanmoqda…' : 'Tasdiqlash'}
                             </button>
                         )}
+                        {order.status === 'CONFIRMED' && (
+                            <button
+                                type="button"
+                                onClick={() => setReturnOpen(true)}
+                                title="Mijoz qaytargan mahsulotni qayd etish"
+                                className="inline-flex items-center gap-2 rounded-xl border border-orange-500/40 bg-orange-500/10 px-4 py-2.5 text-sm font-bold text-orange-500 transition hover:bg-orange-500/20"
+                            >
+                                <LuUndo2 size={16} />
+                                Qaytarish
+                            </button>
+                        )}
                         {order.status === 'CREATED' && (
                             <button
                                 type="button"
@@ -447,6 +462,12 @@ export default function BuxgalterOrderDetail() {
                             Icon: LuWallet,
                             tone: 'emerald',
                         },
+                        ...(Number(order.returnedAmount) > 0 ? [{
+                            label: 'Qaytarilgan',
+                            value: `${fmt(order.returnedAmount)} so‘m`,
+                            Icon: LuUndo2,
+                            tone: 'orange',
+                        }] : []),
                         {
                             label: 'Qolgan qarz',
                             value: `${fmt(order.remainingDebt)} so‘m`,
@@ -461,6 +482,7 @@ export default function BuxgalterOrderDetail() {
                         },
                     ].map(({ label, value, Icon, tone }) => {
                         const toneMap = {
+                            orange: { color: 'text-orange-500', bg: 'bg-orange-500/10' },
                             amber: { color: 'text-amber-500', bg: 'bg-amber-400/10' },
                             emerald: { color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
                             rose: { color: 'text-rose-500', bg: 'bg-rose-500/10' },
@@ -644,6 +666,9 @@ export default function BuxgalterOrderDetail() {
                                                             <p className={`text-sm font-bold ${head}`}>{getEnteredLabel(entry)}</p>
                                                             {isPack && piecesPerPack > 0 && (
                                                                 <p className={`text-[11px] ${muted}`}>= {fmt(getTotalPieces(entry))} dona</p>
+                                                            )}
+                                                            {Number(entry.returnedQuantity) > 0 && (
+                                                                <p className="text-[11px] font-semibold text-orange-500">↩ {fmt(entry.returnedQuantity)} dona qaytarilgan</p>
                                                             )}
                                                         </div>
                                                     );
@@ -942,6 +967,9 @@ export default function BuxgalterOrderDetail() {
                     )}
                 </div>
             </section>
+            {/* ═══════════════ RETURN MODAL ═══════════════ */}
+            <ReturnOrderModal open={returnOpen} onClose={() => setReturnOpen(false)} order={order} />
+
             {/* ═══════════════ PRINT MODAL ═══════════════ */}
             {printOpen && (
                 <OrderPrintModal
