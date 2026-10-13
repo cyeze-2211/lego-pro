@@ -45,6 +45,8 @@ function useDebouncedValue(value, delay = 350) {
     return debounced;
 }
 
+const QTY_MODE_KEY = 'order_qty_mode';
+
 export default function OrderForm({ order, customer, onCancel, onSaved }) {
     const { isDark } = useAppTheme();
     const isEdit = Boolean(order);
@@ -68,6 +70,10 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
     const [stockCache, setStockCache]   = useState({});
     const debouncedFilters = useDebouncedValue(filters, 350);
     const [expandedOrders, setExpandedOrders] = useState({});
+    // Miqdor kiritish rejimi: 'split' — pachka va dona alohida, 'auto' — jami dona yoziladi, pachkaga o‘zi ajraladi
+    const [qtyMode, setQtyMode] = useState(() => {
+        try { return localStorage.getItem(QTY_MODE_KEY) === 'auto' ? 'auto' : 'split'; } catch { return 'split'; }
+    });
     const [items, setItems]             = useState(() => {
         // Har bir (mahsulot, ombor) uchun bitta qator: pachka + dona
         const groupedItems = new Map();
@@ -441,6 +447,44 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                 setItems((p) => p.map((i) => i.productId === id ? { ...i, unitPrice: price, _priceRaw: raw } : i));
             }
         }
+    };
+
+    /* Jami donani pachka + qolgan donaga ajratadi (pachka hajmi ma'lum bo‘lsa) */
+    const splitTotal = (item, total) => {
+        const ppp = Number(item.piecesPerPack) || 0;
+        const packs = ppp > 0 ? Math.floor(total / ppp) : 0;
+        const pieces = ppp > 0 ? total % ppp : total;
+        return { ...item, packs, pieces, quantity: total, enteredQuantity: total, unit: 'PIECE' };
+    };
+
+    const updateTotal = (id, val) => {
+        const total = val === '' ? 0 : Number(val);
+        if (!Number.isInteger(total) || total < 0) return;
+        setItems((p) => p.map((i) => (i.productId === id ? splitTotal(i, total) : i)));
+    };
+
+    const stepTotal = (id, delta) => {
+        setItems((p) => p.map((i) => {
+            if (i.productId !== id) return i;
+            const current = (Number(i.packs) || 0) * (Number(i.piecesPerPack) || 0) + (Number(i.pieces) || 0);
+            return splitTotal(i, Math.max(0, current + delta));
+        }));
+    };
+
+    /* «Pachka + dona» rejimida: ortiqcha donalarni pachkaga o‘tkazish (59 dona → 1 pachka + 9 dona) */
+    const normalizeItem = (id) => {
+        setItems((p) => p.map((i) => {
+            if (i.productId !== id) return i;
+            const total = (Number(i.packs) || 0) * (Number(i.piecesPerPack) || 0) + (Number(i.pieces) || 0);
+            return splitTotal(i, total);
+        }));
+    };
+
+    const changeQtyMode = (mode) => {
+        setQtyMode(mode);
+        try { localStorage.setItem(QTY_MODE_KEY, mode); } catch { /* xotira yo‘q */ }
+        // Avto rejimga o‘tganda mavjud qatorlarni ham to‘g‘ri ajratamiz
+        if (mode === 'auto') setItems((p) => p.map((i) => splitTotal(i, (Number(i.packs) || 0) * (Number(i.piecesPerPack) || 0) + (Number(i.pieces) || 0))));
     };
 
     const stepQty = (id, delta) => {
@@ -880,16 +924,18 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                                 const added = items.some((i) => i.productId === st.productId);
                                                 const empty = st.quantity <= 0;
                                                 const isLow = st.productMinimumLine > 0 && st.quantity <= st.productMinimumLine;
-                                                const blocked = added;
                                                 const lastPrice = lastPriceMap[st.productId];
                                                 const defPrice = st.price ?? productPriceMap[st.productId];
+                                                // Qayta bosish — mahsulotni ro‘yxatdan olib tashlaydi (pastga tushish shart emas)
                                                 return (
                                                     <button key={`${st.productId}-${st.warehouseId}`} type="button"
-                                                        onClick={() => !blocked && addProduct(st, warehouseId)}
-                                                        disabled={blocked}
+                                                        onClick={() => (added ? removeItem(st.productId) : addProduct(st, warehouseId))}
+                                                        aria-pressed={added}
+                                                        title={added ? 'Bosing — buyurtmadan olib tashlash' : 'Bosing — buyurtmaga qo‘shish'}
                                                         className={`group flex w-full items-center gap-2.5 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 text-left text-sm transition-colors ${
-                                                            blocked ? 'cursor-not-allowed opacity-50'
-                                                                    : isDark ? 'hover:bg-[#1e293b]' : 'hover:bg-amber-50'
+                                                            added
+                                                                ? isDark ? 'bg-amber-400/[0.07] hover:bg-red-500/10' : 'bg-amber-50/70 hover:bg-red-50'
+                                                                : isDark ? 'hover:bg-[#1e293b]' : 'hover:bg-amber-50'
                                                         }`}
                                                     >
                                                         <span className={`flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-xl ${isDark ? 'bg-[#334155]' : 'bg-[#f1f5f9]'}`}>
@@ -933,8 +979,13 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                                         </div>
 
                                                         {added ? (
-                                                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber-400/10 text-amber-500">
-                                                                <LuCheck size={14} />
+                                                            <span className="flex shrink-0 items-center gap-1.5">
+                                                                <span className={`hidden text-[11px] font-bold sm:inline ${isDark ? 'text-amber-400' : 'text-amber-600'} group-hover:hidden`}>Qo‘shilgan</span>
+                                                                <span className={`hidden text-[11px] font-bold sm:group-hover:inline ${isDark ? 'text-red-400' : 'text-red-600'}`}>Olib tashlash</span>
+                                                                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-400 text-[#0f172a] transition-colors group-hover:bg-red-500 group-hover:text-white">
+                                                                    <LuCheck size={14} className="group-hover:hidden" />
+                                                                    <LuX size={14} className="hidden group-hover:block" />
+                                                                </span>
                                                             </span>
                                                         ) : (
                                                             <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border transition-all group-hover:scale-110 ${badge}`}>
@@ -967,6 +1018,26 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                                     <span>{selectableProducts.length} ta mahsulot</span>
                                                 </div>
                                             )}
+                                        </div>
+                                    )}
+
+                                    {/* Tanlanganlar — shu yerning o‘zida olib tashlash */}
+                                    {items.length > 0 && (
+                                        <div className={`border-t px-3 py-2 ${line}`}>
+                                            <p className={`mb-1.5 text-[10px] font-bold uppercase tracking-wide ${muted}`}>Tanlangan ({items.length})</p>
+                                            <div className="flex max-h-[76px] flex-wrap gap-1.5 overflow-y-auto">
+                                                {items.map((item) => (
+                                                    <span key={item.productId}
+                                                        className={`inline-flex max-w-[220px] items-center gap-1 rounded-full border py-0.5 pl-2.5 pr-1 text-[11px] font-semibold ${isDark ? 'border-amber-400/30 bg-amber-400/10 text-amber-300' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                                                        <span className="truncate">{item.productName}</span>
+                                                        <button type="button" onClick={() => removeItem(item.productId)}
+                                                            aria-label={`${item.productName} — olib tashlash`} title="Olib tashlash"
+                                                            className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition-colors ${isDark ? 'hover:bg-red-500/20 hover:text-red-400' : 'hover:bg-red-100 hover:text-red-600'}`}>
+                                                            <LuX size={11} />
+                                                        </button>
+                                                    </span>
+                                                ))}
+                                            </div>
                                         </div>
                                     )}
 
@@ -1009,10 +1080,27 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                             )}
                         </div>
                         {items.length > 0 && (
-                            <button type="button" onClick={() => setItems([])}
-                                className={`text-xs font-semibold transition-colors ${muted} hover:text-[#f43f5e]`}>
-                                Hammasini tozalash
-                            </button>
+                            <div className="flex flex-wrap items-center gap-3">
+                                <div className={`inline-flex items-center gap-1 rounded-xl p-1 ${isDark ? 'bg-white/5' : 'bg-slate-100'}`} role="group" aria-label="Miqdor kiritish usuli">
+                                    {[
+                                        { key: 'split', label: 'Pachka + dona', hint: 'Pachka va donani alohida kiritasiz' },
+                                        { key: 'auto', label: 'Jami dona → avto', hint: 'Jami donani yozasiz (masalan 59), pachkaga o‘zi ajraladi' },
+                                    ].map((m) => (
+                                        <button key={m.key} type="button" onClick={() => changeQtyMode(m.key)} title={m.hint} aria-pressed={qtyMode === m.key}
+                                            className={`h-8 rounded-lg px-3 text-xs font-bold transition-colors ${
+                                                qtyMode === m.key
+                                                    ? 'bg-amber-400 text-[#0f172a] shadow-sm'
+                                                    : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-800'
+                                            }`}>
+                                            {m.label}
+                                        </button>
+                                    ))}
+                                </div>
+                                <button type="button" onClick={() => setItems([])}
+                                    className={`text-xs font-semibold transition-colors ${muted} hover:text-[#f43f5e]`}>
+                                    Hammasini tozalash
+                                </button>
+                            </div>
                         )}
                     </div>
 
@@ -1035,8 +1123,8 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                         <tr className={`text-left text-xs font-semibold uppercase tracking-wide ${muted} ${isDark ? 'bg-[#0f172a]/40' : 'bg-[#f8fafc]'}`}>
                                             <th className="px-5 py-3 min-w-[280px]">Mahsulot</th>
                                             <th className="px-5 py-3 w-52 text-right">Narx (so&apos;m)</th>
-                                            <th className="px-5 py-3 w-36">Qadoq</th>
-                                            <th className="px-5 py-3 w-52">Miqdor</th>
+                                            <th className="px-5 py-3 w-36">{qtyMode === 'auto' ? 'Pachka (avto)' : 'Qadoq'}</th>
+                                            <th className="px-5 py-3 w-52">{qtyMode === 'auto' ? 'Jami dona' : 'Miqdor'}</th>
                                             <th className="px-5 py-3 w-44 text-right">Jami</th>
                                             <th className="px-5 py-3 w-12"></th>
                                         </tr>
@@ -1155,6 +1243,22 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
 
                                                 {/* Qadoq */}
                                                 <td className="px-5 py-3.5">
+                                                    {qtyMode === 'auto' ? (
+                                                        <div className="flex flex-col gap-0.5">
+                                                            {item.piecesPerPack > 0 ? (
+                                                                <>
+                                                                    <span className={`inline-flex w-fit items-center gap-1.5 rounded-lg border px-2.5 py-1 text-sm font-bold ${item.packs > 0
+                                                                        ? (isDark ? 'border-violet-400/30 bg-violet-500/10 text-violet-300' : 'border-violet-300 bg-violet-50 text-violet-700')
+                                                                        : (isDark ? 'border-[#334155] text-slate-500' : 'border-[#e2e8f0] text-slate-400')}`}>
+                                                                        <LuBoxes size={12} /> {item.packs || 0} pachka
+                                                                    </span>
+                                                                    <span className={`text-[10px] ${muted}`}>1 pachka = {item.piecesPerPack} dona</span>
+                                                                </>
+                                                            ) : (
+                                                                <span className={`text-[11px] ${muted}`}>Pachka hajmi kiritilmagan — faqat dona</span>
+                                                            )}
+                                                        </div>
+                                                    ) : (
                                                     <div className="flex flex-col gap-1">
                                                             <div className={`inline-flex items-center overflow-hidden rounded-xl border ${isDark ? 'border-[#334155]' : 'border-[#e2e8f0]'}`}>
                                                                 <button type="button" onClick={() => stepPacks(item.productId, -1)}
@@ -1175,10 +1279,37 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                                             </div>
                                                           
                                                     </div>
+                                                    )}
                                                 </td>
 
                                                 {/* Miqdor */}
                                                 <td className="px-5 py-3.5">
+                                                    {qtyMode === 'auto' ? (
+                                                        <div className="flex flex-col gap-1">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className={`inline-flex items-center rounded-xl border overflow-hidden ${overStock ? 'border-red-400' : 'border-amber-400/60'}`}>
+                                                                    <button type="button" onClick={() => stepTotal(item.productId, -1)} aria-label="Kamaytirish"
+                                                                        className={`flex h-9 w-9 items-center justify-center transition-colors ${isDark ? 'bg-[#1e293b] hover:bg-[#334155] text-[#cbd5e1]' : 'bg-[#f8fafc] hover:bg-[#f1f5f9] text-[#475569]'}`}>
+                                                                        <LuMinus size={14} />
+                                                                    </button>
+                                                                    <input type="number" min={0} step={1} value={getItemQuantity(item) || ''} placeholder="0"
+                                                                        onChange={(e) => updateTotal(item.productId, e.target.value)}
+                                                                        aria-label={`Jami dona, ${item.productName}`}
+                                                                        className={`h-9 w-20 border-x text-center text-sm font-bold outline-none ${isDark ? 'border-[#334155] bg-[#0f172a] text-white' : 'border-[#e2e8f0] bg-white text-[#0f172a]'}`}
+                                                                    />
+                                                                    <button type="button" onClick={() => stepTotal(item.productId, 1)} aria-label="Ko'paytirish"
+                                                                        className={`flex h-9 w-9 items-center justify-center transition-colors ${isDark ? 'bg-[#1e293b] hover:bg-[#334155] text-[#cbd5e1]' : 'bg-[#f8fafc] hover:bg-[#f1f5f9] text-[#475569]'}`}>
+                                                                        <LuPlus size={14} />
+                                                                    </button>
+                                                                </div>
+                                                                <span className={`text-xs font-medium ${muted}`}>dona</span>
+                                                            </div>
+                                                            {item.packs > 0 && (
+                                                                <span className={`text-[11px] font-semibold ${isDark ? 'text-violet-300' : 'text-violet-700'}`}>= {formatQuantityBreakdown(item)}</span>
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                    <div className="flex flex-col gap-1">
                                                     <div className="flex items-center gap-2">
                                                         <div className={`inline-flex items-center rounded-xl border overflow-hidden ${overStock ? 'border-red-400' : isDark ? 'border-[#334155]' : 'border-[#e2e8f0]'}`}>
                                                             <button type="button" onClick={() => stepQty(item.productId, -1)}
@@ -1198,6 +1329,15 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                                         </div>
                                                         <span className={`text-xs font-medium ${muted}`}>dona</span>
                                                     </div>
+                                                    {item.piecesPerPack > 0 && item.pieces >= item.piecesPerPack && (
+                                                        <button type="button" onClick={() => normalizeItem(item.productId)}
+                                                            title="Ortiqcha donalarni pachkaga o‘tkazish"
+                                                            className={`w-fit text-[11px] font-semibold transition-colors ${isDark ? 'text-violet-300 hover:text-violet-200' : 'text-violet-700 hover:text-violet-900'}`}>
+                                                            ↻ {formatQuantityBreakdown(splitTotal(item, getItemQuantity(item)))} qilish
+                                                        </button>
+                                                    )}
+                                                    </div>
+                                                    )}
                                                 </td>
 
                                                 {/* Jami */}
@@ -1303,6 +1443,29 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                                 )}
                                             </div>
 
+                                            {qtyMode === 'auto' ? (
+                                                <div className={`mb-2.5 flex flex-col gap-1.5 rounded-xl border px-3 py-2.5 ${overStock ? (isDark ? 'border-red-400/40 bg-red-500/5' : 'border-red-200 bg-red-50/50') : isDark ? 'border-[#334155] bg-[#1e293b]/40' : 'border-[#e2e8f0] bg-[#f8fafc]'}`}>
+                                                    <span className={`text-[11px] font-semibold ${muted}`}>Jami dona {item.piecesPerPack ? `(1 pachka = ${item.piecesPerPack} dona)` : ''}</span>
+                                                    <div className={`inline-flex items-center rounded-lg border overflow-hidden w-full ${overStock ? 'border-red-400' : 'border-amber-400/60'}`}>
+                                                        <button type="button" onClick={() => stepTotal(item.productId, -1)} aria-label="Kamaytirish"
+                                                            className={`flex h-8 w-8 shrink-0 items-center justify-center transition-colors ${isDark ? 'bg-[#1e293b] hover:bg-[#334155] text-[#cbd5e1]' : 'bg-white hover:bg-[#f1f5f9] text-[#475569]'}`}>
+                                                            <LuMinus size={13} />
+                                                        </button>
+                                                        <input type="number" min={0} step={1} value={getItemQuantity(item) || ''} placeholder="0"
+                                                            onChange={(e) => updateTotal(item.productId, e.target.value)}
+                                                            aria-label={`Jami dona, ${item.productName}`}
+                                                            className={`h-8 flex-1 min-w-0 border-x text-center text-sm font-bold outline-none ${isDark ? 'border-[#334155] bg-[#0f172a] text-white' : 'border-[#e2e8f0] bg-white text-[#0f172a]'}`}
+                                                        />
+                                                        <button type="button" onClick={() => stepTotal(item.productId, 1)} aria-label="Ko'paytirish"
+                                                            className={`flex h-8 w-8 shrink-0 items-center justify-center transition-colors ${isDark ? 'bg-[#1e293b] hover:bg-[#334155] text-[#cbd5e1]' : 'bg-white hover:bg-[#f1f5f9] text-[#475569]'}`}>
+                                                            <LuPlus size={13} />
+                                                        </button>
+                                                    </div>
+                                                    {item.packs > 0 && (
+                                                        <span className={`text-[11px] font-semibold ${isDark ? 'text-violet-300' : 'text-violet-700'}`}>= {formatQuantityBreakdown(item)}</span>
+                                                    )}
+                                                </div>
+                                            ) : (
                                             <div className="grid grid-cols-2 gap-2 mb-2.5">
                                                 <div className={`flex flex-col gap-1.5 rounded-xl border px-3 py-2.5 ${overStock ? (isDark ? 'border-red-400/40 bg-red-500/5' : 'border-red-200 bg-red-50/50') : isDark ? 'border-[#334155] bg-[#1e293b]/40' : 'border-[#e2e8f0] bg-[#f8fafc]'}`}>
                                                     <span className={`text-[11px] font-semibold ${muted}`}>Dona</span>
@@ -1354,9 +1517,16 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                                                     Pachkalar jami: {formatNumber(getPackAmount(item))} so&apos;m
                                                                 </span>
                                                             )}
+                                                            {item.piecesPerPack > 0 && item.pieces >= item.piecesPerPack && (
+                                                                <button type="button" onClick={() => normalizeItem(item.productId)}
+                                                                    className={`w-fit text-[11px] font-semibold ${isDark ? 'text-violet-300' : 'text-violet-700'}`}>
+                                                                    ↻ {formatQuantityBreakdown(splitTotal(item, getItemQuantity(item)))} qilish
+                                                                </button>
+                                                            )}
                                                     </div>
                                                 </div>
                                             </div>
+                                            )}
 
                                             <div className="flex items-center justify-between">
                                                 {item._fromHistory && !priceChanged && (

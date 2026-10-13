@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
     Box,
     Button,
     HStack,
     Heading,
+    Spinner,
     Table,
     Text,
     VStack,
@@ -23,6 +24,7 @@ import {
 } from 'react-icons/lu';
 import { useGetCustomersQuery } from '../../../store/services/customer.api';
 import { useGetRegionsQuery } from '../../../store/services/region.api';
+import { useGetCustomerAgentsQuery } from '../../../store/services/customerAgent.api';
 import { BRAND_COLORS, useAppTheme } from '../../../theme/tokens';
 import { Alert } from '../../Other/UI/Alert/Alert';
 import Create from './__components/Create';
@@ -31,6 +33,7 @@ import Delete from './__components/Delete';
 import Loading from '../../Other/UI/Loadings/Loading';
 import EmptyData from '../../Other/UI/NoData/EmptyData';
 import FormControl from '../../ui/FormControl';
+import FilterCombobox from '../../ui/FilterCombobox';
 import { formatNumber } from '../../ui/number-format';
 import { useInfiniteList } from '../../ui/useInfiniteList';
 import InfiniteSentinel from '../../ui/InfiniteSentinel';
@@ -54,16 +57,23 @@ export default function Customer() {
     const [search, setSearch] = useState('');
     const [query, setQuery] = useState('');
     const [regionId, setRegionId] = useState('');
+    const [agentId, setAgentId] = useState('');
     const [page, setPage] = useState(0);
     const { data: regions = [], isError: regionsError } = useGetRegionsQuery();
+    const { data: agentResult, isError: agentsError } = useGetCustomerAgentsQuery({ page: 0, size: 200, sort: ['name,ASC'] });
+    const agents = useMemo(() => agentResult?.items ?? [], [agentResult]);
     const { data: customerResult, isLoading, isFetching, error } = useGetCustomersQuery({
         name: query || undefined,
         regionId: regionId || undefined,
+        agentId: agentId || undefined,
         page,
         size: PAGE_SIZE,
     });
     const selectedRegion = regions.find((region) => String(region.id) === String(regionId));
-    const hasFilter = Boolean(query || regionId);
+    const selectedAgent = agents.find((agent) => agent.id === agentId);
+    const regionOptions = useMemo(() => regions.map((region) => ({ id: String(region.id), label: region.name })), [regions]);
+    const agentOptions = useMemo(() => agents.map((agent) => ({ id: agent.id, label: agent.name, meta: agent.phone || undefined })), [agents]);
+    const hasFilter = Boolean(query || regionId || agentId);
     const { isDark, pageBg, cardBg, cardBorder, textColor, subtitleColor, accentColor } = useAppTheme();
 
     const pagination = customerResult?.pagination;
@@ -73,7 +83,7 @@ export default function Customer() {
         page,
         setPage,
         isFetching,
-        resetKey: `${query}|${regionId}`,
+        resetKey: `${query}|${regionId}|${agentId}`,
     });
 
     const tableBg = isDark ? BRAND_COLORS.darkCardBg : cardBg;
@@ -89,6 +99,15 @@ export default function Customer() {
         setQuery(search.trim());
     };
 
+    // Jonli qidiruv: yozishni to‘xtatgandan 350 ms keyin serverga so‘rov
+    useEffect(() => {
+        const timer = window.setTimeout(() => {
+            const next = search.trim();
+            if (next !== query) { setPage(0); setQuery(next); }
+        }, 350);
+        return () => window.clearTimeout(timer);
+    }, [search, query]);
+
     const clearSearch = () => {
         setSearch('');
         setPage(0);
@@ -99,12 +118,17 @@ export default function Customer() {
         setSearch('');
         setQuery('');
         setRegionId('');
+        setAgentId('');
         setPage(0);
     };
 
     useEffect(() => {
         if (regionsError) Alert('Viloyatlar ro‘yxatini yuklashda xatolik', 'error');
     }, [regionsError]);
+
+    useEffect(() => {
+        if (agentsError) Alert('Agentlar ro‘yxatini yuklashda xatolik', 'error');
+    }, [agentsError]);
 
     useEffect(() => {
         if (error) Alert(error?.data?.message || 'Mijozlarni yuklashda xatolik', 'error');
@@ -180,7 +204,7 @@ export default function Customer() {
                     <FormControl
                         value={search}
                         onChange={(event) => setSearch(event.target.value)}
-                        placeholder="Mijoz nomi bo‘yicha qidiring..."
+                        placeholder="Mijoz nomini yozing — natija darhol chiqadi"
                         aria-label="Mijoz qidirish"
                         pl={11}
                         pr={search ? 11 : 4}
@@ -208,25 +232,33 @@ export default function Customer() {
                         </Button>
                     )}
                 </Box>
-                <Box position="relative" w={{ base: '100%', md: '260px' }} flexShrink={0}>
-                    <Box position="absolute" left={4} top="50%" transform="translateY(-50%)" color={regionId ? accentColor : subtitleColor} zIndex={1} pointerEvents="none">
-                        <LuMapPin size={16} />
-                    </Box>
-                    <FormControl
-                        as="select"
-                        value={regionId}
-                        onChange={(event) => { setRegionId(event.target.value); setPage(0); }}
-                        aria-label="Viloyat bo‘yicha filtrlash"
-                        pl={10}
-                        minH="32px"
-                    >
-                        <option value="">Barcha viloyatlar</option>
-                        {regions.map((region) => <option key={region.id} value={region.id}>{region.name}</option>)}
-                    </FormControl>
-                </Box>
-                <Button type="submit" bg={accentColor} color="black" borderRadius="xl" minH="32px" px={6} flexShrink={0} _hover={{ bg: 'yellow.500', transform: 'translateY(-1px)' }}>
-                    <HStack gap={2}><LuSearch size={18} /><span>Qidirish</span></HStack>
-                </Button>
+                <FilterCombobox
+                    w={{ base: '100%', md: '240px' }}
+                    h="40px"
+                    icon={LuMapPin}
+                    value={regionId}
+                    onChange={(next) => { setRegionId(next); setPage(0); }}
+                    options={regionOptions}
+                    allLabel="Barcha viloyatlar"
+                    placeholder="Viloyat nomini yozing..."
+                    emptyText="Viloyat topilmadi"
+                    ariaLabel="Viloyat bo‘yicha filtrlash"
+                />
+                <FilterCombobox
+                    w={{ base: '100%', md: '240px' }}
+                    h="40px"
+                    icon={LuUserCheck}
+                    value={agentId}
+                    onChange={(next) => { setAgentId(next); setPage(0); }}
+                    options={agentOptions}
+                    allLabel="Barcha agentlar"
+                    placeholder="Agent ismi yoki telefoni..."
+                    emptyText="Agent topilmadi"
+                    disabled={agentsError}
+                    errorText={agentsError ? 'Agentlar yuklanmadi' : undefined}
+                    ariaLabel="Agent bo‘yicha filtrlash"
+                />
+                {isFetching && !isLoading && <Spinner size="sm" color={accentColor} flexShrink={0} />}
                 {hasFilter && (
                     <Button type="button" variant="ghost" color={subtitleColor} borderRadius="xl" minH="32px" px={4} flexShrink={0} onClick={clearFilters} _hover={{ bg: isDark ? 'whiteAlpha.100' : 'gray.100', color: textColor }}>
                         <HStack gap={2}><LuX size={16} /><span>Tozalash</span></HStack>
@@ -247,6 +279,12 @@ export default function Customer() {
                         <HStack gap={1.5} px={3} py={1} borderRadius="full" borderWidth="1px" borderColor={cardBorder} bg={cardBg} color={textColor}>
                             <LuMapPin size={12} /><span>{selectedRegion.name}</span>
                             <Button variant="ghost" size="xs" minW={0} w="18px" h="18px" p={0} borderRadius="full" color={subtitleColor} onClick={() => { setRegionId(''); setPage(0); }} aria-label="Viloyat filtrini olib tashlash"><LuX size={12} /></Button>
+                        </HStack>
+                    )}
+                    {selectedAgent && (
+                        <HStack gap={1.5} px={3} py={1} borderRadius="full" borderWidth="1px" borderColor={cardBorder} bg={cardBg} color={textColor}>
+                            <LuUserCheck size={12} /><span>{selectedAgent.name}</span>
+                            <Button variant="ghost" size="xs" minW={0} w="18px" h="18px" p={0} borderRadius="full" color={subtitleColor} onClick={() => { setAgentId(''); setPage(0); }} aria-label="Agent filtrini olib tashlash"><LuX size={12} /></Button>
                         </HStack>
                     )}
                     <Text>· {pagination?.totalElements ?? 0} ta natija</Text>

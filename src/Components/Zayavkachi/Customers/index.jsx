@@ -17,6 +17,8 @@ import {
 } from 'react-icons/lu';
 import { useGetCustomersQuery } from '../../../store/services/customer.api';
 import { useGetRegionsQuery } from '../../../store/services/region.api';
+import { useGetCustomerAgentsQuery } from '../../../store/services/customerAgent.api';
+import FilterCombobox from '../../ui/FilterCombobox';
 import { BRAND_COLORS, useAppTheme } from '../../../theme/tokens';
 import { Alert } from '../../Other/UI/Alert/Alert';
 import DeleteCustomer from '../__components/DeleteCustomer';
@@ -149,6 +151,7 @@ export default function ZayavkachiCustomers() {
     const [search, setSearch]           = useState('');
     const [query, setQuery]             = useState('');
     const [regionId, setRegionId]       = useState('');
+    const [agentId, setAgentId]         = useState('');
     const [page, setPage]               = useState(0);
     const [pageSize, setPageSize]       = useState(DEFAULT_PAGE_SIZE);
     const [sortKey, setSortKey]         = useState(DEFAULT_SORT_KEY);
@@ -164,9 +167,14 @@ export default function ZayavkachiCustomers() {
     const serverSortDir = activeSortOption.server ? sortDir : DEFAULT_SORT_DIR;
 
     const { data: regions = [], isError: regionsError } = useGetRegionsQuery();
+    const { data: agentResult, isError: agentsError } = useGetCustomerAgentsQuery({ page: 0, size: 200, sort: ['name,ASC'] });
+    const agents = useMemo(() => agentResult?.items ?? [], [agentResult]);
+    const regionOptions = useMemo(() => regions.map((region) => ({ id: String(region.id), label: region.name })), [regions]);
+    const agentOptions = useMemo(() => agents.map((agent) => ({ id: agent.id, label: agent.name, meta: agent.phone || undefined })), [agents]);
     const { data: customerResult, isLoading, isFetching, error } = useGetCustomersQuery({
         name: query || undefined,
         regionId: regionId || undefined,
+        agentId: agentId || undefined,
         page,
         size: pageSize,
         sort: [`${serverSortKey},${serverSortDir.toUpperCase()}`, 'id,DESC'],
@@ -181,7 +189,7 @@ export default function ZayavkachiCustomers() {
         page,
         setPage,
         isFetching,
-        resetKey: `${query}|${regionId}|${pageSize}|${serverSortKey}|${serverSortDir}`,
+        resetKey: `${query}|${regionId}|${agentId}|${pageSize}|${serverSortKey}|${serverSortDir}`,
     });
     const rawCustomers = loadedCustomers.length ? loadedCustomers : EMPTY_CUSTOMERS;
 
@@ -247,11 +255,12 @@ export default function ZayavkachiCustomers() {
 
     /* ── Helpers ── */
     const isDefaultSort = sortKey === DEFAULT_SORT_KEY && sortDir === DEFAULT_SORT_DIR;
-    const hasFilter = Boolean(query || regionId || !isDefaultSort || pageSize !== DEFAULT_PAGE_SIZE);
+    const hasFilter = Boolean(query || regionId || agentId || !isDefaultSort || pageSize !== DEFAULT_PAGE_SIZE);
 
     const activeCount =
         (query ? 1 : 0) +
         (regionId ? 1 : 0) +
+        (agentId ? 1 : 0) +
         (!isDefaultSort ? 1 : 0) +
         (pageSize !== DEFAULT_PAGE_SIZE ? 1 : 0);
 
@@ -259,6 +268,7 @@ export default function ZayavkachiCustomers() {
         setSearch('');
         setQuery('');
         setRegionId('');
+        setAgentId('');
         setSortKey(DEFAULT_SORT_KEY);
         setSortDir(DEFAULT_SORT_DIR);
         setPageSize(DEFAULT_PAGE_SIZE);
@@ -376,7 +386,7 @@ export default function ZayavkachiCustomers() {
                         <Box p={5} bg={cardBg}>
 
                             <form onSubmit={submitSearch} className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-                                <div className="lg:col-span-8">
+                                <div className="lg:col-span-6">
                                     <label className={`mb-1.5 flex items-center gap-1.5 text-xs font-semibold ${labelCx}`}>
                                         <LuSearch size={13} /> Mijoz nomi bo‘yicha qidirish
                                     </label>
@@ -384,7 +394,7 @@ export default function ZayavkachiCustomers() {
                                         <LuSearch className={`pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 ${mutedCx}`} />
                                         <input
                                             type="search"
-                                            placeholder="Mijoz nomini kiriting..."
+                                            placeholder="Mijoz nomini yozing — natija darhol chiqadi"
                                             value={search}
                                             onChange={(e) => setSearch(e.target.value)}
                                             className={`${inputCx} pl-10 pr-10`}
@@ -405,38 +415,37 @@ export default function ZayavkachiCustomers() {
                                     </div>
 
                                 </div>
-                                <div className="lg:col-span-4">
+                                <div className="lg:col-span-3">
                                     <label className={`mb-1.5 flex items-center gap-1.5 text-xs font-semibold ${labelCx}`}>
                                         <LuMapPin size={13} /> Viloyat
                                     </label>
-                                    <div className="relative">
-                                        <LuMapPin className={`pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 ${regionId ? 'text-amber-500' : mutedCx}`} />
-                                        <select
-                                            value={regionId}
-                                            onChange={(e) => { setRegionId(e.target.value); setPage(0); }}
-                                            className={`${inputCx} appearance-none pl-10 pr-10 cursor-pointer`}
-                                            aria-label="Viloyat bo‘yicha filtrlash"
-                                        >
-                                            <option value="">Barcha viloyatlar</option>
-                                            {regions.map((region) => (
-                                                <option key={region.id} value={region.id}>{region.name}</option>
-                                            ))}
-                                        </select>
-                                        {regionId ? (
-                                            <button
-                                                type="button"
-                                                onClick={() => { setRegionId(''); setPage(0); }}
-                                                className={`absolute right-3 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full transition-colors ${
-                                                    isDark ? 'text-slate-400 hover:bg-white/[0.06] hover:text-white' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-700'
-                                                }`}
-                                                aria-label="Viloyat filtrini tozalash"
-                                            >
-                                                <LuX size={13} />
-                                            </button>
-                                        ) : (
-                                            <LuChevronDown className={`pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 h-4 w-4 ${mutedCx}`} />
-                                        )}
-                                    </div>
+                                    <FilterCombobox
+                                        icon={LuMapPin}
+                                        value={regionId}
+                                        onChange={(next) => { setRegionId(next); setPage(0); }}
+                                        options={regionOptions}
+                                        allLabel="Barcha viloyatlar"
+                                        placeholder="Viloyat nomini yozing..."
+                                        emptyText="Viloyat topilmadi"
+                                        ariaLabel="Viloyat bo‘yicha filtrlash"
+                                    />
+                                </div>
+                                <div className="lg:col-span-3">
+                                    <label className={`mb-1.5 flex items-center gap-1.5 text-xs font-semibold ${labelCx}`}>
+                                        <LuUserCheck size={13} /> Agent
+                                    </label>
+                                    <FilterCombobox
+                                        icon={LuUserCheck}
+                                        value={agentId}
+                                        onChange={(next) => { setAgentId(next); setPage(0); }}
+                                        options={agentOptions}
+                                        allLabel="Barcha agentlar"
+                                        placeholder="Agent ismi yoki telefoni..."
+                                        emptyText="Agent topilmadi"
+                                        disabled={agentsError}
+                                        errorText={agentsError ? 'Agentlar yuklanmadi' : undefined}
+                                        ariaLabel="Agent bo‘yicha filtrlash"
+                                    />
                                 </div>
                             </form>
                         </Box>
@@ -451,8 +460,8 @@ export default function ZayavkachiCustomers() {
                 <Box p={8} textAlign="center" color={isDark ? 'red.300' : 'red.600'}>Ma&apos;lumotlarni yuklashda xatolik</Box>
             ) : customers.length === 0 ? (
                 <EmptyData
-                    text={query || regionId ? 'Filtr bo‘yicha mijoz topilmadi' : 'Hozircha mijozlar yo‘q'}
-                    description={query || regionId ? "Boshqa nom yoki viloyatni tanlab ko‘ring, yoki filtrlarni tozalang." : "Yangi mijoz qo‘shib ma’lumotnomani to‘ldiring."}
+                    text={query || regionId || agentId ? 'Filtr bo‘yicha mijoz topilmadi' : 'Hozircha mijozlar yo‘q'}
+                    description={query || regionId || agentId ? "Boshqa nom, viloyat yoki agentni tanlab ko‘ring, yoki filtrlarni tozalang." : "Yangi mijoz qo‘shib ma’lumotnomani to‘ldiring."}
                     action={hasFilter ? (
                         <Button onClick={resetFilters} variant="outline" borderColor={cardBorder} color={textColor} borderRadius="xl">
                             <HStack gap={2}><LuRotateCcw size={16} /><span>Filtrlarni tozalash</span></HStack>

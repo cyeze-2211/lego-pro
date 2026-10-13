@@ -73,6 +73,8 @@ export default function StaffOrderDetail() {
     const [selectedWarehouseId, setSelectedWarehouseId] = useState('');
     const [scannedPacks, setScannedPacks]     = useState({});
     const [scannedPieces, setScannedPieces]   = useState({});
+    // Buyurtmada yo‘q birlikni (masalan, faqat pachka bo‘lsa — dona) qo‘lda ochish: { [key]: { packs?: true, pieces?: true } }
+    const [extraUnits, setExtraUnits]         = useState({});
     const [isLimitedScanMode, setIsLimitedScanMode] = useState(true);
     const [barcodeInput, setBarcodeInput]     = useState('');
     const [hasCreatedOutcome, setHasCreatedOutcome] = useState(false);
@@ -623,6 +625,15 @@ export default function StaffOrderDetail() {
                                         const loadedPieces = scannedPieces[item.key] ?? 0;
                                         const packsLimitReached = isLimitedScanMode && (loadedPacks * item.piecesPerPack + loadedPieces) >= item.orderedPieces;
                                         const piecesLimitReached = isLimitedScanMode && (loadedPacks * item.piecesPerPack + loadedPieces) >= item.orderedPieces;
+                                        // Dona — buyurtmada dona bo‘lsa yoki qo‘lda ochilgan/yuklangan bo‘lsa; pachka — xuddi shunday (pachka hajmi > 1 bo‘lsa)
+                                        const canUsePacks = item.piecesPerPack > 1;
+                                        const showPacks = canUsePacks && (item.orderedPacks > 0 || loadedPacks > 0 || Boolean(extraUnits[item.key]?.packs));
+                                        const showPieces = item.orderedPiecesOnly > 0 || loadedPieces > 0 || Boolean(extraUnits[item.key]?.pieces) || !showPacks;
+                                        const openUnit = (unit) => setExtraUnits((prev) => ({ ...prev, [item.key]: { ...(prev[item.key] ?? {}), [unit]: true } }));
+                                        const closeUnit = (unit) => setExtraUnits((prev) => ({ ...prev, [item.key]: { ...(prev[item.key] ?? {}), [unit]: false } }));
+                                        const addLinkCx = `inline-flex items-center justify-center gap-1 self-center rounded-lg border border-dashed px-3 py-1 text-[11px] font-bold transition-colors ${
+                                            isDark ? 'border-[#334155] text-slate-400 hover:border-amber-400/50 hover:text-amber-300' : 'border-[#cbd5e1] text-slate-500 hover:border-amber-400 hover:text-amber-600'
+                                        }`;
 
                                         return (
                                         <tr key={item.key} className="transition-colors">
@@ -665,7 +676,7 @@ export default function StaffOrderDetail() {
                                                     <div className="flex flex-col gap-2">
 
                                                         {/* PACHKA input */}
-                                                        {item.orderedPacks > 0 && (
+                                                        {showPacks && (
                                                             <div className="flex items-center justify-center gap-2">
                                                                 <button
                                                                     type="button"
@@ -712,7 +723,7 @@ export default function StaffOrderDetail() {
                                                         )}
 
                                                         {/* DONA input */}
-                                                        {item.orderedPiecesOnly > 0 && (
+                                                        {showPieces && (
                                                             <div className="flex items-center justify-center gap-2">
                                                                 <button
                                                                     type="button"
@@ -755,7 +766,27 @@ export default function StaffOrderDetail() {
                                                                     +
                                                                 </button>
                                                                 <span className={`text-[11px] font-bold ${muted}`}>dona</span>
+                                                                {item.orderedPiecesOnly === 0 && loadedPieces === 0 && extraUnits[item.key]?.pieces && (
+                                                                    <button type="button" onClick={() => closeUnit('pieces')} aria-label="Dona maydonini yopish" title="Yopish"
+                                                                        className={`flex h-6 w-6 items-center justify-center rounded-md text-xs ${muted} hover:text-[#f43f5e]`}>
+                                                                        ✕
+                                                                    </button>
+                                                                )}
                                                             </div>
+                                                        )}
+
+                                                        {/* Buyurtmada yo‘q birlikni qo‘shish */}
+                                                        {!showPieces && (
+                                                            <button type="button" onClick={() => openUnit('pieces')} className={addLinkCx}
+                                                                title="Masalan, ochilgan pachkadan alohida dona yuklash uchun">
+                                                                + dona ham yuklash
+                                                            </button>
+                                                        )}
+                                                        {canUsePacks && !showPacks && (
+                                                            <button type="button" onClick={() => openUnit('packs')} className={addLinkCx}
+                                                                title={`1 pachka = ${item.piecesPerPack} dona`}>
+                                                                + pachka bilan yuklash
+                                                            </button>
                                                         )}
 
                                                     </div>
