@@ -52,7 +52,7 @@ export const customerAgentApi = createApi({
         updateCustomerAgent: builder.mutation({
             query: ({ id, data }) => ({
                 url: `/customer-agents/${id}`,
-                method: 'PUT',
+                method: 'PUT', schema: 'CustomerAgentUpdateRequest',
                 data,
             }),
             transformResponse: (response) => response.data,

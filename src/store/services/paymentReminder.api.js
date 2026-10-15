@@ -78,7 +78,7 @@ export const paymentReminderApi = createApi({
         updatePaymentReminder: builder.mutation({
             query: ({ id, data }) => ({
                 url: `/payment-reminders/${id}`,
-                method: 'PUT',
+                method: 'PUT', schema: 'PaymentReminderUpdateRequest',
                 data,
             }),
             transformResponse: (response) => response.data,

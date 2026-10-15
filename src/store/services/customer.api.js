@@ -49,7 +49,7 @@ export const customerApi = createApi({
     updateCustomer: builder.mutation({
       query: ({ id, data }) => ({
         url: `/customers/${id}`,
-        method: 'PUT',
+        method: 'PUT', schema: 'CustomerUpdateRequest',
         data,
       }),
       transformResponse: (response) => response.data,

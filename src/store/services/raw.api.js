@@ -56,7 +56,7 @@ export const rawMaterialApi = createApi({
     updateRawMaterial: builder.mutation({
       query: ({ id, data }) => ({
         url: `/raw-materials/${id}`,
-        method: 'PUT',
+        method: 'PUT', schema: 'RawMaterialUpdateRequest',
         data,
       }),
       transformResponse: (response) => response.data,

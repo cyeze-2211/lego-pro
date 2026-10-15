@@ -52,7 +52,7 @@ export const productColorApi = createApi({
         updateProductColor: builder.mutation({
             query: ({ id, data }) => ({
                 url: `/product-colors/${id}`,
-                method: 'PUT',
+                method: 'PUT', schema: 'ProductColorUpdateRequest',
                 data,
             }),
             transformResponse: (response) => response.data,

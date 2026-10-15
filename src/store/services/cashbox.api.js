@@ -47,7 +47,7 @@ export const cashboxApi = createApi({
         updateCashbox: builder.mutation({
             query: ({ id, data }) => ({
                 url: `/cashboxes/${id}`,
-                method: 'PUT',
+                method: 'PUT', schema: 'CashboxUpdateRequest',
                 data,
             }),
             transformResponse: (response) => response.data,

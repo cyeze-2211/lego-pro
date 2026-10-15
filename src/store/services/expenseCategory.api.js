@@ -52,7 +52,7 @@ export const expenseCategoryApi = createApi({
         updateExpenseCategory: builder.mutation({
             query: ({ id, data }) => ({
                 url: `/expense-categories/${id}`,
-                method: 'PUT',
+                method: 'PUT', schema: 'ExpenseCategoryUpdateRequest',
                 data,
             }),
             transformResponse: (response) => response.data,

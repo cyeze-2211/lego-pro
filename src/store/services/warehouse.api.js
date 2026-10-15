@@ -48,7 +48,7 @@ export const warehouseApi = createApi({
         updateWarehouse: builder.mutation({
             query: ({ id, data }) => ({
                 url: `/warehouses/${id}`,
-                method: 'PUT',
+                method: 'PUT', schema: 'WarehouseUpdateRequest',
                 data,
             }),
             transformResponse: (response) => response.data,

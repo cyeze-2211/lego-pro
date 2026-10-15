@@ -42,7 +42,7 @@ export const recipeApi = createApi({
     updateRecipe: builder.mutation({
       query: ({ recipeId, name, items }) => ({
         url: `/recipes/${recipeId}`,
-        method: 'PUT',
+        method: 'PUT', schema: 'ProductRecipeRequest',
         data: { name, items },
       }),
       transformResponse: (response) => response.data,

@@ -42,7 +42,7 @@ export const machineApi = createApi({
     updateMachine: builder.mutation({
       query: ({ id, data }) => ({
         url: `/machines/${id}`,
-        method: 'PUT',
+        method: 'PUT', schema: 'MachineUpdateRequest',
         data,
       }),
       transformResponse: (response) => response.data,

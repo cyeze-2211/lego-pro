@@ -40,7 +40,7 @@ export const supplierApi = createApi({
             invalidatesTags: [{ type: 'Supplier', id: 'LIST' }],
         }),
         updateSupplier: builder.mutation({
-            query: ({ id, data }) => ({ url: `/suppliers/${id}`, method: 'PUT', data }),
+            query: ({ id, data }) => ({ url: `/suppliers/${id}`, method: 'PUT', schema: 'SupplierUpdateRequest', data }),
             transformResponse: (response) => response.data,
             invalidatesTags: (result, error, { id }) => [
                 { type: 'Supplier', id },

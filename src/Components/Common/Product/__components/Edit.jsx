@@ -73,7 +73,6 @@ export default function Edit({ product }) {
     const {
         data: warehouses = [],
         isLoading: warehousesLoading,
-        isError: warehousesError,
     } = useGetWarehousesQuery('PRODUCT', { skip: !open });
 
     const {
@@ -125,16 +124,13 @@ export default function Edit({ product }) {
             Alert('Mahsulot nomi majburiy', 'error');
             return;
         }
-        if (Number.isNaN(priceNum) || priceNum <= 0) {
-            Alert('Narx 0 dan katta bo‘lishi kerak', 'error');
+        // Narx ixtiyoriy: bo‘sh qoldirilsa null yuboriladi (yaratish formasi bilan bir xil)
+        if (toStr(form.price).trim() !== '' && (Number.isNaN(priceNum) || priceNum < 0)) {
+            Alert('Narx manfiy bo‘lishi mumkin emas', 'error');
             return;
         }
         if (Number.isNaN(piecesNum) || piecesNum <= 0 || !Number.isInteger(piecesNum)) {
             Alert('Qadoqdagi dona sonini kiriting (butun son, 1 yoki undan ko‘p)', 'error');
-            return;
-        }
-        if (!form.warehouseId) {
-            Alert('Omborni tanlang', 'error');
             return;
         }
         if (!form.colorId) {
@@ -146,18 +142,18 @@ export default function Edit({ product }) {
             return;
         }
 
+        // ProductUpdateRequest: name, price, article, size, minimumLine, piecesPerPack, brandId, colorId, categoryId.
+        // Ombor PUT orqali o‘zgarmaydi (sxemada yo‘q) — yuborilmaydi.
         const payload = {
             name: trimmedName,
-            price: priceNum,
-            warehouseId: form.warehouseId,
-            article: toStr(form.article).trim(),
-            size: toStr(form.size).trim(),
+            price: toStr(form.price).trim() === '' || Number.isNaN(priceNum) ? null : priceNum,
+            article: toStr(form.article).trim() || null,
+            size: toStr(form.size).trim() || null,
             minimumLine: Number.isNaN(minLineNum) ? 0 : minLineNum,
             piecesPerPack: piecesNum,
             brandId: form.brandId || null,
             colorId: form.colorId,
             categoryId: form.categoryId,
-            lowProductAlert: Boolean(form.lowProductAlert),
         };
 
         try {
@@ -497,37 +493,20 @@ export default function Edit({ product }) {
 
                                         </SimpleGrid>
 
-                                        <Field.Root required>
+                                        <Field.Root>
                                             <Field.Label color={textColor} fontWeight="medium">
                                                 <HStack gap={2}>
                                                     <LuWarehouse size={16} />
                                                     <span>Ombor</span>
                                                 </HStack>
-                                                <Field.RequiredIndicator />
                                             </Field.Label>
-                                            <FormControl
-                                                as="select"
-                                                value={form.warehouseId}
-                                                onChange={(event) => setField('warehouseId', event.target.value)}
-                                                minH="52px"
-                                                disabled={isLoading || warehousesLoading || warehousesError}
-                                            >
-                                                <option value="">
-                                                    {warehousesLoading
-                                                        ? 'Omborlar yuklanmoqda...'
-                                                        : warehousesError
-                                                        ? 'Omborlarni yuklashda xatolik'
-                                                        : 'Omborni tanlang'}
-                                                </option>
-                                                {form.warehouseId && !warehouses.some((warehouse) => warehouse.id === form.warehouseId) && (
-                                                    <option value={form.warehouseId}>Joriy ombor</option>
-                                                )}
-                                                {warehouses.map((warehouse) => (
-                                                    <option key={warehouse.id} value={warehouse.id}>
-                                                        {warehouse.name}
-                                                    </option>
-                                                ))}
-                                            </FormControl>
+                                            <Box px={4} py={3} minH="52px" display="flex" alignItems="center" borderWidth="1px" borderColor={modalBorder} borderRadius="xl" color={textColor}>
+                                                {warehousesLoading
+                                                    ? 'Omborlar yuklanmoqda...'
+                                                    : warehouses.find((warehouse) => warehouse.id === form.warehouseId)?.name
+                                                        || (form.warehouseId ? 'Joriy ombor' : '—')}
+                                            </Box>
+                                            <Field.HelperText color={subtitleColor}>Mahsulot ombori tahrirlashda o‘zgartirilmaydi.</Field.HelperText>
                                         </Field.Root>
                                     </Box>
 

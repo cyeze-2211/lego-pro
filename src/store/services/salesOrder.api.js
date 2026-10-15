@@ -99,7 +99,7 @@ export const salesOrderApi = createApi({
     }),
 
     updateSalesOrder: builder.mutation({
-      query: ({ id, data }) => ({ url: `/sales-orders/${id}`, method: 'PUT', data }),
+      query: ({ id, data }) => ({ url: `/sales-orders/${id}`, method: 'PUT', schema: 'SalesOrderUpdateRequest', data }),
       transformResponse: (response) => response.data,
       invalidatesTags: (result, error, { id }) => [
         { type: 'SalesOrder', id },

@@ -46,7 +46,7 @@ export const expenseApi = createApi({
             onQueryStarted: async (arg, { dispatch, queryFulfilled }) => { try { await queryFulfilled; refreshCashboxes(dispatch); } catch { /* mutation errors are shown by the caller */ } },
         }),
         updateExpense: builder.mutation({
-            query: ({ id, data }) => ({ url: `/expenses/${id}`, method: 'PUT', data: withoutTime(data) }),
+            query: ({ id, data }) => ({ url: `/expenses/${id}`, method: 'PUT', schema: 'ExpenseUpdateRequest', data: withoutTime(data) }),
             transformResponse: (response) => response.data,
             invalidatesTags: (result, error, { id }) => [{ type: 'Expense', id }, { type: 'Expense', id: 'LIST' }],
             onQueryStarted: async (arg, { dispatch, queryFulfilled }) => { try { await queryFulfilled; refreshCashboxes(dispatch); } catch { /* mutation errors are shown by the caller */ } },

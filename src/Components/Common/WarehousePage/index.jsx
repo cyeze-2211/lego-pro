@@ -154,6 +154,10 @@ export default function WarehousePage() {
                 cursor="pointer"
                 onClick={() => navigate(`/warehouses/${wh.id}`)}
                 onKeyDown={(event) => {
+                  // Faqat karta o‘zi fokusda bo‘lsa. Portal orqali ochilgan Edit/Delete oynalaridagi
+                  // input'lardan klaviatura hodisalari React daraxti bo‘yicha shu yerga ham keladi —
+                  // bo‘sh joy (space) bosilganda tafsilot sahifasiga o‘tib ketmasligi uchun.
+                  if (event.target !== event.currentTarget) return;
                   if (event.key === 'Enter' || event.key === ' ') {
                     event.preventDefault();
                     navigate(`/warehouses/${wh.id}`);
@@ -186,7 +190,7 @@ export default function WarehousePage() {
                       {wh.name}
                     </Heading>
                   </HStack>
-                  <HStack gap={1} flexShrink={0} onClick={(event) => event.stopPropagation()}>
+                  <HStack gap={1} flexShrink={0} onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
                     <Edit id={wh.id} name={wh.name} summary={wh.summary} />
                     <Delete id={wh.id} name={wh.name} />
                   </HStack>

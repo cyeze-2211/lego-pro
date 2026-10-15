@@ -52,7 +52,7 @@ export const productCategoryApi = createApi({
         updateProductCategory: builder.mutation({
             query: ({ id, data }) => ({
                 url: `/product-categories/${id}`,
-                method: 'PUT',
+                method: 'PUT', schema: 'ProductCategoryUpdateRequest',
                 data,
             }),
             transformResponse: (response) => response.data,

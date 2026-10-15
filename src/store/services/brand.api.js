@@ -58,7 +58,7 @@ export const brandApi = createApi({
         updateBrand: builder.mutation({
             query: ({ id, data }) => ({
                 url: `/brands/${id}`,
-                method: 'PUT',
+                method: 'PUT', schema: 'BrandUpdateRequest',
                 data,
             }),
             transformResponse: (response) => response.data,
