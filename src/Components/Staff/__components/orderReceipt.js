@@ -35,7 +35,9 @@ const pageRule = (format) => {
  * @param {object} p.order            — zayavka (customerName, createdAt, id, status, summary)
  * @param {string} [p.customerPhone]
  * @param {string} [p.warehouseName]
- * @param {Array}  p.rows             — [{ productName, productBarcode, warehouseName, orderedPacks, orderedPiecesOnly, orderedPieces, piecesPerPack, loadedPacks?, loadedPieces? }]
+ * @param {Array}  p.rows             — [{ productName, productBarcode, categoryName?, warehouseName, orderedPacks, orderedPiecesOnly, orderedPieces, piecesPerPack, loadedPacks?, loadedPieces? }]
+ *                                      Chekda mahsulot nomi, shtrix-kod va pachka hajmi chiqmaydi — faqat kategoriya nomi.
+ *                                      Qatorlar kategoriya bo‘yicha tartiblanadi.
  * @param {boolean} [p.showLoaded]    — «Yuklangan» ustunini ko‘rsatish
  * @param {string} [p.statusLabel]
  * @param {'auto'|'a4'|'thermal'} [p.format]
@@ -58,22 +60,34 @@ export function buildOrderReceiptHtml({ order, customerPhone, warehouseName, row
         return [p ? `${formatNumber(p)} p.` : null, d ? `${formatNumber(d)} d.` : null].filter(Boolean).join(' + ');
     };
 
-    const body = rows.map((r, i) => `
+    const cols = 6 + (showLoaded ? 1 : 0);
+
+    // Kategoriya bo‘yicha guruhlash: bir kategoriya mahsulotlari yonma-yon, tartib — birinchi uchragan bo‘yicha
+    const groups = new Map();
+    for (const r of rows) {
+        const key = (r.categoryName || '').trim() || '__none';
+        if (!groups.has(key)) groups.set(key, { name: r.categoryName?.trim() || 'Kategoriyasiz', rows: [] });
+        groups.get(key).rows.push(r);
+    }
+    let index = 0;
+    const body = Array.from(groups.values()).map((g) => {
+        const lines = g.rows.map((r) => {
+            index += 1;
+            return `
         <tr>
-            <td class="num idx">${i + 1}</td>
+            <td class="num idx">${index}</td>
             <td class="name">
-                <div class="pname">${esc(r.productName || '—')}</div>
-                ${r.productBarcode ? `<div class="sub mono">${esc(r.productBarcode)}</div>` : ''}
-                ${r.piecesPerPack > 1 ? `<div class="sub">1 pachka = ${formatNumber(r.piecesPerPack)} dona</div>` : ''}
+                <div class="pname">${esc(g.name)}</div>
             </td>
             <td class="hide-narrow wh">${esc(r.warehouseName || warehouseName || '—')}</td>
             <td class="num">${num(r.orderedPacks)}</td>
             <td class="num">${num(r.orderedPiecesOnly)}</td>
             <td class="num strong">${formatNumber(r.orderedPieces || 0)}</td>
             ${showLoaded ? `<td class="num loaded">${loadedText(r)}</td>` : ''}
-        </tr>`).join('');
-
-    const cols = 6 + (showLoaded ? 1 : 0);
+        </tr>`;
+        }).join('');
+        return lines;
+    }).join('');
 
     return `<!doctype html>
 <html lang="uz">
@@ -148,7 +162,7 @@ export function buildOrderReceiptHtml({ order, customerPhone, warehouseName, row
     <thead>
       <tr>
         <th class="num idx">№</th>
-        <th>Mahsulot</th>
+        <th>Kategoriya</th>
         <th class="hide-narrow">Ombor</th>
         <th class="num"><span class="long">Pachka</span><span class="short">Pach.</span></th>
         <th class="num">Dona</th>
@@ -160,7 +174,7 @@ export function buildOrderReceiptHtml({ order, customerPhone, warehouseName, row
     <tfoot>
       <tr>
         <th class="idx"></th>
-        <th>Jami: ${rows.length} ta</th>
+        <th>Jami: ${rows.length} ta qator</th>
         <th class="hide-narrow"></th>
         <th class="num">${formatNumber(totals.packs)}</th>
         <th class="num">${formatNumber(totals.pieces)}</th>

@@ -20,6 +20,7 @@ import { STATUS_LABEL, statusCx } from '../../Zayavkachi/__components/statusBadg
 import { Alert } from '../../Other/UI/Alert/Alert';
 import { splitOrderItem, toStockItem } from '../../ui/order-items';
 import { RECEIPT_FORMATS, RECEIPT_FORMAT_KEY, buildOrderReceiptHtml, printHtml } from '../__components/orderReceipt';
+import $api from '../../../store/api';
 
 /* ──────────────────────────────────────────────────────────────── */
 /*  Группировка одинаковых товаров (PACK + PIECE) в одну строку      */
@@ -181,8 +182,32 @@ export default function StaffOrderDetail() {
         setReceiptFormat(value);
         try { localStorage.setItem(RECEIPT_FORMAT_KEY, value); } catch { /* xotira yo‘q */ }
     };
-    const handlePrint = () => {
-        if (!order) return;
+    /* Zayavka qatorida kategoriya yo‘q — chop etishdan oldin GET /products/{id} dan olamiz (bir marta, keshlanadi) */
+    const categoryCacheRef = useRef({});
+    const [isPreparingPrint, setIsPreparingPrint] = useState(false);
+    const loadCategories = async (productIds) => {
+        const cache = categoryCacheRef.current;
+        const missing = productIds.filter((id) => id && !(id in cache));
+        await Promise.all(missing.map(async (id) => {
+            try {
+                const { data } = await $api.get(`/products/${id}`);
+                cache[id] = data?.data?.category?.name || '';
+            } catch {
+                cache[id] = ''; // kategoriya olinmasa ham chek chiqaveradi
+            }
+        }));
+        return cache;
+    };
+
+    const handlePrint = async () => {
+        if (!order || isPreparingPrint) return;
+        setIsPreparingPrint(true);
+        let categories = {};
+        try {
+            categories = await loadCategories([...new Set(comparison.map((c) => c.productId))]);
+        } finally {
+            setIsPreparingPrint(false);
+        }
         const anyLoaded = comparison.some((c) => (scannedPacks[c.key] ?? 0) > 0 || (scannedPieces[c.key] ?? 0) > 0);
         const html = buildOrderReceiptHtml({
             order,
@@ -194,6 +219,7 @@ export default function StaffOrderDetail() {
             rows: comparison.map((c) => ({
                 productName: c.productName,
                 productBarcode: c.productBarcode,
+                categoryName: categories[c.productId] || '',
                 warehouseName: c.warehouseName,
                 orderedPacks: c.orderedPacks,
                 orderedPiecesOnly: c.orderedPiecesOnly,
@@ -442,9 +468,10 @@ export default function StaffOrderDetail() {
                                 <button
                                     type="button"
                                     onClick={handlePrint}
-                                    className="flex items-center gap-2 px-5 text-sm font-bold transition-colors hover:bg-amber-500"
+                                    disabled={isPreparingPrint}
+                                    className="flex items-center gap-2 px-5 text-sm font-bold transition-colors hover:bg-amber-500 disabled:cursor-wait disabled:opacity-70"
                                 >
-                                    <LuPrinter size={17} /> Chop etish
+                                    <LuPrinter size={17} /> {isPreparingPrint ? 'Tayyorlanmoqda…' : 'Chop etish'}
                                 </button>
                                 <select
                                     value={receiptFormat}
