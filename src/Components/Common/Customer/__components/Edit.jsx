@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import {
     Box,
@@ -23,12 +23,13 @@ import {
     LuUserCheck,
     LuSend,
 } from 'react-icons/lu';
-import { useUpdateCustomerMutation } from '../../../../store/services/customer.api';
+import { useGetCustomerByIdQuery, useUpdateCustomerMutation } from '../../../../store/services/customer.api';
 import { useGetCustomerAgentsQuery } from '../../../../store/services/customerAgent.api';
 import { useGetRegionsQuery } from '../../../../store/services/region.api';
 import { Alert } from '../../../Other/UI/Alert/Alert';
 import { useAppTheme } from '../../../../theme/tokens';
 import FormControl from '../../../ui/FormControl';
+import { fillBlanks, logBlockedSave } from '../../../ui/form-utils';
 
 const PHONE_REGEX = /^\+998\d{9}$/;
 
@@ -48,6 +49,8 @@ export default function Edit({ customer, openOnMount = false, hideTrigger = fals
     const { open, onOpen, onClose } = useDisclosure();
     const [form, setForm] = useState(() => buildInitial(customer));
     const [updateCustomer, { isLoading }] = useUpdateCustomerMutation();
+    // Oyna ochilganda mijozni serverdan to‘liq qayta yuklaymiz (viloyat, agent va boshqa maydonlar aniq kelsin)
+    const { data: customerDetail, isFetching: detailLoading } = useGetCustomerByIdQuery(customer.id, { skip: !open });
     const { isDark, accentColor, cardBg, cardBorder, textColor, subtitleColor } = useAppTheme();
     const modalBorder = isDark ? cardBorder : '#94A3B8';
 
@@ -77,26 +80,38 @@ export default function Edit({ customer, openOnMount = false, hideTrigger = fals
         }));
     };
 
+    /* Forma faqat oyna ochilganda qayta to‘ldiriladi (ro‘yxat yangilanib qolsa yozilgan matn yo‘qolmasin) */
+    const wasOpenRef = useRef(false);
     useEffect(() => {
-        if (open) setForm(buildInitial(customer));
+        if (open && !wasOpenRef.current) setForm(buildInitial(customer));
+        wasOpenRef.current = open;
     }, [open, customer]);
+
+    /* Server javobi kelganda bo‘sh maydonlarni to‘ldiramiz */
+    useEffect(() => {
+        if (open && customerDetail) setForm((prev) => fillBlanks(prev, buildInitial(customerDetail)));
+    }, [open, customerDetail]);
 
     const setField = (key, value) =>
         setForm((prev) => ({ ...prev, [key]: value }));
 
     const handleSubmit = async () => {
         if (isLoading) return;
+        const block = (message) => {
+            logBlockedSave('Mijoz tahrirlash', message, { form, row: customer, detail: customerDetail });
+            Alert(message, 'error');
+        };
 
         if (!form.name.trim()) {
-            Alert('Mijoz nomi majburiy', 'error');
+            block('Mijoz nomi majburiy');
             return;
         }
         if (!PHONE_REGEX.test(form.phone.trim())) {
-            Alert('Telefon formati: +998XXXXXXXXX (9 raqam)', 'error');
+            block('Telefon formati: +998XXXXXXXXX (9 raqam)');
             return;
         }
         if (!form.regionId) {
-            Alert('Viloyatni tanlang', 'error');
+            block('Viloyatni tanlang');
             return;
         }
 
@@ -377,7 +392,7 @@ export default function Edit({ customer, openOnMount = false, hideTrigger = fals
                                 </Button>
                                 <Button
                                     onClick={handleSubmit}
-                                    disabled={isLoading}
+                                    disabled={isLoading || detailLoading}
                                     bg={accentColor}
                                     color="black"
                                     size="lg"

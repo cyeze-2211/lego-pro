@@ -24,7 +24,7 @@ import {
     LuBoxes,
     LuWarehouse,
 } from 'react-icons/lu';
-import { useUpdateProductMutation, useUploadProductImageMutation } from '../../../../store/services/product.api';
+import { useGetProductByIdQuery, useUpdateProductMutation, useUploadProductImageMutation } from '../../../../store/services/product.api';
 import ImageField from './ImageField';
 import { bustProductImage } from '../../../ui/auth-image';
 import { useGetWarehousesQuery } from '../../../../store/services/warehouse.api';
@@ -36,6 +36,7 @@ import { Alert } from '../../../Other/UI/Alert/Alert';
 import { useAppTheme } from '../../../../theme/tokens';
 import FormattedNumberInput from '../../../ui/FormattedNumberInput';
 import FormControl from '../../../ui/FormControl';
+import { fillBlanks, logBlockedSave } from '../../../ui/form-utils';
 
 /* ── helpers ── */
 const toStr = (v) => (v === null || v === undefined ? '' : String(v));
@@ -69,6 +70,9 @@ export default function Edit({ product }) {
     const [form, setForm] = useState(() => buildInitial(product));
     const [imageFile, setImageFile] = useState(null);
     const [updateProduct, { isLoading }] = useUpdateProductMutation();
+    // Oyna ochilganda yozuvni serverdan to‘liq qayta yuklaymiz — ro‘yxat qatori to‘liq bo‘lmasa ham
+    // barcha majburiy maydonlar (rang, kategoriya, qadoq, min. qoldiq) formaga tushadi.
+    const { data: productDetail, isFetching: detailLoading } = useGetProductByIdQuery(product.id, { skip: !open });
     const [uploadProductImage, { isLoading: uploadingImage }] = useUploadProductImageMutation();
     const {
         data: warehouses = [],
@@ -109,11 +113,20 @@ export default function Edit({ product }) {
         wasOpenRef.current = open;
     }, [open]);
 
+    /* Server javobi kelganda bo‘sh maydonlarni to‘ldiramiz (yozilganini buzmaymiz) */
+    useEffect(() => {
+        if (open && productDetail) setForm((prev) => fillBlanks(prev, buildInitial(productDetail)));
+    }, [open, productDetail]);
+
     const setField = (key, value) =>
         setForm((prev) => ({ ...prev, [key]: value }));
 
     const handleSubmit = async () => {
         if (isLoading) return;
+        const block = (message) => {
+            logBlockedSave('Mahsulot tahrirlash', message, { form, row: product, detail: productDetail });
+            Alert(message, 'error');
+        };
 
         const trimmedName = toStr(form.name).trim();
         const priceNum = parseNumber(form.price);
@@ -121,24 +134,24 @@ export default function Edit({ product }) {
         const piecesNum = parseNumber(form.piecesPerPack);
 
         if (!trimmedName) {
-            Alert('Mahsulot nomi majburiy', 'error');
+            block('Mahsulot nomi majburiy');
             return;
         }
         // Narx ixtiyoriy: bo‘sh qoldirilsa null yuboriladi (yaratish formasi bilan bir xil)
         if (toStr(form.price).trim() !== '' && (Number.isNaN(priceNum) || priceNum < 0)) {
-            Alert('Narx manfiy bo‘lishi mumkin emas', 'error');
+            block('Narx manfiy bo‘lishi mumkin emas');
             return;
         }
         if (Number.isNaN(piecesNum) || piecesNum <= 0 || !Number.isInteger(piecesNum)) {
-            Alert('Qadoqdagi dona sonini kiriting (butun son, 1 yoki undan ko‘p)', 'error');
+            block('Qadoqdagi dona sonini kiriting (butun son, 1 yoki undan ko‘p)');
             return;
         }
         if (!form.colorId) {
-            Alert('Mahsulot rangini tanlang', 'error');
+            block('Mahsulot rangini tanlang');
             return;
         }
         if (!form.categoryId) {
-            Alert('Mahsulot kategoriyasini tanlang', 'error');
+            block('Mahsulot kategoriyasini tanlang');
             return;
         }
 
@@ -594,7 +607,7 @@ export default function Edit({ product }) {
                                 </Button>
                                 <Button
                                     onClick={handleSubmit}
-                                    disabled={isLoading || !toStr(form.name).trim() || !form.price}
+                                    disabled={isLoading || detailLoading || !toStr(form.name).trim() || !form.price}
                                     bg={accentColor}
                                     color="black"
                                     size="lg"

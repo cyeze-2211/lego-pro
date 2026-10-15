@@ -15,10 +15,11 @@ import {
 import { Building2, X } from 'lucide-react';
 import { LuHash, LuMapPin, LuPhone, LuStickyNote, LuTrendingDown, LuTrendingUp } from 'react-icons/lu';
 import { useGetRegionsQuery } from '../../../../store/services/region.api';
-import { useCreateSupplierMutation, useUpdateSupplierMutation } from '../../../../store/services/supplier.api';
+import { useCreateSupplierMutation, useGetSupplierByIdQuery, useUpdateSupplierMutation } from '../../../../store/services/supplier.api';
 import { Alert } from '../../../Other/UI/Alert/Alert';
 import { useAppTheme } from '../../../../theme/tokens';
 import FormControl from '../../../ui/FormControl';
+import { fillBlanks, logBlockedSave } from '../../../ui/form-utils';
 
 const PHONE_REGEX = /^\+998\d{9}$/;
 
@@ -49,6 +50,8 @@ export default function Form({ supplier, openOnMount = false, hideTrigger = fals
     const { isDark, accentColor, cardBg, cardBorder, textColor, subtitleColor } = useAppTheme();
     const isEdit = Boolean(supplier);
     const isLoading = isCreating || isUpdating;
+    // Tahrirlashda yozuvni serverdan to‘liq qayta yuklaymiz (viloyat va boshqa maydonlar aniq kelsin)
+    const { data: supplierDetail, isFetching: detailLoading } = useGetSupplierByIdQuery(supplier?.id, { skip: !open || !supplier?.id });
     const modalBorder = isDark ? cardBorder : '#94A3B8';
 
     useEffect(() => {
@@ -72,6 +75,19 @@ export default function Form({ supplier, openOnMount = false, hideTrigger = fals
     useEffect(() => {
         if (regionsError) Alert('Viloyatlar ro‘yxatini yuklashda xatolik', 'error');
     }, [regionsError]);
+
+    /* Server javobi kelganda bo‘sh maydonlarni to‘ldiramiz */
+    useEffect(() => {
+        if (!open || !supplierDetail) return;
+        setForm((prev) => fillBlanks(prev, {
+            name: supplierDetail.name ?? '',
+            phone: supplierDetail.phone ?? '',
+            summary: supplierDetail.summary ?? '',
+            address: supplierDetail.address ?? '',
+            inn: supplierDetail.inn ?? '',
+            regionId: supplierDetail.region?.id == null ? '' : String(supplierDetail.region.id),
+        }));
+    }, [open, supplierDetail]);
 
     const setField = (key, value) => setForm((current) => ({ ...current, [key]: value }));
 
@@ -139,6 +155,7 @@ export default function Form({ supplier, openOnMount = false, hideTrigger = fals
             return;
         }
         if (!form.regionId) {
+            logBlockedSave('Yetkazib beruvchi', 'Viloyatni tanlang', { form, row: supplier, detail: supplierDetail });
             Alert('Viloyatni tanlang', 'error');
             return;
         }
@@ -328,7 +345,7 @@ export default function Form({ supplier, openOnMount = false, hideTrigger = fals
                             </Dialog.Body>
                             <Dialog.Footer gap={3} pt={5} pb={6} borderTopWidth="1px" borderColor={modalBorder}>
                                 <Button variant="ghost" onClick={close} color={subtitleColor} size="lg" borderRadius="xl" px={6}>Bekor qilish</Button>
-                                <Button type="submit" form="supplier-form" disabled={isLoading || isLoadingRegions || regionsError} bg={accentColor} color="black" size="lg" borderRadius="xl" px={8} fontWeight="semibold" _hover={{ opacity: 0.9 }}>
+                                <Button type="submit" form="supplier-form" disabled={isLoading || detailLoading || isLoadingRegions || regionsError} bg={accentColor} color="black" size="lg" borderRadius="xl" px={8} fontWeight="semibold" _hover={{ opacity: 0.9 }}>
                                     {isLoading ? <HStack gap={2}><Spinner size="sm" /><span>Saqlanmoqda...</span></HStack> : isEdit ? 'O‘zgarishlarni saqlash' : 'Yetkazib beruvchini yaratish'}
                                 </Button>
                             </Dialog.Footer>

@@ -1,7 +1,7 @@
 import PropTypes from 'prop-types';
 import { Button, HStack, useDisclosure } from '@chakra-ui/react';
 import { LuPen } from 'react-icons/lu';
-import { useUpdateExpenseMutation } from '../../../../store/services/expense.api';
+import { useGetExpenseByIdQuery, useUpdateExpenseMutation } from '../../../../store/services/expense.api';
 import { useAppTheme } from '../../../../theme/tokens';
 import { Alert } from '../../../Other/UI/Alert/Alert';
 import ExpenseForm from './ExpenseForm';
@@ -9,6 +9,8 @@ import ExpenseForm from './ExpenseForm';
 export default function Edit({ expense, label }) {
     const { open, onOpen, onClose } = useDisclosure();
     const [updateExpense, { isLoading }] = useUpdateExpenseMutation();
+    // Oyna ochilganda xarajatni serverdan to‘liq olamiz — kategoriya, valyuta, kurs va sana aniq kelsin
+    const { data: expenseDetail } = useGetExpenseByIdQuery(expense.id, { skip: !open });
     const { isDark, accentColor } = useAppTheme();
     const accentSoft = isDark ? 'rgb(var(--accent-400) / .12)' : 'rgb(var(--accent-warm-100))';
 
@@ -33,7 +35,7 @@ export default function Edit({ expense, label }) {
                     <LuPen size={16} />
                 </Button>
             )}
-            <ExpenseForm open={open} onClose={onClose} cashboxes={[]} expense={expense} onSubmit={save} isLoading={isLoading} />
+            <ExpenseForm open={open} onClose={onClose} cashboxes={[]} expense={expenseDetail ?? expense} onSubmit={save} isLoading={isLoading} />
         </>
     );
 }
