@@ -19,6 +19,7 @@ import Loading from '../../Other/UI/Loadings/Loading';
 import { STATUS_LABEL, statusCx } from '../../Zayavkachi/__components/statusBadge';
 import { Alert } from '../../Other/UI/Alert/Alert';
 import { splitOrderItem, toStockItem } from '../../ui/order-items';
+import { RECEIPT_FORMATS, RECEIPT_FORMAT_KEY, buildOrderReceiptHtml, printHtml } from '../__components/orderReceipt';
 
 /* ──────────────────────────────────────────────────────────────── */
 /*  Группировка одинаковых товаров (PACK + PIECE) в одну строку      */
@@ -172,12 +173,38 @@ export default function StaffOrderDetail() {
         };
     }, [comparison, scannedPacks, scannedPieces]);
 
-    const receiptTotal = (order?.items ?? []).reduce(
-        (sum, item) => sum + Number(item.quantity ?? 0),
-        0
-    );
-
-    const handlePrint = () => window.print();
+    /* ── Chek: alohida hujjat, qog‘ozga moslashadi (A4 / 80 mm / avto) ── */
+    const [receiptFormat, setReceiptFormat] = useState(() => {
+        try { const v = localStorage.getItem(RECEIPT_FORMAT_KEY); return RECEIPT_FORMATS.some((f) => f.key === v) ? v : 'auto'; } catch { return 'auto'; }
+    });
+    const changeReceiptFormat = (value) => {
+        setReceiptFormat(value);
+        try { localStorage.setItem(RECEIPT_FORMAT_KEY, value); } catch { /* xotira yo‘q */ }
+    };
+    const handlePrint = () => {
+        if (!order) return;
+        const anyLoaded = comparison.some((c) => (scannedPacks[c.key] ?? 0) > 0 || (scannedPieces[c.key] ?? 0) > 0);
+        const html = buildOrderReceiptHtml({
+            order,
+            customerPhone: order.customerPhone ?? order.customer?.phone ?? customer?.phone,
+            warehouseName: activeWarehouseName,
+            statusLabel: STATUS_LABEL[order.status] ?? order.status,
+            format: receiptFormat,
+            showLoaded: anyLoaded,
+            rows: comparison.map((c) => ({
+                productName: c.productName,
+                productBarcode: c.productBarcode,
+                warehouseName: c.warehouseName,
+                orderedPacks: c.orderedPacks,
+                orderedPiecesOnly: c.orderedPiecesOnly,
+                orderedPieces: c.orderedPieces,
+                piecesPerPack: c.piecesPerPack,
+                loadedPacks: scannedPacks[c.key] ?? 0,
+                loadedPieces: scannedPieces[c.key] ?? 0,
+            })),
+        });
+        printHtml(html, { onError: (message) => Alert(message, 'error') });
+    };
 
     /* ── Обработчики для pachka ── */
     const updateScannedPacks = (item, change) => {
@@ -411,13 +438,24 @@ export default function StaffOrderDetail() {
                             </button>
                         )}
                         {String(order.status ?? '').toUpperCase() === 'LOADED' && (
-                            <button
-                                type="button"
-                                onClick={handlePrint}
-                                className="flex h-12 items-center gap-2 rounded-xl bg-amber-400 px-5 text-sm font-bold text-[#0f172a] transition-colors hover:bg-amber-500"
-                            >
-                                <LuPrinter size={17} /> Chop etish
-                            </button>
+                            <div className="flex h-12 items-stretch overflow-hidden rounded-xl bg-amber-400 text-[#0f172a]">
+                                <button
+                                    type="button"
+                                    onClick={handlePrint}
+                                    className="flex items-center gap-2 px-5 text-sm font-bold transition-colors hover:bg-amber-500"
+                                >
+                                    <LuPrinter size={17} /> Chop etish
+                                </button>
+                                <select
+                                    value={receiptFormat}
+                                    onChange={(e) => changeReceiptFormat(e.target.value)}
+                                    aria-label="Chek formati"
+                                    title="Chek formati: qog‘ozga qarab tanlang"
+                                    className="h-full cursor-pointer border-l border-black/15 bg-amber-300 px-2 text-xs font-bold outline-none hover:bg-amber-500"
+                                >
+                                    {RECEIPT_FORMATS.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
+                                </select>
+                            </div>
                         )}
                         <button
                             type="button"
@@ -859,96 +897,6 @@ export default function StaffOrderDetail() {
                 )}
             </div>
 
-            <style>{`
-                @media print {
-                    @page { margin: 12mm; }
-                    body * { visibility: hidden !important; }
-                    #staff-order-print-receipt,
-                    #staff-order-print-receipt * { visibility: visible !important; }
-                    #staff-order-print-receipt {
-                        display: block !important;
-                        position: fixed;
-                        inset: 0 auto auto 0;
-                        width: 100%;
-                        padding: 0;
-                        color: #000 !important;
-                        background: #fff !important;
-                        font-family: Arial, sans-serif;
-                    }
-                }
-            `}</style>
-            <section
-                id="staff-order-print-receipt"
-                className="hidden"
-                aria-label="Buyurtma cheki"
-            >
-                <h1 style={{ margin: '0 0 4px', fontSize: '22px', textAlign: 'center', fontWeight: 'bold' }}>
-                    Zafar Lux
-                </h1>
-                <p style={{ margin: '0 0 20px', fontSize: '12px', textAlign: 'center', letterSpacing: '2px' }}>
-                    ZAVODI
-                </p>
-
-                <h2 style={{ margin: '0 0 16px', fontSize: '16px', textAlign: 'center' }}>
-                    BUYURTMA CHEKI
-                </h2>
-
-                <div style={{ marginBottom: '16px', borderBottom: '1px solid #000', paddingBottom: '12px' }}>
-                    <p style={{ margin: '4px 0' }}><strong>Mijoz:</strong> {order.customerName || '—'}</p>
-                    <p style={{ margin: '4px 0' }}>
-                        <strong>Telefon:</strong>{' '}
-                        {order.customerPhone ?? order.customer?.phone ?? customer?.phone ?? '—'}
-                    </p>
-                    <p style={{ margin: '4px 0' }}>
-                        <strong>Sana:</strong>{' '}
-                        {order.createdAt ? new Date(order.createdAt).toLocaleDateString('uz-UZ') : '—'}
-                    </p>
-                    {order.id && (
-                        <p style={{ margin: '4px 0' }}>
-                            <strong>Buyurtma №:</strong>{' '}
-                            <span style={{ fontFamily: 'monospace' }}>#{String(order.id).slice(0, 8)}</span>
-                        </p>
-                    )}
-                </div>
-
-                <table style={{ width: '100%', borderCollapse: 'collapse', color: '#000' }}>
-                    <thead>
-                        <tr>
-                            <th style={{ borderBottom: '1px solid #000', padding: '8px 4px', textAlign: 'left' }}>Mahsulot</th>
-                            <th style={{ borderBottom: '1px solid #000', padding: '8px 4px', textAlign: 'right' }}>Pachka</th>
-                            <th style={{ borderBottom: '1px solid #000', padding: '8px 4px', textAlign: 'right' }}>Dona</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {groupedItems.map((g, index) => (
-                            <tr key={g.key ?? index}>
-                                <td style={{ borderBottom: '1px solid #aaa', padding: '8px 4px' }}>
-                                    {g.productName || '—'}
-                                </td>
-                                <td style={{ borderBottom: '1px solid #aaa', padding: '8px 4px', textAlign: 'right' }}>
-                                    {g.orderedPacks > 0 ? formatNumber(g.orderedPacks) : '—'}
-                                </td>
-                                <td style={{ borderBottom: '1px solid #aaa', padding: '8px 4px', textAlign: 'right' }}>
-                                    {g.orderedPiecesOnly > 0 ? formatNumber(g.orderedPiecesOnly) : '—'}
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                    <tfoot>
-                        <tr>
-                            <th style={{ borderTop: '1px solid #000', padding: '10px 4px', textAlign: 'left' }}>
-                                Jami
-                            </th>
-                            <th style={{ borderTop: '1px solid #000', padding: '10px 4px', textAlign: 'right' }}>
-                                {formatNumber(totals.requiredPacks)}
-                            </th>
-                            <th style={{ borderTop: '1px solid #000', padding: '10px 4px', textAlign: 'right' }}>
-                                {formatNumber(totals.requiredPiecesOnly)}
-                            </th>
-                        </tr>
-                    </tfoot>
-                </table>
-            </section>
         </div>
     );
 }
