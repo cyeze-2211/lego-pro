@@ -6,6 +6,7 @@ import { useCreateStockTransactionMutation } from '../../../store/services/produ
 import { useAppTheme } from '../../../theme/tokens';
 import $api from '../../../store/api';
 import ProductImage from '../../ui/ProductImage';
+import { ProductionWarehousePicker, useProductionWarehouse } from '../productionWarehouse';
 
 const productImageUrl = (productId) => (productId ? `/api/v1/products/${productId}/image` : null);
 
@@ -121,6 +122,7 @@ export default function WorkerMachines() {
     /* ── Qayt etish mutation ── */
     const [createStockTransaction, { isLoading: producing }] = useCreateStockTransactionMutation();
     const [producingId, setProducingId] = useState(null);
+    const warehouseState = useProductionWarehouse();
 
     /* ── Toast ── */
     const [toast, setToast] = useState(null);
@@ -132,15 +134,21 @@ export default function WorkerMachines() {
     const handleCardClick = async (machine) => {
         const isWorking = !!machine.currentRun && machine.status !== 'IDLE';
         if (!isWorking || producing) return;
+        if (!warehouseState.warehouseId) {
+            showToast('Avval omborni tanlang — mahsulot qaysi omborga kiradi', 'error');
+            return;
+        }
 
         setProducingId(machine.id);
         try {
+            // Stanokdan chiqqan mahsulot: IN + machineId + warehouseId (PRODUCE turi yo‘q)
             await createStockTransaction({
-                action: 'PRODUCE',
+                action: 'IN',
                 machineId: machine.id,
+                warehouseId: warehouseState.warehouseId,
                 items: [{ productId: machine.currentRun.productId, quantity: 1, unit: 'PIECE' }],
             }).unwrap();
-            showToast(`✓ 1 dona qayd etildi — ${machine.currentRun.productName}`);
+            showToast(`✓ 1 pachka qayd etildi — ${machine.currentRun.productName}`);
             refetch();
         } catch (err) {
             showToast(err?.data?.message || 'Qayd etishda xatolik', 'error');
@@ -170,13 +178,16 @@ export default function WorkerMachines() {
             )}
 
             {/* Sarlavha */}
-            <div className="mb-6 sm:mb-8">
-                <h1 className="text-2xl sm:text-4xl font-extrabold mb-1.5 sm:mb-2 leading-tight" style={{ color: textColor }}>
-                    Stanoklar
-                </h1>
-                <p className="text-sm sm:text-lg" style={{ color: subtitleColor }}>
-                    Qayd etish uchun ishlayotgan stanokning ustiga bosing
-                </p>
+            <div className="mb-6 sm:mb-8 flex flex-wrap items-end justify-between gap-3">
+                <div>
+                    <h1 className="text-2xl sm:text-4xl font-extrabold mb-1.5 sm:mb-2 leading-tight" style={{ color: textColor }}>
+                        Stanoklar
+                    </h1>
+                    <p className="text-sm sm:text-lg" style={{ color: subtitleColor }}>
+                        Qayd etish uchun ishlayotgan stanokning ustiga bosing
+                    </p>
+                </div>
+                <ProductionWarehousePicker state={warehouseState} isDark={isDark} textColor={textColor} subtitleColor={subtitleColor} cardBg={cardBg} cardBorder={cardBorder} />
             </div>
 
             {/* Loading */}

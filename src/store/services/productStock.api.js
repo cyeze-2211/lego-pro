@@ -79,7 +79,7 @@ export const productStockApi = createApi({
                 { type: 'ProductStock', id: 'LIST' },
                 { type: 'StockTransaction', id: 'LIST' },
             ],
-            // PRODUCE stanok holati va ishlab chiqarish tarixini o‘zgartiradi — ularning keshini ham yangilaymiz
+            // Stanokdan kirim (IN + machineId) stanok holati va ishlab chiqarish tarixini o‘zgartiradi — ularning keshini ham yangilaymiz
             onQueryStarted: async (arg, { dispatch, queryFulfilled }) => {
                 try {
                     await queryFulfilled;

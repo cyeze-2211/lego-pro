@@ -14,6 +14,7 @@ import {
 import { useGetMachineOutputsQuery } from '../../../store/services/machineOutput.api';
 import { useAppTheme } from '../../../theme/tokens';
 import ProductImage from '../../ui/ProductImage';
+import { ProductionWarehousePicker, useProductionWarehouse } from '../productionWarehouse';
 
 const productImageUrl = (productId) => (productId ? `/api/v1/products/${productId}/image` : null);
 
@@ -57,6 +58,7 @@ export default function WorkerMachineDetail() {
     const historyTotalPages = historyResult?.pagination?.totalPages || 0;
 
     const [createStockTransaction, { isLoading: producing }] = useCreateStockTransactionMutation();
+    const warehouseState = useProductionWarehouse();
 
     const [toast, setToast] = useState(null);
     const showToast = (message, type = 'success') => {
@@ -68,10 +70,16 @@ export default function WorkerMachineDetail() {
 
     const handleProduceOne = async () => {
         if (producing || !machine?.currentRun?.productId) return;
+        if (!warehouseState.warehouseId) {
+            showToast('Avval omborni tanlang — mahsulot qaysi omborga kiradi', 'error');
+            return;
+        }
         try {
+            // Stanokdan chiqqan mahsulot: IN + machineId + warehouseId (PRODUCE turi yo‘q)
             await createStockTransaction({
-                action: 'PRODUCE',
+                action: 'IN',
                 machineId: id,
+                warehouseId: warehouseState.warehouseId,
                 items: [{ productId: machine.currentRun.productId, quantity: 1, unit: 'PIECE' }],
             }).unwrap();
             showToast(`1 dona qayd etildi — ${machine.currentRun.productName}`);
@@ -229,6 +237,13 @@ export default function WorkerMachineDetail() {
                                 </span>
                             </div>
                         </div>
+                    </div>
+                )}
+
+                {/* ── Kirim ombori ── */}
+                {isWorking && (
+                    <div className="mb-3">
+                        <ProductionWarehousePicker state={warehouseState} isDark={isDark} textColor={textColor} subtitleColor={subtitleColor} cardBg={cardBg} cardBorder={cardBorder} />
                     </div>
                 )}
 

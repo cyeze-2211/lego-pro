@@ -26,6 +26,7 @@ import {
     useGetMachineOutputsSummaryQuery,
 } from '../../../store/services/machine.api';
 import StartProductPicker from './StartProductPicker';
+import { ProductionWarehousePicker, useProductionWarehouse } from '../productionWarehouse';
 import {
     useCreateStockTransactionMutation,
 } from '../../../store/services/productStock.api';
@@ -241,6 +242,7 @@ export default function StanokchiMachineDetail() {
     const [stopProduction, { isLoading: stopping }] = useStopMachineProductionMutation();
     const [updateMachineStatus, { isLoading: statusUpdating }] = useUpdateMachineStatusMutation();
     const [createStockTransaction, { isLoading: producing }] = useCreateStockTransactionMutation();
+    const warehouseState = useProductionWarehouse();
 
     /* ── Toast ── */
     const [toast, setToast] = useState(null);
@@ -287,14 +289,19 @@ export default function StanokchiMachineDetail() {
     };
 
     /* ════════════════════════════════
-       PRODUCE — 1 dona (modal yo'q)
+       QAYD ETISH — 1 dona (modal yo'q): IN + machineId + warehouseId
     ════════════════════════════════ */
     const handleProduceOne = async () => {
         if (producing || !machine?.currentRun?.productId) return;
+        if (!warehouseState.warehouseId) {
+            showToast('Avval omborni tanlang — mahsulot qaysi omborga kiradi', 'error');
+            return;
+        }
         try {
             await createStockTransaction({
-                action: 'PRODUCE',
+                action: 'IN',
                 machineId: id,
+                warehouseId: warehouseState.warehouseId,
                 items: [{ productId: machine.currentRun.productId, quantity: 1, unit: 'PIECE' }],
             }).unwrap();
             showToast(`1 dona qayd etildi — ${machine.currentRun.productName}`);
@@ -761,10 +768,15 @@ export default function StanokchiMachineDetail() {
                                 </span>
                             )}
                             {isWorking && (
+                                <div className="ml-auto" style={{ maxWidth: 240 }}>
+                                    <ProductionWarehousePicker state={warehouseState} isDark={isDark} textColor={textColor} subtitleColor={subtitleColor} cardBg={cardBg} cardBorder={cardBorder} compact />
+                                </div>
+                            )}
+                            {isWorking && (
                                 <button
                                     onClick={handleProduceOne}
                                     disabled={producing}
-                                    className="ml-auto flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm transition-all hover:opacity-90 active:scale-95 disabled:opacity-50"
+                                    className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm transition-all hover:opacity-90 active:scale-95 disabled:opacity-50"
                                     style={{
                                         background: isDark ? 'rgb(var(--accent-400) / 0.18)' : 'rgb(var(--accent-100))',
                                         color: isDark ? 'rgb(var(--accent-400))' : 'rgb(var(--accent-warm-900))',
