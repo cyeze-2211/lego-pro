@@ -203,6 +203,13 @@ export default function AdminHeader({
                                     <LogOut className="h-4 w-4" />
                                     <span>Chiqish</span>
                                 </button>
+                                {/* Sborka belgisi — prod va localhost farqini aniqlash uchun */}
+                                <p
+                                    className={`mt-1 border-t px-3 pt-2 text-[10px] font-mono ${isDark ? "border-slate-700 text-slate-500" : "border-slate-100 text-slate-400"}`}
+                                    title={`Build vaqti: ${__APP_BUILD__.time}`}
+                                >
+                                    build {__APP_BUILD__.hash} · {new Date(__APP_BUILD__.time).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                                </p>
                             </div>
                         )}
                     </div>

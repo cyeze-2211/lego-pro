@@ -507,6 +507,9 @@ export default function Login() {
                             </Stack>
                         </Box>
                     </VStack>
+                    <Text fontSize="10px" fontFamily="mono" color={subtitleColor} opacity={0.7} textAlign="center" mt={3} title={`Build vaqti: ${__APP_BUILD__.time}`}>
+                        build {__APP_BUILD__.hash} · {new Date(__APP_BUILD__.time).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                    </Text>
                 </Box>
             </Container>
         </Box>
