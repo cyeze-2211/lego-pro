@@ -14,7 +14,7 @@ export const UPDATE_SCHEMAS = {
     BrandUpdateRequest:           { required: { name: 'Brend nomi' }, optional: [] },
     CashboxUpdateRequest:         { required: { name: 'Kassa nomi' }, optional: ['summary'] },
     CustomerAgentUpdateRequest:   { required: { name: 'Agent ismi', phone: 'Telefon' }, optional: ['telegramId'] },
-    CustomerUpdateRequest:        { required: { name: 'Mijoz nomi', phone: 'Telefon', regionId: 'Viloyat' }, optional: ['summary', 'address', 'inn', 'agentId', 'telegramChatId'] },
+    CustomerUpdateRequest:        { required: { name: 'Mijoz nomi', phone: 'Telefon', regionId: 'Viloyat' }, optional: ['summary', 'address', 'inn', 'agentId', 'telegramChatId', 'balance'] },
     DeviceUpdateRequest:          { required: { deviceName: 'Qurilma nomi' }, optional: ['deviceSummary'] },
     ExpenseCategoryUpdateRequest: { required: { name: 'Kategoriya nomi' }, optional: [] },
     ExpenseUpdateRequest:         { required: { name: 'Xarajat nomi', amount: 'Summa', currency: 'Valyuta', expenseDate: 'Sana', categoryId: 'Kategoriya' }, optional: ['summary', 'usdRate'] },

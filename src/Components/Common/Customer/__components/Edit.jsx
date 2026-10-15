@@ -22,6 +22,9 @@ import {
     LuHash,
     LuUserCheck,
     LuSend,
+    LuTrendingUp,
+    LuTrendingDown,
+    LuWallet,
 } from 'react-icons/lu';
 import { useGetCustomerByIdQuery, useUpdateCustomerMutation } from '../../../../store/services/customer.api';
 import { useGetCustomerAgentsQuery } from '../../../../store/services/customerAgent.api';
@@ -33,6 +36,27 @@ import { fillBlanks, logBlockedSave } from '../../../ui/form-utils';
 
 const PHONE_REGEX = /^\+998\d{9}$/;
 
+// "200000" -> "200 000" (Create bilan bir xil)
+const formatBalanceDisplay = (raw) => {
+    if (raw === '' || raw === null || raw === undefined) return '';
+    const str = String(raw);
+    const [intPart, decPart] = str.split('.');
+    const formattedInt = (intPart || '').replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+    return decPart !== undefined ? `${formattedInt}.${decPart}` : formattedInt;
+};
+
+// Balansni formaga: ishorasi tugmaga, moduli maydonga
+const balanceToForm = (value) => {
+    const n = Number(value);
+    if (!Number.isFinite(n) || n === 0) return { balance: '', balanceType: 'credit' };
+    return { balance: String(Math.abs(n)), balanceType: n < 0 ? 'debt' : 'credit' };
+};
+const signedBalance = (form) => {
+    const amount = form.balance === '' ? 0 : Number(form.balance);
+    if (!Number.isFinite(amount)) return NaN;
+    return form.balanceType === 'debt' ? -amount : amount;
+};
+
 const buildInitial = (customer) => ({
     name:          customer.name          || '',
     phone:         customer.phone         || '+998',
@@ -43,6 +67,7 @@ const buildInitial = (customer) => ({
     agentName:     customer.agent?.name   || customer.agentName || '',
     telegramChatId: customer.telegramChatId ? String(customer.telegramChatId) : '',
     regionId:      (customer.region?.id ?? customer.regionId) == null ? '' : String(customer.region?.id ?? customer.regionId),
+    ...balanceToForm(customer.balance),
 });
 
 export default function Edit({ customer, openOnMount = false, hideTrigger = false, onClosed }) {
@@ -69,6 +94,51 @@ export default function Edit({ customer, openOnMount = false, hideTrigger = fals
         if (regionsError) Alert('Viloyatlar ro‘yxatini yuklashda xatolik', 'error');
     }, [regionsError]);
 
+    const setField = (key, value) =>
+        setForm((prev) => ({ ...prev, [key]: value }));
+
+    const currentBalance = Number(customerDetail?.balance ?? customer.balance ?? 0) || 0;
+    const nextBalance = signedBalance(form);
+    const balanceChanged = Number.isFinite(nextBalance) && nextBalance !== currentBalance;
+    const hasValidBalance = form.balance === '' || (Number.isFinite(Number(form.balance)) && Number(form.balance) >= 0);
+
+    const handleBalanceChange = (event) => {
+        const input = event.currentTarget;
+        const rawValue = input.value;
+        const cursorPos = input.selectionStart ?? rawValue.length;
+        const beforeCursor = rawValue.slice(0, cursorPos);
+
+        // Sanitize: faqat raqamlar va bitta nuqta
+        let cleaned = rawValue.replace(/\s/g, '').replace(/,/g, '.').replace(/[^\d.]/g, '');
+        const dotIndex = cleaned.indexOf('.');
+        if (dotIndex !== -1) {
+            cleaned = cleaned.slice(0, dotIndex + 1) + cleaned.slice(dotIndex + 1).replace(/\./g, '');
+        }
+        setField('balance', cleaned);
+
+        // Kursorni to'g'ri joyga qaytarish
+        const digitsBefore = beforeCursor.replace(/[^\d]/g, '').length;
+        const hasDotBefore = /[.,]/.test(beforeCursor);
+        const decimalsBefore = hasDotBefore ? (beforeCursor.split(/[.,]/)[1] || '').replace(/[^\d]/g, '').length : 0;
+        requestAnimationFrame(() => {
+            const formatted = formatBalanceDisplay(cleaned);
+            let newPos = formatted.length;
+            if (hasDotBefore) {
+                const dotPos = formatted.indexOf('.');
+                newPos = dotPos !== -1 ? dotPos + 1 + decimalsBefore : formatted.length;
+            } else {
+                let seen = 0;
+                for (let i = 0; i < formatted.length; i += 1) {
+                    if (/\d/.test(formatted[i])) {
+                        seen += 1;
+                        if (seen === digitsBefore) { newPos = i + 1; break; }
+                    }
+                }
+            }
+            input.setSelectionRange(newPos, newPos);
+        });
+    };
+
     // Agent tanlanganda agentName va telegramChatId ni avtomatik to'ldirish
     const handleAgentChange = (agentId) => {
         const found = agents.find((a) => a.id === agentId);
@@ -89,11 +159,14 @@ export default function Edit({ customer, openOnMount = false, hideTrigger = fals
 
     /* Server javobi kelganda bo‘sh maydonlarni to‘ldiramiz */
     useEffect(() => {
-        if (open && customerDetail) setForm((prev) => fillBlanks(prev, buildInitial(customerDetail)));
+        if (open && customerDetail) setForm((prev) => {
+            const fresh = buildInitial(customerDetail);
+            const next = fillBlanks(prev, fresh);
+            // Balans qatorda 0 bo‘lib, serverdan boshqacha kelsa — ishorasi ham yangilansin
+            return prev.balance === '' && fresh.balance !== '' ? { ...next, balanceType: fresh.balanceType } : next;
+        });
     }, [open, customerDetail]);
 
-    const setField = (key, value) =>
-        setForm((prev) => ({ ...prev, [key]: value }));
 
     const handleSubmit = async () => {
         if (isLoading) return;
@@ -114,6 +187,10 @@ export default function Edit({ customer, openOnMount = false, hideTrigger = fals
             block('Viloyatni tanlang');
             return;
         }
+        if (!hasValidBalance) {
+            block('Balansni to‘g‘ri kiriting (masalan, 150 000)');
+            return;
+        }
 
         try {
             await updateCustomer({
@@ -127,6 +204,8 @@ export default function Edit({ customer, openOnMount = false, hideTrigger = fals
                     agentId: form.agentId || null,
                     telegramChatId: form.telegramChatId.trim() || null,
                     regionId: Number(form.regionId),
+                    // Balans faqat o‘zgartirilgan bo‘lsa yuboriladi — mijoz yozuvida to‘g‘ridan-to‘g‘ri almashtiriladi
+                    ...(balanceChanged ? { balance: nextBalance } : {}),
                 },
             }).unwrap();
             Alert('Mijoz yangilandi', 'success');
@@ -302,6 +381,94 @@ export default function Edit({ customer, openOnMount = false, hideTrigger = fals
                                                     minH="52px"
                                                 />
                                             </Field.Root>
+
+                                            {/* === Balans — Create bilan bir xil ko‘rinish === */}
+                                            <Field.Root gridColumn={{ base: 'auto', md: 'span 2' }}>
+                                                <Field.Label color={textColor} fontWeight="medium">
+                                                    <HStack gap={2}>
+                                                        <LuWallet size={16} />
+                                                        <span>Balans</span>
+                                                    </HStack>
+                                                </Field.Label>
+
+                                                <HStack gap={3} align="stretch" flexWrap="nowrap" w="full">
+                                                    {/* Kredit (+) */}
+                                                    <Button
+                                                        type="button"
+                                                        onClick={() => setField('balanceType', 'credit')}
+                                                        aria-label="Kredit"
+                                                        variant="outline"
+                                                        flexShrink={0}
+                                                        h="52px"
+                                                        minW="52px"
+                                                        px={3}
+                                                        borderWidth="2px"
+                                                        borderColor={form.balanceType === 'credit' ? 'green.400' : modalBorder}
+                                                        bg={form.balanceType === 'credit' ? (isDark ? 'rgba(34, 197, 94, 0.15)' : 'green.50') : 'transparent'}
+                                                        color={form.balanceType === 'credit' ? (isDark ? 'green.200' : 'green.600') : subtitleColor}
+                                                        borderRadius="xl"
+                                                        transition="all 0.2s"
+                                                        _hover={{ bg: form.balanceType === 'credit' ? (isDark ? 'rgba(34, 197, 94, 0.22)' : 'green.100') : (isDark ? 'whiteAlpha.50' : 'gray.50'), borderColor: 'green.400', color: isDark ? 'green.200' : 'green.600' }}
+                                                    >
+                                                        <HStack gap={2}><LuTrendingUp size={18} /><Box fontWeight="bold" fontSize="sm">+</Box></HStack>
+                                                    </Button>
+
+                                                    {/* Qarzdor (−) */}
+                                                    <Button
+                                                        type="button"
+                                                        onClick={() => setField('balanceType', 'debt')}
+                                                        aria-label="Qarzdor"
+                                                        variant="outline"
+                                                        flexShrink={0}
+                                                        h="52px"
+                                                        minW="52px"
+                                                        px={3}
+                                                        borderWidth="2px"
+                                                        borderColor={form.balanceType === 'debt' ? 'red.400' : modalBorder}
+                                                        bg={form.balanceType === 'debt' ? (isDark ? 'rgba(239, 68, 68, 0.15)' : 'red.50') : 'transparent'}
+                                                        color={form.balanceType === 'debt' ? (isDark ? 'red.200' : 'red.600') : subtitleColor}
+                                                        borderRadius="xl"
+                                                        transition="all 0.2s"
+                                                        _hover={{ bg: form.balanceType === 'debt' ? (isDark ? 'rgba(239, 68, 68, 0.22)' : 'red.100') : (isDark ? 'whiteAlpha.50' : 'gray.50'), borderColor: 'red.400', color: isDark ? 'red.200' : 'red.600' }}
+                                                    >
+                                                        <HStack gap={2}><LuTrendingDown size={18} /><Box fontWeight="bold" fontSize="sm">−</Box></HStack>
+                                                    </Button>
+
+                                                    {/* Summa + so'm */}
+                                                    <Box position="relative" flex="1" minW={0} w="full">
+                                                        <FormControl
+                                                            value={formatBalanceDisplay(form.balance)}
+                                                            onChange={handleBalanceChange}
+                                                            placeholder="0"
+                                                            type="text"
+                                                            inputMode="decimal"
+                                                            h="52px"
+                                                            minH="52px"
+                                                            pr="64px"
+                                                            _focus={{ borderColor: form.balanceType === 'debt' ? 'red.400' : 'green.400' }}
+                                                        />
+                                                        <Box position="absolute" right="16px" top="50%" transform="translateY(-50%)" fontSize="sm" fontWeight="medium" color={subtitleColor} pointerEvents="none" userSelect="none">
+                                                            so‘m
+                                                        </Box>
+                                                    </Box>
+                                                </HStack>
+
+                                                <Field.HelperText color={subtitleColor} mt={2}>
+                                                    Hozirgi balans:{' '}
+                                                    <Box as="span" fontWeight="bold" color={currentBalance < 0 ? 'red.400' : currentBalance > 0 ? 'green.400' : subtitleColor}>
+                                                        {currentBalance < 0 ? '−' : currentBalance > 0 ? '+' : ''}{formatBalanceDisplay(Math.abs(currentBalance))} so‘m
+                                                    </Box>
+                                                    {balanceChanged && Number.isFinite(nextBalance) && (
+                                                        <>
+                                                            {' '}→ yangi:{' '}
+                                                            <Box as="span" fontWeight="bold" color={nextBalance < 0 ? 'red.400' : nextBalance > 0 ? 'green.400' : subtitleColor}>
+                                                                {nextBalance < 0 ? '−' : nextBalance > 0 ? '+' : ''}{formatBalanceDisplay(Math.abs(nextBalance))} so‘m
+                                                            </Box>
+                                                            {' '}(to‘g‘ridan-to‘g‘ri almashtiriladi, kassaga yozilmaydi)
+                                                        </>
+                                                    )}
+                                                </Field.HelperText>
+                                            </Field.Root>
                                         </SimpleGrid>
                                     </Box>
 
@@ -429,6 +596,7 @@ Edit.propTypes = {
         agent: PropTypes.shape({ id: PropTypes.string, name: PropTypes.string, phone: PropTypes.string }),
         region: PropTypes.shape({ id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]), name: PropTypes.string }),
         telegramChatId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+        balance: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     }).isRequired,
     openOnMount: PropTypes.bool,
     hideTrigger: PropTypes.bool,
