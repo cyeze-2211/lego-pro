@@ -24,6 +24,41 @@ import { ROLES } from '../../../app/permissions/roles';
 import CustomerCreate from '../../Common/Customer/__components/Create';
 
 const STOCK_PAGE_SIZE = 20;
+const normalizeText = (v) => String(v ?? '').toLowerCase().replace(/[‘’ʻ'`´]/g, "'").replace(/\s+/g, ' ').trim();
+
+/* ── Rang belgisi: doiracha (HEX) + nomi. Kod bo‘lmasa — chiziqli bo‘sh doira ── */
+const isHex = (v) => /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(String(v ?? '').trim());
+function ColorChip({ color, isDark, size = 'sm' }) {
+    if (!color?.name && !color?.code) return null;
+    const code = isHex(color?.code) ? color.code : null;
+    const hex6 = code && code.length === 4 ? `#${code[1]}${code[1]}${code[2]}${code[2]}${code[3]}${code[3]}` : code;
+    const big = size === 'md';
+    // Hoshiya va fon — mahsulot rangining o‘zida, shuning uchun ko‘zga darhol tashlanadi
+    const style = hex6
+        ? { borderColor: hex6, background: `${hex6}${isDark ? '33' : '1f'}`, color: isDark ? '#F1F5F9' : '#0F172A' }
+        : undefined;
+    return (
+        <span
+            className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg border-2 font-extrabold uppercase tracking-wide ${big ? 'px-2.5 py-1 text-xs' : 'px-2 py-0.5 text-[11px]'} ${hex6 ? '' : (isDark ? 'border-white/20 bg-white/5 text-slate-200' : 'border-slate-300 bg-slate-50 text-slate-700')}`}
+            style={style}
+            title={`Rang: ${color?.name ?? ''}${code ? ` (${code.toUpperCase()})` : ''}`}
+        >
+            <span
+                aria-hidden="true"
+                className={`shrink-0 rounded-full ${big ? 'h-5 w-5' : 'h-4 w-4'}`}
+                style={hex6
+                    ? { background: hex6, boxShadow: '0 0 0 2px #fff, 0 0 0 3px rgba(0,0,0,.35)' }
+                    : { border: '2px dashed currentColor', opacity: .6 }}
+            />
+            {color?.name}
+        </span>
+    );
+}
+ColorChip.propTypes = {
+    color: PropTypes.shape({ id: PropTypes.string, name: PropTypes.string, code: PropTypes.string }),
+    isDark: PropTypes.bool,
+    size: PropTypes.oneOf(['sm', 'md']),
+};
 
 const SORTS = [
     { key: 'recent',  label: 'Oxirgi o‘zgargan',       sort: ['lastModifiedAt,DESC', 'id,DESC'] },
@@ -57,6 +92,7 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
 
     const [customerId, setCustomerId]         = useState(customer?.id ?? order?.customerId ?? '');
     const [customerSearch, setCustomerSearch] = useState(customer?.name ?? order?.customerName ?? '');
+
     const [customerOpen, setCustomerOpen]     = useState(false);
     const [summary, setSummary]         = useState(order?.summary ?? '');
     const [warehouseId, setWarehouseId] = useState(order?.items?.[0]?.warehouseId ?? '');
@@ -119,9 +155,17 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
         { page: 0, size: 200 },
         { skip: !open }
     );
+    // Gibrid qidiruv: bitta maydon — nomi, manzili va telefoni bo‘yicha bir vaqtda.
+    // Server faqat `name` bo‘yicha filtrlaydi, shuning uchun bazaviy ro‘yxat (200 ta) yuklanadi va
+    // qidiruv shu yerda bajariladi; qo‘shimcha nom bo‘yicha server so‘rovi 200 dan tashqaridagilarni ham topadi.
+    const customerTerm = customerSearch.trim();
     const { data: customersResp, isFetching: isCustomerFetching } = useGetCustomersQuery(
-        { name: customerSearch || undefined, size: 50 },
+        { size: 200 },
         { skip: isCustomerLocked }
+    );
+    const { data: customersByNameResp, isFetching: isCustomerNameFetching } = useGetCustomersQuery(
+        { name: customerTerm, size: 50 },
+        { skip: isCustomerLocked || !customerTerm }
     );
 
     const df = debouncedFilters;
@@ -193,7 +237,41 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
         return map;
     }, [prevOrders]);
 
-    const customers = customersResp?.items ?? [];
+    const customers = useMemo(() => {
+        const seen = new Set();
+        const list = [...(customersResp?.items ?? []), ...(customersByNameResp?.items ?? [])]
+            .filter((c) => c?.id && !seen.has(c.id) && seen.add(c.id));
+        const q = normalizeText(customerSearch);
+        if (!q) return list;
+        // Har bir so‘z nom + manzil + telefon ichida topilishi kerak (tartibi muhim emas):
+        // «baraka samarqand», «+99899 270», «dahbed 101» — hammasi ishlaydi
+        const words = q.split(' ').filter(Boolean);
+        return list.filter((c) => {
+            const phoneDigits = String(c.phone ?? '').replace(/\D/g, '');
+            const hay = normalizeText(`${c.name ?? ''} ${c.address ?? ''} ${c.phone ?? ''} ${c.region?.name ?? ''}`);
+            return words.every((w) => {
+                const wDigits = w.replace(/\D/g, '');
+                return hay.includes(w) || (wDigits.length >= 3 && phoneDigits.includes(wDigits));
+            });
+        });
+    }, [customersResp, customersByNameResp, customerSearch]);
+    const isCustomerSearching = isCustomerFetching || isCustomerNameFetching;
+
+    /* Tahrirlashda zayavka qatorida rang yo‘q — katalog kelganda productId bo‘yicha to‘ldiramiz */
+    useEffect(() => {
+        const products = productsResp?.items ?? [];
+        if (!products.length) return;
+        const byId = new Map(products.map((p) => [p.id, p]));
+        setItems((prev) => {
+            let changed = false;
+            const next = prev.map((item) => {
+                if (item.productColor || !byId.get(item.productId)?.color) return item;
+                changed = true;
+                return { ...item, productColor: byId.get(item.productId).color };
+            });
+            return changed ? next : prev;
+        });
+    }, [productsResp]);
 
     const productPriceMap = useMemo(() => {
         const map = {};
@@ -226,16 +304,27 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                     productPiecesPerPack: product.piecesPerPack ?? stock?.productPiecesPerPack,
                     productMinimumLine: product.minimumLine ?? stock?.productMinimumLine,
                     brand: product.brand ?? stock?.brand,
+                    color: product.color ?? stock?.color ?? null,
+                    category: product.category ?? stock?.category ?? null,
                     warehouseId,
                     quantity: stock?.quantity ?? stockCache[product.id] ?? 0,
                     price: product.price ?? stock?.price,
                 };
             });
         const catalogIds = new Set(catalogProducts.map((product) => product.productId));
-        return [
+        const merged = [
             ...catalogProducts,
             ...allStocks.filter((stock) => !catalogIds.has(stock.productId)),
         ];
+        // Qoldiq holati bo‘yicha guruhlab tartiblash: bor (yashil) → kam qolgan (sariq) → yo‘q (qizil).
+        // Guruh ichida tanlangan saralash tartibi saqlanadi (sort barqaror).
+        const stockRank = (st) => {
+            const qty = Number(st.quantity) || 0;
+            if (qty <= 0) return 2;
+            const min = Number(st.productMinimumLine) || 0;
+            return min > 0 && qty <= min ? 1 : 0;
+        };
+        return merged.sort((a, b) => stockRank(a) - stockRank(b));
     }, [allStocks, productSearchResp, df.productSize, df.brandId, df.categoryId, df.colorId, stockCache, warehouseId]);
 
     const stockPagination = stocksResp?.pagination ?? null;
@@ -401,6 +490,7 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                 productName:     stock.productName,
                 productArticle:  stock.productArticle,
                 productBarcode:  stock.productBarcode,
+                productColor:    stock.color ?? null,
                 piecesPerPack:   stock.productPiecesPerPack ?? null,
                 warehouseId:     whId,
                 quantity:        1,
@@ -676,7 +766,9 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                         <LuSearch className={`pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 ${muted}`} />
                                         <input
                                             type="text"
-                                            placeholder="Mijoz nomini yozing yoki tanlang"
+                                            placeholder="Nomi, manzili yoki telefoni — masalan: baraka samarqand"
+                                            title="Bir vaqtda nomi, manzili va telefoni bo‘yicha qidiradi; bir nechta so‘z yozsa bo‘ladi"
+
                                             value={customerSearch}
                                             onChange={(e) => { setCustomerSearch(e.target.value); setCustomerId(''); setCustomerOpen(true); }}
                                             onFocus={() => setCustomerOpen(true)}
@@ -694,12 +786,15 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
 
                             {!isCustomerLocked && customerOpen && (
                                 <div className={`absolute left-0 right-0 top-full z-30 mt-2 overflow-hidden rounded-xl border shadow-xl ${isDark ? 'border-[#334155] bg-[#0f172a]' : 'border-[#e2e8f0] bg-white'}`}>
-                                    {isCustomerFetching ? (
+                                    {isCustomerSearching && customers.length === 0 ? (
                                         <div className={`flex items-center justify-center gap-2 py-6 text-sm ${muted}`}>
                                             {spinner} Qidirilmoqda...
                                         </div>
                                     ) : customers.length === 0 ? (
-                                        <div className={`py-6 text-center text-sm ${muted}`}>Mijoz topilmadi</div>
+                                        <div className={`py-6 text-center text-sm ${muted}`}>
+                                            Mijoz topilmadi
+                                            {customerTerm && <span className="block text-xs opacity-70 mt-1">Nomi, manzili yoki telefoni bo‘yicha qidirildi</span>}
+                                        </div>
                                     ) : (
                                         <div className={`max-h-72 overflow-y-auto divide-y ${divider}`}>
                                             {customers.map((c) => {
@@ -714,7 +809,9 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                                         </span>
                                                         <div className="min-w-0 flex-1">
                                                             <p className={`truncate font-semibold text-sm ${head}`}>{c.name}</p>
-                                                            {c.phone && <p className={`truncate text-xs ${muted}`}>{c.phone}</p>}
+                                                            <p className={`truncate text-xs ${muted}`}>
+                                                                {[c.phone, c.address].filter(Boolean).join(' · ') || '—'}
+                                                            </p>
                                                         </div>
                                                         {picked && (
                                                             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber-400/10 text-amber-500">
@@ -954,6 +1051,7 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                                                         {st.brand.name}
                                                                     </span>
                                                                 )}
+                                                                <ColorChip color={st.color} isDark={isDark} />
                                                             </p>
                                                             <p className={`mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] ${muted}`}>
                                                                 {st.productArticle && <span className="font-mono">{st.productArticle}</span>}
@@ -1029,7 +1127,10 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                                 {items.map((item) => (
                                                     <span key={item.productId}
                                                         className={`inline-flex max-w-[220px] items-center gap-1 rounded-full border py-0.5 pl-2.5 pr-1 text-[11px] font-semibold ${isDark ? 'border-amber-400/30 bg-amber-400/10 text-amber-300' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
-                                                        <span className="truncate">{item.productName}</span>
+                                                        {isHex(item.productColor?.code) && (
+                                                            <span aria-hidden="true" className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: item.productColor.code, boxShadow: 'inset 0 0 0 1px rgba(0,0,0,.25)' }} title={item.productColor?.name} />
+                                                        )}
+                                                        <span className="truncate">{item.productName}{item.productColor?.name ? ` · ${item.productColor.name}` : ''}</span>
                                                         <button type="button" onClick={() => removeItem(item.productId)}
                                                             aria-label={`${item.productName} — olib tashlash`} title="Olib tashlash"
                                                             className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition-colors ${isDark ? 'hover:bg-red-500/20 hover:text-red-400' : 'hover:bg-red-100 hover:text-red-600'}`}>
@@ -1147,6 +1248,7 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                                         <div className="min-w-0 flex-1">
                                                             <div className="flex items-center gap-2 flex-wrap">
                                                                 <p className={`font-semibold leading-tight ${head}`}>{item.productName}</p>
+                                                                <ColorChip color={item.productColor} isDark={isDark} size="md" />
                                                                 {item._fromHistory && !priceChanged && (
                                                                     <span className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${isDark ? 'bg-green-500/10 text-green-400' : 'bg-green-50 text-green-700'}`}>
                                                                         <LuCheck size={9} /> Tarix
@@ -1383,6 +1485,7 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                                 </span>
                                                 <div className="flex-1 min-w-0">
                                                     <p className={`font-semibold text-sm leading-tight ${head}`}>{item.productName}</p>
+                                                    {item.productColor && <div className="mt-1"><ColorChip color={item.productColor} isDark={isDark} size="md" /></div>}
                                                     {item.productArticle && (
                                                         <p className={`text-xs font-mono mt-0.5 ${muted}`}>{item.productArticle}</p>
                                                     )}

@@ -373,3 +373,14 @@ table thead th {
 
 table tbody tr.stock-row-low td:first-child { box-shadow: inset 4px 0 0 #F59E0B; }
 table tbody tr.stock-row-out td:first-child { box-shadow: inset 4px 0 0 #EF4444; }
+
+/* ── <input type="number">: standart ↑↓ spinner ko‘rsatilmaydi (barcha brauzerlar) ── */
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
