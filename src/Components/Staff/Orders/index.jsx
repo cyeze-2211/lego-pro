@@ -4,6 +4,7 @@ import {
     LuClipboardList, LuSearch,
     LuX, LuEye, LuPackage, LuSlidersHorizontal, LuChevronDown,
     LuInbox, LuCircleCheckBig, LuBan,
+    LuPhone, LuMapPin, LuUserCheck,
 } from 'react-icons/lu';
 import { useAppTheme } from '../../../theme/tokens';
 import { formatNumber } from '../../ui/number-format';
@@ -124,7 +125,8 @@ export default function StaffOrders() {
 
     const filtered = search
         ? tabFiltered.filter((o) =>
-              (o?.customerName ?? '').toLowerCase().includes(search.toLowerCase())
+              `${o?.customerName ?? ''} ${o?.customerPhone ?? ''} ${o?.customerAddress ?? ''} ${o?.customerRegion ?? ''}`
+                  .toLowerCase().includes(search.toLowerCase())
           )
         : tabFiltered;
 
@@ -395,7 +397,10 @@ export default function StaffOrders() {
                                 <thead>
                                     <tr className={`text-left text-xs font-semibold uppercase tracking-wide ${muted} ${isDark ? 'bg-[#0f172a]/30' : 'bg-[#f8fafc]/80'}`}>
                                         <th className="px-5 py-3 w-14 text-center">№</th>
-                                        <th className="px-5 py-3 min-w-[220px]">Mijoz</th>
+                                        <th className="px-5 py-3 min-w-[180px]">Mijoz</th>
+                                        <th className="px-5 py-3 w-40">Telefon</th>
+                                        <th className="px-5 py-3 min-w-[200px]">Manzil</th>
+                                        <th className="px-5 py-3 w-40">Agent</th>
                                         <th className="px-5 py-3 w-36">Mahsulot</th>
                                         <th className="px-5 py-3 w-44 text-right">Jami summa</th>
                                         <th className="px-5 py-3 w-40">Holat</th>
@@ -417,9 +422,32 @@ export default function StaffOrders() {
                                             <td className="px-5 py-3">
                                                 <p className={`truncate font-semibold ${head}`}>{o.customerName || '—'}</p>
                                                 {o.summary && (
-                                                    <p className={`truncate max-w-xs text-xs ${muted}`}>{o.summary}</p>
+                                                    <p className={`truncate max-w-xs text-xs italic ${muted}`}>{o.summary}</p>
                                                 )}
                                             </td>
+                                                <td className={`px-5 py-3 text-xs whitespace-nowrap ${muted}`}>
+                                                    {o.customerPhone
+                                                        ? <span className="inline-flex items-center gap-1"><LuPhone size={11} />{o.customerPhone}</span>
+                                                        : '—'}
+                                                </td>
+                                                <td className={`px-5 py-3 text-xs ${muted}`}>
+                                                    {(o.customerRegion || o.customerAddress) ? (
+                                                        <span className="flex items-start gap-1" title={[o.customerRegion, o.customerAddress].filter(Boolean).join(', ')}>
+                                                            <LuMapPin size={11} className="mt-0.5 shrink-0" />
+                                                            <span>
+                                                                {o.customerRegion && <span className={`font-semibold ${head}`}>{o.customerRegion}</span>}
+                                                                {o.customerRegion && o.customerAddress && ', '}
+                                                                {o.customerAddress}
+                                                            </span>
+                                                        </span>
+                                                    ) : '—'}
+                                                </td>
+                                                <td className={`px-5 py-3 text-xs whitespace-nowrap ${muted}`}>
+                                                    {o.customerAgent?.name
+                                                        ? <span className="inline-flex items-center gap-1" title={o.customerAgent.phone || ''}><LuUserCheck size={11} />{o.customerAgent.name}</span>
+                                                        : '—'}
+                                                </td>
+
                                             <td className={`px-5 py-3 text-xs font-semibold ${muted}`}>
                                                 <span className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 ${isDark ? 'bg-white/5' : 'bg-slate-100'}`}>
                                                     <LuPackage size={13} /> {o.items?.length ?? 0} ta
@@ -471,9 +499,16 @@ export default function StaffOrders() {
                                             <span className={`text-[11px] tabular-nums shrink-0 ${muted}`}>
                                                 #{idx + 1}
                                             </span>
-                                            <p className={`font-semibold text-sm truncate ${head}`}>
-                                                {o.customerName || '—'}
-                                            </p>
+                                            <div className="min-w-0">
+                                                <p className={`font-semibold text-sm truncate ${head}`}>
+                                                    {o.customerName || '—'}
+                                                </p>
+                                                {(o.customerRegion || o.customerAddress || o.customerPhone) && (
+                                                    <p className={`truncate text-[11px] ${muted}`}>
+                                                        {[o.customerPhone, [o.customerRegion, o.customerAddress].filter(Boolean).join(', ')].filter(Boolean).join(' · ')}
+                                                    </p>
+                                                )}
+                                            </div>
                                         </div>
                                         <span
                                             className={`shrink-0 inline-flex whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-bold ${statusCx(o.status)}`}

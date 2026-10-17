@@ -5,7 +5,7 @@ import {
     LuArrowLeft, LuPackage, LuBarcode, LuUser, LuWarehouse,
     LuStickyNote, LuClock3, LuCircleAlert, LuPencil,
     LuChevronDown, LuTriangleAlert, LuCircleCheck, LuCircleX,
-    LuBoxes, LuPrinter, LuUndo2,
+    LuBoxes, LuPrinter, LuUndo2, LuPhone, LuMapPin, LuUserCheck,
 } from 'react-icons/lu';
 import { useAppTheme } from '../../../theme/tokens';
 import { useAppSelector } from '../../../store/hooks';
@@ -379,6 +379,15 @@ function ZayavkachiOrderDetail() {
                             <div>
                                 <h1 className={`text-xl font-bold leading-tight tracking-tight ${head}`}>{order.customerName}</h1>
                                 <p className={`mt-0.5 text-sm ${muted}`}>{fmtDateTime(order.createdAt)}</p>
+                                {(order.customerPhone || order.customerRegion || order.customerAddress || order.customerAgent?.name) && (
+                                    <p className={`mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs ${muted}`}>
+                                        {order.customerPhone && <span className="inline-flex items-center gap-1"><LuPhone size={11} />{order.customerPhone}</span>}
+                                        {(order.customerRegion || order.customerAddress) && (
+                                            <span className="inline-flex items-center gap-1"><LuMapPin size={11} className="shrink-0" />{[order.customerRegion, order.customerAddress].filter(Boolean).join(', ')}</span>
+                                        )}
+                                        {order.customerAgent?.name && <span className="inline-flex items-center gap-1"><LuUserCheck size={11} />Agent: {order.customerAgent.name}</span>}
+                                    </p>
+                                )}
                             </div>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">

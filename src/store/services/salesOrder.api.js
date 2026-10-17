@@ -3,6 +3,25 @@ import { axiosBaseQuery } from '../baseQuary/axiosBaseQuery';
 import { customerApi } from './customer.api';
 import { paymentApi } from './payment.api';
 
+/* Backend zayavkada mijozni obyekt qilib qaytaradi (`customer: { id, name, phone, address, region, agent... }`).
+ * Eski ekranlar `customerId` / `customerName` ni kutadi — ikkalasini ham beramiz, manzil/viloyat/agent ham qo‘shiladi. */
+export const normalizeSalesOrder = (order) => {
+  if (!order || typeof order !== 'object') return order;
+  const c = order.customer && typeof order.customer === 'object' ? order.customer : null;
+  if (!c) return order;
+  return {
+    ...order,
+    customerId: order.customerId ?? c.id,
+    customerName: order.customerName ?? c.name,
+    customerPhone: order.customerPhone ?? c.phone,
+    customerAddress: order.customerAddress ?? c.address ?? null,
+    customerRegion: order.customerRegion ?? c.region?.name ?? null,
+    customerAgent: order.customerAgent ?? c.agent ?? null,
+    customerBalance: order.customerBalance ?? c.balance ?? null,
+  };
+};
+const normalizeList = (list) => (Array.isArray(list) ? list.map(normalizeSalesOrder) : list);
+
 export const salesOrderApi = createApi({
   reducerPath: 'salesOrderApi',
   baseQuery: axiosBaseQuery(),
@@ -23,7 +42,7 @@ export const salesOrderApi = createApi({
         },
       }),
       transformResponse: (response) => ({
-        items: response.data || [],
+        items: normalizeList(response.data || []),
         pagination: response.pagination || null,
       }),
       providesTags: (result) =>
@@ -37,7 +56,7 @@ export const salesOrderApi = createApi({
 
     getSalesOrderById: builder.query({
       query: (id) => ({ url: `/sales-orders/${id}`, method: 'GET' }),
-      transformResponse: (response) => response.data,
+      transformResponse: (response) => normalizeSalesOrder(response.data),
       providesTags: (result, error, id) => [{ type: 'SalesOrder', id }],
     }),
 
@@ -89,7 +108,7 @@ export const salesOrderApi = createApi({
 
     createSalesOrder: builder.mutation({
       query: (data) => ({ url: '/sales-orders', method: 'POST', data }),
-      transformResponse: (response) => response.data,
+      transformResponse: (response) => normalizeSalesOrder(response.data),
       invalidatesTags: [
         { type: 'SalesOrder', id: 'LIST' },
         { type: 'SalesOrderDashboard', id: 'LIST' },
@@ -100,7 +119,7 @@ export const salesOrderApi = createApi({
 
     updateSalesOrder: builder.mutation({
       query: ({ id, data }) => ({ url: `/sales-orders/${id}`, method: 'PUT', schema: 'SalesOrderUpdateRequest', data }),
-      transformResponse: (response) => response.data,
+      transformResponse: (response) => normalizeSalesOrder(response.data),
       invalidatesTags: (result, error, { id }) => [
         { type: 'SalesOrder', id },
         { type: 'SalesOrder', id: 'LIST' },
@@ -112,7 +131,7 @@ export const salesOrderApi = createApi({
 
     deleteSalesOrder: builder.mutation({
       query: (id) => ({ url: `/sales-orders/${id}`, method: 'DELETE' }),
-      transformResponse: (response) => response.data,
+      transformResponse: (response) => normalizeSalesOrder(response.data),
       invalidatesTags: (result, error, id) => [
         { type: 'SalesOrder', id },
         { type: 'SalesOrder', id: 'LIST' },
@@ -129,7 +148,7 @@ export const salesOrderApi = createApi({
         method: 'PATCH',
         data: { status, ...(reason ? { reason } : {}) },
       }),
-      transformResponse: (response) => response.data,
+      transformResponse: (response) => normalizeSalesOrder(response.data),
       invalidatesTags: (result, error, { id }) => [
         { type: 'SalesOrder', id },
         { type: 'SalesOrder', id: 'LIST' },
@@ -151,7 +170,7 @@ export const salesOrderApi = createApi({
         url: `/sales-orders/${id}/confirm`,
         method: 'POST',
       }),
-      transformResponse: (response) => response.data,
+      transformResponse: (response) => normalizeSalesOrder(response.data),
       invalidatesTags: (result, error, id) => [
         { type: 'SalesOrder', id },
         { type: 'SalesOrder', id: 'LIST' },
@@ -164,7 +183,7 @@ export const salesOrderApi = createApi({
     // Eski endpointlar (agar biror joyda ishlatilsa)
     approveSalesOrder: builder.mutation({
       query: (id) => ({ url: `/sales-orders/${id}/approve`, method: 'POST' }),
-      transformResponse: (response) => response.data,
+      transformResponse: (response) => normalizeSalesOrder(response.data),
       invalidatesTags: (result, error, id) => [
         { type: 'SalesOrder', id },
         { type: 'SalesOrder', id: 'LIST' },
@@ -180,7 +199,7 @@ export const salesOrderApi = createApi({
         method: 'POST',
         data: reason ? { reason } : undefined,
       }),
-      transformResponse: (response) => response.data,
+      transformResponse: (response) => normalizeSalesOrder(response.data),
       invalidatesTags: (result, error, { id }) => [
         { type: 'SalesOrder', id },
         { type: 'SalesOrder', id: 'LIST' },
@@ -192,7 +211,7 @@ export const salesOrderApi = createApi({
 
     loadSalesOrder: builder.mutation({
       query: (id) => ({ url: `/sales-orders/${id}/load`, method: 'POST' }),
-      transformResponse: (response) => response.data,
+      transformResponse: (response) => normalizeSalesOrder(response.data),
       invalidatesTags: (result, error, id) => [
         { type: 'SalesOrder', id },
         { type: 'SalesOrder', id: 'LIST' },
@@ -214,7 +233,7 @@ export const salesOrderApi = createApi({
         method: 'POST',
         data: data ?? {},
       }),
-      transformResponse: (response) => response.data,
+      transformResponse: (response) => normalizeSalesOrder(response.data),
       invalidatesTags: (result, error, { id }) => [
         { type: 'SalesOrder', id },
         { type: 'SalesOrder', id: 'LIST' },
@@ -241,7 +260,7 @@ export const salesOrderApi = createApi({
         method: 'PATCH',
         data,
       }),
-      transformResponse: (response) => response.data,
+      transformResponse: (response) => normalizeSalesOrder(response.data),
       invalidatesTags: (result, error, { id }) => [
         { type: 'SalesOrder', id },
         { type: 'SalesOrder', id: 'LIST' },

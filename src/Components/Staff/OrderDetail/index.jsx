@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
     LuArrowLeft, LuUser, LuStickyNote, LuClock3,
     LuCircleAlert, LuBoxes, LuPackage, LuBarcode,
-    LuArrowDownToLine, LuPrinter, LuPencil,
+    LuArrowDownToLine, LuPrinter, LuPencil, LuPhone, LuMapPin, LuUserCheck,
 } from 'react-icons/lu';
 import { useAppTheme } from '../../../theme/tokens';
 import { formatNumber } from '../../ui/number-format';
@@ -451,6 +451,15 @@ export default function StaffOrderDetail() {
                                 {order.customerName}
                             </h1>
                             <p className={`text-sm mt-0.5 ${muted}`}>Buyurtma #{order.id.slice(0, 8)}</p>
+                            {(order.customerPhone || order.customerRegion || order.customerAddress || order.customerAgent?.name) && (
+                                <p className={`mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs ${muted}`}>
+                                    {order.customerPhone && <span className="inline-flex items-center gap-1"><LuPhone size={11} />{order.customerPhone}</span>}
+                                    {(order.customerRegion || order.customerAddress) && (
+                                        <span className="inline-flex items-center gap-1"><LuMapPin size={11} className="shrink-0" />{[order.customerRegion, order.customerAddress].filter(Boolean).join(', ')}</span>
+                                    )}
+                                    {order.customerAgent?.name && <span className="inline-flex items-center gap-1"><LuUserCheck size={11} />Agent: {order.customerAgent.name}</span>}
+                                </p>
+                            )}
                         </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">

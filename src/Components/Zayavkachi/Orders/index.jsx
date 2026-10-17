@@ -7,6 +7,7 @@ import {
     LuSlidersHorizontal, LuChevronDown,
     LuCircleX, LuCircleCheckBig, LuBan, LuChevronUp,
     LuInbox, LuCircleDashed, LuPackageCheck, LuUndo2,
+    LuPhone, LuMapPin, LuUserCheck,
 } from 'react-icons/lu';
 import { useAppTheme } from '../../../theme/tokens';
 import { formatNumber } from '../../ui/number-format';
@@ -222,7 +223,7 @@ function OrderUnderPanel({ order, isDark }) {
 
     return (
         <tr className={`border-t ${line}`}>
-            <td colSpan={7} className={`px-5 pb-4 pt-3 ${base}`}>
+            <td colSpan={10} className={`px-5 pb-4 pt-3 ${base}`}>
                 <div
                     className="rounded-xl border p-4"
                     style={{ borderColor: accent, backgroundColor: accentBg }}
@@ -379,7 +380,8 @@ export default function ZayavkachiOrders() {
 
     const filtered = search
         ? tabFiltered.filter((o) =>
-              (o?.customerName ?? '').toLowerCase().includes(search.toLowerCase())
+              `${o?.customerName ?? ''} ${o?.customerPhone ?? ''} ${o?.customerAddress ?? ''} ${o?.customerRegion ?? ''}`
+                  .toLowerCase().includes(search.toLowerCase())
           )
         : tabFiltered;
 
@@ -616,7 +618,10 @@ export default function ZayavkachiOrders() {
                             <thead>
                                 <tr className={`text-left text-xs font-semibold uppercase tracking-wide ${muted} ${isDark ? 'bg-[#0f172a]/30' : 'bg-[#f8fafc]/80'}`}>
                                     <th className="px-5 py-3 w-14">№</th>
-                                    <th className="px-5 py-3">Mijoz</th>
+                                    <th className="px-5 py-3 min-w-[180px]">Mijoz</th>
+                                    <th className="px-5 py-3 w-40">Telefon</th>
+                                    <th className="px-5 py-3 min-w-[200px]">Manzil</th>
+                                    <th className="px-5 py-3 w-40">Agent</th>
                                     <th className="px-5 py-3 w-32">Mahsulot</th>
                                     <th className="px-5 py-3 w-44 text-right">Jami summa</th>
                                     <th className="px-5 py-3 w-40">Holat</th>
@@ -641,8 +646,31 @@ export default function ZayavkachiOrders() {
                                                 <td className={`px-5 py-3 text-xs ${muted}`}>{idx + 1}</td>
                                                 <td className="px-5 py-3">
                                                     <p className={`font-semibold ${head}`}>{o?.customerName || '—'}</p>
-                                                    {o?.summary && <p className={`truncate max-w-xs text-xs ${muted}`}>{o.summary}</p>}
+                                                    {o?.summary && <p className={`truncate max-w-xs text-xs italic ${muted}`}>{o.summary}</p>}
                                                 </td>
+                                                <td className={`px-5 py-3 text-xs whitespace-nowrap ${muted}`}>
+                                                    {o?.customerPhone
+                                                        ? <span className="inline-flex items-center gap-1"><LuPhone size={11} />{o.customerPhone}</span>
+                                                        : '—'}
+                                                </td>
+                                                <td className={`px-5 py-3 text-xs ${muted}`}>
+                                                    {(o?.customerRegion || o?.customerAddress) ? (
+                                                        <span className="flex items-start gap-1" title={[o.customerRegion, o.customerAddress].filter(Boolean).join(', ')}>
+                                                            <LuMapPin size={11} className="mt-0.5 shrink-0" />
+                                                            <span>
+                                                                {o.customerRegion && <span className={`font-semibold ${head}`}>{o.customerRegion}</span>}
+                                                                {o.customerRegion && o.customerAddress && ', '}
+                                                                {o.customerAddress}
+                                                            </span>
+                                                        </span>
+                                                    ) : '—'}
+                                                </td>
+                                                <td className={`px-5 py-3 text-xs whitespace-nowrap ${muted}`}>
+                                                    {o?.customerAgent?.name
+                                                        ? <span className="inline-flex items-center gap-1" title={o.customerAgent.phone || ''}><LuUserCheck size={11} />{o.customerAgent.name}</span>
+                                                        : '—'}
+                                                </td>
+
                                                 <td className={`px-5 py-3 text-xs font-semibold ${muted}`}>
                                                     {Array.isArray(o?.items) ? o.items.length : 0} ta
                                                 </td>
