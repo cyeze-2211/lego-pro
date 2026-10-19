@@ -302,9 +302,9 @@ export default function StanokchiMachineDetail() {
                 action: 'IN',
                 machineId: id,
                 warehouseId: warehouseState.warehouseId,
-                items: [{ productId: machine.currentRun.productId, quantity: 1, unit: 'PIECE' }],
+                items: [{ productId: machine.currentRun.productId, quantity: 1, unit: 'PACK' }], // har bosish = 1 pachka
             }).unwrap();
-            showToast(`1 dona qayd etildi — ${machine.currentRun.productName}`);
+            showToast(`1 pachka qayd etildi — ${machine.currentRun.productName}`);
             refetchMachine();
             refetchHistory();
             refetchSummary();

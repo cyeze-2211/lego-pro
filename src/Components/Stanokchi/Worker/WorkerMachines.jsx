@@ -146,7 +146,7 @@ export default function WorkerMachines() {
                 action: 'IN',
                 machineId: machine.id,
                 warehouseId: warehouseState.warehouseId,
-                items: [{ productId: machine.currentRun.productId, quantity: 1, unit: 'PIECE' }],
+                items: [{ productId: machine.currentRun.productId, quantity: 1, unit: 'PACK' }], // har bosish = 1 pachka
             }).unwrap();
             showToast(`✓ 1 pachka qayd etildi — ${machine.currentRun.productName}`);
             refetch();
