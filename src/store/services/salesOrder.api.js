@@ -20,6 +20,20 @@ export const normalizeSalesOrder = (order) => {
     customerBalance: order.customerBalance ?? c.balance ?? null,
   };
 };
+/* Zayavka yaratilganda/holati o‘zgarganda mijoz balansi-qarzi va to‘lovlar taqsimoti ham o‘zgaradi —
+ * mijoz sahifasi, ro‘yxati va to‘lovlar ro‘yxati qayta yuklansin. */
+const refreshCustomerAndPayments = async (queryFulfilled, dispatch) => {
+  try {
+    const { data } = await queryFulfilled;
+    const customerId = data?.customerId ?? data?.customer?.id;
+    dispatch(customerApi.util.invalidateTags([
+      ...(customerId ? [{ type: 'Customer', id: customerId }] : []),
+      { type: 'Customer', id: 'LIST' },
+    ]));
+    dispatch(paymentApi.util.invalidateTags([{ type: 'Payment', id: 'LIST' }]));
+  } catch { /* xatolik chaqiruvchi tomonda ko'rsatiladi */ }
+};
+
 const normalizeList = (list) => (Array.isArray(list) ? list.map(normalizeSalesOrder) : list);
 
 export const salesOrderApi = createApi({
@@ -115,6 +129,7 @@ export const salesOrderApi = createApi({
         { type: 'ProductShortages', id: 'LIST' },
         { type: 'TopProducts', id: 'LIST' },
       ],
+      onQueryStarted: (arg, { dispatch, queryFulfilled }) => refreshCustomerAndPayments(queryFulfilled, dispatch),
     }),
 
     updateSalesOrder: builder.mutation({
@@ -127,6 +142,7 @@ export const salesOrderApi = createApi({
         { type: 'ProductShortages', id: 'LIST' },
         { type: 'TopProducts', id: 'LIST' },
       ],
+      onQueryStarted: (arg, { dispatch, queryFulfilled }) => refreshCustomerAndPayments(queryFulfilled, dispatch),
     }),
 
     deleteSalesOrder: builder.mutation({
@@ -139,6 +155,7 @@ export const salesOrderApi = createApi({
         { type: 'ProductShortages', id: 'LIST' },
         { type: 'TopProducts', id: 'LIST' },
       ],
+      onQueryStarted: (arg, { dispatch, queryFulfilled }) => refreshCustomerAndPayments(queryFulfilled, dispatch),
     }),
 
     // PATCH /api/v1/sales-orders/{id}/status — universal status o'zgartirish
@@ -156,6 +173,7 @@ export const salesOrderApi = createApi({
         { type: 'ProductShortages', id: 'LIST' },
         { type: 'TopProducts', id: 'LIST' },
       ],
+      onQueryStarted: (arg, { dispatch, queryFulfilled }) => refreshCustomerAndPayments(queryFulfilled, dispatch),
     }),
 
     /* ── Yakuniy tasdiqlash: POST /api/v1/sales-orders/{id}/confirm ──
@@ -178,6 +196,7 @@ export const salesOrderApi = createApi({
         { type: 'ProductShortages', id: 'LIST' },
         { type: 'TopProducts', id: 'LIST' },
       ],
+      onQueryStarted: (arg, { dispatch, queryFulfilled }) => refreshCustomerAndPayments(queryFulfilled, dispatch),
     }),
 
     // Eski endpointlar (agar biror joyda ishlatilsa)
@@ -207,6 +226,7 @@ export const salesOrderApi = createApi({
         { type: 'ProductShortages', id: 'LIST' },
         { type: 'TopProducts', id: 'LIST' },
       ],
+      onQueryStarted: (arg, { dispatch, queryFulfilled }) => refreshCustomerAndPayments(queryFulfilled, dispatch),
     }),
 
     loadSalesOrder: builder.mutation({
@@ -219,6 +239,7 @@ export const salesOrderApi = createApi({
         { type: 'ProductShortages', id: 'LIST' },
         { type: 'TopProducts', id: 'LIST' },
       ],
+      onQueryStarted: (arg, { dispatch, queryFulfilled }) => refreshCustomerAndPayments(queryFulfilled, dispatch),
     }),
 
     /* ── Qaytarish: POST /api/v1/sales-orders/{id}/return ──
@@ -268,6 +289,7 @@ export const salesOrderApi = createApi({
         { type: 'ProductShortages', id: 'LIST' },
         { type: 'TopProducts', id: 'LIST' },
       ],
+      onQueryStarted: (arg, { dispatch, queryFulfilled }) => refreshCustomerAndPayments(queryFulfilled, dispatch),
     }),
   }),
 });

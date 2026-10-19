@@ -12,26 +12,42 @@ export function useInfiniteList({ items, pagination, page, setPage, isFetching, 
     const [accumulated, setAccumulated] = useState([]);
     const sentinelRef = useRef(null);
     const lastResetKey = useRef(resetKey);
+    const lastPageRef = useRef(-1);
+    const seenPagesRef = useRef(new WeakMap()); // massiv → qaysi sahifaniki
 
     // Filtr/saralash o‘zgardi — boshidan boshlaymiz
     useEffect(() => {
         if (lastResetKey.current !== resetKey) {
             lastResetKey.current = resetKey;
+            lastPageRef.current = -1;
             setAccumulated([]);
             setPage(0);
         }
     }, [resetKey, setPage]);
 
-    // Yangi sahifa keldi — qo‘shamiz (0-sahifa bo‘lsa almashtiramiz)
+    // Yangi sahifa keldi — qo‘shamiz (0-sahifa bo‘lsa almashtiramiz).
+    // O‘sha sahifa qayta kelsa (yaratish/tahrirlash/o‘chirishdan keyin RTK Query keshni yangiladi) —
+    // oldingi sahifalardagi yozuvlar eskirgan bo‘lishi mumkin, shuning uchun ro‘yxat boshidan yuklanadi.
     useEffect(() => {
         if (!items) return;
+        // `data` sahifa almashganda bir lahza oldingi sahifa massivini qaytaradi — uni qayta ishlamaymiz
+        const pageOfItems = seenPagesRef.current.get(items);
+        if (pageOfItems !== undefined && pageOfItems !== page) return;
+        seenPagesRef.current.set(items, page);
+        if (page > 0 && lastPageRef.current === page && pageOfItems === undefined) {
+            lastPageRef.current = -1;
+            setAccumulated([]);
+            setPage(0);
+            return;
+        }
+        lastPageRef.current = page;
         setAccumulated((prev) => {
             if (page === 0) return items;
             const seen = new Set(prev.map(getId));
             const fresh = items.filter((item) => !seen.has(getId(item)));
             return fresh.length ? [...prev, ...fresh] : prev;
         });
-    }, [items, page, getId]);
+    }, [items, page, getId, setPage]);
 
     const totalPages = pagination?.totalPages ?? 0;
     const hasMore = totalPages > 0 && page < totalPages - 1;

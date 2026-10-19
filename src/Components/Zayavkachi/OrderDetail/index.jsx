@@ -5,7 +5,7 @@ import {
     LuArrowLeft, LuPackage, LuBarcode, LuUser, LuWarehouse,
     LuStickyNote, LuClock3, LuCircleAlert, LuPencil,
     LuChevronDown, LuTriangleAlert, LuCircleCheck, LuCircleX,
-    LuBoxes, LuPrinter, LuUndo2, LuPhone, LuMapPin, LuUserCheck,
+    LuBoxes, LuPrinter, LuUndo2, LuPhone, LuMapPin, LuUserCheck, LuTag,
 } from 'react-icons/lu';
 import { useAppTheme } from '../../../theme/tokens';
 import { useAppSelector } from '../../../store/hooks';
@@ -337,6 +337,8 @@ function ZayavkachiOrderDetail() {
     }
 
     const editable = order.status === 'CREATED';
+    // «Ortildi» holatida narxlar o‘zgartiriladi (PATCH /prices) — buxgalter, zayavkachi, manager, kassir
+    const canEditPrices = order.status === 'LOADED' && [ROLES.BUXGALTER, ROLES.ZAYAVKACHI, ROLES.MANAGER, ROLES.KASSIR].includes(role);
     const showStockComparison = order.status === 'CREATED' || order.status === 'LOADED';
 
     const fmtDate     = (v) => v ? new Date(v).toLocaleDateString('uz-UZ') : '—';
@@ -407,12 +409,20 @@ function ZayavkachiOrderDetail() {
                             </button>
                             )}
 
-                            <button type="button" onClick={() => navigate(`${ordersPath}/${order.id}/edit`)}
-                                disabled={!editable}
-                                title={editable ? 'Tahrirlash' : "Faqat \"Yaratilgan\" holatidagi buyurtma tahrirlanadi"}
-                                className={`flex h-12 items-center gap-2 rounded-xl border px-5 text-sm font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${ghostBtn}`}>
-                                <LuPencil size={16} /> Tahrirlash
-                            </button>
+                            {canEditPrices ? (
+                                <button type="button" onClick={() => navigate(`${ordersPath}/${order.id}/edit`)}
+                                    title="Tasdiqlashdan oldin narxlarni o‘zgartirish"
+                                    className="flex h-12 items-center gap-2 rounded-xl border border-amber-400/50 bg-amber-400/10 px-5 text-sm font-bold text-amber-500 transition-colors hover:bg-amber-400/20">
+                                    <LuTag size={16} /> Narxlarni tahrirlash
+                                </button>
+                            ) : (
+                                <button type="button" onClick={() => navigate(`${ordersPath}/${order.id}/edit`)}
+                                    disabled={!editable}
+                                    title={editable ? 'Tahrirlash' : "Faqat \"Yaratilgan\" holatidagi buyurtma tahrirlanadi"}
+                                    className={`flex h-12 items-center gap-2 rounded-xl border px-5 text-sm font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${ghostBtn}`}>
+                                    <LuPencil size={16} /> Tahrirlash
+                                </button>
+                            )}
                             <DeleteOrder order={order} disabled={!editable} onDeleted={backToList} />
                             <button type="button" onClick={backToList}
                                 className={`flex h-12 items-center gap-2 rounded-xl border px-5 text-sm font-bold transition-colors ${ghostBtn}`}>

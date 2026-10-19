@@ -5,7 +5,7 @@ import {
     LuX, LuBarcode, LuArrowLeft,
     LuWarehouse, LuMinus, LuUser, LuStickyNote, LuLock,
     LuChevronDown, LuClipboardList, LuCalendar, LuTag, LuTrendingUp,
-    LuBoxes, LuArrowDownWideNarrow, LuSlidersHorizontal, LuRotateCcw, LuHash,
+    LuBoxes, LuArrowDownWideNarrow, LuSlidersHorizontal, LuRotateCcw, LuHash, LuTriangleAlert,
 } from 'react-icons/lu';
 import { useAppTheme } from '../../../theme/tokens';
 import { formatNumber } from '../../ui/number-format';
@@ -88,7 +88,10 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
     const isCustomerLocked = Boolean(customer);
 
     const role = useAppSelector((state) => state.auth.role);
-    const canEditPrice = role === ROLES.BUXGALTER;
+    /* Narxlar faqat «Ortildi» (LOADED) zayavkada o‘zgartiriladi (PATCH /prices) — tasdiqlashdan oldingi so‘nggi oyna.
+     * Backend huquqi: SALES_ORDER:PRICE (buxgalter, kassir, manager; zayavkachiga rol sozlamalaridan beriladi). */
+    const priceOnly = isEdit && String(order?.status ?? '').toUpperCase() === 'LOADED';
+    const canEditPrice = priceOnly && [ROLES.BUXGALTER, ROLES.ZAYAVKACHI, ROLES.MANAGER, ROLES.KASSIR].includes(role);
 
     const [customerId, setCustomerId]         = useState(customer?.id ?? order?.customerId ?? '');
     const [customerSearch, setCustomerSearch] = useState(customer?.name ?? order?.customerName ?? '');
@@ -145,6 +148,8 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
     const searchInputRef    = useRef(null);
     const loadMoreRef       = useRef(null);
     const isFetchingNextRef = useRef(false);
+    const lastPageRef = useRef(-1); // qaysi sahifa oxirgi marta kelgani — o‘sha sahifa qayta kelsa (kesh yangilandi) ro‘yxat boshidan
+    const seenPagesRef = useRef(new WeakMap()); // massiv → qaysi sahifaniki
 
     const { data: warehouses = [] }          = useGetWarehousesQuery('PRODUCT');
     const { data: categoriesResp } = useGetProductCategoriesQuery(
@@ -344,6 +349,21 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
     useEffect(() => {
         if (!stocksResp?.items) return;
 
+        // `data` sahifa almashganda bir lahza oldingi sahifa massivini qaytaradi — uni qayta ishlamaymiz
+        const pageOfItems = seenPagesRef.current.get(stocksResp.items);
+        if (pageOfItems !== undefined && pageOfItems !== stockPage) return;
+        seenPagesRef.current.set(stocksResp.items, stockPage);
+        // Yaratish/tahrirlash/o‘chirishdan keyin shu sahifa qayta keldi — eski sahifalar eskirgan, boshidan yuklaymiz
+        if (stockPage > 0 && lastPageRef.current === stockPage && pageOfItems === undefined) {
+
+            lastPageRef.current = -1;
+
+            setAllStocks([]); setStockPage(0); setHasMoreStocks(true); isFetchingNextRef.current = false;
+
+            return;
+        }
+        lastPageRef.current = stockPage;
+
         if (stockPage === 0) {
             setAllStocks(stocksResp.items);
         } else {
@@ -478,6 +498,7 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
 
     /* ── helpers ── */
     const addProduct = useCallback((stock, whId) => {
+        if (priceOnly) return;
         setStockCache((previous) => ({
             ...previous,
             [stock.productId]: stock.quantity ?? 0,
@@ -493,16 +514,16 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                 productColor:    stock.color ?? null,
                 piecesPerPack:   stock.productPiecesPerPack ?? null,
                 warehouseId:     whId,
-                quantity:        1,
-                enteredQuantity: 1,
+                quantity:        0,
+                enteredQuantity: 0,
                 unit:            'PIECE',
                 packs:           0,
-                pieces:          1,
+                pieces:          0,
                 unitPrice:       autoPrice,
                 _fromHistory:    lastPriceMap[stock.productId] != null,
             }];
         });
-    }, [lastPriceMap, productPriceMap]);
+    }, [lastPriceMap, productPriceMap, priceOnly]);
 
     const selectCustomer = (customer) => {
         setCustomerId(customer.id);
@@ -510,9 +531,10 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
         setCustomerOpen(false);
     };
 
-    const removeItem = (id) => setItems((p) => p.filter((i) => i.productId !== id));
+    const removeItem = (id) => { if (priceOnly) return; setItems((p) => p.filter((i) => i.productId !== id)); };
 
     const updateQty = (id, val) => {
+        if (priceOnly) return;
         const qty = val === '' ? 0 : Number(val);
         if (!Number.isInteger(qty) || qty < 0) return;
         setItems((p) => p.map((i) => {
@@ -548,12 +570,14 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
     };
 
     const updateTotal = (id, val) => {
+        if (priceOnly) return;
         const total = val === '' ? 0 : Number(val);
         if (!Number.isInteger(total) || total < 0) return;
         setItems((p) => p.map((i) => (i.productId === id ? splitTotal(i, total) : i)));
     };
 
     const stepTotal = (id, delta) => {
+        if (priceOnly) return;
         setItems((p) => p.map((i) => {
             if (i.productId !== id) return i;
             const current = (Number(i.packs) || 0) * (Number(i.piecesPerPack) || 0) + (Number(i.pieces) || 0);
@@ -578,6 +602,7 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
     };
 
     const stepQty = (id, delta) => {
+        if (priceOnly) return;
         setItems((p) => p.map((i) => {
             if (i.productId !== id) return i;
             const pieces = Math.max(0, (i.pieces ?? 0) + delta);
@@ -587,6 +612,7 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
     };
 
     const updatePacks = (id, val) => {
+        if (priceOnly) return;
         const packs = val === '' ? 0 : Number(val);
         if (!Number.isInteger(packs) || packs < 0) return;
         setItems((p) => p.map((i) => {
@@ -603,6 +629,7 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
     };
 
     const stepPacks = (id, delta) => {
+        if (priceOnly) return;
         setItems((p) => p.map((i) => {
             if (i.productId !== id) return i;
             const packs = Math.max(0, (i.packs ?? 0) + delta);
@@ -635,7 +662,9 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
             || (item.packs > 0 && !(item.piecesPerPack > 0))
             || (item.packs === 0 && item.pieces === 0)
         ))) {
-            Alert('Har bir mahsulot uchun musbat miqdor va to‘g‘ri qadoq sonini kiriting', 'error');
+            Alert(missingQtyCount > 0
+                ? `${missingQtyCount} ta mahsulotning miqdori kiritilmagan — pachka yoki dona sonini yozing`
+                : 'Har bir mahsulot uchun musbat miqdor va to‘g‘ri qadoq sonini kiriting', 'error');
             return;
         }
         // Yangi API: har bir (mahsulot, ombor) uchun bitta qator — packQuantity + pieceQuantity
@@ -653,7 +682,8 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
         const createData = data;
         try {
             if (isEdit) {
-                if (canEditPrice) {
+                if (priceOnly) {
+                    if (!canEditPrice) { Alert('Ortilgan buyurtmada faqat narxlar o‘zgartiriladi — sizda bu huquq yo‘q', 'error'); return; }
                     await updatePrices({
                         id: order.id,
                         data: {
@@ -674,6 +704,9 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
             Alert(error?.data?.message || (isEdit ? 'Buyurtmani yangilashda xatolik' : 'Buyurtma yaratishda xatolik'), 'error');
         }
     };
+
+    // Miqdori 0 bo‘lgan qatorlar (yangi qo‘shilgan) — yuborishdan oldin to‘ldirilishi shart
+    const missingQtyCount = items.filter((item) => (Number(item.packs) || 0) === 0 && (Number(item.pieces) || 0) === 0).length;
 
     const getItemQuantity = (item) =>
         (Number(item.packs) || 0) * (Number(item.piecesPerPack) || 0) + (Number(item.pieces) || 0);
@@ -855,7 +888,8 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
 
                             <button
                                 type="button"
-                                disabled={!warehouseId}
+                                disabled={!warehouseId || priceOnly}
+                                title={priceOnly ? 'Buyurtma «Ortildi» holatida — mahsulotlar o‘zgartirilmaydi, faqat narxlar' : undefined}
                                 onClick={() => setOpen((v) => !v)}
                                 className={`${inputCx} flex items-center gap-3 text-left disabled:opacity-50 disabled:cursor-not-allowed ${open ? '!border-amber-400 ring-2 ring-amber-400/20' : ''}`}
                             >
@@ -1179,6 +1213,16 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                             {items.length > 0 && (
                                 <span className={`rounded-full border px-2 py-0.5 text-xs font-bold ${badge}`}>{items.length}</span>
                             )}
+                            {!priceOnly && missingQtyCount > 0 && (
+                                <span className="inline-flex items-center gap-1.5 rounded-full border border-red-400/40 bg-red-500/10 px-2.5 py-0.5 text-xs font-bold text-red-500">
+                                    <LuTriangleAlert size={11} /> {missingQtyCount} ta mahsulotga miqdor kiriting
+                                </span>
+                            )}
+                            {priceOnly && (
+                                <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-bold ${canEditPrice ? 'border-amber-400/40 bg-amber-400/10 text-amber-500' : 'border-slate-400/30 text-slate-500'}`}>
+                                    <LuLock size={11} /> {canEditPrice ? 'Faqat narxlar o‘zgartiriladi' : 'Ortilgan — o‘zgartirib bo‘lmaydi'}
+                                </span>
+                            )}
                         </div>
                         {items.length > 0 && (
                             <div className="flex flex-wrap items-center gap-3">
@@ -1197,10 +1241,12 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                         </button>
                                     ))}
                                 </div>
-                                <button type="button" onClick={() => setItems([])}
-                                    className={`text-xs font-semibold transition-colors ${muted} hover:text-[#f43f5e]`}>
-                                    Hammasini tozalash
-                                </button>
+                                {!priceOnly && (
+                                    <button type="button" onClick={() => setItems([])}
+                                        className={`text-xs font-semibold transition-colors ${muted} hover:text-[#f43f5e]`}>
+                                        Hammasini tozalash
+                                    </button>
+                                )}
                             </div>
                         )}
                     </div>
@@ -1237,8 +1283,9 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                             const priceChanged = hasLastPrice && item.unitPrice !== lastPrice;
                                             const stockQty = stockMap[item.productId];
                                             const overStock = stockQty != null && item.quantity > stockQty;
+                                            const qtyMissing = !priceOnly && (Number(item.packs) || 0) === 0 && (Number(item.pieces) || 0) === 0;
                                             return (
-                                            <tr key={item.productId} className={`transition-colors ${rowBg}`}>
+                                            <tr key={item.productId} className={`transition-colors ${rowBg} ${qtyMissing ? (isDark ? 'bg-red-500/[0.04]' : 'bg-red-50/40') : ''}`}>
                                                 {/* Mahsulot + Artikul + Barcode merged */}
                                                 <td className="px-5 py-3.5">
                                                     <div className="flex items-start gap-3">
@@ -1362,7 +1409,7 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                                         </div>
                                                     ) : (
                                                     <div className="flex flex-col gap-1">
-                                                            <div className={`inline-flex items-center overflow-hidden rounded-xl border ${isDark ? 'border-[#334155]' : 'border-[#e2e8f0]'}`}>
+                                                            <div className={`inline-flex items-center overflow-hidden rounded-xl border ${qtyMissing ? 'border-red-400 ring-2 ring-red-400/20' : isDark ? 'border-[#334155]' : 'border-[#e2e8f0]'}`}>
                                                                 <button type="button" onClick={() => stepPacks(item.productId, -1)}
                                                                     aria-label="Qadoqni kamaytirish"
                                                                     className={`flex h-9 w-9 items-center justify-center transition-colors ${isDark ? 'bg-[#1e293b] hover:bg-[#334155] text-[#cbd5e1]' : 'bg-[#f8fafc] hover:bg-[#f1f5f9] text-[#475569]'}`}>
@@ -1389,7 +1436,7 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                                     {qtyMode === 'auto' ? (
                                                         <div className="flex flex-col gap-1">
                                                             <div className="flex items-center gap-2">
-                                                                <div className={`inline-flex items-center rounded-xl border overflow-hidden ${overStock ? 'border-red-400' : 'border-amber-400/60'}`}>
+                                                                <div className={`inline-flex items-center rounded-xl border overflow-hidden ${overStock || qtyMissing ? 'border-red-400 ring-2 ring-red-400/20' : 'border-amber-400/60'}`}>
                                                                     <button type="button" onClick={() => stepTotal(item.productId, -1)} aria-label="Kamaytirish"
                                                                         className={`flex h-9 w-9 items-center justify-center transition-colors ${isDark ? 'bg-[#1e293b] hover:bg-[#334155] text-[#cbd5e1]' : 'bg-[#f8fafc] hover:bg-[#f1f5f9] text-[#475569]'}`}>
                                                                         <LuMinus size={14} />
@@ -1413,7 +1460,7 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                                     ) : (
                                                     <div className="flex flex-col gap-1">
                                                     <div className="flex items-center gap-2">
-                                                        <div className={`inline-flex items-center rounded-xl border overflow-hidden ${overStock ? 'border-red-400' : isDark ? 'border-[#334155]' : 'border-[#e2e8f0]'}`}>
+                                                        <div className={`inline-flex items-center rounded-xl border overflow-hidden ${overStock || qtyMissing ? 'border-red-400' : isDark ? 'border-[#334155]' : 'border-[#e2e8f0]'} ${qtyMissing ? 'ring-2 ring-red-400/20' : ''}`}>
                                                             <button type="button" onClick={() => stepQty(item.productId, -1)}
                                                                 aria-label="Kamaytirish"
                                                                 className={`flex h-9 w-9 items-center justify-center transition-colors ${isDark ? 'bg-[#1e293b] hover:bg-[#334155] text-[#cbd5e1]' : 'bg-[#f8fafc] hover:bg-[#f1f5f9] text-[#475569]'}`}>
@@ -1477,8 +1524,9 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                     const priceChanged = hasLastPrice && item.unitPrice !== lastPrice;
                                     const stockQty = stockMap[item.productId];
                                     const overStock = stockQty != null && item.quantity > stockQty;
+                                    const qtyMissing = !priceOnly && (Number(item.packs) || 0) === 0 && (Number(item.pieces) || 0) === 0;
                                     return (
-                                        <div key={item.productId} className={`px-4 py-3.5 transition-colors ${rowBg}`}>
+                                        <div key={item.productId} className={`px-4 py-3.5 transition-colors ${rowBg} ${qtyMissing ? (isDark ? 'bg-red-500/[0.04]' : 'bg-red-50/40') : ''}`}>
                                             <div className="flex items-start gap-2.5 mb-3">
                                                 <span className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${isDark ? 'bg-white/5 text-slate-400' : 'bg-slate-100 text-slate-500'}`}>
                                                     {idx + 1}
@@ -1549,7 +1597,7 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                             {qtyMode === 'auto' ? (
                                                 <div className={`mb-2.5 flex flex-col gap-1.5 rounded-xl border px-3 py-2.5 ${overStock ? (isDark ? 'border-red-400/40 bg-red-500/5' : 'border-red-200 bg-red-50/50') : isDark ? 'border-[#334155] bg-[#1e293b]/40' : 'border-[#e2e8f0] bg-[#f8fafc]'}`}>
                                                     <span className={`text-[11px] font-semibold ${muted}`}>Jami dona {item.piecesPerPack ? `(1 pachka = ${item.piecesPerPack} dona)` : ''}</span>
-                                                    <div className={`inline-flex items-center rounded-lg border overflow-hidden w-full ${overStock ? 'border-red-400' : 'border-amber-400/60'}`}>
+                                                    <div className={`inline-flex items-center rounded-lg border overflow-hidden w-full ${overStock || qtyMissing ? 'border-red-400 ring-2 ring-red-400/20' : 'border-amber-400/60'}`}>
                                                         <button type="button" onClick={() => stepTotal(item.productId, -1)} aria-label="Kamaytirish"
                                                             className={`flex h-8 w-8 shrink-0 items-center justify-center transition-colors ${isDark ? 'bg-[#1e293b] hover:bg-[#334155] text-[#cbd5e1]' : 'bg-white hover:bg-[#f1f5f9] text-[#475569]'}`}>
                                                             <LuMinus size={13} />
@@ -1572,7 +1620,7 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                             <div className="grid grid-cols-2 gap-2 mb-2.5">
                                                 <div className={`flex flex-col gap-1.5 rounded-xl border px-3 py-2.5 ${overStock ? (isDark ? 'border-red-400/40 bg-red-500/5' : 'border-red-200 bg-red-50/50') : isDark ? 'border-[#334155] bg-[#1e293b]/40' : 'border-[#e2e8f0] bg-[#f8fafc]'}`}>
                                                     <span className={`text-[11px] font-semibold ${muted}`}>Dona</span>
-                                                    <div className={`inline-flex items-center rounded-lg border overflow-hidden w-full ${overStock ? 'border-red-400' : isDark ? 'border-[#334155]' : 'border-[#e2e8f0]'}`}>
+                                                    <div className={`inline-flex items-center rounded-lg border overflow-hidden w-full ${overStock || qtyMissing ? 'border-red-400' : isDark ? 'border-[#334155]' : 'border-[#e2e8f0]'} ${qtyMissing ? 'ring-2 ring-red-400/20' : ''}`}>
                                                         <button type="button" onClick={() => stepQty(item.productId, -1)}
                                                             aria-label="Kamaytirish"
                                                             className={`flex h-8 w-8 shrink-0 items-center justify-center transition-colors ${isDark ? 'bg-[#1e293b] hover:bg-[#334155] text-[#cbd5e1]' : 'bg-white hover:bg-[#f1f5f9] text-[#475569]'}`}>
@@ -1595,7 +1643,7 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                                         Pachka {item.piecesPerPack ? `(1=${item.piecesPerPack}d)` : ''}
                                                     </span>
                                                     <div className="flex flex-col gap-1">
-                                                            <div className={`inline-flex items-center rounded-lg border overflow-hidden w-full ${isDark ? 'border-[#334155]' : 'border-[#e2e8f0]'}`}>
+                                                            <div className={`inline-flex items-center rounded-lg border overflow-hidden w-full ${qtyMissing ? 'border-red-400 ring-2 ring-red-400/20' : isDark ? 'border-[#334155]' : 'border-[#e2e8f0]'}`}>
                                                                 <button type="button" onClick={() => stepPacks(item.productId, -1)}
                                                                     aria-label="Qadoqni kamaytirish"
                                                                     className={`flex h-8 w-8 shrink-0 items-center justify-center transition-colors ${isDark ? 'bg-[#1e293b] hover:bg-[#334155] text-[#cbd5e1]' : 'bg-white hover:bg-[#f1f5f9] text-[#475569]'}`}>
@@ -1685,7 +1733,8 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                 Bekor qilish
                             </button>
                             <button type="submit"
-                                disabled={isSending || items.length === 0 || !customerId}
+                                disabled={isSending || items.length === 0 || !customerId || (!priceOnly && missingQtyCount > 0)}
+                                title={!priceOnly && missingQtyCount > 0 ? `${missingQtyCount} ta mahsulot uchun miqdor kiriting` : undefined}
                                 className={`flex h-11 sm:h-12 flex-1 sm:flex-none items-center justify-center gap-2 rounded-xl px-5 sm:px-7 text-sm font-bold shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-xl hover:-translate-y-px ${submitBtn}`}>
                                 {isSending ? (
                                     <>

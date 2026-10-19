@@ -35,6 +35,8 @@ export default function RawStaffStockWarehouse() {
     const [sortDir, setSortDir]                 = useState('asc');
 
     const isFetchingNextRef = useRef(false);
+    const lastPageRef = useRef(-1); // qaysi sahifa oxirgi marta kelgani — o‘sha sahifa qayta kelsa (kesh yangilandi) ro‘yxat boshidan
+    const seenPagesRef = useRef(new WeakMap()); // massiv → qaysi sahifaniki
     const loadMoreRef       = useRef(null);
     const isFirstRender     = useRef(true);
 
@@ -63,6 +65,21 @@ export default function RawStaffStockWarehouse() {
     /* ── Накопление страниц ── */
     useEffect(() => {
         if (!data?.items) return;
+
+        // `data` sahifa almashganda bir lahza oldingi sahifa massivini qaytaradi — uni qayta ishlamaymiz
+        const pageOfItems = seenPagesRef.current.get(data.items);
+        if (pageOfItems !== undefined && pageOfItems !== page) return;
+        seenPagesRef.current.set(data.items, page);
+        // Yaratish/tahrirlash/o‘chirishdan keyin shu sahifa qayta keldi — eski sahifalar eskirgan, boshidan yuklaymiz
+        if (page > 0 && lastPageRef.current === page && pageOfItems === undefined) {
+
+            lastPageRef.current = -1;
+
+            setAllStocks([]); setPage(0); setHasMore(true); isFetchingNextRef.current = false;
+
+            return;
+        }
+        lastPageRef.current = page;
 
         if (page === 0) {
             setAllStocks(data.items);

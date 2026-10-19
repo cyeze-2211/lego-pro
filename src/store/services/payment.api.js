@@ -4,9 +4,11 @@ import { customerApi } from './customer.api';
 import { cashboxApi } from './cashbox.api';
 
 const refreshCustomer = (customerId, dispatch) => {
-    if (customerId) {
-        dispatch(customerApi.util.invalidateTags([{ type: 'Customer', id: customerId }]));
-    }
+    // mijoz balansi ro‘yxatda ham ko‘rinadi — LIST ni ham yangilaymiz
+    dispatch(customerApi.util.invalidateTags([
+        ...(customerId ? [{ type: 'Customer', id: customerId }] : []),
+        { type: 'Customer', id: 'LIST' },
+    ]));
 };
 
 export const paymentApi = createApi({
@@ -62,6 +64,17 @@ export const paymentApi = createApi({
             query: (id) => ({ url: `/payments/${id}/cancel`, method: 'POST' }),
             transformResponse: (response) => response.data,
             invalidatesTags: (result, error, id) => [{ type: 'Payment', id }, { type: 'Payment', id: 'LIST' }],
+            // bekor qilinganda mijoz balansi va kassa qoldig'i qaytadi
+            onQueryStarted: async (arg, { dispatch, queryFulfilled }) => {
+                try {
+                    const { data } = await queryFulfilled;
+                    refreshCustomer(data?.customerId, dispatch);
+                    dispatch(cashboxApi.util.invalidateTags([
+                        ...(data?.cashboxId ? [{ type: 'Cashbox', id: data.cashboxId }] : []),
+                        { type: 'Cashbox', id: 'LIST' },
+                    ]));
+                } catch { /* caller handles errors */ }
+            },
         }),
     }),
 });

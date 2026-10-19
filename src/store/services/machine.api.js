@@ -117,6 +117,8 @@ export const machineApi = createApi({
         },
       }),
       transformResponse: (response) => response.data,
+      // stanokdan kirim qayd etilganda (Machine id invalidatsiyasi) smena hisoboti ham yangilanadi
+      providesTags: (result, error, { machineId }) => [{ type: 'Machine', id: machineId }, { type: 'Machine', id: 'LIST' }],
     }),
 
     // GET /api/v1/machines/production-summary — barcha stanoklar: holati + oraliqdagi ishlab chiqarishi

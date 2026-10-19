@@ -55,6 +55,8 @@ export default function StockTransactionForm({ action }) {
     const searchInputRef    = useRef(null);
     const loadMoreRef       = useRef(null);
     const isFetchingNextRef = useRef(false);
+    const lastPageRef = useRef(-1); // qaysi sahifa oxirgi marta kelgani — o‘sha sahifa qayta kelsa (kesh yangilandi) ro‘yxat boshidan
+    const seenPagesRef = useRef(new WeakMap()); // massiv → qaysi sahifaniki
 
     const debouncedFilters = useDebouncedValue(filters, 350);
 
@@ -144,6 +146,21 @@ export default function StockTransactionForm({ action }) {
     /* ── Накопление страниц ── */
     useEffect(() => {
         if (!stocksResp?.items) return;
+
+        // `data` sahifa almashganda bir lahza oldingi sahifa massivini qaytaradi — uni qayta ishlamaymiz
+        const pageOfItems = seenPagesRef.current.get(stocksResp.items);
+        if (pageOfItems !== undefined && pageOfItems !== page) return;
+        seenPagesRef.current.set(stocksResp.items, page);
+        // Yaratish/tahrirlash/o‘chirishdan keyin shu sahifa qayta keldi — eski sahifalar eskirgan, boshidan yuklaymiz
+        if (page > 0 && lastPageRef.current === page && pageOfItems === undefined) {
+
+            lastPageRef.current = -1;
+
+            setAllStocks([]); setPage(0); setHasMore(true); isFetchingNextRef.current = false;
+
+            return;
+        }
+        lastPageRef.current = page;
 
         if (page === 0) {
             setAllStocks(stocksResp.items);

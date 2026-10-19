@@ -14,11 +14,10 @@ import {
 import { useGetCustomerByIdQuery } from '../../../store/services/customer.api';
 import { useGetProductStocksQuery } from '../../../store/services/productStock.api';
 import { useGetWarehousesQuery } from '../../../store/services/warehouse.api';
-import { useCreateStockTransactionMutation } from '../../../store/services/productStock.api';
 import Loading from '../../Other/UI/Loadings/Loading';
 import { STATUS_LABEL, statusCx } from '../../Zayavkachi/__components/statusBadge';
 import { Alert } from '../../Other/UI/Alert/Alert';
-import { splitOrderItem, toStockItem } from '../../ui/order-items';
+import { splitOrderItem } from '../../ui/order-items';
 import { RECEIPT_FORMATS, RECEIPT_FORMAT_KEY, buildOrderReceiptHtml, printHtml } from '../__components/orderReceipt';
 import $api from '../../../store/api';
 
@@ -79,7 +78,9 @@ export default function StaffOrderDetail() {
     const [extraUnits, setExtraUnits]         = useState({});
     const [isLimitedScanMode, setIsLimitedScanMode] = useState(true);
     const [barcodeInput, setBarcodeInput]     = useState('');
-    const [hasCreatedOutcome, setHasCreatedOutcome] = useState(false);
+    /* Backend: POST /sales-orders/{id}/load bitta tranzaksiyada har bir qatorni o‘z omboridan chiqaradi (OUT yozuvi + qoldiq)
+     * va zayavkani LOADED qiladi. Shuning uchun frontend alohida OUT yubormaydi — aks holda qoldiq ikki marta kamayardi
+     * («mavjud 2, so‘ralgan 8» xatosi shundan edi). Bu ekrandagi «Yuklangan» maydonlari — omborchi uchun tekshiruv ro‘yxati. */
     const barcodeInputRef = useRef(null);
 
     const { data: order, isLoading, isError } = useGetSalesOrderByIdQuery(id, { skip: !id });
@@ -145,9 +146,8 @@ export default function StaffOrderDetail() {
 
     const allEnough = comparison.length > 0 && comparison.every((c) => c.enough);
     const someShort = comparison.some((c) => !c.enough);
-    const isLoadingOrder = ['CREATED'].includes(
-        String(order?.status ?? '').toUpperCase()
-    );
+    const orderStatus = String(order?.status ?? '').toUpperCase();
+    const isLoadingOrder = orderStatus === 'CREATED';
 
     /* ── Итоги ── */
     const totals = useMemo(() => {
@@ -347,56 +347,41 @@ export default function StaffOrderDetail() {
         setIsLimitedScanMode(isLimited);
     };
 
-    const [createTransaction, { isLoading: isSubmitting }] = useCreateStockTransactionMutation();
     const [loadSalesOrder, { isLoading: isUpdatingStatus }] = useLoadSalesOrderMutation();
 
-    /* ── Chiqim qilish ── */
-    const handleOutcome = async () => {
-        if (!hasCreatedOutcome) {
-            if (!allEnough) {
-                Alert('Omborga yetarli miqdorda mahsulot yo`q', 'error');
-                return;
-            }
-            if (!activeWarehouseId) {
-                Alert('Omborni tanlang', 'error');
-                return;
-            }
+    /* Tekshiruv ro‘yxati: har bir qator buyurtmadagi miqdorda belgilanganmi (backend hamma qatorni to‘liq chiqaradi) */
+    const scannedTotal = (item) => (scannedPacks[item.key] ?? 0) * item.piecesPerPack + (scannedPieces[item.key] ?? 0);
+    const incompleteLines = comparison.filter((item) => scannedTotal(item) < item.orderedPieces);
+    const isFullyScanned = comparison.length > 0 && incompleteLines.length === 0;
 
-            /* Payload: har bir mahsulot uchun bitta qator (API bitta productId ni takrorlashga ruxsat bermaydi) */
-            const items = comparison
-                .map((item) => toStockItem(item.productId, scannedPacks[item.key] ?? 0, scannedPieces[item.key] ?? 0, item.piecesPerPack))
-                .filter((line) => line.quantity > 0);
+    /* Hammasini buyurtmadagi miqdorda belgilash — bir bosishda */
+    const markAllLoaded = () => {
+        setScannedPacks(Object.fromEntries(comparison.map((item) => [item.key, item.orderedPacks])));
+        setScannedPieces(Object.fromEntries(comparison.map((item) => [item.key, item.orderedPiecesOnly])));
+    };
 
-            if (items.length === 0) {
-                Alert('Hech narsa yuklanmagan', 'error');
-                return;
-            }
-
-            try {
-                await createTransaction({
-                    warehouseId: activeWarehouseId,
-                    orderId: order.id,
-                    action: 'OUT',
-                    items,
-                }).unwrap();
-                setHasCreatedOutcome(true);
-            } catch (error) {
-                Alert(error?.data?.message || 'Chiqim qilishda xatolik', 'error');
-                return;
-            }
+    /* ── Ortildi: backend qoldiqni chiqaradi va holatni LOADED qiladi (bitta so‘rov) ── */
+    const loadBusyRef = useRef(false);
+    const handleLoad = async () => {
+        if (loadBusyRef.current) return;
+        if (!allEnough) {
+            Alert('Omborda yetarli qoldiq yo‘q — avval qoldiqni to‘ldiring', 'error');
+            return;
         }
-
+        if (!isFullyScanned) {
+            Alert(`${incompleteLines.length} ta mahsulot to‘liq yuklanganini belgilang (yoki «Hammasini belgilash» ni bosing)`, 'error');
+            return;
+        }
+        loadBusyRef.current = true;
         try {
             await loadSalesOrder(order.id).unwrap();
-            Alert('Chiqim amalga oshirildi, buyurtma holati Ortildi ga o`zgartirildi', 'success');
+            Alert('Buyurtma Ortildi holatiga o‘tkazildi, mahsulotlar ombordan chiqarildi', 'success');
             navigate('/staff/orders');
         } catch (error) {
-            Alert(
-                `Chiqim amalga oshdi, ammo holatni Ortildi ga o‘tkazib bo‘lmadi: ${
-                    error?.data?.message || 'qayta urinib ko‘ring'
-                }`,
-                'error'
-            );
+            console.error('[Omborchi] Ortildi xatosi', error);
+            Alert(`Ortildi ga o‘tkazib bo‘lmadi${error?.data?.message ? `: ${error.data.message}` : ''}`, 'error');
+        } finally {
+            loadBusyRef.current = false;
         }
     };
 
@@ -910,14 +895,32 @@ export default function StaffOrderDetail() {
                                     <p className={`mt-1 text-xs ${muted}`}>
                                         {activeWarehouseName} · {comparison.length} ta mahsulot · {formatNumber(totals.requiredPacks)} pachka · {formatNumber(totals.requiredPiecesOnly)} dona
                                     </p>
+                                    <p className={`mt-1 text-xs font-semibold ${isFullyScanned ? (isDark ? 'text-emerald-400' : 'text-emerald-600') : (isDark ? 'text-amber-400' : 'text-amber-600')}`}>
+                                        {isFullyScanned
+                                            ? 'Barcha mahsulotlar belgilandi — Ortildi ga o‘tkazish mumkin'
+                                            : `${incompleteLines.length} ta mahsulot hali to‘liq belgilanmagan`}
+                                    </p>
                                 </div>
+                                {!isFullyScanned && (
+                                    <button
+                                        type="button"
+                                        onClick={markAllLoaded}
+                                        disabled={isUpdatingStatus}
+                                        className={`inline-flex h-14 items-center justify-center gap-2 rounded-xl border px-5 text-sm font-bold transition ${
+                                            isDark ? 'border-[#334155] text-slate-200 hover:bg-[#1e293b]' : 'border-[#e2e8f0] text-[#0f172a] hover:bg-white'
+                                        }`}
+                                    >
+                                        Hammasini belgilash
+                                    </button>
+                                )}
                                 <button
                                     type="button"
-                                    onClick={handleOutcome}
-                                    disabled={(!allEnough && !hasCreatedOutcome) || !activeWarehouseId || isSubmitting || isUpdatingStatus}
+                                    onClick={handleLoad}
+                                    disabled={!allEnough || !isFullyScanned || isUpdatingStatus}
+                                    title={!allEnough ? 'Omborda yetarli qoldiq yo‘q' : !isFullyScanned ? 'Avval barcha mahsulotlarni belgilang' : 'Ombordan chiqarib, holatni Ortildi qiladi'}
                                     className="inline-flex h-14 min-w-56 items-center justify-center gap-3 rounded-xl bg-emerald-500 px-7 text-base font-extrabold text-white shadow-lg shadow-emerald-500/20 transition hover:-translate-y-0.5 hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-none"
                                 >
-                                    {isSubmitting || isUpdatingStatus ? (
+                                    {isUpdatingStatus ? (
                                         <svg className="h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none">
                                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
@@ -925,7 +928,7 @@ export default function StaffOrderDetail() {
                                     ) : (
                                         <LuArrowDownToLine size={21} />
                                     )}
-                                    {hasCreatedOutcome ? 'Ortildi holatiga o‘tkazish' : 'Chiqim qilish'}
+                                    {isUpdatingStatus ? 'Ortilmoqda…' : 'Ortildi — ombordan chiqarish'}
                                 </button>
                             </div>
                         )}

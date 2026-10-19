@@ -75,6 +75,7 @@ export const rawMaterialStockApi = createApi({
             invalidatesTags: [
                 { type: 'RawMaterialStock',       id: 'LIST' },
                 { type: 'RawMaterialTransaction', id: 'LIST' },
+                { type: 'RawMaterialTransaction', id: 'SUMMARY' },
             ],
         }),
     }),

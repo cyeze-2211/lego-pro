@@ -142,6 +142,8 @@ export default function Product() {
     const isFirstRender = useRef(true);
     const loadMoreRef = useRef(null);
     const isFetchingNextRef = useRef(false);
+    const lastPageRef = useRef(-1); // qaysi sahifa oxirgi marta kelgani — o‘sha sahifa qayta kelsa (kesh yangilandi) ro‘yxat boshidan
+    const seenPagesRef = useRef(new WeakMap()); // massiv → qaysi sahifaniki
 
     /* ── Debounced qidiruv ── */
     useEffect(() => {
@@ -287,6 +289,21 @@ export default function Product() {
     /* ── Yangi sahifa kelganda ro'yxatga qo'shamiz ── */
     useEffect(() => {
         if (!productResult?.items) return;
+
+        // `data` sahifa almashganda bir lahza oldingi sahifa massivini qaytaradi — uni qayta ishlamaymiz
+        const pageOfItems = seenPagesRef.current.get(productResult.items);
+        if (pageOfItems !== undefined && pageOfItems !== page) return;
+        seenPagesRef.current.set(productResult.items, page);
+        // Yaratish/tahrirlash/o‘chirishdan keyin shu sahifa qayta keldi — eski sahifalar eskirgan, boshidan yuklaymiz
+        if (page > 0 && lastPageRef.current === page && pageOfItems === undefined) {
+
+            lastPageRef.current = -1;
+
+            resetList();
+
+            return;
+        }
+        lastPageRef.current = page;
 
         if (page === 0) {
             setProducts(productResult.items);
