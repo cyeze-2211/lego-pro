@@ -58,6 +58,12 @@ export const ROUTES = [
         roles: [ROLES.MANAGER, ...BUXGALTER_ROLES],
     },
     {
+        // Narxlarni ommaviy o‘zgartirish — PATCH /products/prices (admin va hisobchi)
+        path: '/products/prices',
+        component: lazy(() => import('../../Components/Common/ProductPrices')),
+        roles: [ROLES.MANAGER, ...BUXGALTER_ROLES],
+    },
+    {
         path: '/product-colors',
         component: lazy(() => import('../../Components/Common/ProductColor')),
         roles: ROLES.MANAGER,

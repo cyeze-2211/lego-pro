@@ -471,7 +471,25 @@ export default function Product() {
                         Jami: {totalElements} ta mahsulot
                     </Text>
                 </Box>
-                {canManageProducts && <Create warehouses={warehouses} />}
+                {canManageProducts && (
+                    <HStack gap={2} flexWrap="wrap">
+                        <Button
+                            variant="outline"
+                            borderRadius="xl"
+                            h="44px"
+                            px={4}
+                            fontWeight="semibold"
+                            color={accentColor}
+                            borderColor={isDark ? 'rgb(var(--accent-400) / .4)' : 'rgb(var(--accent-warm-200))'}
+                            _hover={{ bg: isDark ? 'rgb(var(--accent-400) / .12)' : 'rgb(var(--accent-warm-100))' }}
+                            onClick={() => navigate('/products/prices')}
+                            title="Bir nechta mahsulot narxini birdaniga o‘zgartirish"
+                        >
+                            <HStack gap={2}><LuTag size={18} /><span>Narxlarni o‘zgartirish</span></HStack>
+                        </Button>
+                        <Create warehouses={warehouses} />
+                    </HStack>
+                )}
             </HStack>
 
             {/* ── Search ── */}

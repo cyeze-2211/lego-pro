@@ -89,6 +89,21 @@ export const productApi = createApi({
       ],
     }),
 
+    // PATCH /api/v1/products/prices — bir nechta mahsulot narxini birdaniga o'zgartirish
+    // data = { items: [{ productId, price }] }. Hammasi yoki hech narsa (400/404 da birorta narx o'zgarmaydi).
+    updateProductPrices: builder.mutation({
+      query: (data) => ({
+        url: '/products/prices',
+        method: 'PATCH',
+        data,
+      }),
+      transformResponse: (response) => response.data,
+      invalidatesTags: (result, error, arg) => [
+        ...((arg?.items ?? []).map(({ productId }) => ({ type: 'Product', id: productId }))),
+        { type: 'Product', id: 'LIST' },
+      ],
+    }),
+
     // POST /api/v1/products/{id}/image – rasm yuklash yoki almashtirish (multipart, `file` maydoni)
     uploadProductImage: builder.mutation({
       query: ({ id, file }) => {
@@ -131,6 +146,7 @@ export const {
   useGetProductByBarcodeQuery,
   useCreateProductMutation,
   useUpdateProductMutation,
+  useUpdateProductPricesMutation,
   useUploadProductImageMutation,
   useDeleteProductMutation,
 } = productApi;
