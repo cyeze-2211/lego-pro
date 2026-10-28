@@ -284,6 +284,12 @@ export const ROUTES = [
         component: lazy(() => import('../../Components/Stanokchi/MachineDetail')),
         roles: STANOKCHI_ROLES,
     },
+    // /stanokchi/income — rahbar rejimida qo‘lda kirim (tovar omborchisidagi forma bilan bir xil)
+    {
+        path: '/stanokchi/income',
+        component: lazy(() => import('../../Components/Staff/Income')),
+        roles: STANOKCHI_ROLES,
+    },
     // ── Mixer routes ─────────────────────────────────────────────────────
     {
         path: '/mixer',

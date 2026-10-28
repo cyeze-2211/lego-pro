@@ -174,10 +174,11 @@ export const XIMIK_SIDEBAR_GROUPS = [
 export const STANOKCHI_SIDEBAR_CONFIG = [
     { label: 'Dashboard', path: '/stanokchi', icon: LayoutDashboard, roles: [ROLES.STANOKCHI], exact: true },
     { label: 'Stanoklar', path: '/stanokchi/machines', icon: Cog, roles: [ROLES.STANOKCHI] },
+    { label: 'Kirim (qo‘lda)', path: '/stanokchi/income', icon: LogIn, roles: [ROLES.STANOKCHI] },
 ];
 
 export const STANOKCHI_SIDEBAR_GROUPS = [
     { label: 'Asosiy', items: STANOKCHI_SIDEBAR_CONFIG.filter((i) => i.path === '/stanokchi') },
-    { label: 'Ishlab chiqarish', items: STANOKCHI_SIDEBAR_CONFIG.filter((i) => ['/stanokchi/machines'].includes(i.path)) },
+    { label: 'Ishlab chiqarish', items: STANOKCHI_SIDEBAR_CONFIG.filter((i) => ['/stanokchi/machines', '/stanokchi/income'].includes(i.path)) },
     settingsGroup('/stanokchi/settings'),
 ];
