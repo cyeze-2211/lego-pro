@@ -97,6 +97,7 @@ const PriceRow = memo(function PriceRow({ p, raw, changed, invalid, isSel, onDra
                         <HStack gap={2} fontSize="xs" color={subtitleColor} flexWrap="wrap">
                             {p.article && <Text fontFamily="mono">{p.article}</Text>}
                             {p.size && <Text>{p.size}</Text>}
+                            {p.rubber && <Text color={isDark ? 'green.300' : 'green.700'} fontWeight="bold">Rezina bor</Text>}
                             {p.color?.name && <Text>{p.color.name}</Text>}
                             {p.barcode && <Text fontFamily="mono">{p.barcode}</Text>}
                         </HStack>

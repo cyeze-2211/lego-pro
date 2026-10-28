@@ -306,6 +306,7 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                     productArticle: product.article ?? stock?.productArticle,
                     productBarcode: product.barcode ?? stock?.productBarcode,
                     productSize: product.size ?? product.productSize ?? stock?.productSize,
+                    rubber: product.rubber ?? stock?.rubber ?? null,
                     productPiecesPerPack: product.piecesPerPack ?? stock?.productPiecesPerPack,
                     productMinimumLine: product.minimumLine ?? stock?.productMinimumLine,
                     brand: product.brand ?? stock?.brand,
@@ -1078,6 +1079,11 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
                                                                 {st.productSize && (
                                                                     <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-bold ${isDark ? 'bg-white/5 text-slate-300' : 'bg-slate-100 text-slate-600'}`}>
                                                                         {st.productSize}
+                                                                    </span>
+                                                                )}
+                                                                {st.rubber === true && (
+                                                                    <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-bold ${isDark ? 'bg-green-500/15 text-green-300' : 'bg-green-50 text-green-700'}`}>
+                                                                        Rezina bor
                                                                     </span>
                                                                 )}
                                                                 {st.brand?.name && (
