@@ -21,7 +21,8 @@ export default function WorkerMachines() {
     // Sarflangan vaqt uchun daqiqalik soat
     const [now, setNow] = useState(() => Date.now());
     useEffect(() => { const t = setInterval(() => setNow(Date.now()), 30_000); return () => clearInterval(t); }, []);
-    const machines   = result?.items || [];
+    // Brak (DEFECT) holatidagi stanoklar xodim panelida ko‘rsatilmaydi — ular bilan ishlash muammoli
+    const machines   = (result?.items || []).filter((m) => m.status !== 'DEFECT');
     const totalPages = result?.pagination?.totalPages || 0;
 
     /* ── Qayt etish mutation ── */
