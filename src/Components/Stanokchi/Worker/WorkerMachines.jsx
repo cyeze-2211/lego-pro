@@ -7,6 +7,7 @@ import { useAppTheme } from '../../../theme/tokens';
 import $api from '../../../store/api';
 import ProductImage from '../../ui/ProductImage';
 import { ProductionWarehousePicker, useProductionWarehouse } from '../productionWarehouse';
+import ProducedBarcodeModal from '../__components/ProducedBarcodeModal';
 
 const productImageUrl = (productId) => (productId ? `/api/v1/products/${productId}/image` : null);
 
@@ -122,6 +123,7 @@ export default function WorkerMachines() {
     /* ── Qayt etish mutation ── */
     const [createStockTransaction, { isLoading: producing }] = useCreateStockTransactionMutation();
     const [producingId, setProducingId] = useState(null);
+    const [produced, setProduced] = useState(null); // oxirgi qayd etilgan mahsulot — shtrix-kod oynasi uchun
     const warehouseState = useProductionWarehouse();
 
     /* ── Toast ── */
@@ -142,13 +144,20 @@ export default function WorkerMachines() {
         setProducingId(machine.id);
         try {
             // Stanokdan chiqqan mahsulot: IN + machineId + warehouseId (PRODUCE turi yo‘q)
-            await createStockTransaction({
+            const res = await createStockTransaction({
                 action: 'IN',
                 machineId: machine.id,
                 warehouseId: warehouseState.warehouseId,
                 items: [{ productId: machine.currentRun.productId, quantity: 1, unit: 'PACK' }], // har bosish = 1 pachka
             }).unwrap();
-            showToast(`✓ 1 pachka qayd etildi — ${machine.currentRun.productName}`);
+            // Javobdagi harakat yozuvida shtrix-kod bor — oynada katta qilib ko‘rsatamiz
+            const tx = Array.isArray(res?.data) ? res.data[0] : null;
+            setProduced({
+                productId: machine.currentRun.productId,
+                productName: machine.currentRun.productName,
+                brandName: machine.currentRun.brand?.name || '',
+                barcode: tx?.productBarcode || '',
+            });
             refetch();
         } catch (err) {
             showToast(err?.data?.message || 'Qayd etishda xatolik', 'error');
@@ -159,6 +168,17 @@ export default function WorkerMachines() {
 
     return (
         <div style={{ background: pageBg, color: textColor, minHeight: '100%' }}>
+
+            {produced && (
+                <ProducedBarcodeModal
+                    open
+                    onClose={() => setProduced(null)}
+                    productId={produced.productId}
+                    productName={produced.productName}
+                    brandName={produced.brandName}
+                    barcode={produced.barcode}
+                />
+            )}
 
             {/* Toast */}
             {toast && (

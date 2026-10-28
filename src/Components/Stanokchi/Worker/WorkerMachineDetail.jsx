@@ -15,6 +15,7 @@ import { useGetMachineOutputsQuery } from '../../../store/services/machineOutput
 import { useAppTheme } from '../../../theme/tokens';
 import ProductImage from '../../ui/ProductImage';
 import { ProductionWarehousePicker, useProductionWarehouse } from '../productionWarehouse';
+import ProducedBarcodeModal from '../__components/ProducedBarcodeModal';
 
 const productImageUrl = (productId) => (productId ? `/api/v1/products/${productId}/image` : null);
 
@@ -59,6 +60,7 @@ export default function WorkerMachineDetail() {
 
     const [createStockTransaction, { isLoading: producing }] = useCreateStockTransactionMutation();
     const warehouseState = useProductionWarehouse();
+    const [produced, setProduced] = useState(null); // oxirgi qayd etilgan mahsulot — shtrix-kod oynasi uchun
 
     const [toast, setToast] = useState(null);
     const showToast = (message, type = 'success') => {
@@ -76,13 +78,19 @@ export default function WorkerMachineDetail() {
         }
         try {
             // Stanokdan chiqqan mahsulot: IN + machineId + warehouseId (PRODUCE turi yo‘q)
-            await createStockTransaction({
+            const res = await createStockTransaction({
                 action: 'IN',
                 machineId: id,
                 warehouseId: warehouseState.warehouseId,
                 items: [{ productId: machine.currentRun.productId, quantity: 1, unit: 'PACK' }], // har bosish = 1 pachka
             }).unwrap();
-            showToast(`1 pachka qayd etildi — ${machine.currentRun.productName}`);
+            const tx = Array.isArray(res?.data) ? res.data[0] : null;
+            setProduced({
+                productId: machine.currentRun.productId,
+                productName: machine.currentRun.productName,
+                brandName: machine.currentRun.brand?.name || '',
+                barcode: tx?.productBarcode || '',
+            });
             refetchMachine();
             refetchHistory();
         } catch (err) {
@@ -118,6 +126,16 @@ export default function WorkerMachineDetail() {
 
     return (
         <div style={{ background: pageBg, color: textColor, minHeight: '100%' }}>
+            {produced && (
+                <ProducedBarcodeModal
+                    open
+                    onClose={() => setProduced(null)}
+                    productId={produced.productId}
+                    productName={produced.productName}
+                    brandName={produced.brandName}
+                    barcode={produced.barcode}
+                />
+            )}
 
             {/* Toast */}
             {toast && (
