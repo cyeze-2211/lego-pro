@@ -18,6 +18,9 @@ import { ProductionWarehousePicker, useProductionWarehouse } from '../production
 import { labelErrorMessage, printProductLabel } from '../../../services/labelPrinter';
 import LabelPrintDialog from '../../ui/LabelPrintDialog';
 
+/* Har «+1 pachka» da chop etiladigan yorliqlar soni — pachkaning ikki tomoniga */
+const LABEL_COPIES = 2;
+
 const productImageUrl = (productId) => (productId ? `/api/v1/products/${productId}/image` : null);
 
 const HISTORY_PAGE_SIZE = 10;
@@ -85,9 +88,9 @@ export default function WorkerMachineDetail() {
                 warehouseId: warehouseState.warehouseId,
                 items: [{ productId: machine.currentRun.productId, quantity: 1, unit: 'PACK' }], // har bosish = 1 pachka
             }).unwrap();
-            // Yorliq: backend tayyor TSPL kodini beradi, QZ Tray printerga yuboradi (1 nusxa).
+            // Yorliq: backend tayyor TSPL kodini beradi, QZ Tray printerga yuboradi (har pachkaga 2 nusxa).
             // Printer tanlanmagan bo‘lsa — tanlash oynasi; boshqa xato — toast.
-            printProductLabel(machine.currentRun.productId, 1).catch((e) => {
+            printProductLabel(machine.currentRun.productId, LABEL_COPIES).catch((e) => {
                 if (e?.code === 'NO_PRINTER') setLabelPick({ productId: machine.currentRun.productId, productName: machine.currentRun.productName });
                 else showToast(labelErrorMessage(e), 'error');
             });
@@ -128,7 +131,7 @@ export default function WorkerMachineDetail() {
     return (
         <div style={{ background: pageBg, color: textColor, minHeight: '100%' }}>
             {labelPick && (
-                <LabelPrintDialog open onClose={() => setLabelPick(null)} productId={labelPick.productId} productName={labelPick.productName} defaultCopies={1} />
+                <LabelPrintDialog open onClose={() => setLabelPick(null)} productId={labelPick.productId} productName={labelPick.productName} defaultCopies={LABEL_COPIES} />
             )}
 
             {/* Toast */}
