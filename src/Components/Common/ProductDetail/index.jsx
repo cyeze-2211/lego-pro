@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Badge, HStack } from '@chakra-ui/react';
-import { LuBarcode, LuCalendar, LuPackage, LuWarehouse } from 'react-icons/lu';
+import { LuBarcode, LuCalendar, LuPackage, LuRuler, LuWarehouse } from 'react-icons/lu';
 import ColorSwatch from '../../ui/ColorSwatch';
 import ProductImage from '../../ui/ProductImage';
 import LabelPrintButton from '../../ui/LabelPrintButton';
@@ -33,6 +33,7 @@ export default function ProductDetail() {
                 <DetailRow label="Shtrix-kod" value={<HStack gap={2}><LuBarcode size={16} /><span>{product.barcode || '—'}</span></HStack>} />
                 <DetailRow label="Ombor" value={<HStack gap={2}><LuWarehouse size={16} /><span>{warehouse?.name || '—'}</span></HStack>} />
                 <DetailRow label="Rang" value={product.color?.name ? <ColorSwatch code={product.color.code} name={product.color.name} showCode size={20} /> : '—'} />
+                <DetailRow label="O‘lcham" value={<HStack gap={2}><LuRuler size={16} /><span>{product.size || '—'}</span></HStack>} />
                 <DetailRow label="Rezina (zichlagich)" value={<Badge borderRadius="full" px={3} py={1} colorPalette={product.rubber ? 'green' : 'gray'} variant="subtle">{product.rubber ? 'Rezina bor' : 'Rezina yo‘q'}</Badge>} />
                 <DetailRow label="Holati" value={<Badge borderRadius="full" px={3} py={1} colorScheme={product.deletedAt ? 'red' : 'green'}>{product.deletedAt ? 'O‘chirilgan' : 'Faol'}</Badge>} />
             </DetailSection>

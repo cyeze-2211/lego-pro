@@ -57,6 +57,7 @@ const SORT_FIELDS = [
     ['barcode', 'Shtrix-kod'],
     ['article', 'Artikul'],
     ['size', 'O‘lcham'],
+    ['rubber', 'Rezina'],
     ['minimumLine', 'Minimal qoldiq'],
     ['piecesPerPack', 'Qadoqdagi dona'],
     ['lowProductAlert', 'Kam qoldiq ogohlantirishi'],
@@ -760,7 +761,7 @@ export default function Product() {
                                     {sortableHeader('Kategoriya', 'category.name', '140px')}
                                     {sortableHeader('Rang', 'color.name', '130px')}
                                     {sortableHeader('O‘lcham', 'size', '110px')}
-                                    <Table.ColumnHeader {...headerCell} minW="110px" title="Rezina (zichlagich) bilanmi">Rezina</Table.ColumnHeader>
+                                    {sortableHeader('Rezina', 'rubber', '110px')}
                                     {sortableHeader('Narxi', 'price', '130px', 'right')}
                                     <Table.ColumnHeader {...headerCell} textAlign="right" minW="130px" title="Kategoriya bo‘yicha, 1 dona uchun">
                                         Bonus narx
@@ -954,15 +955,6 @@ export default function Product() {
                                                 )}
                                             </Table.Cell>
 
-                                            {/* Rezina */}
-                                            <Table.Cell {...cellBorder}>
-                                                <Text as="span" px={2} py={0.5} borderRadius="md" fontSize="xs" fontWeight="bold" whiteSpace="nowrap"
-                                                    bg={product.rubber ? (isDark ? 'rgba(34,197,94,0.15)' : '#DCFCE7') : (isDark ? 'whiteAlpha.100' : '#F1F5F9')}
-                                                    color={product.rubber ? (isDark ? 'green.300' : 'green.700') : subtitleColor}>
-                                                    {product.rubber ? 'Rezina bor' : 'Rezina yo‘q'}
-                                                </Text>
-                                            </Table.Cell>
-
                                             {/* O'lcham */}
                                             <Table.Cell {...cellBorder}>
                                                 {product.size ? (
@@ -985,6 +977,15 @@ export default function Product() {
                                                         —
                                                     </Text>
                                                 )}
+                                            </Table.Cell>
+
+                                            {/* Rezina */}
+                                            <Table.Cell {...cellBorder}>
+                                                <Text as="span" px={2} py={0.5} borderRadius="md" fontSize="xs" fontWeight="bold" whiteSpace="nowrap"
+                                                    bg={product.rubber ? (isDark ? 'rgba(34,197,94,0.15)' : '#DCFCE7') : (isDark ? 'whiteAlpha.100' : '#F1F5F9')}
+                                                    color={product.rubber ? (isDark ? 'green.300' : 'green.700') : subtitleColor}>
+                                                    {product.rubber ? 'Rezina bor' : 'Rezina yo‘q'}
+                                                </Text>
                                             </Table.Cell>
 
                                             {/* Narxi */}
