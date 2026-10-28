@@ -205,18 +205,31 @@ function WorkerMachineCard({ machine, now, isDark, cardBg, cardBorder, textColor
                 </span>
             </div>
 
-            {/* O‘rta: mahsulot */}
+            {/* O‘rta: yuqorida ikki rasm (brend logotipi + mahsulot fotosi), pastda ma'lumot */}
             {canClick ? (
-                <div className="flex min-h-0 flex-1 items-center gap-2 py-1 sm:gap-3">
-                    <div className="shrink-0" style={{ width: 'clamp(44px, 5.5vw, 88px)' }}>
-                        <ProductImage imageUrl={productImageUrl(run.productId)} version={run.productId} name={run.productName} size={88} radius="xl" iconSize={28} />
+                <div className="flex min-h-0 flex-1 flex-col gap-1.5 py-1">
+                    <div className="grid min-h-0 flex-1 grid-cols-2 gap-2">
+                        {/* Brend logotipi */}
+                        <div className="relative flex min-h-0 items-center justify-center overflow-hidden rounded-xl border" style={{ borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(15,23,42,0.12)', background: isDark ? 'rgba(255,255,255,0.06)' : '#fff' }}>
+                            <span className="absolute left-1.5 top-1 text-[9px] font-bold uppercase tracking-wide" style={{ color: subtitleColor }}>Brend</span>
+                            {run.brand?.logoUrl ? (
+                                <ProductImage imageUrl={run.brand.logoUrl} version={run.brand.id} name={run.brand.name} size="100%" radius="none" fit="contain" bg="transparent" borderWidth="0" h="100%" minW="0" p={2} />
+                            ) : (
+                                <span className="px-2 text-center font-extrabold uppercase" style={{ color: textColor, fontSize: 'clamp(12px, 1.3vw, 20px)' }}>{run.brand?.name || '—'}</span>
+                            )}
+                        </div>
+                        {/* Mahsulot fotosi */}
+                        <div className="relative flex min-h-0 items-center justify-center overflow-hidden rounded-xl border" style={{ borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(15,23,42,0.12)', background: isDark ? 'rgba(255,255,255,0.06)' : '#fff' }}>
+                            <span className="absolute left-1.5 top-1 text-[9px] font-bold uppercase tracking-wide" style={{ color: subtitleColor }}>Mahsulot</span>
+                            <ProductImage imageUrl={productImageUrl(run.productId)} version={run.productId} name={run.productName} size="100%" radius="none" fit="contain" bg="transparent" borderWidth="0" h="100%" minW="0" p={1} iconSize={28} />
+                        </div>
                     </div>
-                    <div className="min-w-0 flex-1">
-                        <p className="font-extrabold leading-tight" style={{ color: strong, fontSize: 'clamp(13px, 1.35vw, 20px)', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                    <div className="min-w-0 shrink-0">
+                        <p className="font-extrabold leading-tight" style={{ color: strong, fontSize: 'clamp(13px, 1.3vw, 19px)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                             {run.productName}
                         </p>
                         {run.brand?.name && (
-                            <p className="mt-0.5 truncate font-semibold" style={{ color: subtitleColor, fontSize: 'clamp(11px, 1vw, 14px)' }}>{run.brand.name}</p>
+                            <p className="truncate font-semibold" style={{ color: subtitleColor, fontSize: 'clamp(11px, 0.95vw, 14px)' }}>{run.brand.name}</p>
                         )}
                     </div>
                 </div>

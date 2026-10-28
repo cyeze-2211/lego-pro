@@ -30,46 +30,46 @@ function barcodeSvg(barcode) {
 </g></svg>`;
 }
 
-/** 100×60 mm yorliq HTML: yuqorida ikki rasm (brend logotipi + mahsulot fotosi), pastda ma'lumot, eng pastda shtrix-kod */
+/** 100×60 mm yorliq HTML */
 function labelHtml({ productName, brandName, brandLogo, photo, color, size, article, category, barcode }) {
     const colorCode = isHex(color?.code) ? color.code : null;
-    const meta = [brandName ? `Brend: <b>${esc(brandName)}</b>` : '', size ? `O‘lcham: <b>${esc(size)}</b>` : '', article ? `Artikul: <b>${esc(article)}</b>` : '', category ? esc(category) : ''].filter(Boolean).join('<span class="dot">·</span>');
+    const meta = [size ? `O‘lcham: <b>${esc(size)}</b>` : '', article ? `Artikul: <b>${esc(article)}</b>` : '', category ? esc(category) : ''].filter(Boolean).join('<span class="dot">·</span>');
     return `<!doctype html><html lang="uz"><head><meta charset="utf-8"><title>${esc(barcode)}</title>
 <style>
 @page { size: 100mm 60mm; margin: 0; }
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; width: 100mm; height: 60mm; background: #fff; color: #000; font-family: Arial, Helvetica, sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-.label { width: 100mm; height: 60mm; padding: 2mm 3.5mm; display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); grid-template-rows: 14mm minmax(0,1fr) 18mm; column-gap: 3mm; row-gap: 1mm; overflow: hidden; }
+.label { width: 100mm; height: 60mm; padding: 2.5mm 3.5mm; display: grid; grid-template-columns: 30mm minmax(0,1fr); grid-template-rows: 11mm minmax(0,1fr) 21mm; column-gap: 3mm; row-gap: 1.2mm; overflow: hidden; }
 .label > * { min-height: 0; min-width: 0; }
-/* 1-qator: ikki rasm — chapda brend logotipi, o‘ngda mahsulot fotosi */
-.pic { display: flex; align-items: center; justify-content: center; border: 0.3mm solid #000; border-radius: 2mm; overflow: hidden; background: #fff; padding: 1mm; position: relative; }
-.pic img { max-width: 100%; max-height: 100%; object-fit: contain; }
-.pic .cap { position: absolute; left: 1mm; top: 0.6mm; font-size: 6pt; color: #666; text-transform: uppercase; letter-spacing: .3px; }
-.pic .txt { font-size: 12pt; font-weight: 800; text-transform: uppercase; text-align: center; }
-.pic .ph { font-size: 7pt; color: #666; }
-.logo { grid-column: 1; grid-row: 1; }
-.photo { grid-column: 2; grid-row: 1; }
-/* 2-qator: ma'lumot */
-.info { grid-column: 1 / -1; grid-row: 2; display: flex; flex-direction: column; justify-content: center; gap: 0.9mm; overflow: hidden; }
-.name { font-size: 10.5pt; font-weight: 800; line-height: 1.1; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+/* 1-qator: logotip + nom */
+.logo { grid-column: 1; grid-row: 1; display: flex; align-items: center; justify-content: center; height: 11mm; }
+.logo img { max-width: 30mm; max-height: 11mm; object-fit: contain; }
+.logo .txt { font-size: 11pt; font-weight: 800; letter-spacing: .3px; text-transform: uppercase; }
+.name { grid-column: 2; grid-row: 1; display: flex; align-items: center; font-size: 11.5pt; font-weight: 800; line-height: 1.12; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+/* 2-qator: foto + rang/ma'lumot */
+.photo { grid-column: 1; grid-row: 2; display: flex; align-items: center; justify-content: center; border: 0.3mm solid #000; border-radius: 2mm; overflow: hidden; background: #fff; }
+.photo img { width: 100%; height: 100%; object-fit: contain; }
+.photo .ph { font-size: 7pt; color: #666; }
+.info { grid-column: 2; grid-row: 2; display: flex; flex-direction: column; justify-content: center; gap: 1.6mm; min-width: 0; }
 .color { display: flex; align-items: center; gap: 2.2mm; }
-.sw { width: 6.5mm; height: 6.5mm; border-radius: 50%; border: 0.4mm solid #000; flex-shrink: 0; background: #fff; }
+.sw { width: 9mm; height: 9mm; border-radius: 50%; border: 0.4mm solid #000; flex-shrink: 0; background: #fff; }
 .sw.none { background: repeating-linear-gradient(45deg, #fff 0 1mm, #bbb 1mm 2mm); }
-.clabel { font-size: 6.5pt; color: #444; text-transform: uppercase; letter-spacing: .4px; }
-.cname { font-size: 11pt; font-weight: 900; text-transform: uppercase; line-height: 1; }
-.meta { font-size: 7pt; color: #222; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cname { font-size: 13pt; font-weight: 900; text-transform: uppercase; line-height: 1; }
+.clabel { font-size: 7pt; color: #444; text-transform: uppercase; letter-spacing: .4px; }
+.meta { font-size: 8pt; color: #222; line-height: 1.3; }
 .meta .dot { margin: 0 1.2mm; color: #888; }
 /* 3-qator: shtrix-kod butun enda */
 .barcode { grid-column: 1 / -1; grid-row: 3; display: flex; align-items: flex-end; justify-content: center; }
-.bc { width: 68mm; height: 18mm; display: block; }
+.bc { width: 80mm; height: 21mm; display: block; }
 .code { font-family: monospace; font-size: 14pt; font-weight: 700; letter-spacing: 2px; }
 </style></head>
 <body><div class="label">
-  <div class="pic logo"><span class="cap">Brend</span>${brandLogo ? `<img src="${brandLogo}" alt="">` : (brandName ? `<span class="txt">${esc(brandName)}</span>` : `<span class="ph">logotip yo‘q</span>`)}</div>
-  <div class="pic photo"><span class="cap">Mahsulot</span>${photo ? `<img src="${photo}" alt="">` : `<span class="ph">foto yo‘q</span>`}</div>
+  <div class="logo">${brandLogo ? `<img src="${brandLogo}" alt="">` : (brandName ? `<span class="txt">${esc(brandName)}</span>` : '')}</div>
+  <div class="name">${esc(productName || '—')}</div>
+  <div class="photo">${photo ? `<img src="${photo}" alt="">` : `<span class="ph">foto yo‘q</span>`}</div>
   <div class="info">
-    <div class="name">${esc(productName || '—')}</div>
     ${color?.name || colorCode ? `<div class="color"><span class="sw${colorCode ? '' : ' none'}" style="${colorCode ? `background:${colorCode}` : ''}"></span><div><div class="clabel">Rang</div><div class="cname">${esc(color?.name || colorCode)}</div></div></div>` : ''}
+    ${brandName && brandLogo ? `<div class="meta">Brend: <b>${esc(brandName)}</b></div>` : ''}
     ${meta ? `<div class="meta">${meta}</div>` : ''}
   </div>
   <div class="barcode">${barcodeSvg(barcode)}</div>
