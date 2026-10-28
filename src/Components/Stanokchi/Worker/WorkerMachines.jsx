@@ -6,7 +6,8 @@ import { useCreateStockTransactionMutation } from '../../../store/services/produ
 import { useAppTheme } from '../../../theme/tokens';
 import ProductImage from '../../ui/ProductImage';
 import { useProductionWarehouse } from '../productionWarehouse';
-import { printProducedLabel } from '../__components/producedLabel';
+import { labelErrorMessage, printProductLabel } from '../../../services/labelPrinter';
+import LabelPrintDialog from '../../ui/LabelPrintDialog';
 
 const productImageUrl = (productId) => (productId ? `/api/v1/products/${productId}/image` : null);
 
@@ -29,6 +30,7 @@ export default function WorkerMachines() {
     const [createStockTransaction, { isLoading: producing }] = useCreateStockTransactionMutation();
     const [producingId, setProducingId] = useState(null);
     const warehouseState = useProductionWarehouse();
+    const [labelPick, setLabelPick] = useState(null); // printer tanlanmagan bo‘lsa — yorliq oynasi
 
     /* ── Toast ── */
     const [toast, setToast] = useState(null);
@@ -48,20 +50,18 @@ export default function WorkerMachines() {
         setProducingId(machine.id);
         try {
             // Stanokdan chiqqan mahsulot: IN + machineId + warehouseId (PRODUCE turi yo‘q)
-            const res = await createStockTransaction({
+            await createStockTransaction({
                 action: 'IN',
                 machineId: machine.id,
                 warehouseId: warehouseState.warehouseId,
                 items: [{ productId: machine.currentRun.productId, quantity: 1, unit: 'PACK' }], // har bosish = 1 pachka
             }).unwrap();
             // Javobdagi harakat yozuvida shtrix-kod bor — oynada katta qilib ko‘rsatamiz
-            const tx = Array.isArray(res?.data) ? res.data[0] : null;
-            // Yorliq darhol printerga ketadi (modal yo‘q)
-            printProducedLabel({
-                productId: machine.currentRun.productId,
-                productName: machine.currentRun.productName,
-                brandName: machine.currentRun.brand?.name || '',
-                barcode: tx?.productBarcode || '',
+            // Yorliq: backend tayyor TSPL kodini beradi, QZ Tray printerga yuboradi (1 nusxa).
+            // Printer tanlanmagan bo‘lsa — tanlash oynasi; boshqa xato — toast.
+            printProductLabel(machine.currentRun.productId, 1).catch((e) => {
+                if (e?.code === 'NO_PRINTER') setLabelPick({ productId: machine.currentRun.productId, productName: machine.currentRun.productName });
+                else showToast(labelErrorMessage(e), 'error');
             });
             showToast(`✓ 1 pachka qayd etildi — ${machine.currentRun.productName}`);
             refetch();
@@ -74,6 +74,9 @@ export default function WorkerMachines() {
 
     return (
         <div className="relative flex h-full min-h-0 flex-col" style={{ color: textColor }}>
+            {labelPick && (
+                <LabelPrintDialog open onClose={() => setLabelPick(null)} productId={labelPick.productId} productName={labelPick.productName} defaultCopies={1} />
+            )}
             {/* Toast */}
             {toast && (
                 <div style={{

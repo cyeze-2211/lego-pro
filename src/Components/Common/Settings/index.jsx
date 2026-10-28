@@ -7,6 +7,7 @@ import SettingsSection from './__components/SettingsSection';
 import ThemeOptionGroup, { ThemePreview } from './__components/ThemeOptionGroup';
 import CustomAccentPicker from './__components/CustomAccentPicker';
 import FontSizeControl from './__components/FontSizeControl';
+import LabelPrinterSettings from './__components/LabelPrinterSettings';
 
 /**
  * Sozlamalar — barcha rollar uchun umumiy sahifa (/settings, /stanokchi/settings, /mixer/settings).
@@ -100,6 +101,7 @@ export default function Settings() {
                 >
                     <FontSizeControl />
                 </SettingsSection>
+                <LabelPrinterSettings />
             </VStack>
         </Box>
     );

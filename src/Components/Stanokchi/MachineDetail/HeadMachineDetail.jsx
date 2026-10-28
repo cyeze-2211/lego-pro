@@ -27,7 +27,8 @@ import {
 } from '../../../store/services/machine.api';
 import StartProductPicker from './StartProductPicker';
 import { ProductionWarehousePicker, useProductionWarehouse } from '../productionWarehouse';
-import { printProducedLabel } from '../__components/producedLabel';
+import { labelErrorMessage, printProductLabel } from '../../../services/labelPrinter';
+import LabelPrintDialog from '../../ui/LabelPrintDialog';
 import {
     useCreateStockTransactionMutation,
 } from '../../../store/services/productStock.api';
@@ -244,6 +245,7 @@ export default function StanokchiMachineDetail() {
     const [updateMachineStatus, { isLoading: statusUpdating }] = useUpdateMachineStatusMutation();
     const [createStockTransaction, { isLoading: producing }] = useCreateStockTransactionMutation();
     const warehouseState = useProductionWarehouse();
+    const [labelPick, setLabelPick] = useState(null); // printer tanlanmagan bo‘lsa — yorliq oynasi
 
     /* ── Toast ── */
     const [toast, setToast] = useState(null);
@@ -299,19 +301,17 @@ export default function StanokchiMachineDetail() {
             return;
         }
         try {
-            const res = await createStockTransaction({
+            await createStockTransaction({
                 action: 'IN',
                 machineId: id,
                 warehouseId: warehouseState.warehouseId,
                 items: [{ productId: machine.currentRun.productId, quantity: 1, unit: 'PACK' }], // har bosish = 1 pachka
             }).unwrap();
-            const tx = Array.isArray(res?.data) ? res.data[0] : null;
-            // Yorliq darhol printerga ketadi (modal yo‘q)
-            printProducedLabel({
-                productId: machine.currentRun.productId,
-                productName: machine.currentRun.productName,
-                brandName: machine.currentRun.brand?.name || '',
-                barcode: tx?.productBarcode || '',
+            // Yorliq: backend tayyor TSPL kodini beradi, QZ Tray printerga yuboradi (1 nusxa).
+            // Printer tanlanmagan bo‘lsa — tanlash oynasi; boshqa xato — toast.
+            printProductLabel(machine.currentRun.productId, 1).catch((e) => {
+                if (e?.code === 'NO_PRINTER') setLabelPick({ productId: machine.currentRun.productId, productName: machine.currentRun.productName });
+                else showToast(labelErrorMessage(e), 'error');
             });
             showToast(`1 pachka qayd etildi — ${machine.currentRun.productName}`);
             refetchMachine();
@@ -416,6 +416,9 @@ export default function StanokchiMachineDetail() {
     ════════════════════════════════ */
     return (
         <div style={{ background: pageBg, color: textColor, minHeight: '100%' }}>
+            {labelPick && (
+                <LabelPrintDialog open onClose={() => setLabelPick(null)} productId={labelPick.productId} productName={labelPick.productName} defaultCopies={1} />
+            )}
 
             {/* ── Toast ── */}
             {toast && (

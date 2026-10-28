@@ -4,6 +4,7 @@ import { Badge, HStack } from '@chakra-ui/react';
 import { LuBarcode, LuCalendar, LuPackage, LuWarehouse } from 'react-icons/lu';
 import ColorSwatch from '../../ui/ColorSwatch';
 import ProductImage from '../../ui/ProductImage';
+import LabelPrintButton from '../../ui/LabelPrintButton';
 import { useGetProductByIdQuery } from '../../../store/services/product.api';
 import { useGetWarehousesQuery } from '../../../store/services/warehouse.api';
 import { Alert } from '../../Other/UI/Alert/Alert';
@@ -26,6 +27,7 @@ export default function ProductDetail() {
                 <HStack gap={4} align="center" pb={2}>
                     <ProductImage imageUrl={product.imageUrl} version={product.lastModifiedAt} name={product.name} size={112} radius="xl" iconSize={36} />
                     <Badge borderRadius="full" px={3} py={1} colorPalette={product.imageUrl ? 'green' : 'gray'} variant="subtle">{product.imageUrl ? 'Rasm yuklangan' : 'Rasm yo‘q'}</Badge>
+                    <LabelPrintButton productId={product.id} productName={product.name} label="Yorliq chop etish" />
                 </HStack>
                 <DetailRow label="Narxi" value={`${formatNumber(product.price)} so‘m`} emphasize />
                 <DetailRow label="Shtrix-kod" value={<HStack gap={2}><LuBarcode size={16} /><span>{product.barcode || '—'}</span></HStack>} />

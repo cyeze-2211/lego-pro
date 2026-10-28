@@ -28,6 +28,7 @@ import {
     LuGift,
 } from 'react-icons/lu';
 import { useGetProductsQuery } from '../../../store/services/product.api';
+import LabelPrintButton from '../../ui/LabelPrintButton';
 import { useGetWarehousesQuery } from '../../../store/services/warehouse.api';
 import { useGetBrandsQuery } from '../../../store/services/brand.api';
 import { useGetProductCategoriesQuery } from '../../../store/services/productCategory.api';
@@ -1138,6 +1139,7 @@ export default function Product() {
                                                 onKeyDown={(event) => event.stopPropagation()}
                                             >
                                                 <HStack justify="center" gap={1}>
+                                                    <LabelPrintButton productId={product.id} productName={product.name} />
                                                     <CopyButton product={product} />
                                                     <Edit product={product} />
                                                     <Delete product={product} />
