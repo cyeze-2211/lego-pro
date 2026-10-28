@@ -519,38 +519,26 @@ export default function Create({ warehouses }) {
                                                         Masalan: 500ml, 1kg
                                                     </Field.HelperText>
                                                 </Field.Root>
-                                                <Field.Root>
+                                                <Field.Root gridColumn={{ base: 'auto', md: 'span 2' }}>
                                                     <Field.Label color={textColor} fontWeight="medium">
                                                         <HStack gap={2}>
                                                             <LuCircleDot size={16} />
                                                             <span>Rezina (zichlagich)</span>
                                                         </HStack>
                                                     </Field.Label>
-                                                    <HStack gap={2}>
-                                                        {[{ value: true, label: 'Rezina bor', color: 'green' }, { value: false, label: 'Rezina yo‘q', color: 'gray' }].map((opt) => {
-                                                            const active = form.rubber === opt.value;
-                                                            return (
-                                                                <Button
-                                                                    key={String(opt.value)}
-                                                                    type="button"
-                                                                    onClick={() => setField('rubber', opt.value)}
-                                                                    disabled={isLoading}
-                                                                    variant="outline"
-                                                                    flex="1"
-                                                                    h="52px"
-                                                                    borderRadius="xl"
-                                                                    borderWidth="2px"
-                                                                    borderColor={active ? (opt.color === 'green' ? 'green.400' : (isDark ? 'whiteAlpha.500' : 'gray.400')) : modalBorder}
-                                                                    bg={active ? (opt.color === 'green' ? (isDark ? 'rgba(34,197,94,0.15)' : 'green.50') : (isDark ? 'whiteAlpha.100' : 'gray.100')) : 'transparent'}
-                                                                    color={active ? (opt.color === 'green' ? (isDark ? 'green.200' : 'green.700') : textColor) : subtitleColor}
-                                                                    fontWeight="bold"
-                                                                >
-                                                                    {active ? '✓ ' : ''}{opt.label}
-                                                                </Button>
-                                                            );
-                                                        })}
-                                                    </HStack>
-                                                    <Field.HelperText color={subtitleColor}>Yorliqda «REZINA: BOR / YO‘Q» bo‘lib chiqadi</Field.HelperText>
+                                                    <FormControl
+                                                        as="select"
+                                                        value={form.rubber ? 'yes' : 'no'}
+                                                        onChange={(e) => setField('rubber', e.target.value === 'yes')}
+                                                        minH="52px"
+                                                        disabled={isLoading}
+                                                    >
+                                                        <option value="no">Rezina yo‘q</option>
+                                                        <option value="yes">Rezina bor</option>
+                                                    </FormControl>
+                                                    <Field.HelperText color={subtitleColor}>
+                                                        Mahsulot rezina (zichlagich) bilan keladimi. Yorliqda «REZINA: BOR / YO‘Q» bo‘lib chiqadi.
+                                                    </Field.HelperText>
                                                 </Field.Root>
                                             </SimpleGrid>
 
