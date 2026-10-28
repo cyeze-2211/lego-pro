@@ -1,9 +1,10 @@
-// app/layout/WorkerStanokchiLayout.jsx
-import FullscreenButton from "../../Components/ui/FullscreenButton";
-import { Suspense, useRef, useState, useEffect } from "react";
+// app/layout/WorkerStanokchiLayout.jsx — xodim (kiosk) rejimi: ixcham yuqori panel, qolgan joy stanoklarga
+import { Suspense } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
 import Cookies from "js-cookie";
-import { Moon, Sun, LogOut, ChevronDown, User, ShieldCheck, Settings } from "lucide-react";
+import { Moon, Sun, LogOut } from "lucide-react";
+import FullscreenButton from "../../Components/ui/FullscreenButton";
+import { ProductionWarehousePicker, useProductionWarehouse } from "../../Components/Stanokchi/productionWarehouse";
 import { useAppTheme } from "../../theme/tokens";
 import { clearStorageKeepingPreferences } from "../../theme/preferences";
 import { useGetUserByIdQuery } from "../../store/services/user.api";
@@ -14,29 +15,17 @@ import { useStanokchiMode } from "../../context/StanokchiModeContext";
 import Loading from "../../Components/Other/UI/Loadings/Loading";
 
 export default function WorkerStanokchiLayout() {
-    const { isDark, toggleColorMode } = useAppTheme();
+    const { isDark, toggleColorMode, cardBg, cardBorder, textColor, subtitleColor } = useAppTheme();
     const { resetMode } = useStanokchiMode();
     const dispatch = useAppDispatch();
     const navigate = useNavigate();
     const userId = Cookies.get("user_id");
-
     const { data: user } = useGetUserByIdQuery(userId, { skip: !userId });
     const [logoutApi] = useLogoutMutation();
-
-    const [openMenu, setOpenMenu] = useState(false);
-    const menuRef = useRef(null);
-
-    useEffect(() => {
-        const handler = (e) => {
-            if (menuRef.current && !menuRef.current.contains(e.target)) {
-                setOpenMenu(false);
-            }
-        };
-        document.addEventListener("mousedown", handler);
-        return () => document.removeEventListener("mousedown", handler);
-    }, []);
+    const warehouseState = useProductionWarehouse();
 
     const handleLogout = async () => {
+        if (!window.confirm("Tizimdan chiqishni tasdiqlaysizmi?")) return;
         try { await logoutApi().unwrap(); } catch { /* ignore */ }
         dispatch(logoutUser());
         resetMode();
@@ -44,145 +33,45 @@ export default function WorkerStanokchiLayout() {
         navigate("/login");
     };
 
-    const headerBg = isDark
-        ? "rgba(14,21,36,0.95)"
-        : "rgba(255,255,255,0.95)";
-    const headerBorder = isDark
-        ? "1px solid rgba(255,255,255,0.07)"
-        : "1px solid rgba(226,232,240,0.8)";
+    const iconBtn = `flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border transition-all ${
+        isDark ? "border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
+    }`;
 
     return (
-        <div
-            className={`min-h-screen w-full transition-colors duration-300 ${
-                isDark ? "theme-dark" : "theme-light"
-            }`}
-        >
-            {/* ── Worker Header ── */}
-            <header
-                className="fixed top-0 left-0 right-0 z-30 h-[60px] sm:h-[72px]"
-                style={{
-                    background: headerBg,
-                    backdropFilter: "blur(12px)",
-                    borderBottom: headerBorder,
-                }}
+        <div className={`flex h-[100dvh] w-full flex-col overflow-hidden transition-colors duration-300 ${isDark ? "theme-dark" : "theme-light"}`}>
+            {/* ── Ixcham panel: faqat kerakli narsalar ── */}
+            <div
+                className="flex h-12 shrink-0 items-center justify-between gap-2 border-b px-2 sm:px-3"
+                style={{ background: isDark ? "rgba(14,21,36,0.95)" : "rgba(255,255,255,0.95)", borderColor: isDark ? "rgba(255,255,255,0.07)" : "rgba(226,232,240,0.9)" }}
             >
-                <div className="flex h-full items-center justify-between px-3 sm:px-5 max-w-7xl mx-auto">
-                    {/* Logo / title */}
-                    <div className="flex items-center gap-2.5 sm:gap-3">
-                        <div
-                            className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-xl"
-                            style={{ background: "rgb(var(--accent-400))" }}
-                        >
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-                                stroke="#0F172A" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                                <circle cx="12" cy="12" r="3" />
-                                <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" />
-                            </svg>
-                        </div>
-                        <span
-                            className="text-sm sm:text-base font-bold tracking-wide"
-                            style={{ color: isDark ? "#F8FAFC" : "#0F172A" }}
-                        >
-                            Xodim Panel
-                        </span>
-                    </div>
-
-                    {/* Right actions */}
-                    <div className="flex items-center gap-2 sm:gap-3">
-                        {/* Theme toggle */}
-                        {/* To‘liq ekran */}
-                        <FullscreenButton
-                            className={`flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-lg border transition-all duration-200 ${
-                                isDark
-                                    ? "border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800"
-                                    : "border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
-                            }`}
-                        />
-
-                        <button
-                            type="button"
-                            onClick={toggleColorMode}
-                            className={`flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-lg border transition-all ${
-                                isDark
-                                    ? "border-slate-700 bg-slate-900 text-amber-400 hover:bg-slate-800"
-                                    : "border-slate-200 bg-white text-amber-600 hover:bg-slate-100"
-                            }`}
-                            title={isDark ? "Yorug'lik mavzusi" : "Qorong'i mavzu"}
-                        >
-                            {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-                        </button>
-
-                        {/* Profile dropdown */}
-                        <div className="relative" ref={menuRef}>
-                            <button
-                                type="button"
-                                onClick={() => setOpenMenu((p) => !p)}
-                                className={`group flex items-center gap-1.5 sm:gap-2.5 rounded-xl border px-2 py-1.5 sm:px-2.5 text-sm font-semibold transition-all ${
-                                    isDark
-                                        ? "border-amber-400/20 bg-slate-900 text-slate-100 hover:border-amber-400/50 hover:bg-slate-800"
-                                        : "border-slate-200 bg-white text-slate-800 hover:border-amber-300 hover:bg-amber-50"
-                                }`}
-                                aria-expanded={openMenu}
-                                aria-haspopup="menu"
-                            >
-                                <div className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-lg bg-amber-400/20">
-                                    <User className="h-4 w-4 text-amber-500" />
-                                </div>
-                                {user?.fullName && (
-                                    <span className="hidden sm:block max-w-[100px] truncate">
-                                        {user.fullName}
-                                    </span>
-                                )}
-                                <ChevronDown
-                                    className={`h-3.5 w-3.5 sm:h-4 sm:w-4 transition-transform duration-200 ${openMenu ? "rotate-180" : ""}`}
-                                />
-                            </button>
-
-                            {openMenu && (
-                                <div
-                                    role="menu"
-                                    className={`absolute right-0 top-[calc(100%+8px)] z-50 w-48 sm:w-52 overflow-hidden rounded-xl border p-1.5 shadow-xl ${
-                                        isDark
-                                            ? "border-slate-700 bg-[#111827] text-slate-100 shadow-black/30"
-                                            : "border-slate-200 bg-white text-slate-800 shadow-slate-200/70"
-                                    }`}
-                                >
-                                    {/* Sozlamalar (bu rejimda sidebar yo‘q) */}
-                                    <button
-                                        type="button"
-                                        role="menuitem"
-                                        onClick={() => { setOpenMenu(false); navigate("/stanokchi/settings"); }}
-                                        className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors ${
-                                            isDark ? "hover:bg-slate-800" : "hover:bg-amber-50"
-                                        }`}
-                                    >
-                                        <Settings className="h-4 w-4 text-amber-500" />
-                                        <span>Sozlamalar</span>
-                                    </button>
-
-                                    {/* Logout only — to switch to head the user must re-login */}
-                                    <button
-                                        type="button"
-                                        role="menuitem"
-                                        onClick={handleLogout}
-                                        className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors ${
-                                            isDark
-                                                ? "text-red-400 hover:bg-red-400/10"
-                                                : "text-red-600 hover:bg-red-50"
-                                        }`}
-                                    >
-                                        <LogOut className="h-4 w-4" />
-                                        <span>Chiqish</span>
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                    </div>
+                <div className="flex min-w-0 items-center gap-2">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg" style={{ background: "rgb(var(--accent-400))" }}>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0F172A" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="3" />
+                            <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" />
+                        </svg>
+                    </span>
+                    <span className="truncate text-sm font-bold" style={{ color: textColor }}>Stanoklar</span>
+                    {user?.fullName && <span className="hidden truncate text-xs sm:block" style={{ color: subtitleColor }}>· {user.fullName}</span>}
                 </div>
-            </header>
 
-            {/* ── Main ── */}
-            <main className="pt-[68px] sm:pt-[80px] pb-8 px-3 sm:px-4 md:px-6 max-w-7xl mx-auto">
+                <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+                    <div className="w-[150px] sm:w-[210px]">
+                        <ProductionWarehousePicker state={warehouseState} isDark={isDark} textColor={textColor} subtitleColor={subtitleColor} cardBg={cardBg} cardBorder={cardBorder} compact />
+                    </div>
+                    <button type="button" onClick={toggleColorMode} className={iconBtn} title={isDark ? "Yorug'lik mavzusi" : "Qorong'i mavzu"}>
+                        {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                    </button>
+                    {/* To‘liq ekran — Esc qulflanadi, tasodifan chiqib ketilmaydi */}
+                    <FullscreenButton className={iconBtn} lockKeyboard />
+                    <button type="button" onClick={handleLogout} className={`${iconBtn} ${isDark ? "text-red-400 hover:bg-red-400/10" : "text-red-600 hover:bg-red-50"}`} title="Chiqish" aria-label="Chiqish">
+                        <LogOut className="h-4 w-4" />
+                    </button>
+                </div>
+            </div>
+
+            {/* ── Asosiy joy: stanoklar bitta ekranga sig‘adi ── */}
+            <main className="min-h-0 flex-1 overflow-auto p-2 sm:p-3">
                 <Suspense fallback={<Loading />}>
                     <Outlet />
                 </Suspense>

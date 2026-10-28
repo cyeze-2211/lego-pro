@@ -40,8 +40,17 @@ export function useIsFullscreen() {
  * Sarlavhadagi «To‘liq ekran» tugmasi — barcha rollar uchun bitta.
  * `className` — mavzu tugmasi bilan bir xil ko‘rinish uchun tashqaridan beriladi.
  */
-export default function FullscreenButton({ className = '', iconClassName = 'h-4 w-4', size }) {
+export default function FullscreenButton({ className = '', iconClassName = 'h-4 w-4', size, lockKeyboard = false }) {
     const active = useIsFullscreen();
+    /* Kiosk rejimi: to‘liq ekranda Esc tugmasi qulflanadi — tasodifan chiqib ketilmaydi (Chrome/Edge; boshqalarida jim o‘tadi) */
+    useEffect(() => {
+        if (!lockKeyboard) return undefined;
+        const kb = navigator.keyboard;
+        if (!kb?.lock) return undefined;
+        if (active) kb.lock(['Escape']).catch(() => {});
+        else kb.unlock?.();
+        return () => { kb.unlock?.(); };
+    }, [active, lockKeyboard]);
     const onClick = useCallback(() => { toggleFullscreen(); }, []);
     if (!isSupported()) return null; // masalan, iPhone Safari — tugmani ko‘rsatmaymiz
     const Icon = active ? Minimize : Maximize;
@@ -63,4 +72,5 @@ FullscreenButton.propTypes = {
     className: PropTypes.string,
     iconClassName: PropTypes.string,
     size: PropTypes.number,
+    lockKeyboard: PropTypes.bool,
 };

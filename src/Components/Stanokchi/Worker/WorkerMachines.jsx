@@ -1,122 +1,26 @@
 // Components/Stanokchi/Worker/WorkerMachines.jsx
 import { useState, useEffect } from 'react';
-import { LuCog, LuActivity, LuChevronLeft, LuChevronRight } from 'react-icons/lu';
+import { LuCog, LuChevronLeft, LuChevronRight, LuClock3, LuPackage } from 'react-icons/lu';
 import { useGetMachinesQuery } from '../../../store/services/machine.api';
 import { useCreateStockTransactionMutation } from '../../../store/services/productStock.api';
 import { useAppTheme } from '../../../theme/tokens';
-import $api from '../../../store/api';
 import ProductImage from '../../ui/ProductImage';
-import { ProductionWarehousePicker, useProductionWarehouse } from '../productionWarehouse';
+import { useProductionWarehouse } from '../productionWarehouse';
 import { printProducedLabel } from '../__components/producedLabel';
 
 const productImageUrl = (productId) => (productId ? `/api/v1/products/${productId}/image` : null);
 
-const PAGE_SIZE = 8;
+const PAGE_SIZE = 8; // bitta ekranga 8 ta stanok (4×2 yoki 2×4)
 
-const formatStartedAt = (iso) => {
-    if (!iso) return '';
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return '';
-    return d.toLocaleString('uz-UZ', {
-        day: '2-digit', month: '2-digit', year: 'numeric',
-        hour: '2-digit', minute: '2-digit',
-    });
-};
-
-/* ── BrandLogo komponenti ── */
-function BrandLogo({ brand, isDark, accentColor, size = 32, isRectangle = false }) {
-    const [imgSrc, setImgSrc] = useState(null);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(false);
-
-    useEffect(() => {
-        if (!brand?.logoUrl) {
-            setImgSrc(null);
-            return;
-        }
-
-        let mounted = true;
-        setLoading(true);
-        setError(false);
-
-        // Axios bilan blob yuklab olish (token bilan)
-        $api.get(brand.logoUrl.replace('/api/v1', ''), { responseType: 'blob' })
-            .then((response) => {
-                if (mounted) {
-                    const url = URL.createObjectURL(response.data);
-                    setImgSrc(url);
-                    setLoading(false);
-                }
-            })
-            .catch((err) => {
-                if (mounted) {
-                    console.error('Logo load error:', err);
-                    setError(true);
-                    setLoading(false);
-                }
-            });
-
-        return () => {
-            mounted = false;
-            if (imgSrc) URL.revokeObjectURL(imgSrc);
-        };
-    }, [brand?.logoUrl, brand?.id]);
-
-    const containerStyle = {
-        width: isRectangle ? `${size + 32}px` : `${size}px`,
-        height: `${size}px`,
-        minWidth: isRectangle ? `${size + 32}px` : `${size}px`,
-        borderRadius: '8px',
-        overflow: 'hidden',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
-        border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
-        flexShrink: 0,
-    };
-
-    if (!brand?.logoUrl || error) {
-        return (
-            <div style={containerStyle}>
-                <span className="text-xs font-bold" style={{ color: accentColor }}>
-                    {brand?.name?.charAt(0) || 'B'}
-                </span>
-            </div>
-        );
-    }
-
-    if (loading) {
-        return (
-            <div style={containerStyle}>
-                <div className="animate-spin text-xs" style={{ color: accentColor }}>⏳</div>
-            </div>
-        );
-    }
-
-    return (
-        <div style={containerStyle}>
-            {imgSrc ? (
-                <img 
-                    src={imgSrc} 
-                    alt={brand.name}
-                    className="w-full h-full object-contain"
-                    style={{ padding: '4px' }}
-                />
-            ) : (
-                <span className="text-xs font-bold" style={{ color: accentColor }}>
-                    {brand?.name?.charAt(0) || 'B'}
-                </span>
-            )}
-        </div>
-    );
-}
 
 export default function WorkerMachines() {
     const [page, setPage] = useState(0);
-    const { isDark, pageBg, cardBg, cardBorder, textColor, subtitleColor, accentColor } = useAppTheme();
+    const { isDark, cardBg, cardBorder, textColor, subtitleColor } = useAppTheme();
 
-    const { data: result, isLoading, error, refetch } = useGetMachinesQuery({ page, size: PAGE_SIZE });
+    const { data: result, isLoading, error, refetch } = useGetMachinesQuery({ page, size: PAGE_SIZE }, { pollingInterval: 30_000 });
+    // Sarflangan vaqt uchun daqiqalik soat
+    const [now, setNow] = useState(() => Date.now());
+    useEffect(() => { const t = setInterval(() => setNow(Date.now()), 30_000); return () => clearInterval(t); }, []);
     const machines   = result?.items || [];
     const totalPages = result?.pagination?.totalPages || 0;
 
@@ -168,379 +72,191 @@ export default function WorkerMachines() {
     };
 
     return (
-        <div style={{ background: pageBg, color: textColor, minHeight: '100%' }}>
-
-
+        <div className="relative flex h-full min-h-0 flex-col" style={{ color: textColor }}>
             {/* Toast */}
             {toast && (
                 <div style={{
-                    position: 'fixed', top: 90, right: 24, zIndex: 9999,
-                    padding: '12px 20px', borderRadius: 12, fontWeight: 600, fontSize: 14,
-                    background: toast.type === 'error'
-                        ? (isDark ? '#7F1D1D' : '#FEE2E2')
-                        : (isDark ? '#14532D' : '#DCFCE7'),
-                    color: toast.type === 'error'
-                        ? (isDark ? '#FCA5A5' : '#991B1B')
-                        : (isDark ? '#86EFAC' : '#166534'),
+                    position: 'fixed', top: 60, right: 16, zIndex: 9999,
+                    padding: '12px 20px', borderRadius: 12, fontWeight: 700, fontSize: 15,
+                    background: toast.type === 'error' ? (isDark ? '#7F1D1D' : '#FEE2E2') : (isDark ? '#14532D' : '#DCFCE7'),
+                    color: toast.type === 'error' ? (isDark ? '#FCA5A5' : '#991B1B') : (isDark ? '#86EFAC' : '#166534'),
                     boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
                 }}>
                     {toast.message}
                 </div>
             )}
 
-            {/* Sarlavha */}
-            <div className="mb-6 sm:mb-8 flex flex-wrap items-end justify-between gap-3">
-                <div>
-                    <h1 className="text-2xl sm:text-4xl font-extrabold mb-1.5 sm:mb-2 leading-tight" style={{ color: textColor }}>
-                        Stanoklar
-                    </h1>
-                    <p className="text-sm sm:text-lg" style={{ color: subtitleColor }}>
-                        Qayd etish uchun ishlayotgan stanokning ustiga bosing
-                    </p>
-                </div>
-                <ProductionWarehousePicker state={warehouseState} isDark={isDark} textColor={textColor} subtitleColor={subtitleColor} cardBg={cardBg} cardBorder={cardBorder} />
-            </div>
-
-            {/* Loading */}
-            {isLoading && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                    {Array.from({ length: 4 }).map((_, i) => (
-                        <SkeletonCard key={i} isDark={isDark} cardBg={cardBg} cardBorder={cardBorder} />
-                    ))}
-                </div>
-            )}
-
-            {/* Error */}
+            {/* Xatolik / bo‘sh */}
             {error && !isLoading && (
-                <div className="flex flex-col items-center justify-center py-24 gap-4">
+                <div className="flex flex-1 flex-col items-center justify-center gap-3">
                     <LuCog size={52} style={{ color: subtitleColor, opacity: 0.35 }} />
-                    <p className="text-xl font-semibold" style={{ color: subtitleColor }}>
-                        Ma&apos;lumotlarni yuklashda xatolik
-                    </p>
+                    <p className="text-xl font-semibold" style={{ color: subtitleColor }}>Ma&apos;lumotlarni yuklashda xatolik</p>
                 </div>
             )}
-
-            {/* Bo'sh */}
             {!isLoading && !error && machines.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-24 gap-4">
+                <div className="flex flex-1 flex-col items-center justify-center gap-3">
                     <LuCog size={60} style={{ color: subtitleColor, opacity: 0.3 }} />
-                    <p className="text-xl font-semibold" style={{ color: subtitleColor }}>
-                        Hozircha stanoklar yo&apos;q
-                    </p>
+                    <p className="text-xl font-semibold" style={{ color: subtitleColor }}>Hozircha stanoklar yo&apos;q</p>
                 </div>
             )}
 
-            {/* Cards */}
-            {!isLoading && !error && machines.length > 0 && (
-                <>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-5">
-                        {machines.map((machine) => (
+            {/* 8 ta stanok — bitta ekran, skroll yo‘q: landshaftda 4×2, portretda 2×4 */}
+            {!error && (isLoading || machines.length > 0) && (
+                <div className="grid min-h-0 flex-1 gap-2 sm:gap-3 landscape:grid-cols-4 landscape:grid-rows-2 portrait:grid-cols-2 portrait:grid-rows-4">
+                    {isLoading
+                        ? Array.from({ length: PAGE_SIZE }).map((_, i) => <SkeletonCard key={i} isDark={isDark} cardBg={cardBg} cardBorder={cardBorder} />)
+                        : machines.map((machine) => (
                             <WorkerMachineCard
                                 key={machine.id}
                                 machine={machine}
+                                now={now}
                                 isDark={isDark}
                                 cardBg={cardBg}
                                 cardBorder={cardBorder}
                                 textColor={textColor}
                                 subtitleColor={subtitleColor}
-                                accentColor={accentColor}
                                 onClick={() => handleCardClick(machine)}
                                 isProducing={producingId === machine.id}
                             />
                         ))}
-                    </div>
+                </div>
+            )}
 
-                    {totalPages > 1 && (
-                        <div className="flex items-center justify-center gap-3 sm:gap-4 mt-8 sm:mt-10">
-                            <button
-                                disabled={page === 0}
-                                onClick={() => setPage((p) => p - 1)}
-                                className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-xl border text-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                                style={{ background: cardBg, borderColor: cardBorder, color: textColor }}
-                            >
-                                <LuChevronLeft size={20} />
-                            </button>
-                            <span className="text-base sm:text-lg font-bold" style={{ color: subtitleColor }}>
-                                {page + 1} / {totalPages}
-                            </span>
-                            <button
-                                disabled={page >= totalPages - 1}
-                                onClick={() => setPage((p) => p + 1)}
-                                className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-xl border text-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                                style={{ background: cardBg, borderColor: cardBorder, color: textColor }}
-                            >
-                                <LuChevronRight size={20} />
-                            </button>
-                        </div>
-                    )}
-                </>
+            {/* Sahifalar (8 tadan ko‘p bo‘lsa) — kichik, pastda */}
+            {totalPages > 1 && (
+                <div className="mt-2 flex shrink-0 items-center justify-center gap-3">
+                    <button type="button" disabled={page === 0} onClick={() => setPage((p) => p - 1)}
+                        className="flex h-9 w-9 items-center justify-center rounded-lg border transition-all disabled:cursor-not-allowed disabled:opacity-40"
+                        style={{ background: cardBg, borderColor: cardBorder, color: textColor }} aria-label="Oldingi">
+                        <LuChevronLeft size={18} />
+                    </button>
+                    <span className="text-sm font-bold" style={{ color: subtitleColor }}>{page + 1} / {totalPages}</span>
+                    <button type="button" disabled={page >= totalPages - 1} onClick={() => setPage((p) => p + 1)}
+                        className="flex h-9 w-9 items-center justify-center rounded-lg border transition-all disabled:cursor-not-allowed disabled:opacity-40"
+                        style={{ background: cardBg, borderColor: cardBorder, color: textColor }} aria-label="Keyingi">
+                        <LuChevronRight size={18} />
+                    </button>
+                </div>
             )}
         </div>
     );
 }
 
-/* ── WorkerMachineCard — katta, oddiy ── */
-function WorkerMachineCard({ machine, isDark, cardBg, cardBorder, textColor, subtitleColor, accentColor, onClick, isProducing }) {
+/* Sarflangan vaqt: «1 s 20 d» */
+const elapsedLabel = (startedAt, now) => {
+    if (!startedAt) return '';
+    const min = Math.max(0, Math.floor((now - new Date(startedAt).getTime()) / 60000));
+    const h = Math.floor(min / 60); const m = min % 60;
+    return h > 0 ? `${h} s ${m} d` : `${m} d`;
+};
+
+/* ── Karta: katakni to‘liq egallaydi, matnlar ekran kengligiga qarab o‘lchanadi ── */
+function WorkerMachineCard({ machine, now, isDark, cardBg, cardBorder, textColor, subtitleColor, onClick, isProducing }) {
     const isWorking = machine.status === 'WORKING';
     const isDefect = machine.status === 'DEFECT';
-    const isIdle = machine.status === 'IDLE';
+    const run = machine.currentRun;
+    const canClick = (isWorking || isDefect) && Boolean(run);
+    const tone = isWorking ? '#22C55E' : isDefect ? '#EF4444' : null;
 
-    // Status bo'yicha kartaning rangi
-    const getCardBackground = () => {
-        if (isWorking) {
-            return isDark 
-                ? 'linear-gradient(135deg, rgba(22,163,74,0.15) 0%, rgba(34,197,94,0.08) 100%)'
-                : 'linear-gradient(135deg, rgba(220,252,231,0.8) 0%, rgba(187,247,208,0.5) 100%)';
-        }
-        if (isDefect) {
-            return isDark 
-                ? 'linear-gradient(135deg, rgba(220,38,38,0.15) 0%, rgba(239,68,68,0.08) 100%)'
-                : 'linear-gradient(135deg, rgba(254,226,226,0.8) 0%, rgba(252,165,165,0.5) 100%)';
-        }
-        return cardBg;
-    };
-
-    const getBorderColor = () => {
-        if (isWorking) return isDark ? 'rgba(34,197,94,0.5)' : '#86EFAC';
-        if (isDefect) return isDark ? 'rgba(239,68,68,0.5)' : '#FCA5A5';
-        return cardBorder;
-    };
-
-    const getBoxShadow = () => {
-        if (isWorking) {
-            return isDark 
-                ? '0 8px 32px rgba(34,197,94,0.2), 0 0 0 1px rgba(34,197,94,0.1) inset'
-                : '0 8px 28px rgba(34,197,94,0.15), 0 0 0 1px rgba(34,197,94,0.1) inset';
-        }
-        if (isDefect) {
-            return isDark 
-                ? '0 8px 32px rgba(239,68,68,0.2), 0 0 0 1px rgba(239,68,68,0.1) inset'
-                : '0 8px 28px rgba(239,68,68,0.15), 0 0 0 1px rgba(239,68,68,0.1) inset';
-        }
-        return isDark ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 18px rgba(15,23,42,0.08)';
-    };
-
-    const canClick = (isWorking || isDefect) && machine.currentRun;
+    const background = isWorking
+        ? (isDark ? 'linear-gradient(160deg, rgba(22,163,74,0.18), rgba(34,197,94,0.06))' : 'linear-gradient(160deg, #DCFCE7, #F0FDF4)')
+        : isDefect
+            ? (isDark ? 'linear-gradient(160deg, rgba(220,38,38,0.18), rgba(239,68,68,0.06))' : 'linear-gradient(160deg, #FEE2E2, #FEF2F2)')
+            : cardBg;
+    const border = isWorking ? (isDark ? 'rgba(34,197,94,0.55)' : '#86EFAC') : isDefect ? (isDark ? 'rgba(239,68,68,0.55)' : '#FCA5A5') : cardBorder;
+    const strong = isWorking ? (isDark ? '#86EFAC' : '#166534') : isDefect ? (isDark ? '#FCA5A5' : '#991B1B') : textColor;
 
     return (
         <button
+            type="button"
             onClick={onClick}
             disabled={isProducing || !canClick}
-            className="relative text-left w-full rounded-3xl border transition-all duration-200 overflow-hidden active:scale-[0.98]"
+            className="relative flex min-h-0 w-full flex-col overflow-hidden rounded-2xl border text-left transition-transform duration-150 active:scale-[0.98]"
             style={{
-                background: getCardBackground(),
-                borderColor: getBorderColor(),
-                boxShadow: getBoxShadow(),
+                background, borderColor: border,
+                boxShadow: tone ? `0 0 0 2px ${tone}33, 0 10px 28px ${tone}26` : (isDark ? '0 4px 16px rgba(0,0,0,0.3)' : '0 4px 16px rgba(15,23,42,0.08)'),
                 cursor: isProducing ? 'wait' : canClick ? 'pointer' : 'default',
-                opacity: isProducing ? 0.6 : 1,
+                opacity: isProducing ? 0.7 : canClick ? 1 : 0.85,
+                padding: 'clamp(8px, 1.1vw, 16px)',
             }}
         >
-            {/* Top accent strip */}
-            <div style={{
-                height: 6,
-                background: isWorking 
-                    ? 'linear-gradient(90deg,#22C55E,#16A34A)'
-                    : isDefect 
-                    ? 'linear-gradient(90deg,#EF4444,#DC2626)'
-                    : (isDark ? 'rgba(255,255,255,0.05)' : '#E2E8F0'),
-            }} />
-
-            <div className="p-4 sm:p-6">
-                {/* Loading indicator (card ustida) */}
-                {isProducing && (
-                    <div className="absolute inset-0 flex items-center justify-center z-10"
-                        style={{ background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(2px)' }}>
-                        <div className="flex flex-col items-center gap-2">
-                            <div style={{
-                                width: 32, height: 32, borderRadius: '50%',
-                                border: '3px solid rgba(255,255,255,0.3)',
-                                borderTopColor: '#22C55E',
-                                animation: 'spin 0.8s linear infinite',
-                            }} />
-                            <span className="text-xs font-semibold" style={{ color: '#fff' }}>
-                                Saqlanmoqda...
-                            </span>
-                        </div>
+            {isProducing && (
+                <div className="absolute inset-0 z-10 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(2px)' }}>
+                    <div className="flex flex-col items-center gap-2">
+                        <div style={{ width: 34, height: 34, borderRadius: '50%', border: '3px solid rgba(255,255,255,0.3)', borderTopColor: '#22C55E', animation: 'spin 0.8s linear infinite' }} />
+                        <span className="text-sm font-bold text-white">Saqlanmoqda...</span>
                     </div>
-                )}
+                </div>
+            )}
 
-                {/* Mahsulot rasmi + badge row */}
-                <div className="flex items-start justify-between mb-3 sm:mb-4">
-                    {(isWorking || isDefect) && machine.currentRun ? (
-                        <div className="flex items-center gap-3 min-w-0">
-                            <ProductImage imageUrl={productImageUrl(machine.currentRun.productId)} version={machine.currentRun.productId} name={machine.currentRun.productName} size={72} radius="2xl" iconSize={28} />
-                            {machine.currentRun.brand && (
-                                <BrandLogo
-                                    brand={machine.currentRun.brand}
-                                    isDark={isDark}
-                                    accentColor={accentColor}
-                                    size={36}
-                                    isRectangle={true}
-                                />
-                            )}
-                        </div>
-                    ) : (
-                        <div
-                            className="flex items-center justify-center rounded-2xl"
-                            style={{
-                                width: '80px',
-                                height: '52px',
-                                background: isWorking
-                                    ? (isDark ? 'rgba(34,197,94,0.2)' : 'rgba(34,197,94,0.15)')
-                                    : isDefect
-                                    ? (isDark ? 'rgba(239,68,68,0.2)' : 'rgba(239,68,68,0.15)')
-                                    : (isDark ? 'rgb(var(--accent-400) / 0.14)' : 'rgb(var(--accent-warm-100))')
-                            }}
-                        >
-                            <LuCog
-                                size={26}
-                                style={{
-                                    color: isWorking
-                                        ? '#22C55E'
-                                        : isDefect
-                                        ? '#EF4444'
-                                        : accentColor
-                                }}
-                            />
-                        </div>
-                    )}
+            {/* Yuqori qator: stanok nomi + holat */}
+            <div className="flex items-center justify-between gap-2">
+                <span className="flex min-w-0 items-center gap-1.5">
+                    <LuCog size={14} style={{ color: tone || subtitleColor, flexShrink: 0 }} />
+                    <span className="truncate font-extrabold" style={{ color: textColor, fontSize: 'clamp(13px, 1.3vw, 19px)' }}>{machine.name}</span>
+                </span>
+                <span className="shrink-0 rounded-full px-2 py-0.5 font-bold" style={{
+                    fontSize: 'clamp(10px, 0.9vw, 13px)',
+                    background: isWorking ? (isDark ? 'rgba(34,197,94,0.22)' : '#BBF7D0') : isDefect ? (isDark ? 'rgba(239,68,68,0.22)' : '#FECACA') : (isDark ? 'rgba(148,163,184,0.15)' : '#F1F5F9'),
+                    color: strong,
+                }}>
+                    {isWorking ? '● Ishlayapti' : isDefect ? '● Brak' : '○ Bo‘sh'}
+                </span>
+            </div>
 
-                    <span
-                        className="text-xs sm:text-sm font-bold px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full"
-                        style={
-                            isWorking
-                                ? { background: isDark ? 'rgba(34,197,94,0.2)' : '#DCFCE7', color: isDark ? '#86EFAC' : '#166534' }
-                                : isDefect
-                                ? { background: isDark ? 'rgba(239,68,68,0.2)' : '#FEE2E2', color: isDark ? '#FCA5A5' : '#991B1B' }
-                                : { background: isDark ? 'rgba(148,163,184,0.15)' : '#F1F5F9', color: subtitleColor }
-                        }
-                    >
-                        {isWorking ? '🟢 Ishlayapti' : isDefect ? '🔴 Brak' : '⚪ Bo\'sh'}
+            {/* O‘rta: mahsulot */}
+            {canClick ? (
+                <div className="flex min-h-0 flex-1 items-center gap-2 py-1 sm:gap-3">
+                    <div className="shrink-0" style={{ width: 'clamp(44px, 5.5vw, 88px)' }}>
+                        <ProductImage imageUrl={productImageUrl(run.productId)} version={run.productId} name={run.productName} size={88} radius="xl" iconSize={28} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                        <p className="font-extrabold leading-tight" style={{ color: strong, fontSize: 'clamp(13px, 1.35vw, 20px)', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                            {run.productName}
+                        </p>
+                        {run.brand?.name && (
+                            <p className="mt-0.5 truncate font-semibold" style={{ color: subtitleColor, fontSize: 'clamp(11px, 1vw, 14px)' }}>{run.brand.name}</p>
+                        )}
+                    </div>
+                </div>
+            ) : (
+                <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-1">
+                    <LuCog size={34} style={{ color: subtitleColor, opacity: 0.35 }} />
+                    <span className="font-semibold" style={{ color: subtitleColor, fontSize: 'clamp(11px, 1vw, 14px)' }}>Hozir ishlamayapti</span>
+                </div>
+            )}
+
+            {/* Pastki qator: vaqt + ko‘rsatma */}
+            {canClick && (
+                <div className="flex items-center justify-between gap-2" style={{ fontSize: 'clamp(10px, 0.95vw, 13px)' }}>
+                    <span className="inline-flex items-center gap-1 font-semibold" style={{ color: subtitleColor }}>
+                        <LuClock3 size={12} /> {elapsedLabel(run.startedAt, now)}
+                    </span>
+                    <span className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 font-extrabold" style={{ background: tone, color: '#fff' }}>
+                        <LuPackage size={12} /> +1 pachka
                     </span>
                 </div>
-
-                {/* Brand nomi */}
-                {(isWorking || isDefect) && machine.currentRun?.brand && (
-                    <div
-                        className="mb-2.5 sm:mb-3 pb-2.5 sm:pb-3"
-                        style={{
-                            borderBottom: `2px solid ${
-                                isWorking
-                                    ? (isDark ? 'rgba(34,197,94,0.2)' : '#BBF7D0')
-                                    : (isDark ? 'rgba(239,68,68,0.2)' : '#FECACA')
-                            }`
-                        }}
-                    >
-                        <div className="flex items-center gap-2">
-                            <div
-                                className="w-1.5 h-5 sm:h-6 rounded-full flex-shrink-0"
-                                style={{
-                                    background: isWorking
-                                        ? (isDark ? '#86EFAC' : '#16A34A')
-                                        : (isDark ? '#FCA5A5' : '#DC2626')
-                                }}
-                            />
-                            <span
-                                className="text-base sm:text-xl font-extrabold tracking-tight"
-                                style={{ color: textColor }}
-                            >
-                                {machine.currentRun.brand.name}
-                            </span>
-                        </div>
-                    </div>
-                )}
-
-                {/* Stanok nomi */}
-                <div className="flex items-center gap-2 mb-2">
-                    <LuCog size={13} style={{ color: subtitleColor, flexShrink: 0 }} />
-                    <h3 className="font-semibold text-xs sm:text-sm" style={{ color: subtitleColor }}>
-                        {machine.name}
-                    </h3>
-                </div>
-
-                {/* Current run info */}
-                {(isWorking || isDefect) && machine.currentRun ? (
-                    <div
-                        className="mt-2.5 sm:mt-3 pt-2.5 sm:pt-3 flex flex-col gap-2"
-                        style={{
-                            borderTop: `1px solid ${
-                                isWorking
-                                    ? (isDark ? 'rgba(34,197,94,0.3)' : '#BBF7D0')
-                                    : (isDark ? 'rgba(239,68,68,0.3)' : '#FECACA')
-                            }`
-                        }}
-                    >
-                        <div className="flex items-start gap-2">
-                            <LuActivity
-                                size={14}
-                                style={{
-                                    color: isWorking ? '#22C55E' : '#EF4444',
-                                    flexShrink: 0,
-                                    marginTop: 4,
-                                }}
-                            />
-                            <div className="min-w-0">
-                                <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: subtitleColor }}>Mahsulot</p>
-                                <span
-                                    className="block text-base sm:text-lg font-extrabold leading-tight"
-                                    style={{
-                                        color: isWorking
-                                            ? (isDark ? '#86EFAC' : '#166534')
-                                            : (isDark ? '#FCA5A5' : '#991B1B')
-                                    }}
-                                >
-                                    {machine.currentRun.productName}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                ) : (
-                    <div
-                        className="mt-3 sm:mt-4 pt-3 sm:pt-4"
-                        style={{ borderTop: `1px solid ${cardBorder}` }}
-                    >
-                        <span className="text-sm sm:text-base" style={{ color: subtitleColor }}>Hozir ishlamayapti</span>
-                    </div>
-                )}
-            </div>
+            )}
         </button>
     );
 }
 
 /* ── Skeleton ── */
 function SkeletonCard({ isDark, cardBg, cardBorder }) {
-    const sh = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.05)';
+    const sh = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
     return (
-        <div className="rounded-3xl border overflow-hidden" style={{ background: cardBg, borderColor: cardBorder }}>
-            <div style={{ height: 6, background: sh }} />
-            <div className="p-6 flex flex-col gap-4">
-                <div className="flex justify-between">
-                    <div style={{ width: 56, height: 56, borderRadius: 16, background: sh }} />
-                    <div style={{ width: 100, height: 32, borderRadius: 999, background: sh }} />
-                </div>
-                <div style={{ height: 22, borderRadius: 8, background: sh, width: '60%' }} />
-                <div style={{ height: 16, borderRadius: 6, background: sh, width: '85%' }} />
-                <div style={{ height: 16, borderRadius: 6, background: sh, width: '50%' }} />
-            </div>
+        <div className="flex min-h-0 flex-col gap-3 rounded-2xl border p-3" style={{ background: cardBg, borderColor: cardBorder }}>
+            <div className="flex justify-between"><div style={{ width: '45%', height: 16, borderRadius: 6, background: sh }} /><div style={{ width: 70, height: 18, borderRadius: 999, background: sh }} /></div>
+            <div className="flex flex-1 items-center gap-3"><div style={{ width: 64, height: 64, borderRadius: 14, background: sh }} /><div className="flex-1"><div style={{ height: 16, borderRadius: 6, background: sh, width: '90%' }} /><div style={{ height: 12, borderRadius: 6, background: sh, width: '50%', marginTop: 8 }} /></div></div>
+            <div style={{ height: 14, borderRadius: 6, background: sh, width: '60%' }} />
         </div>
     );
 }
 
 /* ── Spin animation ── */
-const spinStyle = `
-@keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-}
-`;
-
-// Inject style
-if (typeof document !== 'undefined') {
-    const styleId = 'worker-machines-animation';
-    if (!document.getElementById(styleId)) {
-        const style = document.createElement('style');
-        style.id = styleId;
-        style.textContent = spinStyle;
-        document.head.appendChild(style);
-    }
+if (typeof document !== 'undefined' && !document.getElementById('worker-machines-animation')) {
+    const style = document.createElement('style');
+    style.id = 'worker-machines-animation';
+    style.textContent = '@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }';
+    document.head.appendChild(style);
 }

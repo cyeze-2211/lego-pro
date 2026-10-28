@@ -9,6 +9,7 @@ import { useGetWarehousesQuery } from '../../store/services/warehouse.api';
  * Tanlov brauzerda eslab qolinadi; ombor bitta bo‘lsa o‘zi tanlanadi.
  */
 export const PRODUCTION_WAREHOUSE_KEY = 'production_warehouse_id';
+const WAREHOUSE_SYNC_EVENT = 'production-warehouse-change';
 
 const loadSaved = () => { try { return localStorage.getItem(PRODUCTION_WAREHOUSE_KEY) || ''; } catch { return ''; } };
 
@@ -23,9 +24,18 @@ export function useProductionWarehouse() {
         else if (!warehouseId && warehouses.length === 1) setWarehouseIdState(warehouses[0].id);
     }, [warehouses, warehouseId]);
 
+    // Boshqa komponentdagi tanlov (masalan, yuqori paneldagi select) o‘zgarsa — bu yerda ham yangilanadi
+    useEffect(() => {
+        const sync = () => setWarehouseIdState(loadSaved());
+        window.addEventListener(WAREHOUSE_SYNC_EVENT, sync);
+        window.addEventListener('storage', sync);
+        return () => { window.removeEventListener(WAREHOUSE_SYNC_EVENT, sync); window.removeEventListener('storage', sync); };
+    }, []);
+
     const setWarehouseId = (id) => {
         setWarehouseIdState(id);
         try { if (id) localStorage.setItem(PRODUCTION_WAREHOUSE_KEY, id); else localStorage.removeItem(PRODUCTION_WAREHOUSE_KEY); } catch { /* xotira yo‘q */ }
+        window.dispatchEvent(new Event(WAREHOUSE_SYNC_EVENT));
     };
 
     const warehouse = warehouses.find((w) => w.id === warehouseId) || null;
