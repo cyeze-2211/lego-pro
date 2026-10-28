@@ -15,7 +15,7 @@ import { useGetMachineOutputsQuery } from '../../../store/services/machineOutput
 import { useAppTheme } from '../../../theme/tokens';
 import ProductImage from '../../ui/ProductImage';
 import { ProductionWarehousePicker, useProductionWarehouse } from '../productionWarehouse';
-import ProducedBarcodeModal from '../__components/ProducedBarcodeModal';
+import { printProducedLabel } from '../__components/producedLabel';
 
 const productImageUrl = (productId) => (productId ? `/api/v1/products/${productId}/image` : null);
 
@@ -60,7 +60,6 @@ export default function WorkerMachineDetail() {
 
     const [createStockTransaction, { isLoading: producing }] = useCreateStockTransactionMutation();
     const warehouseState = useProductionWarehouse();
-    const [produced, setProduced] = useState(null); // oxirgi qayd etilgan mahsulot — shtrix-kod oynasi uchun
 
     const [toast, setToast] = useState(null);
     const showToast = (message, type = 'success') => {
@@ -85,12 +84,14 @@ export default function WorkerMachineDetail() {
                 items: [{ productId: machine.currentRun.productId, quantity: 1, unit: 'PACK' }], // har bosish = 1 pachka
             }).unwrap();
             const tx = Array.isArray(res?.data) ? res.data[0] : null;
-            setProduced({
+            // Yorliq darhol printerga ketadi (modal yo‘q)
+            printProducedLabel({
                 productId: machine.currentRun.productId,
                 productName: machine.currentRun.productName,
                 brandName: machine.currentRun.brand?.name || '',
                 barcode: tx?.productBarcode || '',
             });
+            showToast(`1 pachka qayd etildi — ${machine.currentRun.productName}`);
             refetchMachine();
             refetchHistory();
         } catch (err) {
@@ -126,16 +127,6 @@ export default function WorkerMachineDetail() {
 
     return (
         <div style={{ background: pageBg, color: textColor, minHeight: '100%' }}>
-            {produced && (
-                <ProducedBarcodeModal
-                    open
-                    onClose={() => setProduced(null)}
-                    productId={produced.productId}
-                    productName={produced.productName}
-                    brandName={produced.brandName}
-                    barcode={produced.barcode}
-                />
-            )}
 
             {/* Toast */}
             {toast && (

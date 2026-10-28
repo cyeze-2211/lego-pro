@@ -7,7 +7,7 @@ import { useAppTheme } from '../../../theme/tokens';
 import $api from '../../../store/api';
 import ProductImage from '../../ui/ProductImage';
 import { ProductionWarehousePicker, useProductionWarehouse } from '../productionWarehouse';
-import ProducedBarcodeModal from '../__components/ProducedBarcodeModal';
+import { printProducedLabel } from '../__components/producedLabel';
 
 const productImageUrl = (productId) => (productId ? `/api/v1/products/${productId}/image` : null);
 
@@ -123,7 +123,6 @@ export default function WorkerMachines() {
     /* ── Qayt etish mutation ── */
     const [createStockTransaction, { isLoading: producing }] = useCreateStockTransactionMutation();
     const [producingId, setProducingId] = useState(null);
-    const [produced, setProduced] = useState(null); // oxirgi qayd etilgan mahsulot — shtrix-kod oynasi uchun
     const warehouseState = useProductionWarehouse();
 
     /* ── Toast ── */
@@ -152,12 +151,14 @@ export default function WorkerMachines() {
             }).unwrap();
             // Javobdagi harakat yozuvida shtrix-kod bor — oynada katta qilib ko‘rsatamiz
             const tx = Array.isArray(res?.data) ? res.data[0] : null;
-            setProduced({
+            // Yorliq darhol printerga ketadi (modal yo‘q)
+            printProducedLabel({
                 productId: machine.currentRun.productId,
                 productName: machine.currentRun.productName,
                 brandName: machine.currentRun.brand?.name || '',
                 barcode: tx?.productBarcode || '',
             });
+            showToast(`✓ 1 pachka qayd etildi — ${machine.currentRun.productName}`);
             refetch();
         } catch (err) {
             showToast(err?.data?.message || 'Qayd etishda xatolik', 'error');
@@ -169,16 +170,6 @@ export default function WorkerMachines() {
     return (
         <div style={{ background: pageBg, color: textColor, minHeight: '100%' }}>
 
-            {produced && (
-                <ProducedBarcodeModal
-                    open
-                    onClose={() => setProduced(null)}
-                    productId={produced.productId}
-                    productName={produced.productName}
-                    brandName={produced.brandName}
-                    barcode={produced.barcode}
-                />
-            )}
 
             {/* Toast */}
             {toast && (

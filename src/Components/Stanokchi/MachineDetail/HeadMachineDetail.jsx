@@ -27,7 +27,7 @@ import {
 } from '../../../store/services/machine.api';
 import StartProductPicker from './StartProductPicker';
 import { ProductionWarehousePicker, useProductionWarehouse } from '../productionWarehouse';
-import ProducedBarcodeModal from '../__components/ProducedBarcodeModal';
+import { printProducedLabel } from '../__components/producedLabel';
 import {
     useCreateStockTransactionMutation,
 } from '../../../store/services/productStock.api';
@@ -244,7 +244,6 @@ export default function StanokchiMachineDetail() {
     const [updateMachineStatus, { isLoading: statusUpdating }] = useUpdateMachineStatusMutation();
     const [createStockTransaction, { isLoading: producing }] = useCreateStockTransactionMutation();
     const warehouseState = useProductionWarehouse();
-    const [produced, setProduced] = useState(null); // oxirgi qayd etilgan mahsulot — shtrix-kod oynasi uchun
 
     /* ── Toast ── */
     const [toast, setToast] = useState(null);
@@ -307,12 +306,14 @@ export default function StanokchiMachineDetail() {
                 items: [{ productId: machine.currentRun.productId, quantity: 1, unit: 'PACK' }], // har bosish = 1 pachka
             }).unwrap();
             const tx = Array.isArray(res?.data) ? res.data[0] : null;
-            setProduced({
+            // Yorliq darhol printerga ketadi (modal yo‘q)
+            printProducedLabel({
                 productId: machine.currentRun.productId,
                 productName: machine.currentRun.productName,
                 brandName: machine.currentRun.brand?.name || '',
                 barcode: tx?.productBarcode || '',
             });
+            showToast(`1 pachka qayd etildi — ${machine.currentRun.productName}`);
             refetchMachine();
             refetchHistory();
             refetchSummary();
@@ -415,16 +416,6 @@ export default function StanokchiMachineDetail() {
     ════════════════════════════════ */
     return (
         <div style={{ background: pageBg, color: textColor, minHeight: '100%' }}>
-            {produced && (
-                <ProducedBarcodeModal
-                    open
-                    onClose={() => setProduced(null)}
-                    productId={produced.productId}
-                    productName={produced.productName}
-                    brandName={produced.brandName}
-                    barcode={produced.barcode}
-                />
-            )}
 
             {/* ── Toast ── */}
             {toast && (
