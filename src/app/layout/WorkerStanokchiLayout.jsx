@@ -1,4 +1,5 @@
 // app/layout/WorkerStanokchiLayout.jsx
+import FullscreenButton from "../../Components/ui/FullscreenButton";
 import { Suspense, useRef, useState, useEffect } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
 import Cookies from "js-cookie";
@@ -89,6 +90,15 @@ export default function WorkerStanokchiLayout() {
                     {/* Right actions */}
                     <div className="flex items-center gap-2 sm:gap-3">
                         {/* Theme toggle */}
+                        {/* To‘liq ekran */}
+                        <FullscreenButton
+                            className={`flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-lg border transition-all duration-200 ${
+                                isDark
+                                    ? "border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800"
+                                    : "border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
+                            }`}
+                        />
+
                         <button
                             type="button"
                             onClick={toggleColorMode}

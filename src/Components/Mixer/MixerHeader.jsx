@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import FullscreenButton from "../ui/FullscreenButton";
 import { LogOut, User, ChevronDown, Moon, Sun, ArrowLeft, Settings } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAppTheme } from "../../theme/tokens";
@@ -86,6 +87,15 @@ export default function MixerHeader({ user }) {
 
                 {/* ── O'ng: dark toggle + profile ── */}
                 <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+                    {/* To‘liq ekran */}
+                    <FullscreenButton
+                        className={`flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-lg border transition-all duration-200 ${
+                            isDark
+                                ? "border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800"
+                                : "border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
+                        }`}
+                    />
+
                     <button
                         onClick={toggleColorMode}
                         onMouseEnter={() => setIsHovered(true)}
