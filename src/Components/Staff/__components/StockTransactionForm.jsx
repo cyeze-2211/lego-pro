@@ -12,6 +12,7 @@ import { useGetWarehousesQuery } from '../../../store/services/warehouse.api';
 import { useGetProductStocksQuery } from '../../../store/services/productStock.api';
 import { useCreateStockTransactionMutation, useCreateStockTransferMutation } from '../../../store/services/productStock.api';
 import { useGetBrandsQuery } from '../../../store/services/brand.api';
+import { useLazyGetProductByBarcodeQuery } from '../../../store/services/product.api';
 import { formatNumber } from '../../ui/number-format';
 
 const STOCK_PAGE_SIZE = 20;
@@ -56,6 +57,13 @@ export default function StockTransactionForm({ action }) {
     const [hasMore, setHasMore]         = useState(true);
     const [items, setItems]             = useState([]);
     const [toast, setToast]             = useState(null);
+    /* Skaner (pistolet): kirimda alohida maydon — har o‘qish = +1 pachka (yoki dona) */
+    const [scanValue, setScanValue]     = useState('');
+    const [scanUnit, setScanUnit]       = useState('PACK'); // PACK | PIECE
+    const [lastScan, setLastScan]       = useState(null);   // { ok, text }
+    const [flashId, setFlashId]         = useState(null);   // yangi skanerlangan qator yonib ko‘rinadi
+    const scanInputRef                  = useRef(null);
+    const scanBufferRef                 = useRef({ text: '', at: 0 });
 
     const searchRef         = useRef(null);
     const searchInputRef    = useRef(null);
@@ -142,6 +150,7 @@ export default function StockTransactionForm({ action }) {
     };
 
     const [createTx, { isLoading: isSendingTx }] = useCreateStockTransactionMutation();
+    const [fetchByBarcode] = useLazyGetProductByBarcodeQuery();
     const [createTransfer, { isLoading: isSendingTransfer }] = useCreateStockTransferMutation();
     const isSending = isSendingTx || isSendingTransfer;
 
@@ -322,6 +331,97 @@ export default function StockTransactionForm({ action }) {
             setItems((prev) => prev.filter((i) => i.productType === 'SEMI_FINISHED'));
         }
     };
+
+    /* ── Skaner: shtrix-kod → mahsulot → ro‘yxatga +1 (pachka yoki dona) ── */
+    const handleScan = useCallback(async (raw) => {
+        const code = String(raw || '').trim();
+        if (!code) return;
+        setScanValue('');
+        if (!warehouseId) {
+            setLastScan({ ok: false, text: 'Avval omborni tanlang' });
+            return;
+        }
+        let product;
+        try {
+            product = await fetchByBarcode(code, true).unwrap();
+        } catch (err) {
+            setLastScan({ ok: false, text: err?.status === 404 ? `Shtrix-kod topilmadi: ${code}` : (err?.data?.message || `Shtrix-kod o‘qilmadi: ${code}`) });
+            return;
+        }
+        if (!product?.id) {
+            setLastScan({ ok: false, text: `Shtrix-kod topilmadi: ${code}` });
+            return;
+        }
+        if (onlySemiFinished && product.type !== 'SEMI_FINISHED') {
+            setLastScan({ ok: false, text: `«${product.name}» tayyor mahsulot — xom ashyo omboriga kirmaydi` });
+            return;
+        }
+        const ppp = Number(product.piecesPerPack) || 0;
+        const asPack = scanUnit === 'PACK' && ppp > 0;
+        let count = 0;
+        setItems((prev) => {
+            const existing = prev.find((i) => i.productId === product.id);
+            if (existing) {
+                return prev.map((i) => {
+                    if (i.productId !== product.id) return i;
+                    const next = asPack ? { ...i, packs: (i.packs || 0) + 1 } : { ...i, pieces: (i.pieces || 0) + 1 };
+                    count = asPack ? next.packs : next.pieces;
+                    return next;
+                });
+            }
+            count = 1;
+            return [...prev, {
+                productId:     product.id,
+                productName:   product.name,
+                productBarcode: product.barcode || code,
+                productType:   product.type,
+                available:     0,
+                piecesPerPack: ppp || null,
+                packs:         asPack ? 1 : 0,
+                pieces:        asPack ? 0 : 1,
+            }];
+        });
+        setFlashId(product.id);
+        setTimeout(() => setFlashId((cur) => (cur === product.id ? null : cur)), 1200);
+        setLastScan({ ok: true, text: `${product.name} — ${count} ${asPack ? 'pachka' : 'dona'}` });
+        // Qisqa signal — pistolet bilan ishlaganda ekranga qaramasdan ham eshitiladi
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator(); const gain = ctx.createGain();
+            osc.frequency.value = 1200; gain.gain.value = 0.05;
+            osc.connect(gain); gain.connect(ctx.destination);
+            osc.start(); osc.stop(ctx.currentTime + 0.08);
+            setTimeout(() => ctx.close(), 200);
+        } catch { /* ovoz yo‘q */ }
+    }, [warehouseId, onlySemiFinished, scanUnit, fetchByBarcode]);
+
+    /* Pistolet klaviatura kabi tez teradi va Enter yuboradi: fokus boshqa joyda bo‘lsa ham ushlaymiz */
+    useEffect(() => {
+        if (!isIn) return undefined;
+        const onKey = (e) => {
+            const tag = e.target?.tagName;
+            const inField = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target?.isContentEditable;
+            if (inField && e.target !== scanInputRef.current) return; // boshqa maydonda yozilmoqda
+            if (e.target === scanInputRef.current) return; // skaner maydoni o‘zi onKeyDown bilan ishlaydi
+            const buf = scanBufferRef.current;
+            const now = Date.now();
+            if (now - buf.at > 400) buf.text = ''; // sekin terilgan — skaner emas
+            buf.at = now;
+            if (e.key === 'Enter') {
+                if (buf.text.length >= 6) { e.preventDefault(); handleScan(buf.text); }
+                buf.text = '';
+            } else if (e.key.length === 1) {
+                buf.text += e.key;
+            }
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [isIn, handleScan]);
+
+    // Ombor tanlangach skaner maydoniga fokus — pistolet darhol ishlaydi
+    useEffect(() => {
+        if (isIn && warehouseId && !open && scanInputRef.current) scanInputRef.current.focus();
+    }, [isIn, warehouseId, open]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -775,6 +875,52 @@ export default function StockTransactionForm({ action }) {
                         </div>
                     </div>
 
+                    {/* ── Skaner (pistolet) — faqat kirimda ── */}
+                    {isIn && (
+                        <div className={`border-t px-5 py-4 ${line} ${isDark ? 'bg-[#0f172a]/40' : 'bg-[#F8FAFC]'}`}>
+                            <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_170px]">
+                                <div>
+                                    <label className={`mb-1.5 flex items-center gap-2 text-xs font-semibold ${muted}`}>
+                                        <span className={stepCx}><LuBarcode size={11} /></span> Skaner (pistolet) — shtrix-kodni o‘qing
+                                    </label>
+                                    <div className="relative">
+                                        <LuBarcode className={`pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 ${warehouseId ? 'text-amber-400' : muted}`} />
+                                        <input
+                                            ref={scanInputRef}
+                                            type="text"
+                                            inputMode="numeric"
+                                            autoComplete="off"
+                                            value={scanValue}
+                                            disabled={!warehouseId}
+                                            onChange={(e) => setScanValue(e.target.value)}
+                                            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleScan(scanValue); } }}
+                                            placeholder={warehouseId ? 'Pistolet bilan o‘qing yoki shtrix-kodni terib Enter bosing' : 'Avval ombor tanlang'}
+                                            className={`${inputCx} h-14 pl-12 pr-4 text-lg font-mono tracking-wider disabled:opacity-50`}
+                                        />
+                                    </div>
+                                    {lastScan && (
+                                        <p className={`mt-1.5 flex items-center gap-1.5 text-sm font-semibold ${lastScan.ok ? (isDark ? 'text-green-400' : 'text-green-700') : (isDark ? 'text-red-400' : 'text-red-600')}`}>
+                                            {lastScan.ok ? <LuCircleCheck size={15} /> : <LuCircleAlert size={15} />}
+                                            {lastScan.text}
+                                        </p>
+                                    )}
+                                    {!lastScan && (
+                                        <p className={`mt-1.5 text-xs ${muted}`}>Har bir o‘qish ro‘yxatga +1 qo‘shadi. Pistolet fokus boshqa joyda bo‘lganda ham ishlaydi.</p>
+                                    )}
+                                </div>
+                                <div>
+                                    <label className={`mb-1.5 flex items-center gap-2 text-xs font-semibold ${muted}`}>
+                                        <LuBoxes size={12} /> 1 o‘qish =
+                                    </label>
+                                    <select value={scanUnit} onChange={(e) => setScanUnit(e.target.value)} className={`${inputCx} h-14 px-3`}>
+                                        <option value="PACK">1 pachka</option>
+                                        <option value="PIECE">1 dona</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {/* ── Tanlangan mahsulotlar ── */}
                     <div className={`flex flex-wrap items-center justify-between gap-3 border-t px-5 py-3.5 ${line}`}>
                         <div className="flex items-center gap-2">
@@ -813,7 +959,7 @@ export default function StockTransactionForm({ action }) {
                                 </thead>
                                 <tbody className={`divide-y ${divider}`}>
                                     {items.map((item, idx) => (
-                                        <tr key={item.productId} className={`transition-colors ${rowBg}`}>
+                                        <tr key={item.productId} className={`transition-colors ${rowBg} ${flashId === item.productId ? (isDark ? 'bg-amber-400/15' : 'bg-amber-100') : ''}`}>
                                             <td className="px-5 py-3">
                                                 <div className="flex items-center gap-3">
                                                     <span className={`w-4 shrink-0 text-xs font-bold ${muted}`}>{idx + 1}</span>

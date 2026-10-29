@@ -147,6 +147,7 @@ export const {
   useGetProductsQuery,
   useGetProductByIdQuery,
   useGetProductByBarcodeQuery,
+  useLazyGetProductByBarcodeQuery,
   useCreateProductMutation,
   useUpdateProductMutation,
   useUpdateProductPricesMutation,
