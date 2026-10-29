@@ -19,7 +19,7 @@ import { useGetUsersQuery } from '../../../../store/services/user.api';
 import { useAppTheme } from '../../../../theme/tokens';
 import { Alert } from '../../../Other/UI/Alert/Alert';
 import FormControl from '../../../ui/FormControl';
-import { operatorLabel } from '../operatorLabel';
+import { operatorId, operatorLabel } from '../operatorLabel';
 
 const normalizeRoleKey = (role) => String(role || '').toUpperCase().replace(/[\s-]/g, '_');
 
@@ -49,7 +49,7 @@ export default function Operators({ category }) {
 
     useEffect(() => {
         if (open) {
-            setSelected(new Set((category.operators ?? []).map((operator) => operator.id)));
+            setSelected(new Set((category.operators ?? []).map(operatorId).filter(Boolean)));
             setSearch('');
         }
     }, [open, category]);
@@ -170,7 +170,8 @@ Operators.propTypes = {
         id: PropTypes.string.isRequired,
         name: PropTypes.string.isRequired,
         operators: PropTypes.arrayOf(PropTypes.shape({
-            id: PropTypes.string.isRequired,
+            userId: PropTypes.string,
+            id: PropTypes.string,
             username: PropTypes.string,
         })),
     }).isRequired,

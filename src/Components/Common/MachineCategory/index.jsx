@@ -14,7 +14,7 @@ import Create from './__components/Create';
 import Edit from './__components/Edit';
 import Delete from './__components/Delete';
 import Operators from './__components/Operators';
-import { operatorLabel } from './operatorLabel';
+import { operatorId, operatorLabel } from './operatorLabel';
 import { useInfiniteList } from '../../ui/useInfiniteList';
 import InfiniteSentinel from '../../ui/InfiniteSentinel';
 
@@ -121,7 +121,7 @@ export default function MachineCategory() {
                                                 ) : (
                                                     <HStack gap={1.5} flexWrap="wrap">
                                                         {operators.map((operator) => (
-                                                            <HStack key={operator.id} gap={1} px={2} py={0.5} borderRadius="md" fontSize="xs" fontWeight="semibold" whiteSpace="nowrap"
+                                                            <HStack key={operatorId(operator) ?? operator.username} gap={1} px={2} py={0.5} borderRadius="md" fontSize="xs" fontWeight="semibold" whiteSpace="nowrap"
                                                                 bg={isDark ? 'rgba(20, 184, 166, 0.15)' : '#CCFBF1'} color={isDark ? 'teal.300' : 'teal.700'}>
                                                                 <LuUserRound size={11} /><span>{operatorLabel(operator)}</span>
                                                             </HStack>
