@@ -34,6 +34,7 @@ export default function ProductDetail() {
                 <DetailRow label="Ombor" value={<HStack gap={2}><LuWarehouse size={16} /><span>{warehouse?.name || '—'}</span></HStack>} />
                 <DetailRow label="Rang" value={product.color?.name ? <ColorSwatch code={product.color.code} name={product.color.name} showCode size={20} /> : '—'} />
                 <DetailRow label="O‘lcham" value={<HStack gap={2}><LuRuler size={16} /><span>{product.size || '—'}</span></HStack>} />
+                <DetailRow label="Turi" value={<Badge borderRadius="full" px={3} py={1} colorPalette={product.type === 'SEMI_FINISHED' ? 'orange' : 'blue'} variant="subtle">{product.type === 'SEMI_FINISHED' ? 'Yarim tayyor' : 'Tayyor mahsulot'}</Badge>} />
                 <DetailRow label="Rezina (zichlagich)" value={<Badge borderRadius="full" px={3} py={1} colorPalette={product.rubber ? 'green' : 'gray'} variant="subtle">{product.rubber ? 'Rezina bor' : 'Rezina yo‘q'}</Badge>} />
                 <DetailRow label="Holati" value={<Badge borderRadius="full" px={3} py={1} colorScheme={product.deletedAt ? 'red' : 'green'}>{product.deletedAt ? 'O‘chirilgan' : 'Faol'}</Badge>} />
             </DetailSection>

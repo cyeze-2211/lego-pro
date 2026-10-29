@@ -23,7 +23,7 @@ export const UPDATE_SCHEMAS = {
     PaymentReminderUpdateRequest: { required: { paymentDate: 'To‘lov sanasi' }, optional: ['note', 'price'] },
     ProductCategoryUpdateRequest: { required: { name: 'Kategoriya nomi' }, optional: ['bonusPrice'] },
     ProductColorUpdateRequest:    { required: { name: 'Rang nomi' }, optional: ['code'] },
-    ProductUpdateRequest:         { required: { name: 'Mahsulot nomi', minimumLine: 'Minimal qoldiq', piecesPerPack: 'Qadoqdagi dona', colorId: 'Rang', categoryId: 'Kategoriya' }, optional: ['price', 'article', 'size', 'brandId', 'rubber'] },
+    ProductUpdateRequest:         { required: { name: 'Mahsulot nomi', minimumLine: 'Minimal qoldiq', piecesPerPack: 'Qadoqdagi dona', colorId: 'Rang', categoryId: 'Kategoriya' }, optional: ['price', 'article', 'size', 'brandId', 'rubber', 'type'] },
     RawMaterialUpdateRequest:     { required: { name: 'Xom ashyo nomi', minimumLine: 'Minimal qoldiq' }, optional: ['summary'] },
     ProductRecipeRequest:         { required: { name: 'Retsept nomi', items: 'Tarkib' }, optional: [] },
     RoleUpdateRequest:            { required: {}, optional: ['roleName', 'description'] },

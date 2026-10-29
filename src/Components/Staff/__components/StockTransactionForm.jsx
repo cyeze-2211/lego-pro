@@ -60,7 +60,11 @@ export default function StockTransactionForm({ action }) {
 
     const debouncedFilters = useDebouncedValue(filters, 350);
 
-    const { data: warehouses = [] } = useGetWarehousesQuery('PRODUCT');
+    // Barcha omborlar: yarim tayyor mahsulot xom ashyo omboriga ham kirim/chiqim qilinadi
+    const { data: warehouses = [] } = useGetWarehousesQuery();
+    const productWarehouses = warehouses.filter((w) => w.category !== 'RAW_MATERIAL');
+    const rawWarehouses = warehouses.filter((w) => w.category === 'RAW_MATERIAL');
+    const isRawWarehouse = rawWarehouses.some((w) => w.id === warehouseId);
     const { data: brandsData } = useGetBrandsQuery(
         { page: 0, size: 200 },
         { skip: !open }
@@ -74,6 +78,8 @@ export default function StockTransactionForm({ action }) {
 
     const stockSearchFilters = {
         warehouseId,
+        // Xom ashyo omborida faqat yarim tayyor mahsulot bo‘ladi (tayyor mahsulotga backend 400 qaytaradi)
+        productType: isRawWarehouse ? 'SEMI_FINISHED' : undefined,
         productSize: df.productSize.trim() || undefined,
         brandId: df.brandId || undefined,
         page,
@@ -386,10 +392,30 @@ export default function StockTransactionForm({ action }) {
                                     className={`${inputCx} px-3`}
                                 >
                                     <option value="">Tanlang</option>
-                                    {warehouses.map((w) => (
-                                        <option key={w.id} value={w.id}>{w.name}</option>
-                                    ))}
+                                    {rawWarehouses.length > 0 ? (
+                                        <>
+                                            <optgroup label="Tovar omborlari">
+                                                {productWarehouses.map((w) => (
+                                                    <option key={w.id} value={w.id}>{w.name}</option>
+                                                ))}
+                                            </optgroup>
+                                            <optgroup label="Xom ashyo omborlari">
+                                                {rawWarehouses.map((w) => (
+                                                    <option key={w.id} value={w.id}>{w.name}</option>
+                                                ))}
+                                            </optgroup>
+                                        </>
+                                    ) : (
+                                        productWarehouses.map((w) => (
+                                            <option key={w.id} value={w.id}>{w.name}</option>
+                                        ))
+                                    )}
                                 </select>
+                                {isRawWarehouse && (
+                                    <p className={`mt-1.5 text-[11px] font-medium ${isDark ? 'text-orange-300' : 'text-orange-600'}`}>
+                                        Xom ashyo ombori: faqat yarim tayyor mahsulotlar
+                                    </p>
+                                )}
                             </div>
 
                             {/* Mahsulot qo'shish — рядом */}
@@ -590,6 +616,11 @@ export default function StockTransactionForm({ action }) {
                                                                     )}
                                                                     {st.productSize && (
                                                                         <span>· {st.productSize}</span>
+                                                                    )}
+                                                                    {st.productType === 'SEMI_FINISHED' && (
+                                                                        <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold ${isDark ? 'bg-orange-400/15 text-orange-300' : 'bg-orange-50 text-orange-700'}`}>
+                                                                            Yarim tayyor
+                                                                        </span>
                                                                     )}
                                                                     {st.productPiecesPerPack && (
                                                                         <span className={isDark ? 'text-indigo-300' : 'text-indigo-600'}>

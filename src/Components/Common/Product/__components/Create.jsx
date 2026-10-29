@@ -47,6 +47,7 @@ const EMPTY_FORM = {
     article: '',
     size: '',
     rubber: false,
+    type: 'FINISHED',
     minimumLine: '',
     piecesPerPack: '',
     brandId: '',
@@ -69,6 +70,7 @@ const buildFromClipboard = (clip) => ({
     article: clip.article || '',
     size: clip.size || '',
     rubber: Boolean(clip.rubber),
+    type: clip.type === 'SEMI_FINISHED' ? 'SEMI_FINISHED' : 'FINISHED',
     minimumLine:
         clip.minimumLine !== null &&
         clip.minimumLine !== undefined &&
@@ -100,6 +102,9 @@ export default function Create({ warehouses }) {
     const { open, onOpen, onClose } = useDisclosure();
 
     const [form, setForm] = useState(EMPTY_FORM);
+    const isSemiFinished = form.type === 'SEMI_FINISHED';
+    const productWarehouses = warehouses.filter((warehouse) => warehouse.category !== 'RAW_MATERIAL');
+    const rawWarehouses = warehouses.filter((warehouse) => warehouse.category === 'RAW_MATERIAL');
     const [imageFile, setImageFile] = useState(null);
     const [copiedFrom, setCopiedFrom] = useState(null);
     const [hasClipboard, setHasClipboard] = useState(() => !!readClipboard());
@@ -229,6 +234,7 @@ export default function Create({ warehouses }) {
         if (form.article.trim()) payload.article = form.article.trim();
         if (form.size.trim()) payload.size = form.size.trim();
         payload.rubber = Boolean(form.rubber); // rezina (zichlagich) bilanmi
+        payload.type = form.type === 'SEMI_FINISHED' ? 'SEMI_FINISHED' : 'FINISHED'; // yuborilmasa FINISHED
         if (form.brandId) payload.brandId = form.brandId;
 
         let created;
@@ -540,6 +546,34 @@ export default function Create({ warehouses }) {
                                                         Mahsulot rezina (zichlagich) bilan keladimi. Yorliqda «REZINA: BOR / YO‘Q» bo‘lib chiqadi.
                                                     </Field.HelperText>
                                                 </Field.Root>
+                                                <Field.Root gridColumn={{ base: 'auto', md: 'span 2' }}>
+                                                    <Field.Label color={textColor} fontWeight="medium">
+                                                        <HStack gap={2}>
+                                                            <LuBoxes size={16} />
+                                                            <span>Mahsulot turi</span>
+                                                        </HStack>
+                                                    </Field.Label>
+                                                    <FormControl
+                                                        as="select"
+                                                        value={form.type || 'FINISHED'}
+                                                        onChange={(e) => {
+                                                            const next = e.target.value;
+                                                            setField('type', next);
+                                                            // Tayyor mahsulot xom ashyo omborida bo‘la olmaydi — tanlovni tozalaymiz
+                                                            if (next !== 'SEMI_FINISHED' && rawWarehouses.some((warehouse) => warehouse.id === form.warehouseId)) {
+                                                                setField('warehouseId', '');
+                                                            }
+                                                        }}
+                                                        minH="52px"
+                                                        disabled={isLoading}
+                                                    >
+                                                        <option value="FINISHED">Tayyor mahsulot</option>
+                                                        <option value="SEMI_FINISHED">Yarim tayyor mahsulot</option>
+                                                    </FormControl>
+                                                    <Field.HelperText color={subtitleColor}>
+                                                        Yarim tayyor mahsulotni xom ashyo omboriga ham qo‘yish mumkin. Tayyor mahsulot faqat tovar omborida saqlanadi.
+                                                    </Field.HelperText>
+                                                </Field.Root>
                                             </SimpleGrid>
 
                                             <Field.Root>
@@ -702,12 +736,28 @@ export default function Create({ warehouses }) {
                                                 disabled={isLoading}
                                             >
                                                 <option value="">Omborni tanlang</option>
-                                                {warehouses.map((warehouse) => (
-                                                    <option key={warehouse.id} value={warehouse.id}>
-                                                        {warehouse.name}
-                                                    </option>
-                                                ))}
+                                                {isSemiFinished ? (
+                                                    <>
+                                                        <optgroup label="Tovar omborlari">
+                                                            {productWarehouses.map((warehouse) => (
+                                                                <option key={warehouse.id} value={warehouse.id}>{warehouse.name}</option>
+                                                            ))}
+                                                        </optgroup>
+                                                        <optgroup label="Xom ashyo omborlari">
+                                                            {rawWarehouses.map((warehouse) => (
+                                                                <option key={warehouse.id} value={warehouse.id}>{warehouse.name}</option>
+                                                            ))}
+                                                        </optgroup>
+                                                    </>
+                                                ) : (
+                                                    productWarehouses.map((warehouse) => (
+                                                        <option key={warehouse.id} value={warehouse.id}>{warehouse.name}</option>
+                                                    ))
+                                                )}
                                             </FormControl>
+                                            {isSemiFinished && (
+                                                <Field.HelperText color={subtitleColor}>Yarim tayyor mahsulot uchun xom ashyo omborini ham tanlash mumkin.</Field.HelperText>
+                                            )}
                                         </Field.Root>
                                     </Box>
 
@@ -864,6 +914,7 @@ Create.propTypes = {
         PropTypes.shape({
             id: PropTypes.string,
             name: PropTypes.string,
+            category: PropTypes.string, // PRODUCT | RAW_MATERIAL
         }),
     ).isRequired,
 };

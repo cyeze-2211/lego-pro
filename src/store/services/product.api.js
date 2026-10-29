@@ -14,6 +14,7 @@ export const productApi = createApi({
         brandId,
         categoryId,
         colorId,
+        type,
         page = 0,
         size = 20,
         sort = ['createdAt,DESC', 'id,DESC'],
@@ -25,6 +26,8 @@ export const productApi = createApi({
           brandId,
           categoryId,
           colorId,
+          // FINISHED | SEMI_FINISHED (ixtiyoriy)
+          type,
           page,
           size,
           sort,

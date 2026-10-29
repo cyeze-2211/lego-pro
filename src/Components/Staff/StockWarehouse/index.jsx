@@ -20,6 +20,7 @@ export default function StaffStockWarehouse() {
     const [hasMore, setHasMore]                 = useState(true);
     const [warehouseFilter, setWarehouseFilter] = useState('');
     const [brandFilter, setBrandFilter]         = useState('');
+    const [typeFilter, setTypeFilter]           = useState(''); // '' | FINISHED | SEMI_FINISHED
     const [search, setSearch]                   = useState('');
     const [onlyLowStock, setOnlyLowStock]       = useState(false);
     const [onlyOutOfStock, setOnlyOutOfStock]   = useState(false);
@@ -36,6 +37,7 @@ export default function StaffStockWarehouse() {
     const { data: warehouses = [] } = useGetWarehousesQuery('PRODUCT');
     const { data, isFetching }      = useGetProductStocksQuery({
         warehouseId: warehouseFilter || undefined,
+        productType: typeFilter || undefined,
         page,
         size: PAGE_SIZE,
     });
@@ -52,7 +54,7 @@ export default function StaffStockWarehouse() {
         setPage(0);
         setHasMore(true);
         isFetchingNextRef.current = false;
-    }, [warehouseFilter]);
+    }, [warehouseFilter, typeFilter]);
 
     /* ── Накопление страниц ── */
     useEffect(() => {
@@ -199,7 +201,7 @@ export default function StaffStockWarehouse() {
         return { lowStock, outOfStock };
     }, [allStocks]);
 
-    const hasFilter = Boolean(search || brandFilter || onlyLowStock || onlyOutOfStock || warehouseFilter);
+    const hasFilter = Boolean(search || brandFilter || onlyLowStock || onlyOutOfStock || warehouseFilter || typeFilter);
 
     const resetFilters = () => {
         setSearch('');
@@ -207,10 +209,12 @@ export default function StaffStockWarehouse() {
         setOnlyLowStock(false);
         setOnlyOutOfStock(false);
         setWarehouseFilter('');
+        setTypeFilter('');
     };
 
     const activeCount =
         (warehouseFilter ? 1 : 0) +
+        (typeFilter ? 1 : 0) +
         (brandFilter ? 1 : 0) +
         (search ? 1 : 0) +
         (onlyLowStock ? 1 : 0) +
@@ -394,7 +398,7 @@ export default function StaffStockWarehouse() {
                 }`}>
                     <div className="overflow-hidden">
                         <div className="p-5">
-                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                                 <div>
                                     <label className={`mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide ${muted}`}>
                                         <LuWarehouse size={11} /> Ombor
@@ -424,6 +428,21 @@ export default function StaffStockWarehouse() {
                                         {brandOptions.map((b) => (
                                             <option key={b.id} value={b.id}>{b.name}</option>
                                         ))}
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className={`mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide ${muted}`}>
+                                        <LuBoxes size={11} /> Turi
+                                    </label>
+                                    <select
+                                        value={typeFilter}
+                                        onChange={(e) => setTypeFilter(e.target.value)}
+                                        className={inputCx}
+                                    >
+                                        <option value="">Tayyor va yarim tayyor</option>
+                                        <option value="FINISHED">Tayyor mahsulot</option>
+                                        <option value="SEMI_FINISHED">Yarim tayyor mahsulot</option>
                                     </select>
                                 </div>
                             </div>
@@ -497,6 +516,13 @@ export default function StaffStockWarehouse() {
                                         <FilterChip
                                             label={`Brend: ${brandOptions.find((b) => b.id === brandFilter)?.name ?? ''}`}
                                             onRemove={() => setBrandFilter('')}
+                                            isDark={isDark}
+                                        />
+                                    )}
+                                    {typeFilter && (
+                                        <FilterChip
+                                            label={typeFilter === 'SEMI_FINISHED' ? 'Yarim tayyor' : 'Tayyor mahsulot'}
+                                            onRemove={() => setTypeFilter('')}
                                             isDark={isDark}
                                         />
                                     )}
@@ -624,6 +650,9 @@ export default function StaffStockWarehouse() {
                                                         <div className="min-w-0">
                                                             <p className={`truncate font-semibold text-sm ${head}`}>
                                                                 {s.productName}
+                                                                {s.productType === 'SEMI_FINISHED' && (
+                                                                    <span className={`ml-2 align-middle rounded-md px-1.5 py-0.5 text-[10px] font-bold ${isDark ? 'bg-orange-400/15 text-orange-300' : 'bg-orange-50 text-orange-700'}`}>Yarim tayyor</span>
+                                                                )}
                                                             </p>
                                                             <div className={`mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs ${muted}`}>
                                                                 {s.productSize && (
@@ -758,7 +787,12 @@ export default function StaffStockWarehouse() {
                                                 <LuPackage size={16} />
                                             </span>
                                             <div className="min-w-0 flex-1">
-                                                <p className={`font-semibold text-sm ${head} line-clamp-2`}>{s.productName}</p>
+                                                <p className={`font-semibold text-sm ${head} line-clamp-2`}>
+                                                    {s.productName}
+                                                    {s.productType === 'SEMI_FINISHED' && (
+                                                        <span className={`ml-2 align-middle rounded-md px-1.5 py-0.5 text-[10px] font-bold ${isDark ? 'bg-orange-400/15 text-orange-300' : 'bg-orange-50 text-orange-700'}`}>Yarim tayyor</span>
+                                                    )}
+                                                </p>
                                                 <div className={`mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs ${muted}`}>
                                                     {s.productArticle && (
                                                         <span className="font-mono inline-flex items-center gap-1">

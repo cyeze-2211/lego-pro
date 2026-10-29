@@ -59,6 +59,7 @@ const buildInitial = (product) => ({
     article: toStr(product?.article),
     size: toStr(product?.size),
     rubber: Boolean(product?.rubber),
+    type: product?.type === 'SEMI_FINISHED' ? 'SEMI_FINISHED' : 'FINISHED',
     minimumLine: toStr(product?.minimumLine),
     piecesPerPack: toStr(product?.piecesPerPack),
     lowProductAlert: Boolean(product?.lowProductAlert),
@@ -79,7 +80,7 @@ export default function Edit({ product }) {
     const {
         data: warehouses = [],
         isLoading: warehousesLoading,
-    } = useGetWarehousesQuery('PRODUCT', { skip: !open });
+    } = useGetWarehousesQuery(undefined, { skip: !open }); // barcha omborlar (yarim tayyor xom ashyo omborida bo‘lishi mumkin)
 
     const {
         data: brandsData,
@@ -165,6 +166,7 @@ export default function Edit({ product }) {
             article: toStr(form.article).trim() || null,
             size: toStr(form.size).trim() || null,
             rubber: Boolean(form.rubber),
+            type: form.type === 'SEMI_FINISHED' ? 'SEMI_FINISHED' : 'FINISHED',
             minimumLine: Number.isNaN(minLineNum) ? 0 : minLineNum,
             piecesPerPack: piecesNum,
             brandId: form.brandId || null,
@@ -391,6 +393,27 @@ export default function Edit({ product }) {
                                                     </FormControl>
                                                     <Field.HelperText color={subtitleColor}>
                                                         Mahsulot rezina (zichlagich) bilan keladimi. Yorliqda «REZINA: BOR / YO‘Q» bo‘lib chiqadi.
+                                                    </Field.HelperText>
+                                                </Field.Root>
+                                                <Field.Root gridColumn={{ base: 'auto', md: 'span 2' }}>
+                                                    <Field.Label color={textColor} fontWeight="medium">
+                                                        <HStack gap={2}>
+                                                            <LuBoxes size={16} />
+                                                            <span>Mahsulot turi</span>
+                                                        </HStack>
+                                                    </Field.Label>
+                                                    <FormControl
+                                                        as="select"
+                                                        value={form.type || 'FINISHED'}
+                                                        onChange={(e) => setField('type', e.target.value)}
+                                                        minH="52px"
+                                                        disabled={isLoading}
+                                                    >
+                                                        <option value="FINISHED">Tayyor mahsulot</option>
+                                                        <option value="SEMI_FINISHED">Yarim tayyor mahsulot</option>
+                                                    </FormControl>
+                                                    <Field.HelperText color={subtitleColor}>
+                                                        Yarim tayyor mahsulotni xom ashyo omboriga ham qo‘yish mumkin. Tayyor mahsulot faqat tovar omborida saqlanadi.
                                                     </Field.HelperText>
                                                 </Field.Root>
                                             </SimpleGrid>
@@ -680,6 +703,7 @@ Edit.propTypes = {
         article: PropTypes.string,
         size: PropTypes.string,
         rubber: PropTypes.bool,
+        type: PropTypes.string,
         minimumLine: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
         piecesPerPack: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
         lowProductAlert: PropTypes.bool,

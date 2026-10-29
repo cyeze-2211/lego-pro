@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import PropTypes from 'prop-types';
 import {
     LuSearch, LuWarehouse, LuPackage, LuX, LuFlame,
     LuFilter, LuLayers, LuRotateCcw, LuChevronDown, LuChevronUp,
@@ -8,6 +9,8 @@ import {
 import { useAppTheme } from '../../../theme/tokens';
 import { useGetRawMaterialStocksQuery } from '../../../store/services/rawMaterialStock.api';
 import { useGetWarehousesQuery } from '../../../store/services/warehouse.api';
+import { useGetProductStocksQuery } from '../../../store/services/productStock.api';
+import { formatNumber } from '../../ui/number-format';
 
 const PAGE_SIZE = 20;
 const UNIT = 'KG';
@@ -742,9 +745,116 @@ export default function RawStaffStockWarehouse() {
                     )
                 )}
             </div>
+
+            {/* ═══ Yarim tayyor mahsulotlar (xom ashyo omborida) ═══ */}
+            <SemiFinishedSection warehouses={warehouses} warehouseFilter={warehouseFilter} search={search} />
         </div>
     );
 }
+
+/* ── Yarim tayyor mahsulotlar: GET /product-stocks?warehouseId=<xom ashyo ombori> ── */
+function SemiFinishedSection({ warehouses, warehouseFilter, search }) {
+    const { isDark } = useAppTheme();
+    const panel = isDark ? 'border-white/10 bg-[#141C2B]' : 'border-[#e2e8f0] bg-white';
+    const line  = isDark ? 'border-[#334155]/60' : 'border-[#f1f5f9]';
+    const head  = isDark ? 'text-white' : 'text-[#0f172a]';
+    const muted = isDark ? 'text-[#94a3b8]' : 'text-[#64748b]';
+
+    const { data, isFetching, isError } = useGetProductStocksQuery({
+        warehouseId: warehouseFilter || undefined,
+        productType: 'SEMI_FINISHED',
+        page: 0,
+        size: 200,
+        sort: ['productName,ASC', 'id,ASC'],
+    });
+
+    const rawIds = useMemo(() => new Set(warehouses.map((w) => w.id)), [warehouses]);
+    const warehouseName = (id) => warehouses.find((w) => w.id === id)?.name || '—';
+    const rows = useMemo(() => {
+        const items = data?.items ?? [];
+        const q = search.trim().toLowerCase();
+        return items.filter((s) => {
+            // Ombor tanlanmagan bo‘lsa — faqat xom ashyo omborlaridagi qoldiqlar
+            if (!warehouseFilter && rawIds.size > 0 && !rawIds.has(s.warehouseId)) return false;
+            if (!q) return true;
+            return [s.productName, s.productArticle, s.productBarcode].filter(Boolean).some((v) => String(v).toLowerCase().includes(q));
+        });
+    }, [data, warehouseFilter, rawIds, search]);
+
+    const total = (s) => Number(s.quantity) || 0;
+    const packs = (s) => {
+        const per = Number(s.productPiecesPerPack) || 0;
+        return per > 0 ? Math.floor(total(s) / per) : null;
+    };
+
+    return (
+        <div className={`rounded-2xl border shadow-md overflow-hidden ${panel}`}>
+            <div className={`flex flex-wrap items-center justify-between gap-3 border-b px-5 py-3.5 ${line}`}>
+                <div className="flex items-center gap-2.5">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-orange-400/10 text-orange-500">
+                        <LuPackage size={15} />
+                    </span>
+                    <div>
+                        <p className={`text-sm font-bold ${head}`}>Yarim tayyor mahsulotlar</p>
+                        <p className={`text-xs ${muted}`}>Xom ashyo omboridagi yarim tayyor mahsulot qoldiqlari (dona)</p>
+                    </div>
+                </div>
+                <span className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold ${isDark ? 'border-white/10 bg-white/[0.03] text-slate-300' : 'border-[#e2e8f0] bg-[#F8FAFC] text-[#475569]'}`}>
+                    <LuBoxes size={13} /> {rows.length} ta
+                </span>
+            </div>
+
+            {isFetching && rows.length === 0 ? (
+                <p className={`px-5 py-6 text-center text-sm ${muted}`}>Yuklanmoqda...</p>
+            ) : isError ? (
+                <p className={`px-5 py-6 text-center text-sm ${isDark ? 'text-rose-300' : 'text-rose-600'}`}>Yarim tayyor mahsulotlarni yuklashda xatolik</p>
+            ) : rows.length === 0 ? (
+                <p className={`px-5 py-6 text-center text-sm ${muted}`}>Xom ashyo omborida yarim tayyor mahsulot yo‘q</p>
+            ) : (
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                        <thead>
+                            <tr className={`border-b ${line}`}>
+                                <th className={`px-5 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide ${muted}`}>Mahsulot</th>
+                                <th className={`px-5 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide ${muted}`}>Ombor</th>
+                                <th className={`px-5 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide ${muted}`}>Qoldiq</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {rows.map((s) => {
+                                const qty = total(s);
+                                const packCount = packs(s);
+                                return (
+                                    <tr key={`${s.productId}-${s.warehouseId}`} className={`border-b last:border-b-0 ${line} ${qty <= 0 ? 'stock-row-out' : ''}`}>
+                                        <td className="px-5 py-2.5">
+                                            <p className={`font-semibold ${head}`}>{s.productName}</p>
+                                            <p className={`text-xs ${muted}`}>
+                                                {[s.productArticle, s.productSize, s.productBarcode].filter(Boolean).join(' · ') || '—'}
+                                            </p>
+                                        </td>
+                                        <td className={`px-5 py-2.5 whitespace-nowrap ${muted}`}>{warehouseName(s.warehouseId)}</td>
+                                        <td className={`px-5 py-2.5 text-right whitespace-nowrap font-bold ${qty <= 0 ? (isDark ? 'text-rose-300' : 'text-rose-600') : head}`}>
+                                            {formatNumber(qty)} dona
+                                            {packCount !== null && packCount > 0 && (
+                                                <span className={`ml-1.5 text-xs font-medium ${muted}`}>({formatNumber(packCount)} pachka)</span>
+                                            )}
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+        </div>
+    );
+}
+
+SemiFinishedSection.propTypes = {
+    warehouses: PropTypes.arrayOf(PropTypes.shape({ id: PropTypes.string, name: PropTypes.string })).isRequired,
+    warehouseFilter: PropTypes.string,
+    search: PropTypes.string,
+};
 
 /* ── Filter chip ── */
 function FilterChip({ label, onRemove, isDark }) {

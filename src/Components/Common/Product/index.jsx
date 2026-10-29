@@ -48,6 +48,10 @@ import ColorSwatch from '../../ui/ColorSwatch';
 import ProductImage from '../../ui/ProductImage';
 
 const PAGE_SIZE = 12;
+const PRODUCT_TYPE_OPTIONS = [
+    { id: 'FINISHED', name: 'Tayyor mahsulot' },
+    { id: 'SEMI_FINISHED', name: 'Yarim tayyor mahsulot' },
+];
 const CLIPBOARD_EVENT = 'product-clipboard-changed';
 const SEARCH_DEBOUNCE_MS = 500;
 const DEFAULT_SORT = ['createdAt,DESC', 'id,DESC'];
@@ -136,7 +140,7 @@ export default function Product() {
     const canManageProducts = role === ROLES.MANAGER || role === ROLES.BUXGALTER;
     const [search, setSearch] = useState('');
     const [query, setQuery] = useState('');
-    const [filters, setFilters] = useState({ brandId: '', categoryId: '', colorId: '' });
+    const [filters, setFilters] = useState({ brandId: '', categoryId: '', colorId: '', type: '' });
     const [sort, setSort] = useState(DEFAULT_SORT);
     const [filtersOpen, setFiltersOpen] = useState(false);
     const [page, setPage] = useState(0);
@@ -180,12 +184,13 @@ export default function Product() {
         brandId: filters.brandId || undefined,
         categoryId: filters.categoryId || undefined,
         colorId: filters.colorId || undefined,
+        type: filters.type || undefined,
         page,
         size: PAGE_SIZE,
         sort,
     });
 
-    const { data: warehouses = [] } = useGetWarehousesQuery('PRODUCT');
+    const { data: warehouses = [] } = useGetWarehousesQuery(); // barcha omborlar: yarim tayyor mahsulot xom ashyo omborida bo‘lishi mumkin
     const { data: brandsResult, error: brandsError } = useGetBrandsQuery({
         page: 0,
         size: 200,
@@ -381,7 +386,7 @@ export default function Product() {
     };
 
     const clearFilters = () => {
-        setFilters({ brandId: '', categoryId: '', colorId: '' });
+        setFilters({ brandId: '', categoryId: '', colorId: '', type: '' });
         setSort(DEFAULT_SORT);
         resetList();
     };
@@ -667,6 +672,12 @@ export default function Product() {
                                 placeholder: 'Barcha ranglar',
                                 options: colors,
                             },
+                            {
+                                key: 'type',
+                                label: 'Turi',
+                                placeholder: 'Tayyor va yarim tayyor',
+                                options: PRODUCT_TYPE_OPTIONS,
+                            },
                         ].map(({ key, label, placeholder, options }) => (
                             <Box key={key} minW={0}>
                                 <Text
@@ -832,6 +843,12 @@ export default function Product() {
                                                         >
                                                             {product.name}
                                                         </Text>
+                                                        {product.type === 'SEMI_FINISHED' && (
+                                                            <Text as="span" mt={0.5} px={1.5} py={0.5} borderRadius="md" fontSize="10px" fontWeight="bold" whiteSpace="nowrap"
+                                                                bg={isDark ? 'rgba(251,146,60,0.15)' : '#FFEDD5'} color={isDark ? 'orange.300' : 'orange.700'}>
+                                                                Yarim tayyor
+                                                            </Text>
+                                                        )}
                                                     </VStack>
                                                 </HStack>
                                             </Table.Cell>

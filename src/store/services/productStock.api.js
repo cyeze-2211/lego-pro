@@ -13,7 +13,7 @@ export const productStockApi = createApi({
         getProductStocks: builder.query({
             query: ({
                 productId, warehouseId, name, barcode, article, productSize, brandId,
-                colorId, categoryId,
+                colorId, categoryId, productType,
                 lowStock, priceFrom, priceTo, pending, page = 0, size = 20, sort,
             } = {}) => {
                 const params = pending === true
@@ -31,6 +31,7 @@ export const productStockApi = createApi({
                         ...(brandId     ? { brandId }     : {}),
                         ...(colorId     ? { colorId }     : {}),
                         ...(categoryId  ? { categoryId }  : {}),
+                        ...(productType ? { productType } : {}), // FINISHED | SEMI_FINISHED
                         ...(lowStock === true ? { lowStock: true } : {}),
                         ...(priceFrom != null ? { priceFrom } : {}),
                         ...(priceTo   != null ? { priceTo }   : {}),
