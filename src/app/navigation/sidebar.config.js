@@ -1,5 +1,5 @@
 // navigation/sidebar.config.js
-import { ROLES, WAREHOUSE_ROLES, ZAYAVKACHI_ROLES, BUXGALTER_ROLES, KASSIR_ROLES, XIMIK_ROLES } from '../permissions/roles';
+import { ROLES, WAREHOUSE_ROLES, ZAYAVKACHI_ROLES, BUXGALTER_ROLES, KASSIR_ROLES, XIMIK_ROLES, ROMCHI_ROLES } from '../permissions/roles';
 import {
     Boxes, ClipboardList, Cog, History, LayoutDashboard, LogIn, LogOut,
     CalendarClock, Layers3, MonitorCog, Package, Palette, ReceiptText, ShieldCheck, UserRound, Users, Wallet, Warehouse, FileSpreadsheet, UserCheck, Truck,
@@ -173,6 +173,32 @@ export const XIMIK_SIDEBAR_GROUPS = [
     { label: 'Asosiy', items: XIMIK_SIDEBAR_CONFIG.filter((i) => i.path === '/ximik') },
     { label: 'Ishlab chiqarish', items: XIMIK_SIDEBAR_CONFIG.filter((i) => ['/recipes', '/raw', '/machines', '/machine-categories', '/ximik/warehouse', '/ximik/raw-warehouse'].includes(i.path)) },
     { label: 'Moliya', items: XIMIK_SIDEBAR_CONFIG.filter((i) => ['/suppliers', '/expenses', '/cashboxes'].includes(i.path)) },
+    settingsGroup(),
+];
+
+// ── Romchi ─────────────────────────────────────────────────────────────────
+// Savdo (buyurtmalar — barcha holatlar, mijozlar, yetkazib beruvchilar) + tovar ombori + xom ashyo ombori
+export const ROMCHI_SIDEBAR_CONFIG = [
+    { label: 'Dashboard', path: '/romchi', icon: LayoutDashboard, roles: ROMCHI_ROLES, exact: true },
+    { label: 'Buyurtmalar', path: '/zayavkachi/orders', icon: ClipboardList, roles: ROMCHI_ROLES },
+    { label: 'Buyurtmalarni ortish', path: '/staff/orders', icon: Boxes, roles: ROMCHI_ROLES },
+    { label: 'Mijozlar', path: '/zayavkachi/customers', icon: Users, roles: ROMCHI_ROLES },
+    { label: 'Yetkazib beruvchilar', path: '/suppliers', icon: Truck, roles: ROMCHI_ROLES },
+    { label: 'Kirim', path: '/staff/income', icon: LogIn, roles: ROMCHI_ROLES },
+    { label: 'Ko‘chirish', path: '/staff/transfer', icon: ArrowLeftRight, roles: ROMCHI_ROLES },
+    { label: 'Ombor', path: '/staff/warehouse', icon: Warehouse, roles: ROMCHI_ROLES },
+    { label: 'Tarix', path: '/staff/history', icon: History, roles: ROMCHI_ROLES },
+    { label: 'Kirim', path: '/raw-staff/income', icon: LogIn, roles: ROMCHI_ROLES },
+    { label: 'Chiqim', path: '/raw-staff/outcome', icon: LogOut, roles: ROMCHI_ROLES },
+    { label: 'Ombor', path: '/raw-staff/warehouse', icon: Warehouse, roles: ROMCHI_ROLES },
+    { label: 'Tarix', path: '/raw-staff/history', icon: History, roles: ROMCHI_ROLES },
+];
+
+export const ROMCHI_SIDEBAR_GROUPS = [
+    { label: 'Asosiy', items: ROMCHI_SIDEBAR_CONFIG.filter((i) => i.path === '/romchi') },
+    { label: 'Savdo', items: ROMCHI_SIDEBAR_CONFIG.filter((i) => ['/zayavkachi/orders', '/staff/orders', '/zayavkachi/customers', '/suppliers'].includes(i.path)) },
+    { label: 'Tovar ombori', items: ROMCHI_SIDEBAR_CONFIG.filter((i) => ['/staff/income', '/staff/transfer', '/staff/warehouse', '/staff/history'].includes(i.path)) },
+    { label: 'Xom ashyo ombori', items: ROMCHI_SIDEBAR_CONFIG.filter((i) => i.path.startsWith('/raw-staff/')) },
     settingsGroup(),
 ];
 

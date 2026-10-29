@@ -145,6 +145,8 @@ export default function Login() {
                 navigate("/kassir");
             } else if (userRole === "ximik") {
                 navigate("/ximik");
+            } else if (userRole === "romchi") {
+                navigate("/romchi");
             } else {
                 navigate("/");
             }

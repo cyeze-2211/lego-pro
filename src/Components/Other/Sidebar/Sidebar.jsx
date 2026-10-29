@@ -5,9 +5,9 @@ import { ChevronDown, X } from "lucide-react";
 import { useAppTheme } from "../../../theme/tokens";
 import YellowLogo from "../../../Images/Yellow Unified Lego Outlined.svg";
 import { Box } from "@chakra-ui/react";
-import { SIDEBAR_GROUPS, WAREHOUSE_SIDEBAR_GROUPS, ZAYAVKACHI_SIDEBAR_GROUPS, BUXGALTER_SIDEBAR_GROUPS, KASSIR_SIDEBAR_GROUPS, XIMIK_SIDEBAR_GROUPS, STANOKCHI_SIDEBAR_GROUPS } from "../../../app/navigation/sidebar.config";
+import { SIDEBAR_GROUPS, WAREHOUSE_SIDEBAR_GROUPS, ZAYAVKACHI_SIDEBAR_GROUPS, BUXGALTER_SIDEBAR_GROUPS, KASSIR_SIDEBAR_GROUPS, XIMIK_SIDEBAR_GROUPS, ROMCHI_SIDEBAR_GROUPS, STANOKCHI_SIDEBAR_GROUPS } from "../../../app/navigation/sidebar.config";
 import { useAppSelector } from "../../../store/hooks";
-import { ROLES, WAREHOUSE_ROLES, ZAYAVKACHI_ROLES, BUXGALTER_ROLES, KASSIR_ROLES, XIMIK_ROLES } from "../../../app/permissions/roles";
+import { ROLES, WAREHOUSE_ROLES, ZAYAVKACHI_ROLES, BUXGALTER_ROLES, KASSIR_ROLES, XIMIK_ROLES, ROMCHI_ROLES } from "../../../app/permissions/roles";
 
 const ACTIVE_LINK_CSS = `
     html body aside.sidebar a.sidebar-link-active,
@@ -33,6 +33,7 @@ export default function Sidebar({ open, mobileOpen, onMobileClose, footer }) {
     const isBuxgalter = BUXGALTER_ROLES.includes(role);
     const isKassir = KASSIR_ROLES.includes(role);
     const isXimik = XIMIK_ROLES.includes(role);
+    const isRomchi = ROMCHI_ROLES.includes(role);
     const isStanokchi = role === ROLES.STANOKCHI;
     const groups = isStanokchi
         ? STANOKCHI_SIDEBAR_GROUPS
@@ -46,7 +47,9 @@ export default function Sidebar({ open, mobileOpen, onMobileClose, footer }) {
                     ? KASSIR_SIDEBAR_GROUPS
                     : isXimik
                         ? XIMIK_SIDEBAR_GROUPS
-                        : SIDEBAR_GROUPS;
+                        : isRomchi
+                            ? ROMCHI_SIDEBAR_GROUPS
+                            : SIDEBAR_GROUPS;
 
     const [expandedGroups, setExpandedGroups] = useState(() => {
         // Kichik menyular (10 tagacha punkt) — hammasi ochiq; katta menyuda faqat joriy sahifa guruhi ochiq

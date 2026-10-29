@@ -338,7 +338,7 @@ function ZayavkachiOrderDetail() {
 
     const editable = order.status === 'CREATED';
     // «Ortildi» holatida narxlar o‘zgartiriladi (PATCH /prices) — buxgalter, zayavkachi, manager, kassir
-    const canEditPrices = order.status === 'LOADED' && [ROLES.BUXGALTER, ROLES.ZAYAVKACHI, ROLES.MANAGER, ROLES.KASSIR].includes(role);
+    const canEditPrices = order.status === 'LOADED' && [ROLES.BUXGALTER, ROLES.ZAYAVKACHI, ROLES.MANAGER, ROLES.KASSIR, ROLES.ROMCHI].includes(role);
     const showStockComparison = order.status === 'CREATED' || order.status === 'LOADED';
 
     const fmtDate     = (v) => v ? new Date(v).toLocaleDateString('uz-UZ') : '—';

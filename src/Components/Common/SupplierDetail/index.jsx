@@ -172,7 +172,7 @@ export default function SupplierDetail() {
     const [editOpen, setEditOpen] = useState(false);
 
     const role = useAppSelector((state) => state.auth.role);
-    const canManageSupplier = role === ROLES.MANAGER || role === ROLES.KASSIR || role === ROLES.XIMIK;
+    const canManageSupplier = role === ROLES.MANAGER || role === ROLES.KASSIR || role === ROLES.XIMIK || role === ROLES.ROMCHI;
 
     const { data: supplier, isLoading, isError } = useGetSupplierByIdQuery(id, { skip: !id });
     const { data: lastPaymentResult } = useGetSupplierPaymentsQuery(

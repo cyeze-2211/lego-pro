@@ -12,6 +12,7 @@ export const ROLES = {
     MIKSERCHI: 'mikserchi',
     KASSIR: 'kassir',
     XIMIK: 'ximik',
+    ROMCHI: 'romchi',
 };
 
 /** Mahsulot ombori rollari */
@@ -42,6 +43,11 @@ export const KASSIR_ROLES = [
 /** Ximik rollari */
 export const XIMIK_ROLES = [
     ROLES.XIMIK,
+];
+
+/** Romchi rollari — savdo + ikkala ombor (buyurtmalar barcha holatda, kirim/chiqim/ko‘chirish) */
+export const ROMCHI_ROLES = [
+    ROLES.ROMCHI,
 ];
 
 /** Barcha ombor rollari (ikkalasi) */

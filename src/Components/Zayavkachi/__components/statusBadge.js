@@ -58,10 +58,11 @@ export const NEXT_STATUS = {
 export const FINAL_STATUSES = ['CONFIRMED', 'REJECTED', 'RETURNED'];
 
 /** Tugallangan zayavkadan mahsulot qaytarish — faqat admin (manager) va hisobchi. */
-export const canReturnOrder = (role) => role === ROLES.MANAGER || BUXGALTER_ROLES.includes(role);
+export const canReturnOrder = (role) => role === ROLES.MANAGER || role === ROLES.ROMCHI || BUXGALTER_ROLES.includes(role);
 
 /** «Ortildi» (LOADED) holatiga faqat mahsulot omborchisi o‘tkaza oladi. */
 export const canSetOrderStatus = (role, nextStatus) => {
+    if (role === ROLES.ROMCHI) return true; // romchi — barcha holatlarga o‘tkaza oladi
     if (nextStatus === 'LOADED') return PRODUCT_WAREHOUSE_ROLES.includes(role);
     return true;
 };

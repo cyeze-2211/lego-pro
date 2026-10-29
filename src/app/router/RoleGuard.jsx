@@ -1,7 +1,7 @@
 import { Navigate, Outlet } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import { useAppSelector } from '../../store/hooks';
-import { ROLES, WAREHOUSE_ROLES, ZAYAVKACHI_ROLES, BUXGALTER_ROLES, KASSIR_ROLES, XIMIK_ROLES } from '../permissions/roles';
+import { ROLES, WAREHOUSE_ROLES, ZAYAVKACHI_ROLES, BUXGALTER_ROLES, KASSIR_ROLES, XIMIK_ROLES, ROMCHI_ROLES } from '../permissions/roles';
 
 
 export default function RoleGuard({ allow }) {
@@ -21,6 +21,7 @@ export default function RoleGuard({ allow }) {
         if (BUXGALTER_ROLES.includes(role))         return <Navigate to="/buxgalter" replace />;
         if (KASSIR_ROLES.includes(role))            return <Navigate to="/kassir" replace />;
         if (XIMIK_ROLES.includes(role))             return <Navigate to="/ximik" replace />;
+        if (ROMCHI_ROLES.includes(role))            return <Navigate to="/romchi" replace />;
 
         if (role === ROLES.STANOKCHI)               return <Navigate to="/stanokchi" replace />;
         if (role === ROLES.MIKSERCHI)               return <Navigate to="/mixer" replace />;

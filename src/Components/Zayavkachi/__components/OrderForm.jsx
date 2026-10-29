@@ -91,7 +91,7 @@ export default function OrderForm({ order, customer, onCancel, onSaved }) {
     /* Narxlar faqat «Ortildi» (LOADED) zayavkada o‘zgartiriladi (PATCH /prices) — tasdiqlashdan oldingi so‘nggi oyna.
      * Backend huquqi: SALES_ORDER:PRICE (buxgalter, kassir, manager; zayavkachiga rol sozlamalaridan beriladi). */
     const priceOnly = isEdit && String(order?.status ?? '').toUpperCase() === 'LOADED';
-    const canEditPrice = priceOnly && [ROLES.BUXGALTER, ROLES.ZAYAVKACHI, ROLES.MANAGER, ROLES.KASSIR].includes(role);
+    const canEditPrice = priceOnly && [ROLES.BUXGALTER, ROLES.ZAYAVKACHI, ROLES.MANAGER, ROLES.KASSIR, ROLES.ROMCHI].includes(role);
 
     const [customerId, setCustomerId]         = useState(customer?.id ?? order?.customerId ?? '');
     const [customerSearch, setCustomerSearch] = useState(customer?.name ?? order?.customerName ?? '');

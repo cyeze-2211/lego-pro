@@ -39,6 +39,7 @@ const ROLE_LABELS = {
     /* Savdo / kassa */
     KASSIR:                   { uz: 'Kassir',                 Icon: LuCoins,         color: 'green' },
     XIMIK:                    { uz: 'Ximik (texnolog)',       Icon: LuFlaskConical,  color: 'teal' },
+    ROMCHI:                   { uz: 'Romchi',                 Icon: LuBlend,         color: 'purple' },
     CASHIER:                  { uz: 'Kassir',                 Icon: LuCoins,         color: 'green' },
     SELLER:                   { uz: 'Sotuvchi',               Icon: LuShoppingCart,  color: 'teal' },
     OPERATOR:                 { uz: 'Operator',               Icon: LuHeadset,       color: 'cyan' },

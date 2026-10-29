@@ -1,5 +1,5 @@
 import { lazy } from 'react';
-import { ROLES, WAREHOUSE_ROLES, ZAYAVKACHI_ROLES, BUXGALTER_ROLES, KASSIR_ROLES, XIMIK_ROLES } from '../permissions/roles';
+import { ROLES, WAREHOUSE_ROLES, ZAYAVKACHI_ROLES, BUXGALTER_ROLES, KASSIR_ROLES, XIMIK_ROLES, ROMCHI_ROLES } from '../permissions/roles';
 
 export const STANOKCHI_ROLES = [ROLES.STANOKCHI];
 export const MIKSERCHI_ROLES = [ROLES.MIKSERCHI];
@@ -25,7 +25,7 @@ export const ROUTES = [
     {
         path: '/profile',
         component: lazy(() => import('../../Components/Common/Profile')),
-        roles: [ROLES.MANAGER, ...WAREHOUSE_ROLES, ...ZAYAVKACHI_ROLES, ...BUXGALTER_ROLES, ...KASSIR_ROLES, ...XIMIK_ROLES],
+        roles: [ROLES.MANAGER, ...WAREHOUSE_ROLES, ...ZAYAVKACHI_ROLES, ...BUXGALTER_ROLES, ...KASSIR_ROLES, ...XIMIK_ROLES, ...ROMCHI_ROLES],
     },
     {
         path: '/settings',
@@ -116,12 +116,12 @@ export const ROUTES = [
     {
         path: '/suppliers',
         component: lazy(() => import('../../Components/Common/Supplier')),
-        roles: [ROLES.MANAGER, ...XIMIK_ROLES],
+        roles: [ROLES.MANAGER, ...XIMIK_ROLES, ...ROMCHI_ROLES],
     },
     {
         path: '/suppliers/:id',
         component: lazy(() => import('../../Components/Common/SupplierDetail')),
-        roles: [ROLES.MANAGER, ...XIMIK_ROLES],
+        roles: [ROLES.MANAGER, ...XIMIK_ROLES, ...ROMCHI_ROLES],
     },
     {
         path: '/users',
@@ -238,43 +238,43 @@ export const ROUTES = [
     {
         path: '/staff/orders',
         component: lazy(() => import('../../Components/Staff/Orders')),
-        roles: WAREHOUSE_ROLES,
+        roles: [...WAREHOUSE_ROLES, ...ROMCHI_ROLES],
     },
     {
         path: '/staff/orders/:id',
         component: lazy(() => import('../../Components/Staff/OrderDetail')),
-        roles: WAREHOUSE_ROLES,
+        roles: [...WAREHOUSE_ROLES, ...ROMCHI_ROLES],
     },
     {
         path: '/staff/orders/:id/edit',
         component: lazy(() => import('../../Components/Zayavkachi/OrderEdit')),
-        roles: WAREHOUSE_ROLES,
+        roles: [...WAREHOUSE_ROLES, ...ROMCHI_ROLES],
     },
     {
         path: '/staff/income',
         component: lazy(() => import('../../Components/Staff/Income')),
-        roles: WAREHOUSE_ROLES,
+        roles: [...WAREHOUSE_ROLES, ...ROMCHI_ROLES],
     },
     {
         path: '/staff/outcome',
         component: lazy(() => import('../../Components/Staff/Outcome')),
-        roles: WAREHOUSE_ROLES,
+        roles: [...WAREHOUSE_ROLES, ...ROMCHI_ROLES],
     },
     // Omborlar o‘rtasida ko‘chirish (omborchi)
     {
         path: '/staff/transfer',
         component: lazy(() => import('../../Components/Staff/Transfer')),
-        roles: WAREHOUSE_ROLES,
+        roles: [...WAREHOUSE_ROLES, ...ROMCHI_ROLES],
     },
     {
         path: '/staff/warehouse',
         component: lazy(() => import('../../Components/Staff/StockWarehouse')),
-        roles: WAREHOUSE_ROLES,
+        roles: [...WAREHOUSE_ROLES, ...ROMCHI_ROLES],
     },
     {
         path: '/staff/history',
         component: lazy(() => import('../../Components/Staff/History')),
-        roles: WAREHOUSE_ROLES,
+        roles: [...WAREHOUSE_ROLES, ...ROMCHI_ROLES],
     },
 
     // ── Stanokchi routes ─────────────────────────────────────────────────
@@ -322,27 +322,27 @@ export const ROUTES = [
     {
         path: '/raw-staff/income',
         component: lazy(() => import('../../Components/RawStaff/Income')),
-        roles: WAREHOUSE_ROLES,
+        roles: [...WAREHOUSE_ROLES, ...ROMCHI_ROLES],
     },
     {
         path: '/raw-staff/outcome',
         component: lazy(() => import('../../Components/RawStaff/Outcome')),
-        roles: WAREHOUSE_ROLES,
+        roles: [...WAREHOUSE_ROLES, ...ROMCHI_ROLES],
     },
     {
         path: '/raw-staff/warehouse',
         component: lazy(() => import('../../Components/RawStaff/StockWarehouse')),
-        roles: WAREHOUSE_ROLES,
+        roles: [...WAREHOUSE_ROLES, ...ROMCHI_ROLES],
     },
     {
         path: '/raw-staff/history',
         component: lazy(() => import('../../Components/RawStaff/History')),
-        roles: WAREHOUSE_ROLES,
+        roles: [...WAREHOUSE_ROLES, ...ROMCHI_ROLES],
     },
     {
         path: '/raw-staff/history/:id',
         component: lazy(() => import('../../Components/RawStaff/HistoryDetail')),
-        roles: WAREHOUSE_ROLES,
+        roles: [...WAREHOUSE_ROLES, ...ROMCHI_ROLES],
     },
 
     // ── Zayavkachi routes ────────────────────────────────────────────────
@@ -390,17 +390,17 @@ export const ROUTES = [
     {
         path: '/zayavkachi/orders',
         component: lazy(() => import('../../Components/Zayavkachi/Orders')),
-        roles: [...ZAYAVKACHI_ROLES, ...BUXGALTER_ROLES],
+        roles: [...ZAYAVKACHI_ROLES, ...BUXGALTER_ROLES, ...ROMCHI_ROLES],
     },
     {
         path: '/zayavkachi/orders/new',
         component: lazy(() => import('../../Components/Zayavkachi/OrderCreate')),
-        roles: [...ZAYAVKACHI_ROLES, ...BUXGALTER_ROLES],
+        roles: [...ZAYAVKACHI_ROLES, ...BUXGALTER_ROLES, ...ROMCHI_ROLES],
     },
     {
         path: '/zayavkachi/orders/:id',
         component: lazy(() => import('../../Components/Zayavkachi/OrderDetail')),
-        roles: [...ZAYAVKACHI_ROLES, ...BUXGALTER_ROLES],
+        roles: [...ZAYAVKACHI_ROLES, ...BUXGALTER_ROLES, ...ROMCHI_ROLES],
     },
         {
         path: '/zayavkachi/reconciliation',
@@ -410,32 +410,32 @@ export const ROUTES = [
     {
         path: '/zayavkachi/orders/:id/edit',
         component: lazy(() => import('../../Components/Zayavkachi/OrderEdit')),
-        roles: [...ZAYAVKACHI_ROLES, ...BUXGALTER_ROLES],
+        roles: [...ZAYAVKACHI_ROLES, ...BUXGALTER_ROLES, ...ROMCHI_ROLES],
     },
     {
         path: '/zayavkachi/customers',
         component: lazy(() => import('../../Components/Zayavkachi/Customers')),
-        roles: [...ZAYAVKACHI_ROLES, ...BUXGALTER_ROLES],
+        roles: [...ZAYAVKACHI_ROLES, ...BUXGALTER_ROLES, ...ROMCHI_ROLES],
     },
     {
         path: '/zayavkachi/customers/new',
         component: lazy(() => import('../../Components/Zayavkachi/CustomerCreate')),
-        roles: [...ZAYAVKACHI_ROLES, ...BUXGALTER_ROLES],
+        roles: [...ZAYAVKACHI_ROLES, ...BUXGALTER_ROLES, ...ROMCHI_ROLES],
     },
     {
         path: '/zayavkachi/customers/:id',
         component: lazy(() => import('../../Components/Zayavkachi/CustomerDetail')),
-        roles: [...ZAYAVKACHI_ROLES, ...BUXGALTER_ROLES],
+        roles: [...ZAYAVKACHI_ROLES, ...BUXGALTER_ROLES, ...ROMCHI_ROLES],
     },
     {
         path: '/zayavkachi/customers/:id/edit',
         component: lazy(() => import('../../Components/Zayavkachi/CustomerEdit')),
-        roles: [...ZAYAVKACHI_ROLES, ...BUXGALTER_ROLES],
+        roles: [...ZAYAVKACHI_ROLES, ...BUXGALTER_ROLES, ...ROMCHI_ROLES],
     },
     {
         path: '/zayavkachi/customers/:id/orders/new',
         component: lazy(() => import('../../Components/Zayavkachi/CustomerOrderCreate')),
-        roles: [...ZAYAVKACHI_ROLES, ...BUXGALTER_ROLES],
+        roles: [...ZAYAVKACHI_ROLES, ...BUXGALTER_ROLES, ...ROMCHI_ROLES],
     },
 
     // ── Ximik routes ─────────────────────────────────────────────────────
@@ -453,6 +453,14 @@ export const ROUTES = [
         path: '/ximik/raw-warehouse',
         component: lazy(() => import('../../Components/RawStaff/StockWarehouse')),
         roles: XIMIK_ROLES,
+    },
+
+    // ── Romchi routes ────────────────────────────────────────────────────
+    // Qolgan sahifalar (buyurtmalar, mijozlar, omborlar) tegishli yo‘llarda ROMCHI_ROLES bilan ochilgan
+    {
+        path: '/romchi',
+        component: lazy(() => import('../../Components/Romchi/Dashboard')),
+        roles: ROMCHI_ROLES,
     },
 
     // ── Kassir routes ────────────────────────────────────────────────────
