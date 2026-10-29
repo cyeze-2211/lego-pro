@@ -43,7 +43,7 @@ export default function Supplier() {
     const [regionId, setRegionId] = useState('');
     const [page, setPage] = useState(0);
     const role = useAppSelector((state) => state.auth.role);
-    const canManageSuppliers = role === ROLES.MANAGER || role === ROLES.KASSIR;
+    const canManageSuppliers = role === ROLES.MANAGER || role === ROLES.KASSIR || role === ROLES.XIMIK;
     const { pathname } = useLocation();
     const base = pathname.startsWith('/kassir') ? '/kassir' : '';
     const { data: regions = [], isError: regionsError } = useGetRegionsQuery();

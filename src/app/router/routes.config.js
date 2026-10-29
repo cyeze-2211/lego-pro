@@ -432,6 +432,11 @@ export const ROUTES = [
         component: lazy(() => import('../../Components/Staff/StockWarehouse')),
         roles: XIMIK_ROLES,
     },
+    {
+        path: '/ximik/raw-warehouse',
+        component: lazy(() => import('../../Components/RawStaff/StockWarehouse')),
+        roles: XIMIK_ROLES,
+    },
 
     // ── Kassir routes ────────────────────────────────────────────────────
     {

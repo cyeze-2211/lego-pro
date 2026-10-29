@@ -158,6 +158,7 @@ export const XIMIK_SIDEBAR_CONFIG = [
     { label: 'Xom ashyo', path: '/raw', icon: Package, roles: XIMIK_ROLES },
     { label: 'Stanoklar', path: '/machines', icon: Cog, roles: XIMIK_ROLES },
     { label: 'Tovar ombori qoldiqlari', path: '/ximik/warehouse', icon: Warehouse, roles: XIMIK_ROLES },
+    { label: 'Xom ashyo ombori qoldiqlari', path: '/ximik/raw-warehouse', icon: Package, roles: XIMIK_ROLES },
     { label: 'Yetkazib beruvchilar', path: '/suppliers', icon: Truck, roles: XIMIK_ROLES },
     { label: 'Xarajatlar', path: '/expenses', icon: ReceiptText, roles: XIMIK_ROLES },
     { label: 'Kassalar', path: '/cashboxes', icon: Wallet, roles: XIMIK_ROLES },
@@ -165,8 +166,8 @@ export const XIMIK_SIDEBAR_CONFIG = [
 
 export const XIMIK_SIDEBAR_GROUPS = [
     { label: 'Asosiy', items: XIMIK_SIDEBAR_CONFIG.filter((i) => i.path === '/ximik') },
-    { label: 'Ishlab chiqarish', items: XIMIK_SIDEBAR_CONFIG.filter((i) => ['/recipes', '/raw', '/machines', '/ximik/warehouse'].includes(i.path)) },
-    { label: 'Moliya (ko‘rish)', items: XIMIK_SIDEBAR_CONFIG.filter((i) => ['/suppliers', '/expenses', '/cashboxes'].includes(i.path)) },
+    { label: 'Ishlab chiqarish', items: XIMIK_SIDEBAR_CONFIG.filter((i) => ['/recipes', '/raw', '/machines', '/ximik/warehouse', '/ximik/raw-warehouse'].includes(i.path)) },
+    { label: 'Moliya', items: XIMIK_SIDEBAR_CONFIG.filter((i) => ['/suppliers', '/expenses', '/cashboxes'].includes(i.path)) },
     settingsGroup(),
 ];
 

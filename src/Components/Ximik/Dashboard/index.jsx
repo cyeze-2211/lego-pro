@@ -18,10 +18,11 @@ export default function XimikDashboard() {
         { label: 'Xom ashyo', desc: 'Xom ashyo katalogi va tafsilotlari', path: '/raw', icon: LuPackage, badge: 'bg-amber-400/10 text-amber-500 border-amber-400/20' },
         { label: 'Stanoklar', desc: 'Stanoklar ro‘yxati va ish seanslari', path: '/machines', icon: LuCog, badge: 'bg-[#0ea5e9]/10 text-[#0ea5e9] border-[#0ea5e9]/20', readOnly: true },
         { label: 'Tovar ombori qoldiqlari', desc: 'Tayyor mahsulot qoldiqlari', path: '/ximik/warehouse', icon: LuWarehouse, badge: 'bg-violet-400/10 text-violet-500 border-violet-400/20', readOnly: true },
+        { label: 'Xom ashyo ombori qoldiqlari', desc: 'Xom ashyo qoldiqlari (ko‘rish)', path: '/ximik/raw-warehouse', icon: LuPackage, badge: 'bg-amber-400/10 text-amber-500 border-amber-400/20', readOnly: true },
     ];
 
     const financeLinks = [
-        { label: 'Yetkazib beruvchilar', desc: 'Balans va to‘lovlar tarixi', path: '/suppliers', icon: LuTruck },
+        { label: 'Yetkazib beruvchilar', desc: 'Balans, to‘lovlar va balansni to‘ldirish', path: '/suppliers', icon: LuTruck },
         { label: 'Xarajatlar', desc: 'Xarajatlar ro‘yxati va filtrlar', path: '/expenses', icon: LuReceiptText },
         { label: 'Kassalar', desc: 'Kassa qoldiqlari va kirim-chiqimlar', path: '/cashboxes', icon: LuWallet },
     ];
