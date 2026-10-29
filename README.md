@@ -1,100 +1,141 @@
-# Передача контекста: что сделано в прошлом чате
+# lego-pro — контекст для новой сессии
 
-Проект: `lego-pro` (ERP на React + Vite + Chakra UI v3 + Tailwind + RTK Query), бэкенд `https://samarqand-erp.oybeksay.uz/api/v1`, OpenAPI доступен по `https://samarqand-erp.oybeksay.uz/v3/api-docs`. Всё ниже сделано в одном чате, не закоммичено, лежит в рабочем дереве на ветке `main`. Там же есть собственные правки владельца, их не откатывать.
+Прочитай этот файл целиком перед первой правкой. Это ERP-фронтенд для производства (товары, склады, станки, заявки, касса), заказчик пишет по-русски, интерфейс на узбекском (латиница).
 
-Проверка после правок: `npx eslint <файлы>` и `npx vite build`. В браузере проверить нельзя, нужен вход устройства с паролем. В проекте много старых ошибок линтера (prop-types, неиспользуемые переменные), новых не добавляли, старые не трогали.
+## 1. Стек и запуск
 
-## Что было сделано, по порядку
+- React 18 + Vite 5, Chakra UI **v3** (не v2!), Tailwind 3, Redux Toolkit + RTK Query, axios, react-icons/lu + lucide-react.
+- Бэкенд: `https://samarqand-erp.oybeksay.uz/api/v1`, захардкожен в `src/store/api.js`. OpenAPI: `https://samarqand-erp.oybeksay.uz/v3/api-docs` (при 502 бэкенд перезапускается, повторить через `curl --max-time 10` в цикле; `timeout` на macOS нет).
+- Скрипты: `npm run dev`, `npm run dev:lan` (vite `--host 0.0.0.0`, для телефона/планшета по Wi-Fi, адрес вида `http://192.168.x.x:5173/`), `npm run build`.
+- Деплой: Netlify из `origin/main` (`netlify.toml`, `NODE_VERSION=20`, SPA-редирект). Пуш в `main` = прод.
+- В сборку зашит штамп `__APP_BUILD__ {hash,time}` (`vite.config.js` define, печатается `console.info` в `main.jsx`). Если «на проде не работает», сначала сравнить хеш в консоли прода с `git log -1`.
+- `rollup` пришпилен `^4.64.7` в devDependencies: Rollup 4.27 при tree-shaking терял поля объектов внутри `async`/`try` и ломал PUT-запросы только в проде. Не откатывать.
 
-### 1. Роль Кассир (`kassir`)
-- Доступ в сайдбаре: Xarajat kategoriyalari, Yetkazib beruvchilar, Mijozlar, Xarajatlar, Kassalar (полный), Akt sverka. Заказы у кассира убраны полностью: сайдбар, роуты `/kassir/orders*`, дашборд, кнопка «Yangi buyurtma» и ссылки на заказы на странице клиента.
-- Файлы: `src/app/navigation/sidebar.config.js`, `src/app/router/routes.config.js`, `src/Components/Kassir/Dashboard/index.jsx`, `src/Components/Common/Supplier/index.jsx` (ссылки учитывают префикс `/kassir`).
+## 2. Как проверять и сдавать работу
 
-### 2. Детальные страницы переписаны в едином стиле
-Шапка с подписанными кнопками, карточки показателей, два блока информации, таблица истории внизу:
-- `src/Components/Common/SupplierDetail/index.jsx`
-- `src/Components/Common/CustomerDetail/index.jsx` (вкладки заказы и платежи, явные кнопки вместо селекта статуса)
-- `src/Components/Common/ExpenseDetail/index.jsx`
-- `src/Components/Common/CashboxDetail/index.jsx` (фильтры истории по типу и датам, быстрые периоды, тип `ORDER_RETURN`)
-- Компоненты `Edit`/`Delete` у расхода и кассы получили проп `label` для подписанной кнопки и `onDeleted`.
-- Кнопкам везде задаётся явная высота и `px`, потому что Tailwind preflight обнуляет паддинг у `button` и перебивает Chakra. Иконочные кнопки квадратные: `w="34px" h="34px" p={0} minW={0}`.
+1. `npx eslint <изменённые файлы> --rule '{"no-undef":"error"}'` — в проекте много старых ошибок (prop-types, unused), новых не добавлять, старые не чинить без просьбы. `no-undef` обязателен: уже ловили `Spinner is not defined` в рантайме.
+2. `npx vite build` обязан проходить.
+3. В браузере залогиниться нельзя (нужен пароль устройства), визуально проверяются только автономные HTML (печать) через временный статический сервер в `.claude/launch.json`; после проверки файл вернуть: `git checkout -- .claude/launch.json`.
+4. После каждой законченной задачи — **коммит и пуш в `origin/main`** (владелец так просил с середины работы). Сообщение коммита на английском, коротко: `Product: rubber field in create/edit, list, detail`.
+5. В рабочем дереве могут лежать чужие незакоммиченные правки владельца или параллельной сессии (сейчас: удалённые папки `smeta/`, `uds-texnopark/`, работа над категориями станков `machineCategory.api.js`). Их не откатывать и в свои коммиты не включать: `git add` только свои файлы, поимённо, отдельными аргументами (не одной строкой).
 
-### 3. Фильтры
-- Клиенты (`Common/Customer`, `Zayavkachi/Customers`): фильтр по региону, параметр `regionId` в `customer.api.js`.
-- Расходы (`Common/Expense`): панель фильтров касса, категория, даты, быстрые периоды, сортировка кликом по заголовкам (ASC/DESC), чипы активных фильтров, итог по странице. Параметр `categoryId` в `expense.api.js`. Селект «Saralash» убран по просьбе.
-- Форма расхода `Expense/__components/ExpenseForm.jsx`: сумма форматируется при вводе (`10 000`), добавлено поле времени. Бэкенд время не принимает (`expenseDate` только дата), поэтому `expenseTime` вырезается в `expense.api.js` функцией `withoutTime`, а в списке и деталях показывается время из `createdAt`.
+## 3. Как работает владелец
 
-### 4. Акт сверки `src/Components/Common/CustomerReconciliation/index.jsx`
-- На экране обычная таблица в стиле приложения, при нажатии «Aktni yuklab olish» скачивается PNG в формате 1С (скрытый документ, `html2canvas` установлен в зависимости). Кнопка печати убрана по просьбе.
-- Слова простые: «Davr boshida», «Sotuv (qarz oshdi)», «To‘lov (qarz kamaydi)», «Davr jami», «Davr oxirida», «Qarz yo‘q».
-- Название организации: константа `COMPANY_NAME = 'Zafar Lux'` в начале файла.
-- Расчёт: дебет — заказы `CONFIRMED`, кредит — активные платежи и возвраты `RETURNED`; сальдо на конец берётся из реального баланса клиента, сальдо на начало вычисляется обратно.
-- Документ всегда белый даже в тёмной теме: правила `.sverka-paper` в `src/index.css`, иначе глобальный CSS красит ячейки таблиц.
+Короткие просьбы по-русски с узбекскими названиями экранов («в махсулот», «у омборчи», «в режиме ходим»). Часто присылает кусок Swagger/JSON как спецификацию — это источник правды, лишние поля не выдумывать. Ожидает:
+- «профессиональный» UI в стиле уже переписанных страниц (карточки, шапка с подписанными кнопками, чипы фильтров, скелетоны);
+- простые узбекские слова вместо бухгалтерских терминов;
+- минимум модалок там, где можно сделать одно нажатие;
+- обычные формы (select/input), а не «кнопочные» тогглы;
+- всё работает в тёмной и светлой теме.
+Если просьба двусмысленная, он быстро поправляет («нет, я имел в виду вид из станка») — делать компактно и переделывать без споров. Иногда пишет сообщение не сессии («отмена, не тебе») — просто не действовать.
 
-### 5. Валюта в платежах
-Бэкенд требует `currency` (`UZS`|`USD`) в `POST /payments`, `POST/PUT /expenses`, `POST /supplier-payments`; `amount` всегда в сумах, при `USD` обязателен `usdRate`.
-- Общий компонент `src/Components/ui/CurrencyAmountField.jsx` (переключатель So‘m/Dollar, сумма в долларах и курс, автопересчёт) и помощники `src/Components/ui/currency.js`. Курс запоминается в `localStorage` под ключом `payment_usd_rate`.
-- Подключён в `ExpenseForm`, `Customer/__components/PaymentModal.jsx`, `Supplier/__components/PaymentModal.jsx`. Старый `UsdCalculator` там заменён.
-- `CurrencyNote` показывает «$ 100 · kurs 12 500» в списке и деталях расходов, истории платежей поставщика, платежах клиента, акте сверки.
+## 4. Карта проекта
 
-### 6. Цвет товара (поле `code`, HEX)
-- `src/Components/ui/ColorSwatch.jsx`, `src/Components/ui/color-utils.js`, поле `ProductColor/__components/ColorCodeField.jsx` с системным выбором цвета и пресетами.
-- Справочник цветов: таблица по умолчанию и режим «Palitra». Образцы цвета в списке товаров, формах товара, деталях товара, фильтре формы заявки.
+```
+src/
+  app/
+    layout/        MainLayout (admin/кассир/бухгалтер/заявочник/склад/химик), StanokchiLayout,
+                   HeadStanokchiLayout (станочник-руководитель), WorkerStanokchiLayout (киоск рабочего), MixerLayout
+    navigation/    sidebar.config.js — пункты и группы меню по ролям (exact:true у дашбордов)
+    permissions/   roles.js — ROLES и группы ролей (PRODUCT_WAREHOUSE_ROLES, BUXGALTER_ROLES, ...)
+    router/        routes.config.js — все маршруты с массивом roles; RoleGuard; AppRouter
+  Components/
+    Common/        общие экраны: Product, ProductDetail, ProductPrices, ProductCategory, ProductColor, Brand,
+                   Customer, CustomerDetail, CustomerAgent, CustomerReconciliation, Supplier(+Detail),
+                   Expense(+Detail, +Category), Cashbox(+Detail), Machine(+Detail), Raw, Recipe,
+                   WarehousePage/WarehouseDetail, Reminder, User, Role, Device, Settings, Login, Profile
+    Zayavkachi/    заявки: Orders, OrderDetail, OrderCreate/Edit, BuxgalterOrderDetail, Customers,
+                   __components/OrderForm.jsx, statusBadge.js, OrderPrintModal.jsx
+    Staff/         товарный склад: StockWarehouse, Income, Outcome, History, Orders, OrderDetail (отгрузка),
+                   __components/StockTransactionForm.jsx, orderReceipt.js
+    RawStaff/      склад сырья
+    Stanokchi/     станки: Dashboard, Machines/HeadMachines, MachineDetail/HeadMachineDetail + StartProductPicker,
+                   Worker/WorkerMachines + WorkerMachineDetail (киоск), productionWarehouse.jsx, shift.js, StanokchiHeader
+    Kassir/, Ximik/, Mixer/  дашборды и обёртки ролей
+    Other/         Sidebar, Header'ы, Alert, старые UI-утилиты
+    ui/            переиспользуемое: FormControl, FormattedNumberInput, FilterCombobox, ColorSwatch, ProductImage,
+                   CurrencyAmountField, FullscreenButton, LabelPrintButton/Dialog, useInfiniteList + InfiniteSentinel,
+                   date-format.js, number-format.js, order-items.js, currency.js, auth-image.js, color-utils.js
+  services/labelPrinter.js   QZ Tray (печать этикеток)
+  store/
+    api.js                   axios-инстанс с токеном
+    baseQuary/axiosBaseQuery.js  обёртка для RTK Query (headers, responseType, schema)
+    baseQuary/updateSchemas.js   схемы PUT-запросов (см. §5.2)
+    services/*.api.js        один createApi на сущность, все подключены в store/index.js
+    slices/                  auth и т.п.
+  theme/tokens.js            useAppTheme(): isDark, cardBg, cardBorder, textColor, subtitleColor, accentColor
+  index.css                  глобальные стили (таблицы с !important, спиннеры number, .sverka-paper, stock-row-*)
+```
 
-### 7. Фото товара
-- `product.api.js`: мутация `uploadProductImage` (multipart, `POST /products/{id}/image`). В `axiosBaseQuery.js` добавлена передача `headers` и `responseType`. Для `FormData` обязателен явный `Content-Type: multipart/form-data`, иначе axios сериализует в JSON.
-- `src/Components/ui/ProductImage.jsx` и `src/Components/ui/auth-image.js`: картинки защищены токеном, грузятся через axios в blob с кэшем по `url + version`, отрицательный кэш 60 секунд на 404, параметр `?v=` против кэша браузера (бэкенд отдаёт `max-age=300`), `bustProductImage` после замены фото. `loadAuthImageDataUrl` даёт base64 для окна печати.
-- Поле `Product/__components/ImageField.jsx` в создании и редактировании товара, миниатюры в списке товаров, фото в деталях.
+Роли (`roles.js`, бэкенд отдаёт UPPERCASE, при логине `toLowerCase()`): `manager` (админ), `buxgalter` (хисобчи), `zayavkachi`, `kassir`, `product_storekeeper` (омборчи), `raw_material_storekeeper`, `stanokchi`, `mikserchi`, `ximik`. Префиксы URL по ролям (`/kassir/...`, `/stanokchi/...`); общие экраны узнают роль через `useAppSelector(s => s.auth.role)` и префикс через `useLocation().pathname`. Маршруты с `STANOKCHI`/`MIKSERCHI` в `roles` `AppRouter` уводит в отдельный layout — эти роли нельзя добавлять к общим путям менеджера.
 
-### 8. Роль Химик (`ximik`)
-- Рецепты и сырьё полностью; станки, остатки товарного склада, поставщики, расходы, кассы только просмотр. Дашборд `src/Components/Ximik/Dashboard/index.jsx`. Гейты по роли внутри `Expense`, `ExpenseDetail`, `Cashbox`, `CashboxDetail`, `Machine`.
-- Схема добавления роли: `roles.js` → `RoleGuard.jsx` → `Login/index.jsx` (редирект захардкожен) → `sidebar.config.js` и `Sidebar.jsx` → `routes.config.js` → подписи в `Common/Role` и `Common/User`.
+Схема добавления роли: `roles.js` → `RoleGuard.jsx` → `Login/index.jsx` (редирект захардкожен) → `sidebar.config.js` и `Sidebar.jsx` → `routes.config.js` → подписи в `Common/Role` и `Common/User`.
 
-### 9. Станочник
-- Режим руководителя использует общий `Other/Sidebar/Sidebar.jsx` (добавлен слот `footer`, туда возвращена кнопка «Xodim rejimi»). Старый `HeadStanokchiSidebar.jsx` удалён. У дашбордов в конфиге сайдбара флаг `exact: true`, иначе они подсвечивались на вложенных страницах.
-- Выбор товара при запуске станка: `Stanokchi/MachineDetail/StartProductPicker.jsx` с фото, поиском, фильтрами бренд/категория/цвет.
-- Убраны все показатели брака в сводке смены `HeadMachineDetail.jsx`. Статус станка «Brak» на карточках оставлен.
-- Дашборд `Stanokchi/Dashboard/index.jsx` на `GET /machines/production-summary` за текущую смену, карточки станков с загрузкой, кольцевые индикаторы, фильтр и поиск. Помощники смены в `Stanokchi/shift.js` (дневная 08:00–20:00, ночная 20:00–08:00 по Ташкенту).
-- После «Qo‘shildi» `productStock.api.js` сбрасывает кэши `Machine` и `MachineOutput`; сводка смены считается до конца смены, а не до момента открытия страницы (иначе новые штуки не попадали в «Jami ishlab chiqarildi»).
-- Режим рабочего (`Worker/WorkerMachines.jsx`, `Worker/WorkerMachineDetail.jsx`): фото продукта, бренд, название станка.
-- Загрузка списка станков `Machines/HeadMachines.jsx`: восстановлен вывод скелетонов, который был потерян.
+## 5. Паттерны, которых держаться
 
-### 10. Заявки: пачки и штуки
-- Новый формат строки заявки: одна запись на `(productId, warehouseId)` с `packQuantity` и `pieceQuantity`, в ответе ещё `quantity` (итог в штуках). Помощники в `src/Components/ui/order-items.js`: `splitOrderItem`, `formatPackPiece`, `toStockItem`.
-- Везде показывается «11 pachka + 6 dona» как сохранил сервер: детали заявки, список заявок, детали для бухгалтера, печатная накладная, отгрузка складом.
-- Складские операции (`ProductStockItemRequest`) остались в старом формате: один товар на строку, `quantity` + `unit`. Форма прихода/расхода `Staff/__components/StockTransactionForm.jsx` получила счётчики «Pachka» и «Dona», смешанное количество уходит в штуках.
-- Владелец ожидал «6 пачек 11 штук» там, где сервер вернул `packQuantity: 11, pieceQuantity: 6, quantity: 72`. Фронт отправляет поля правильно, расхождение надо проверять на бэкенде.
+### 5.1 RTK Query
+- `transformResponse` → `{ items: response.data, pagination: response.pagination }` для списков, `response.data` для одиночных.
+- Теги: `{type, id:'LIST'}` + по id. После мутаций, которые меняют чужие сущности (заказ → баланс клиента, платежи, касса, станок), в `onQueryStarted` диспатчится `otherApi.util.invalidateTags([...])` (см. `salesOrder.api.js` → `refreshCustomerAndPayments`, `productStock.api.js` → Machine/MachineOutput). Любая новая мутация обязана обновлять всё, что видит пользователь без F5 — владелец это проверяет.
+- `normalizeSalesOrder` в `salesOrder.api.js` разворачивает объект `customer` в плоские поля (`customerName`, `customerPhone`, `customerAddress`, `regionName`, `agentName`).
 
-### 11. Статусы заявки
-Единый источник `src/Components/Zayavkachi/__components/statusBadge.js`: `CREATED` Yangi, `LOADED` Ortildi, `CONFIRMED` Tugallandi, `REJECTED` Bekor qilindi, `RETURNED` Qaytarildi, с цветами для классов и инлайн-стилей. Все локальные копии подписей удалены. Статусов `PENDING`/`APPROVED` и эндпоинта `/approve` не существует; переходы через `/load`, `/confirm`, `/reject`, `/return`. На странице клиента убрана кнопка «Tasdiqlash», оплата по заявке доступна при `CONFIRMED` с долгом.
+### 5.2 PUT-запросы и схема полей
+Бэкенд на PUT требует **все обязательные поля** и ругается «null не допускается», если фронт шлёт частичный объект. Решение: в `*.api.js` у мутации `schema: 'XxxUpdateRequest'`, `axiosBaseQuery` прогоняет тело через `shapeUpdatePayload` (`updateSchemas.js`): проверка обязательных (блокирует с узбекским сообщением «… majburiy maydonlar to‘ldirilmagan»), удаление неизвестных полей, `'' → null` для опциональных. Формы Edit гидрируются из `GET /{id}` (`useGetXxxByIdQuery` + `fillBlanks`), а не из строки списка. При новом поле на бэкенде — добавить его и в схему, и в форму.
 
-### 12. Печать накладной `Zayavkachi/__components/OrderPrintModal.jsx`
-Зашитые логотипы заменены брендами из `GET /brands` с логотипами (base64 для окна печати), добавлена палитра цвета документа (ключ `invoice_accent_color`). Реквизиты организации в подвале не менялись.
+### 5.3 Списки
+- Бесконечная прокрутка: `useInfiniteList` + `<InfiniteSentinel/>`; компонент держит `page`, передаёт `items, pagination, isFetching, resetKey` (строка из фильтров). Полный лоадер только при `isLoading || (isFetching && items.length===0)`. Внутри хука `lastPageRef` + `seenPagesRef` (WeakMap массив→страница), чтобы при refetch той же страницы сброситься на 0, а при переходе страниц — нет (RTK на миг отдаёт предыдущий `data`). Та же логика продублирована локально в `Product/index.jsx`, `StockWarehouse`, `OrderForm`, `StockTransactionForm` — менять синхронно.
+- Фильтры: `FilterCombobox` (поиск без учёта апострофов `normalizeSearch`), чипы активных фильтров, быстрые периоды дат. Поиск клиента в `OrderForm` гибридный: одна строка ищет по имени, телефону, адресу, региону (базовый список size 200 + серверный поиск по имени, слияние).
+- Числовые поля: `FormattedNumberInput` (разделители тысяч). Пачки/штуки показывают пустое поле вместо `0`. Спиннеры у `input[type=number]` скрыты глобально в `index.css`, прокрутка колесом над числовыми полями отключена в `main.jsx`.
 
-### 13. Сайдбар администратора
-Группы: Asosiy, Savdo (заказы, клиенты, агенты, акт сверки, напоминания), Katalog (товары, категории, цвета, бренды), Ishlab chiqarish (склады, сырьё, рецепты, станки), Moliya (кассы, расходы, категории расходов, поставщики), Tizim (пользователи, роли, устройства). При меню больше десяти пунктов по умолчанию раскрыта только группа текущей страницы.
+### 5.4 UI
+- Chakra v3: `bg="linear-gradient(...)"` (не `bgGradient="linear(...)"`), `Dialog.Root/Backdrop/Positioner/Content`, `Field.Root/Label/HelperText`, `colorPalette`.
+- Tailwind preflight обнуляет паддинг `button`, поэтому кнопкам Chakra всегда явные `h` и `px`; иконочные кнопки `w="34px" h="34px" p={0} minW={0}`.
+- Глобальные правила `index.css` для `table thead th` / `tbody td` с `!important` перебивают инлайн-фон ячеек: для цветных строк использовать классы (`stock-row-low`, `stock-row-out`).
+- Цвета/токены только из `useAppTheme()`; документы для печати всегда белые (`.sverka-paper`).
+- Даты через `src/Components/ui/date-format.js`, не `toLocaleString('uz-UZ')`.
+- Клавиатурные события из портальных модалок всплывают на карточку под ними: в обработчиках карточек проверять `event.target === event.currentTarget`.
+- Общие фичи шапки: `FullscreenButton` (`lockKeyboard` блокирует Esc через `navigator.keyboard.lock`) стоит во всех header'ах и layout'ах.
 
-### 14. Бесконечная прокрутка вместо кнопок страниц
-Хук `src/Components/ui/useInfiniteList.js` и маркер `src/Components/ui/InfiniteSentinel.jsx`. Компонент держит `page`, передаёт `items`, `pagination`, `isFetching`, `resetKey` (строка из параметров фильтра). Полный лоадер только при `isLoading || (isFetching && items.length === 0)`.
-Подключено: клиенты (оба списка), агенты, заявки (заявочник `Zayavkachi/Orders` и склад `Staff/Orders`), категории товаров, цвета, бренды, сырьё, рецепты, станки, расходы, категории расходов, поставщики, история склада товаров `Staff/History`, история сырья `RawStaff/History`.
+### 5.5 Доступы на фронте
+- `Zayavkachi/__components/statusBadge.js`: `STATUS_LABEL` (CREATED Yangi, LOADED Ortildi, CONFIRMED Tugallandi, REJECTED Bekor qilindi, RETURNED Qaytarildi), `canSetOrderStatus(role, next)` — `LOADED` ставит только омборчи, `canReturnOrder` — manager и buxgalter.
+- Редактирование цен заявки в `LOADED`: `canEditPrice` для buxgalter, zayavkachi, manager, kassir (бэкенд пока не даёт `SALES_ORDER:PRICE` заявочнику — покажет 403).
+- `/products/prices` (массовое изменение цен) — manager и buxgalter в роутах, но `PRODUCT:UPDATE` на бэкенде есть только у manager.
+- Печать этикетки показывается по роли, список permissions с бэкенда фронт не получает; 403 превращается в понятное сообщение.
 
-### 15. Склад
-- Остатки `Staff/StockWarehouse/index.jsx`: жёлтые строки при остатке на минимуме, красные при нуле. Классы `stock-row-low`/`stock-row-out` в `src/index.css`, потому что глобальные правила красят `td` с `!important`.
-- История товаров `Staff/History/index.jsx` переписана: пять типов операций с цветами, группировка по дням, пачки и штуки, фото товара, фильтры в три ряда (сегмент типа, склад и поиск, чипы активных фильтров), фильтр по товару кликом на название (серверный `productId`).
-- Числовые поля пачек и штук показывают пустое поле вместо «0», чтобы при вводе не получалось «012»: `StockTransactionForm`, `OrderForm`, `Staff/OrderDetail`, `RawStaff/__components/RawTransactionForm.jsx`.
+## 6. Факты о бэкенде, которые уже проверены
 
-### 16. Удаление отклонённых заявок
-В `Zayavkachi/Orders/index.jsx` кнопка удаления включена для `REJECTED`. Бэкенд по документации удаляет только `CREATED` (иначе 409), поэтому пока нажатие вернёт ошибку сервера. Владелец в курсе, ждёт правки бэкенда.
+- `POST /sales-orders/{id}/load` сам списывает остатки по строкам и ставит `LOADED`. Отдельный `OUT` делать нельзя (было двойное списание). Переходы: `/load`, `/confirm`, `/reject`, `/return` (возврат частичный или полный, только admin/бухгалтер). Статусов `PENDING`/`APPROVED` нет. Удаление заявки — только `CREATED` (иначе 409).
+- `PATCH /sales-orders/{id}/prices` только для `LOADED`.
+- Строки заявки: одна на `(productId, warehouseId)` с `packQuantity`, `pieceQuantity`, в ответе ещё `quantity` (итог в штуках). Помощники `ui/order-items.js`.
+- `POST /product-stock-transactions`: `action: IN|OUT` (`PRODUCE` удалён), `warehouseId` обязателен всегда, `machineId` только с `IN`, `items[{productId, quantity, unit: PACK|PIECE}]`. Станочник при «+1» шлёт `IN`, `unit:'PACK'`, `quantity:1`, `warehouseId` из выбранного склада производства (`useProductionWarehouse`, localStorage `production_warehouse_id`).
+- `PATCH /products/prices {items:[{productId, price}]}` — массовые цены.
+- Товар: `rubber: boolean|null` (резина/уплотнитель), `category.bonusPrice` (бонус переехал из товара в категорию), `article`, `size`, `brandId`, `piecesPerPack` (обязателен, целое ≥1), `price` опционален, `warehouseId`/`lowProductAlert` в PUT не отправлять. Фото: `POST /products/{id}/image` multipart с явным `Content-Type`, картинки под токеном (`ProductImage`, `auth-image.js`, `?v=` против кэша).
+- Этикетка: `GET /products/{id}/label?copies=N → data.tsplBase64` (готовый TSPL, фронт штрих-код не рисует). `GET /qz-tray/certificate`, `POST /qz-tray/sign {request}` для подписи QZ. Печать идёт через QZ Tray на ПК (`services/labelPrinter.js`), принтер сохраняется в `localStorage['label_printer_name']`, настройка в Sozlamalar → «Yorliq printeri». Рабочий при «+1» печатает `LABEL_COPIES = 2`; если принтер не найден — открывается `LabelPrintDialog`.
+- Платежи: `currency` (`UZS|USD`) обязателен в `POST /payments`, `POST/PUT /expenses`, `POST /supplier-payments`; `amount` всегда в сумах, при `USD` нужен `usdRate` (`CurrencyAmountField`, курс в `localStorage['payment_usd_rate']`). `expenseDate` только дата, время бэкенд не принимает.
+- Клиент: объекты `agent {id,name}` и `region {id,name}`, фильтры `agentId`, `regionId`, `balance` редактируется и в create, и в edit.
+- Станки: `GET /machines` отдаёт реальное состояние и `currentRun` (время работы считаем на фронте, `elapsedLabel`); `GET /machines/production-summary` за смену (`shift.js`: день 08:00–20:00, ночь 20:00–08:00 Ташкент). Статус `DEFECT` в киоске рабочего скрыт. В работе (не закоммичено): категории станков `/machine-categories`, `categoryId` у станка и в фильтрах.
+- Права бэкенда, о которых владелец знает: `SALES_ORDER:PRICE` у buxgalter/kassir/manager; `PRODUCT:UPDATE` только manager; `STOCK:WRITE` у manager, storekeeper, stanokchi; `PRODUCT:LABEL` для печати.
 
-### 17. Tailwind
-В `tailwind.config.js` возвращены семейства цветов `slate`, `zinc`, `neutral`, `stone`, `emerald`, `sky`, `violet`, `fuchsia`, `rose`. Обёртка `withMT` их вырезала, из-за чего такие классы по всему проекту не генерировались (симптом: не подсвечивались цветные фильтры). Это могло сделать многие экраны контрастнее, чем раньше.
+## 7. Что уже сделано (кратко, чтобы не переделывать)
 
-## Ловушки, которые уже всплывали
-- `bgGradient="linear(...)"` это Chakra v2, в v3 не работает, использовать `bg="linear-gradient(...)"`.
-- Глобальные правила `src/index.css` для `table thead th` и `table tbody td` с `!important` перебивают любой инлайн-фон ячеек.
-- `AppRouter` уводит в отдельный layout все маршруты, где в `roles` есть `STANOKCHI` или `MIKSERCHI`. Эти роли нельзя добавлять к общим путям менеджера.
-- Общие экраны определяют роль через `useAppSelector(s => s.auth.role)` и префикс через `useLocation().pathname.startsWith('/kassir')`.
-- Форматы дат брать из `src/Components/ui/date-format.js`, не из `toLocaleString('uz-UZ')`.
+- Роли и дашборды: кассир (без заказов; быстрые Kirim/Chiqim в шапке), химик (рецепты и сырьё полностью, остальное просмотр; страница склада сырья, поставщики с пополнением баланса), станочник-руководитель и рабочий.
+- Детальные страницы в едином стиле: Supplier, Customer (вкладки заказы/платежи), Expense, Cashbox, Product, Machine (бесконечная прокрутка, колонка времени работы), Warehouse.
+- Акт сверки `CustomerReconciliation` (PNG «как в 1С» через html2canvas, `COMPANY_NAME = 'Zafar Lux'`).
+- Товары: цвет HEX (`ColorSwatch`, `ColorDot`), фото, резина, бонус из категории, кнопка «Narxlarni o‘zgartirish» → страница массовых цен (режимы +/−/+%/−%/=, округление, выбор строк, мемоизированные строки), печать этикетки в списке и деталях.
+- Заявки (`OrderForm`): выбор товара тогглом с чипами, ввод «пачки + штуки» с автосплитом, обязательное количество (по умолчанию 0), сортировка по остатку (есть → мало → нет), чип цвета, гибридный поиск клиента, редактирование цен в `LOADED`; списки заявок с колонками телефон/адрес/агент и поиском по ним; возврат заказа; напоминания об оплате с бесконечной прокруткой.
+- Склад (`Staff`): отгрузка одним вызовом `/load` с чеклистом сканирования и «+ dona / + pachka»; чек отгрузки `orderReceipt.js` (форматы 100×60 / A4 / термо, только названия категорий, без штрих-кода), печать через скрытый iframe; история операций; ручной приход `Income` (та же форма доступна станочнику-руководителю по `/stanokchi/income`).
+- Киоск станочника (`WorkerStanokchiLayout`): без шапки, 8 станков без прокрутки (`landscape:` 4×2 / `portrait:` 2×4), карточка «логотип бренда + фото товара сверху, инфо снизу», выбор склада, тема, полноэкранный режим с блокировкой Esc, выход с подтверждением, опрос каждые 30 с.
+- Общее: бесконечная прокрутка на всех списках, фильтр-комбобоксы, полноэкранная кнопка во всех шапках, убраны спиннеры number, единая схема PUT, аудит инвалидации кэшей после create/edit.
 
-## Как работает владелец
-Пишет короткие просьбы по-русски с узбекскими названиями экранов, часто присылает кусок Swagger или JSON как спецификацию. Ожидает «профессиональный» UI в стиле уже переписанных страниц, простые слова вместо бухгалтерских терминов, и чтобы сборка проходила. Коммиты не просил.
+## 8. Ловушки, которые уже всплывали
+
+- Rollup 4.27 выкидывал поля объектов (см. §1) — симптом «на localhost работает, в проде null».
+- Python-патчи через f-string с фигурными скобками JSX падали `SyntaxError` и ничего не применяли — для массовых правок использовать конкатенацию строк или обычные Edit.
+- `sed` с комментарием в конце строки съедал запятую. Проверять diff.
+- В файлах с несколькими `return (` (скелетон + основной рендер) вставлять по якорю основного wrapper'а, а не по последнему `return`.
+- zsh ругается на `--include=*.jsx` без кавычек.
+- Иконки `lucide-react` и `react-icons/lu` обе используются; перед использованием компонента убедиться, что он импортирован (eslint `no-undef`).
+- `withMT` из material-tailwind вырезал семейства цветов Tailwind; они возвращены в `tailwind.config.js`, не удалять.
+
+## 9. Текущее состояние
+
+Последний коммит на `origin/main` — см. `git log -1`. Все просьбы владельца из предыдущих сессий выполнены и запушены. В рабочем дереве есть незакоммиченная параллельная работа по категориям станков (`src/store/services/machineCategory.api.js`, правки `machine.api.js`, `store/index.js`, `updateSchemas.js`) и удаление лишних папок `smeta/`, `uds-texnopark/` — это не твоё, не трогать и не откатывать.
