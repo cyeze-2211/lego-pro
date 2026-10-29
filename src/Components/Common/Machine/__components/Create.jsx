@@ -11,9 +11,10 @@ import {
     VStack,
     useDisclosure,
 } from '@chakra-ui/react';
-import { Check, Cog, X } from 'lucide-react';
+import { Check, Cog, Layers3, X } from 'lucide-react';
 import { LuPlus, LuTag } from 'react-icons/lu';
 import { useCreateMachineMutation } from '../../../../store/services/machine.api';
+import { useGetMachineCategoriesQuery } from '../../../../store/services/machineCategory.api';
 import { Alert } from '../../../Other/UI/Alert/Alert';
 import { useAppTheme } from '../../../../theme/tokens';
 import FormControl from '../../../ui/FormControl';
@@ -22,13 +23,17 @@ export default function Create() {
     const { open, onOpen, onClose } = useDisclosure();
     const [name, setName] = useState('');
     const [summary, setSummary] = useState('');
+    const [categoryId, setCategoryId] = useState('');
     const [createMachine, { isLoading }] = useCreateMachineMutation();
+    const { data: categoryResult, isLoading: categoriesLoading, isError: categoriesError } = useGetMachineCategoriesQuery({ page: 0, size: 200, sort: ['name,ASC', 'id,ASC'] }, { skip: !open });
+    const categories = categoryResult?.items ?? [];
     const { isDark, accentColor, cardBg, cardBorder, textColor, subtitleColor } = useAppTheme();
     const modalBorder = isDark ? cardBorder : '#94A3B8';
 
     const reset = () => {
         setName('');
         setSummary('');
+        setCategoryId('');
     };
 
     const handleSubmit = async () => {
@@ -37,8 +42,12 @@ export default function Create() {
             Alert('Stanok nomi majburiy', 'error');
             return;
         }
+        if (!categoryId) {
+            Alert('Stanok kategoriyasi majburiy', 'error');
+            return;
+        }
         try {
-            await createMachine({ name: name.trim(), summary: summary.trim() || null }).unwrap();
+            await createMachine({ name: name.trim(), categoryId, summary: summary.trim() || null }).unwrap();
             Alert('Stanok muvaffaqiyatli yaratildi', 'success');
             onClose();
             reset();
@@ -87,6 +96,32 @@ export default function Create() {
                                     <Field.Root required>
                                         <Field.Label color={textColor} fontWeight="medium"><HStack gap={2}><LuTag size={16} /><span>Stanok nomi</span></HStack><Field.RequiredIndicator /></Field.Label>
                                         <FormControl value={name} onChange={(event) => setName(event.target.value)} placeholder="Masalan, Non pishiradigan pech 1" autoFocus size="lg" minH="52px" />
+                                    </Field.Root>
+                                    <Field.Root required>
+                                        <Field.Label color={textColor} fontWeight="medium"><HStack gap={2}><Layers3 size={16} /><span>Kategoriya</span></HStack><Field.RequiredIndicator /></Field.Label>
+                                        <FormControl
+                                            as="select"
+                                            value={categoryId}
+                                            onChange={(event) => setCategoryId(event.target.value)}
+                                            minH="52px"
+                                            disabled={isLoading || categoriesLoading || categoriesError || categories.length === 0}
+                                        >
+                                            <option value="">
+                                                {categoriesLoading
+                                                    ? 'Kategoriyalar yuklanmoqda...'
+                                                    : categoriesError
+                                                    ? 'Kategoriyalarni yuklashda xatolik'
+                                                    : categories.length === 0
+                                                    ? 'Avval stanok kategoriyasini qo‘shing'
+                                                    : 'Kategoriyani tanlang'}
+                                            </option>
+                                            {categories.map((category) => (
+                                                <option key={category.id} value={category.id}>{category.name}</option>
+                                            ))}
+                                        </FormControl>
+                                        {!categoriesLoading && !categoriesError && categories.length === 0 && (
+                                            <Field.HelperText color={subtitleColor}>Stanok kategoriyalari sahifasida kategoriya yarating.</Field.HelperText>
+                                        )}
                                     </Field.Root>
                                     <Field.Root>
                                         <Field.Label color={textColor} fontWeight="medium"><HStack gap={2}><Cog size={16} /><span>Izoh (ixtiyoriy)</span></HStack></Field.Label>

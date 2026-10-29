@@ -7,6 +7,7 @@ import { warehouseApi } from './services/warehouse.api';
 import { productApi } from './services/product.api';
 import { rawMaterialApi } from './services/raw.api';
 import { machineApi } from './services/machine.api';
+import { machineCategoryApi } from './services/machineCategory.api';
 import { customerApi } from './services/customer.api';
 import { recipeApi } from './services/productRecept.api';
 import { userApi } from './services/user.api';
@@ -39,6 +40,7 @@ export const store = configureStore({
         [productApi.reducerPath]: productApi.reducer,
         [rawMaterialApi.reducerPath]: rawMaterialApi.reducer,
         [machineApi.reducerPath]: machineApi.reducer,
+        [machineCategoryApi.reducerPath]: machineCategoryApi.reducer,
         [customerApi.reducerPath]: customerApi.reducer,
         [recipeApi.reducerPath]: recipeApi.reducer,
         [userApi.reducerPath]: userApi.reducer,
@@ -64,7 +66,7 @@ export const store = configureStore({
         [supplierPaymentApi.reducerPath]: supplierPaymentApi.reducer,
     },
     middleware: (getDefaultMiddleware) =>
-        getDefaultMiddleware().concat(authApi.middleware, warehouseApi.middleware, productApi.middleware, rawMaterialApi.middleware, machineApi.middleware, customerApi.middleware, recipeApi.middleware, userApi.middleware, cashboxApi.middleware, expenseApi.middleware, deviceApi.middleware, productStockApi.middleware, roleApi.middleware, rawMaterialStockApi.middleware, salesOrderApi.middleware, productionTaskApi.middleware, auditApi.middleware, paymentApi.middleware, machineOutputApi.middleware, brandApi.middleware, customerAgentApi.middleware, productColorApi.middleware, productCategoryApi.middleware, expenseCategoryApi.middleware, paymentReminderApi.middleware, regionApi.middleware, supplierApi.middleware, supplierPaymentApi.middleware),
+        getDefaultMiddleware().concat(authApi.middleware, warehouseApi.middleware, productApi.middleware, rawMaterialApi.middleware, machineApi.middleware, machineCategoryApi.middleware, customerApi.middleware, recipeApi.middleware, userApi.middleware, cashboxApi.middleware, expenseApi.middleware, deviceApi.middleware, productStockApi.middleware, roleApi.middleware, rawMaterialStockApi.middleware, salesOrderApi.middleware, productionTaskApi.middleware, auditApi.middleware, paymentApi.middleware, machineOutputApi.middleware, brandApi.middleware, customerAgentApi.middleware, productColorApi.middleware, productCategoryApi.middleware, expenseCategoryApi.middleware, paymentReminderApi.middleware, regionApi.middleware, supplierApi.middleware, supplierPaymentApi.middleware),
 });
 
 setupListeners(store.dispatch);

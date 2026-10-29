@@ -35,6 +35,7 @@ export const SIDEBAR_CONFIG = [
     { label: 'Xom ashyo', path: '/raw', icon: Package, roles: [ROLES.MANAGER] },
     { label: 'Retseptlar', path: '/recipes', icon: FlaskConical, roles: [ROLES.MANAGER] },
     { label: 'Stanoklar', path: '/machines', icon: Cog, roles: [ROLES.MANAGER] },
+    { label: 'Stanok kategoriyalari', path: '/machine-categories', icon: Layers3, roles: [ROLES.MANAGER] },
 
     // Moliya
     { label: 'Kassalar', path: '/cashboxes', icon: Wallet, roles: [ROLES.MANAGER] },
@@ -55,7 +56,7 @@ export const SIDEBAR_GROUPS = [
     { label: 'Asosiy', items: pick(['/']) },
     { label: 'Savdo', items: pick(['/orders', '/customers', '/customer-agents', '/reconciliation', '/reminders']) },
     { label: 'Katalog', items: pick(['/products', '/product-categories', '/product-colors', '/brand']) },
-    { label: 'Ishlab chiqarish', items: pick(['/warehouses', '/raw', '/recipes', '/machines']) },
+    { label: 'Ishlab chiqarish', items: pick(['/warehouses', '/raw', '/recipes', '/machines', '/machine-categories']) },
     { label: 'Moliya', items: pick(['/cashboxes', '/expenses', '/expense-categories', '/suppliers']) },
     { label: 'Tizim', items: pick(['/users', '/roles', '/devices', '/settings']) },
 ];
@@ -157,6 +158,7 @@ export const XIMIK_SIDEBAR_CONFIG = [
     { label: 'Retseptlar', path: '/recipes', icon: FlaskConical, roles: XIMIK_ROLES },
     { label: 'Xom ashyo', path: '/raw', icon: Package, roles: XIMIK_ROLES },
     { label: 'Stanoklar', path: '/machines', icon: Cog, roles: XIMIK_ROLES },
+    { label: 'Stanok kategoriyalari', path: '/machine-categories', icon: Layers3, roles: XIMIK_ROLES },
     { label: 'Tovar ombori qoldiqlari', path: '/ximik/warehouse', icon: Warehouse, roles: XIMIK_ROLES },
     { label: 'Xom ashyo ombori qoldiqlari', path: '/ximik/raw-warehouse', icon: Package, roles: XIMIK_ROLES },
     { label: 'Yetkazib beruvchilar', path: '/suppliers', icon: Truck, roles: XIMIK_ROLES },
@@ -166,7 +168,7 @@ export const XIMIK_SIDEBAR_CONFIG = [
 
 export const XIMIK_SIDEBAR_GROUPS = [
     { label: 'Asosiy', items: XIMIK_SIDEBAR_CONFIG.filter((i) => i.path === '/ximik') },
-    { label: 'Ishlab chiqarish', items: XIMIK_SIDEBAR_CONFIG.filter((i) => ['/recipes', '/raw', '/machines', '/ximik/warehouse', '/ximik/raw-warehouse'].includes(i.path)) },
+    { label: 'Ishlab chiqarish', items: XIMIK_SIDEBAR_CONFIG.filter((i) => ['/recipes', '/raw', '/machines', '/machine-categories', '/ximik/warehouse', '/ximik/raw-warehouse'].includes(i.path)) },
     { label: 'Moliya', items: XIMIK_SIDEBAR_CONFIG.filter((i) => ['/suppliers', '/expenses', '/cashboxes'].includes(i.path)) },
     settingsGroup(),
 ];

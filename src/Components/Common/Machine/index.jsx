@@ -9,8 +9,9 @@ import {
     Table,
     Text,
 } from '@chakra-ui/react';
-import { LuClock3, LuCog, LuSearch, LuX } from 'react-icons/lu';
+import { LuClock3, LuCog, LuLayers3, LuSearch, LuX } from 'react-icons/lu';
 import { useGetMachinesQuery } from '../../../store/services/machine.api';
+import { useGetMachineCategoriesQuery } from '../../../store/services/machineCategory.api';
 import { ROLES } from '../../../app/permissions/roles';
 import { useAppSelector } from '../../../store/hooks';
 import { BRAND_COLORS, useAppTheme } from '../../../theme/tokens';
@@ -52,9 +53,13 @@ export default function Machine() {
     const [search, setSearch] = useState('');
     const [query, setQuery]   = useState('');
     const [page, setPage]     = useState(0);
+    const [categoryId, setCategoryId] = useState('');
+
+    const { data: categoryResult } = useGetMachineCategoriesQuery({ page: 0, size: 200, sort: ['name,ASC', 'id,ASC'] });
+    const categories = categoryResult?.items ?? [];
 
     const { data: machineResult, isLoading, isFetching, error } = useGetMachinesQuery(
-        { name: query || undefined, page, size: PAGE_SIZE },
+        { name: query || undefined, categoryId: categoryId || undefined, page, size: PAGE_SIZE },
         { pollingInterval: 30_000 }, // holat va joriy seans yangilanib tursin
     );
     const [now, setNow] = useState(() => Date.now());
@@ -66,7 +71,7 @@ export default function Machine() {
         page,
         setPage,
         isFetching,
-        resetKey: JSON.stringify({ name: query || undefined }),
+        resetKey: JSON.stringify({ name: query || undefined, categoryId: categoryId || undefined }),
     });
     const tableBg       = isDark ? BRAND_COLORS.darkCardBg : cardBg;
     const tableHeaderBg = isDark ? tableBg : '#F8FAFC';
@@ -199,6 +204,20 @@ export default function Machine() {
                         </Button>
                     )}
                 </Box>
+                <Box w={{ base: '100%', md: '240px' }} flexShrink={0}>
+                    <FormControl
+                        as="select"
+                        value={categoryId}
+                        onChange={(e) => { setPage(0); setCategoryId(e.target.value); }}
+                        aria-label="Kategoriya bo'yicha filtr"
+                        minH="32px"
+                    >
+                        <option value="">Barcha kategoriyalar</option>
+                        {categories.map((category) => (
+                            <option key={category.id} value={category.id}>{category.name}</option>
+                        ))}
+                    </FormControl>
+                </Box>
                 <Button
                     type="submit" bg={accentColor} color="black" borderRadius="xl"
                     minH="32px" px={6} flexShrink={0}
@@ -217,7 +236,7 @@ export default function Machine() {
                 </Box>
             ) : machines.length === 0 ? (
                 <EmptyData
-                    text={query ? "Qidiruv bo'yicha stanok topilmadi" : "Hozircha stanoklar yo'q"}
+                    text={query || categoryId ? "Filtr bo'yicha stanok topilmadi" : "Hozircha stanoklar yo'q"}
                     description="Yangi stanok qo'shib ishlab chiqarishni boshlang."
                     action={canManage ? <Create /> : undefined}
                 />
@@ -242,6 +261,9 @@ export default function Machine() {
                                     </Table.ColumnHeader>
                                     <Table.ColumnHeader bg={tableHeaderBg} borderWidth="0.5px" borderColor={tableBorder} color={subtitleColor}>
                                         Stanok nomi
+                                    </Table.ColumnHeader>
+                                    <Table.ColumnHeader bg={tableHeaderBg} borderWidth="0.5px" borderColor={tableBorder} color={subtitleColor}>
+                                        Kategoriya
                                     </Table.ColumnHeader>
                                     <Table.ColumnHeader bg={tableHeaderBg} borderWidth="0.5px" borderColor={tableBorder} color={subtitleColor}>
                                         Izoh
@@ -286,6 +308,15 @@ export default function Machine() {
                                                     {machine.name}
                                                 </Text>
                                             </HStack>
+                                        </Table.Cell>
+
+                                        <Table.Cell borderWidth="0.5px" borderColor={tableBorder}>
+                                            {machine.category?.name ? (
+                                                <HStack gap={1.5} px={2} py={0.5} borderRadius="md" display="inline-flex" fontSize="xs" fontWeight="semibold" whiteSpace="nowrap"
+                                                    bg={isDark ? 'rgb(var(--accent-400) / 0.12)' : 'rgb(var(--accent-warm-100))'} color={isDark ? 'yellow.200' : 'yellow.800'}>
+                                                    <LuLayers3 size={12} /><span>{machine.category.name}</span>
+                                                </HStack>
+                                            ) : <Text fontSize="sm" color={subtitleColor}>—</Text>}
                                         </Table.Cell>
 
                                         <Table.Cell borderWidth="0.5px" borderColor={tableBorder} color={subtitleColor} maxW="320px">

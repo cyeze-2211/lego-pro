@@ -6,12 +6,12 @@ export const machineApi = createApi({
   baseQuery: axiosBaseQuery(),
   tagTypes: ['Machine'],
   endpoints: (builder) => ({
-    // GET /api/v1/machines — sahifalangan ro'yxat (name filtri, real-time holat bilan)
+    // GET /api/v1/machines — sahifalangan ro'yxat (name, categoryId filtri, real-time holat bilan)
     getMachines: builder.query({
-      query: ({ name, page = 0, size = 12, sort = ['createdAt,DESC', 'id,DESC'] } = {}) => ({
+      query: ({ name, categoryId, page = 0, size = 12, sort = ['createdAt,DESC', 'id,DESC'] } = {}) => ({
         url: '/machines',
         method: 'GET',
-        params: { ...(name ? { name } : {}), page, size, sort },
+        params: { ...(name ? { name } : {}), ...(categoryId ? { categoryId } : {}), page, size, sort },
       }),
       transformResponse: (response) => ({ items: response.data, pagination: response.pagination }),
       providesTags: [{ type: 'Machine', id: 'LIST' }],
@@ -38,7 +38,7 @@ export const machineApi = createApi({
       invalidatesTags: [{ type: 'Machine', id: 'LIST' }],
     }),
 
-    // PUT /api/v1/machines/{id} — stanokni to'liq yangilash (name + summary)
+    // PUT /api/v1/machines/{id} — stanokni to'liq yangilash (name + categoryId + summary)
     updateMachine: builder.mutation({
       query: ({ id, data }) => ({
         url: `/machines/${id}`,
@@ -123,11 +123,12 @@ export const machineApi = createApi({
 
     // GET /api/v1/machines/production-summary — barcha stanoklar: holati + oraliqdagi ishlab chiqarishi
     getMachinesProductionSummary: builder.query({
-      query: ({ name, fromDateTime, toDateTime, page = 0, size = 20, sort = ['createdAt,DESC', 'id,DESC'] } = {}) => ({
+      query: ({ name, categoryId, fromDateTime, toDateTime, page = 0, size = 20, sort = ['createdAt,DESC', 'id,DESC'] } = {}) => ({
         url: '/machines/production-summary',
         method: 'GET',
         params: {
           ...(name ? { name } : {}),
+          ...(categoryId ? { categoryId } : {}),
           ...(fromDateTime ? { fromDateTime } : {}),
           ...(toDateTime ? { toDateTime } : {}),
           page,

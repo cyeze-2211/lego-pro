@@ -1,7 +1,7 @@
 ﻿import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Badge, Box, HStack, Table, Text } from '@chakra-ui/react';
-import { LuActivity, LuCalendar, LuCog, LuHistory, LuPackage } from 'react-icons/lu';
+import { LuActivity, LuCalendar, LuCog, LuHistory, LuLayers3, LuPackage } from 'react-icons/lu';
 import { useGetMachineByIdQuery, useGetMachineRunsQuery } from '../../../store/services/machine.api';
 import EntityDetail, { DetailRow, DetailSection, formatDetailDate } from '../EntityDetail';
 import { formatNumber } from '../../ui/number-format';
@@ -104,6 +104,7 @@ export default function MachineDetail() {
                 <>
                     <DetailSection title="Stanok ma'lumotlari" icon={LuCog}>
                         <DetailRow label="Nomi"          value={machine.name} emphasize />
+                        <DetailRow label="Kategoriya"    value={machine.category?.name ? <HStack gap={2}><LuLayers3 size={16} /><span>{machine.category.name}</span></HStack> : '—'} />
                         <DetailRow label="Izoh"          value={machine.summary} />
                         <DetailRow label="Holati"        value={statusBadge(isWorking, isDefect, subtitleColor, isDark)} />
                         <DetailRow label="Jami seanslar" value={formatNumber(totalRuns)} />

@@ -94,6 +94,11 @@ export const ROUTES = [
         roles: [ROLES.MANAGER, ...XIMIK_ROLES],
     },
     {
+        path: '/machine-categories',
+        component: lazy(() => import('../../Components/Common/MachineCategory')),
+        roles: [ROLES.MANAGER, ...XIMIK_ROLES],
+    },
+    {
         path: '/machines',
         component: lazy(() => import('../../Components/Common/Machine')),
         roles: [ROLES.MANAGER, ...XIMIK_ROLES],
