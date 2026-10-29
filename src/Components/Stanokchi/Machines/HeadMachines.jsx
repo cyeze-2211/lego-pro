@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { LuCog, LuChevronLeft, LuChevronRight, LuActivity } from 'react-icons/lu';
 import { useGetMachinesQuery } from '../../../store/services/machine.api';
 import { useAppTheme } from '../../../theme/tokens';
+import { MachineWarehousePicker, useMachineWarehouses } from '../productionWarehouse';
 import { useHeaderContext } from '../../../context/HeaderContext';
 import $api from '../../../store/api';
 
@@ -112,6 +113,7 @@ export default function StanokchiMachines() {
     const [page, setPage] = useState(0);
 
     const { isDark, pageBg, cardBg, cardBorder, textColor, subtitleColor, accentColor } = useAppTheme();
+    const machineWarehouses = useMachineWarehouses();
     const { setPageHeader } = useHeaderContext();
 
     const { data: result, isLoading, isFetching, error } = useGetMachinesQuery({ page, size: PAGE_SIZE });
@@ -158,17 +160,20 @@ export default function StanokchiMachines() {
                 <>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 transition-opacity" style={{ opacity: isFetching ? 0.6 : 1 }}>
                         {machines.map((machine) => (
-                            <MachineCard
-                                key={machine.id}
-                                machine={machine}
-                                isDark={isDark}
-                                cardBg={cardBg}
-                                cardBorder={cardBorder}
-                                textColor={textColor}
-                                subtitleColor={subtitleColor}
-                                accentColor={accentColor}
-                                onClick={() => navigate(`/stanokchi/machines/${machine.id}`)}
-                            />
+                            <div key={machine.id} className="flex flex-col gap-2">
+                                <MachineCard
+                                    machine={machine}
+                                    isDark={isDark}
+                                    cardBg={cardBg}
+                                    cardBorder={cardBorder}
+                                    textColor={textColor}
+                                    subtitleColor={subtitleColor}
+                                    accentColor={accentColor}
+                                    onClick={() => navigate(`/stanokchi/machines/${machine.id}`)}
+                                />
+                                {/* OTK: bu stanokdan chiqqan mahsulot qaysi omborga kiradi (xodim rejimi shuni ishlatadi) */}
+                                <MachineWarehousePicker machineId={machine.id} state={machineWarehouses} isDark={isDark} textColor={textColor} subtitleColor={subtitleColor} cardBg={cardBg} cardBorder={cardBorder} compact />
+                            </div>
                         ))}
                     </div>
 

@@ -5,7 +5,9 @@ import { useGetMachinesQuery } from '../../../store/services/machine.api';
 import { useCreateStockTransactionMutation } from '../../../store/services/productStock.api';
 import { useAppTheme } from '../../../theme/tokens';
 import ProductImage from '../../ui/ProductImage';
-import { useProductionWarehouse } from '../productionWarehouse';
+import { useMachineWarehouses } from '../productionWarehouse';
+import { shouldPrintLabel } from '../labelPolicy';
+import { useAppDispatch } from '../../../store/hooks';
 import { labelErrorMessage, printProductLabel } from '../../../services/labelPrinter';
 import LabelPrintDialog from '../../ui/LabelPrintDialog';
 
@@ -32,7 +34,9 @@ export default function WorkerMachines() {
     /* ── Qayt etish mutation ── */
     const [createStockTransaction, { isLoading: producing }] = useCreateStockTransactionMutation();
     const [producingId, setProducingId] = useState(null);
-    const warehouseState = useProductionWarehouse();
+    // Ombor har stanok uchun OTK (rahbar rejimi) tomonidan belgilanadi — xodim tanlamaydi
+    const machineWarehouses = useMachineWarehouses();
+    const dispatch = useAppDispatch();
     const [labelPick, setLabelPick] = useState(null); // printer tanlanmagan bo‘lsa — yorliq oynasi
 
     /* ── Toast ── */
@@ -45,8 +49,9 @@ export default function WorkerMachines() {
     const handleCardClick = async (machine) => {
         const isWorking = !!machine.currentRun && machine.status !== 'IDLE';
         if (!isWorking || producing) return;
-        if (!warehouseState.warehouseId) {
-            showToast('Avval omborni tanlang — mahsulot qaysi omborga kiradi', 'error');
+        const warehouseId = machineWarehouses.getWarehouseId(machine.id);
+        if (!warehouseId) {
+            showToast(`«${machine.name}» uchun kirim ombori belgilanmagan — OTK (rahbar) rejimida belgilang`, 'error');
             return;
         }
 
@@ -56,15 +61,19 @@ export default function WorkerMachines() {
             await createStockTransaction({
                 action: 'IN',
                 machineId: machine.id,
-                warehouseId: warehouseState.warehouseId,
+                warehouseId,
                 items: [{ productId: machine.currentRun.productId, quantity: 1, unit: 'PACK' }], // har bosish = 1 pachka
             }).unwrap();
             // Javobdagi harakat yozuvida shtrix-kod bor — oynada katta qilib ko‘rsatamiz
             // Yorliq: backend tayyor TSPL kodini beradi, QZ Tray printerga yuboradi (har pachkaga 2 nusxa).
             // Printer tanlanmagan bo‘lsa — tanlash oynasi; boshqa xato — toast.
-            printProductLabel(machine.currentRun.productId, LABEL_COPIES).catch((e) => {
-                if (e?.code === 'NO_PRINTER') setLabelPick({ productId: machine.currentRun.productId, productName: machine.currentRun.productName });
-                else showToast(labelErrorMessage(e), 'error');
+            // Yorliq faqat tayyor mahsulot (FINISHED) uchun; yarim tayyor — yorliqsiz
+            shouldPrintLabel(dispatch, machine.currentRun.productId).then((print) => {
+                if (!print) return;
+                printProductLabel(machine.currentRun.productId, LABEL_COPIES).catch((e) => {
+                    if (e?.code === 'NO_PRINTER') setLabelPick({ productId: machine.currentRun.productId, productName: machine.currentRun.productName });
+                    else showToast(labelErrorMessage(e), 'error');
+                });
             });
             showToast(`✓ 1 pachka qayd etildi — ${machine.currentRun.productName}`);
             refetch();
@@ -124,6 +133,7 @@ export default function WorkerMachines() {
                                 subtitleColor={subtitleColor}
                                 onClick={() => handleCardClick(machine)}
                                 isProducing={producingId === machine.id}
+                                warehouseName={machineWarehouses.getWarehouse(machine.id)?.name || ''}
                             />
                         ))}
                 </div>
@@ -158,7 +168,7 @@ const elapsedLabel = (startedAt, now) => {
 };
 
 /* ── Karta: katakni to‘liq egallaydi, matnlar ekran kengligiga qarab o‘lchanadi ── */
-function WorkerMachineCard({ machine, now, isDark, cardBg, cardBorder, textColor, subtitleColor, onClick, isProducing }) {
+function WorkerMachineCard({ machine, now, isDark, cardBg, cardBorder, textColor, subtitleColor, onClick, isProducing, warehouseName }) {
     const isWorking = machine.status === 'WORKING';
     const isDefect = machine.status === 'DEFECT';
     const run = machine.currentRun;
@@ -210,6 +220,10 @@ function WorkerMachineCard({ machine, now, isDark, cardBg, cardBorder, textColor
                     {isWorking ? '● Ishlayapti' : isDefect ? '● Brak' : '○ Bo‘sh'}
                 </span>
             </div>
+            {/* OTK belgilagan kirim ombori — xodim o‘zgartira olmaydi */}
+            <p className="truncate" style={{ color: warehouseName ? subtitleColor : '#F59E0B', fontSize: 'clamp(10px, 0.85vw, 12px)' }}>
+                {warehouseName ? `→ ${warehouseName}` : 'Ombor belgilanmagan'}
+            </p>
 
             {/* O‘rta: yuqorida ikki rasm (brend logotipi + mahsulot fotosi), pastda ma'lumot */}
             {canClick ? (

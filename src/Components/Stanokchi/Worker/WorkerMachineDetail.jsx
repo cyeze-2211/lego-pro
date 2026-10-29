@@ -14,7 +14,10 @@ import {
 import { useGetMachineOutputsQuery } from '../../../store/services/machineOutput.api';
 import { useAppTheme } from '../../../theme/tokens';
 import ProductImage from '../../ui/ProductImage';
-import { ProductionWarehousePicker, useProductionWarehouse } from '../productionWarehouse';
+import { useMachineWarehouses } from '../productionWarehouse';
+import { shouldPrintLabel } from '../labelPolicy';
+import { useAppDispatch } from '../../../store/hooks';
+import { LuWarehouse } from 'react-icons/lu';
 import { labelErrorMessage, printProductLabel } from '../../../services/labelPrinter';
 import LabelPrintDialog from '../../ui/LabelPrintDialog';
 
@@ -63,7 +66,10 @@ export default function WorkerMachineDetail() {
     const historyTotalPages = historyResult?.pagination?.totalPages || 0;
 
     const [createStockTransaction, { isLoading: producing }] = useCreateStockTransactionMutation();
-    const warehouseState = useProductionWarehouse();
+    // Ombor OTK (rahbar rejimi) tomonidan har stanok uchun belgilanadi
+    const machineWarehouses = useMachineWarehouses();
+    const machineWarehouse = machineWarehouses.getWarehouse(id);
+    const dispatch = useAppDispatch();
     const [labelPick, setLabelPick] = useState(null); // printer tanlanmagan bo‘lsa — yorliq oynasi
 
     const [toast, setToast] = useState(null);
@@ -76,8 +82,9 @@ export default function WorkerMachineDetail() {
 
     const handleProduceOne = async () => {
         if (producing || !machine?.currentRun?.productId) return;
-        if (!warehouseState.warehouseId) {
-            showToast('Avval omborni tanlang — mahsulot qaysi omborga kiradi', 'error');
+        const warehouseId = machineWarehouses.getWarehouseId(id);
+        if (!warehouseId) {
+            showToast('Bu stanok uchun kirim ombori belgilanmagan — OTK (rahbar) rejimida belgilang', 'error');
             return;
         }
         try {
@@ -85,14 +92,18 @@ export default function WorkerMachineDetail() {
             await createStockTransaction({
                 action: 'IN',
                 machineId: id,
-                warehouseId: warehouseState.warehouseId,
+                warehouseId,
                 items: [{ productId: machine.currentRun.productId, quantity: 1, unit: 'PACK' }], // har bosish = 1 pachka
             }).unwrap();
             // Yorliq: backend tayyor TSPL kodini beradi, QZ Tray printerga yuboradi (har pachkaga 2 nusxa).
             // Printer tanlanmagan bo‘lsa — tanlash oynasi; boshqa xato — toast.
-            printProductLabel(machine.currentRun.productId, LABEL_COPIES).catch((e) => {
-                if (e?.code === 'NO_PRINTER') setLabelPick({ productId: machine.currentRun.productId, productName: machine.currentRun.productName });
-                else showToast(labelErrorMessage(e), 'error');
+            // Yorliq faqat tayyor mahsulot (FINISHED) uchun; yarim tayyor — yorliqsiz
+            shouldPrintLabel(dispatch, machine.currentRun.productId).then((print) => {
+                if (!print) return;
+                printProductLabel(machine.currentRun.productId, LABEL_COPIES).catch((e) => {
+                    if (e?.code === 'NO_PRINTER') setLabelPick({ productId: machine.currentRun.productId, productName: machine.currentRun.productName });
+                    else showToast(labelErrorMessage(e), 'error');
+                });
             });
             showToast(`1 pachka qayd etildi — ${machine.currentRun.productName}`);
             refetchMachine();
@@ -255,10 +266,14 @@ export default function WorkerMachineDetail() {
                     </div>
                 )}
 
-                {/* ── Kirim ombori ── */}
+                {/* ── Kirim ombori — OTK belgilagan, xodim o‘zgartirmaydi ── */}
                 {isWorking && (
-                    <div className="mb-3">
-                        <ProductionWarehousePicker state={warehouseState} isDark={isDark} textColor={textColor} subtitleColor={subtitleColor} cardBg={cardBg} cardBorder={cardBorder} />
+                    <div className="mb-3 flex items-center gap-2 rounded-xl border px-4 py-2.5" style={{ background: cardBg, borderColor: machineWarehouse ? cardBorder : '#F59E0B' }}>
+                        <LuWarehouse size={17} style={{ color: machineWarehouse ? subtitleColor : '#F59E0B', flexShrink: 0 }} />
+                        <span className="text-sm font-semibold" style={{ color: subtitleColor }}>Kirim ombori:</span>
+                        <span className="truncate text-sm font-bold" style={{ color: machineWarehouse ? textColor : '#F59E0B' }}>
+                            {machineWarehouse ? machineWarehouse.name : 'belgilanmagan (OTK rejimida belgilang)'}
+                        </span>
                     </div>
                 )}
 

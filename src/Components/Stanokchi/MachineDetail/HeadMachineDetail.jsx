@@ -26,7 +26,9 @@ import {
     useGetMachineOutputsSummaryQuery,
 } from '../../../store/services/machine.api';
 import StartProductPicker from './StartProductPicker';
-import { ProductionWarehousePicker, useProductionWarehouse } from '../productionWarehouse';
+import { MachineWarehousePicker, useMachineWarehouses } from '../productionWarehouse';
+import { shouldPrintLabel } from '../labelPolicy';
+import { useAppDispatch } from '../../../store/hooks';
 import { labelErrorMessage, printProductLabel } from '../../../services/labelPrinter';
 import LabelPrintDialog from '../../ui/LabelPrintDialog';
 
@@ -247,7 +249,9 @@ export default function StanokchiMachineDetail() {
     const [stopProduction, { isLoading: stopping }] = useStopMachineProductionMutation();
     const [updateMachineStatus, { isLoading: statusUpdating }] = useUpdateMachineStatusMutation();
     const [createStockTransaction, { isLoading: producing }] = useCreateStockTransactionMutation();
-    const warehouseState = useProductionWarehouse();
+    // Har stanok uchun kirim ombori — shu yerda (OTK) belgilanadi, xodim rejimi shuni ishlatadi
+    const machineWarehouses = useMachineWarehouses();
+    const dispatch = useAppDispatch();
     const [labelPick, setLabelPick] = useState(null); // printer tanlanmagan bo‘lsa — yorliq oynasi
 
     /* ── Toast ── */
@@ -299,22 +303,27 @@ export default function StanokchiMachineDetail() {
     ════════════════════════════════ */
     const handleProduceOne = async () => {
         if (producing || !machine?.currentRun?.productId) return;
-        if (!warehouseState.warehouseId) {
-            showToast('Avval omborni tanlang — mahsulot qaysi omborga kiradi', 'error');
+        const warehouseId = machineWarehouses.getWarehouseId(id);
+        if (!warehouseId) {
+            showToast('Avval bu stanok uchun kirim omborini belgilang', 'error');
             return;
         }
         try {
             await createStockTransaction({
                 action: 'IN',
                 machineId: id,
-                warehouseId: warehouseState.warehouseId,
+                warehouseId,
                 items: [{ productId: machine.currentRun.productId, quantity: 1, unit: 'PACK' }], // har bosish = 1 pachka
             }).unwrap();
             // Yorliq: backend tayyor TSPL kodini beradi, QZ Tray printerga yuboradi (har pachkaga 2 nusxa).
             // Printer tanlanmagan bo‘lsa — tanlash oynasi; boshqa xato — toast.
-            printProductLabel(machine.currentRun.productId, LABEL_COPIES).catch((e) => {
-                if (e?.code === 'NO_PRINTER') setLabelPick({ productId: machine.currentRun.productId, productName: machine.currentRun.productName });
-                else showToast(labelErrorMessage(e), 'error');
+            // Yorliq faqat tayyor mahsulot (FINISHED) uchun; yarim tayyor — yorliqsiz
+            shouldPrintLabel(dispatch, machine.currentRun.productId).then((print) => {
+                if (!print) return;
+                printProductLabel(machine.currentRun.productId, LABEL_COPIES).catch((e) => {
+                    if (e?.code === 'NO_PRINTER') setLabelPick({ productId: machine.currentRun.productId, productName: machine.currentRun.productName });
+                    else showToast(labelErrorMessage(e), 'error');
+                });
             });
             showToast(`1 pachka qayd etildi — ${machine.currentRun.productName}`);
             refetchMachine();
@@ -782,11 +791,9 @@ export default function StanokchiMachineDetail() {
                                     {historyPagination.totalElements} ta
                                 </span>
                             )}
-                            {isWorking && (
-                                <div className="ml-auto" style={{ maxWidth: 240 }}>
-                                    <ProductionWarehousePicker state={warehouseState} isDark={isDark} textColor={textColor} subtitleColor={subtitleColor} cardBg={cardBg} cardBorder={cardBorder} compact />
-                                </div>
-                            )}
+                            <div className="ml-auto" style={{ maxWidth: 260 }}>
+                                <MachineWarehousePicker machineId={id} state={machineWarehouses} isDark={isDark} textColor={textColor} subtitleColor={subtitleColor} cardBg={cardBg} cardBorder={cardBorder} compact />
+                            </div>
                             {isWorking && (
                                 <button
                                     onClick={handleProduceOne}

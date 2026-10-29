@@ -4,7 +4,6 @@ import { Outlet, useNavigate } from "react-router-dom";
 import Cookies from "js-cookie";
 import { Moon, Sun, LogOut } from "lucide-react";
 import FullscreenButton from "../../Components/ui/FullscreenButton";
-import { ProductionWarehousePicker, useProductionWarehouse } from "../../Components/Stanokchi/productionWarehouse";
 import { useAppTheme } from "../../theme/tokens";
 import { clearStorageKeepingPreferences } from "../../theme/preferences";
 import { useGetUserByIdQuery } from "../../store/services/user.api";
@@ -22,7 +21,6 @@ export default function WorkerStanokchiLayout() {
     const userId = Cookies.get("user_id");
     const { data: user } = useGetUserByIdQuery(userId, { skip: !userId });
     const [logoutApi] = useLogoutMutation();
-    const warehouseState = useProductionWarehouse();
 
     const handleLogout = async () => {
         if (!window.confirm("Tizimdan chiqishni tasdiqlaysizmi?")) return;
@@ -56,9 +54,6 @@ export default function WorkerStanokchiLayout() {
                 </div>
 
                 <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-                    <div className="w-[150px] sm:w-[210px]">
-                        <ProductionWarehousePicker state={warehouseState} isDark={isDark} textColor={textColor} subtitleColor={subtitleColor} cardBg={cardBg} cardBorder={cardBorder} compact />
-                    </div>
                     <button type="button" onClick={toggleColorMode} className={iconBtn} title={isDark ? "Yorug'lik mavzusi" : "Qorong'i mavzu"}>
                         {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
                     </button>
