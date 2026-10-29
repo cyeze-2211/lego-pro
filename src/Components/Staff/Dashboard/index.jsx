@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';
 import {
     LuArrowRight, LuBoxes, LuClock3, LuFlame, LuHistory,
-    LuLogIn, LuLogOut, LuPackage, LuTriangleAlert, LuWarehouse,
+    LuLogIn, LuLogOut, LuPackage, LuTriangleAlert, LuWarehouse, LuArrowLeftRight,
 } from 'react-icons/lu';
 import { useAppTheme } from '../../../theme/tokens';
 import { useGetProductStocksQuery } from '../../../store/services/productStock.api';
@@ -164,6 +164,7 @@ export default function StaffDashboard() {
     const quickLinks = [
         { label: 'Buyurtmalar', path: '/staff/orders', icon: LuBoxes, badge: 'bg-amber-400/10 text-amber-500 border-amber-400/20' },
         { label: 'Tovar kirimi', path: '/staff/income', icon: LuLogIn, badge: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' },
+        { label: 'Ko‘chirish', path: '/staff/transfer', icon: LuArrowLeftRight, badge: 'bg-violet-500/10 text-violet-500 border-violet-500/20' },
         { label: 'Tovar ombori', path: '/staff/warehouse', icon: LuWarehouse, badge: 'bg-sky-500/10 text-sky-500 border-sky-500/20' },
         { label: 'Tovar tarixi', path: '/staff/history', icon: LuHistory, badge: 'bg-slate-500/10 text-slate-500 border-slate-500/20' },
         { label: 'Xom ashyo kirimi', path: '/raw-staff/income', icon: LuLogIn, badge: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' },

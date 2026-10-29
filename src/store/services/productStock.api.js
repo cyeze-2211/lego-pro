@@ -91,6 +91,23 @@ export const productStockApi = createApi({
                 } catch { /* xatolik chaqiruvchi tomonda ko‘rsatiladi */ }
             },
         }),
+
+        // POST /api/v1/product-stock-transfers — mahsulotni bir ombordan boshqasiga ko‘chirish
+        // { fromWarehouseId, toWarehouseId, items[{ productId, quantity, unit }] }
+        // Manbada TRANSFER_OUT, maqsadda TRANSFER_IN yozuvlari (bitta transferId). Huquq: STOCK:TRANSFER.
+        // Tayyor mahsulot faqat PRODUCT omboriga, yarim tayyor RAW_MATERIAL omboriga ham ko‘chadi.
+        createStockTransfer: builder.mutation({
+            query: (data) => ({
+                url: '/product-stock-transfers',
+                method: 'POST',
+                data,
+            }),
+            transformResponse: (response) => response.data,
+            invalidatesTags: [
+                { type: 'ProductStock', id: 'LIST' },
+                { type: 'StockTransaction', id: 'LIST' },
+            ],
+        }),
     }),
 });
 
@@ -98,4 +115,5 @@ export const {
     useGetProductStocksQuery,
     useGetStockTransactionsQuery,
     useCreateStockTransactionMutation,
+    useCreateStockTransferMutation,
 } = productStockApi;

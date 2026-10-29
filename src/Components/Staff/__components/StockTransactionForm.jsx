@@ -4,13 +4,13 @@ import {
     LuPlus, LuSearch, LuTrash2, LuPackage, LuSend, LuCheck,
     LuX, LuBarcode, LuCircleAlert, LuCircleCheck, LuWarehouse, LuMinus,
     LuChevronDown, LuSlidersHorizontal, LuRotateCcw, LuBoxes,
-    LuArrowDownWideNarrow,
+    LuArrowDownWideNarrow, LuArrowLeftRight,
 } from 'react-icons/lu';
 import { useAppTheme } from '../../../theme/tokens';
 import { toStockItem } from '../../ui/order-items';
 import { useGetWarehousesQuery } from '../../../store/services/warehouse.api';
 import { useGetProductStocksQuery } from '../../../store/services/productStock.api';
-import { useCreateStockTransactionMutation } from '../../../store/services/productStock.api';
+import { useCreateStockTransactionMutation, useCreateStockTransferMutation } from '../../../store/services/productStock.api';
 import { useGetBrandsQuery } from '../../../store/services/brand.api';
 import { formatNumber } from '../../ui/number-format';
 
@@ -37,11 +37,17 @@ function useDebouncedValue(value, delay = 350) {
     return debounced;
 }
 
+/**
+ * action: 'IN' — kirim, 'OUT' — chiqim, 'TRANSFER' — bir ombordan boshqasiga ko‘chirish
+ * (POST /product-stock-transfers: fromWarehouseId = tanlangan ombor, toWarehouseId = maqsad ombor).
+ */
 export default function StockTransactionForm({ action }) {
     const { isDark } = useAppTheme();
     const isIn = action === 'IN';
+    const isTransfer = action === 'TRANSFER';
 
     const [warehouseId, setWarehouseId] = useState('');
+    const [toWarehouseId, setToWarehouseId] = useState('');
     const [open, setOpen]               = useState(false);
     const [filtersOpen, setFiltersOpen] = useState(false);
     const [filters, setFilters]         = useState(EMPTY_FILTERS);
@@ -65,6 +71,10 @@ export default function StockTransactionForm({ action }) {
     const productWarehouses = warehouses.filter((w) => w.category !== 'RAW_MATERIAL');
     const rawWarehouses = warehouses.filter((w) => w.category === 'RAW_MATERIAL');
     const isRawWarehouse = rawWarehouses.some((w) => w.id === warehouseId);
+    // Ko‘chirishda maqsad ombor xom ashyo ombori bo‘lsa — faqat yarim tayyor mahsulot o‘tadi
+    const isRawTarget = isTransfer && rawWarehouses.some((w) => w.id === toWarehouseId);
+    const onlySemiFinished = isRawWarehouse || isRawTarget;
+    const targetWarehouses = warehouses.filter((w) => w.id !== warehouseId);
     const { data: brandsData } = useGetBrandsQuery(
         { page: 0, size: 200 },
         { skip: !open }
@@ -79,7 +89,7 @@ export default function StockTransactionForm({ action }) {
     const stockSearchFilters = {
         warehouseId,
         // Xom ashyo omborida faqat yarim tayyor mahsulot bo‘ladi (tayyor mahsulotga backend 400 qaytaradi)
-        productType: isRawWarehouse ? 'SEMI_FINISHED' : undefined,
+        productType: onlySemiFinished ? 'SEMI_FINISHED' : undefined,
         productSize: df.productSize.trim() || undefined,
         brandId: df.brandId || undefined,
         page,
@@ -131,7 +141,9 @@ export default function StockTransactionForm({ action }) {
         if (term && !isBarcodeTerm) articleStocksQuery.refetch();
     };
 
-    const [createTx, { isLoading: isSending }] = useCreateStockTransactionMutation();
+    const [createTx, { isLoading: isSendingTx }] = useCreateStockTransactionMutation();
+    const [createTransfer, { isLoading: isSendingTransfer }] = useCreateStockTransferMutation();
+    const isSending = isSendingTx || isSendingTransfer;
 
     const pagination = stocksResp?.pagination ?? null;
 
@@ -143,6 +155,7 @@ export default function StockTransactionForm({ action }) {
         isFetchingNextRef.current = false;
     }, [
         warehouseId,
+        onlySemiFinished,
         debouncedFilters.name,
         debouncedFilters.productSize,
         debouncedFilters.brandId,
@@ -235,12 +248,17 @@ export default function StockTransactionForm({ action }) {
     const divider = isDark ? 'divide-[#334155]/50' : 'divide-[#f1f5f9]';
     const line    = isDark ? 'border-[#334155]/60' : 'border-[#f1f5f9]';
     const rowBg   = isDark ? 'hover:bg-[#1e293b]/60' : 'hover:bg-amber-50/50';
-    const badge   = isIn
+    const badge   = isTransfer
+        ? 'bg-violet-500/10 text-violet-500 border-violet-500/30'
+        : isIn
         ? 'bg-yellow-400/10 text-yellow-500 border-yellow-400/30'
         : 'bg-[#f43f5e]/10 text-[#f43f5e] border-[#f43f5e]/20';
-    const submitBtn = isIn
+    const submitBtn = isTransfer
+        ? 'bg-violet-500 hover:bg-violet-600 text-white shadow-violet-500/30'
+        : isIn
         ? 'bg-yellow-400 hover:bg-yellow-500 text-[#0F172A] shadow-yellow-400/30'
         : 'bg-[#f43f5e] hover:bg-[#e11d48] text-white shadow-[#f43f5e]/20';
+    const actionLabel = isTransfer ? 'Ko‘chirish' : isIn ? 'Kirim' : 'Chiqim';
     const fieldCx = isDark
         ? 'border-[#334155] bg-[#1e293b]/80 text-white placeholder:text-[#64748b] focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20'
         : 'border-[#e2e8f0] bg-white text-[#0f172a] placeholder:text-[#94a3b8] focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20';
@@ -267,6 +285,8 @@ export default function StockTransactionForm({ action }) {
                 productId:       stock.productId,
                 productName:     stock.productName,
                 productBarcode:  stock.productBarcode,
+                productType:     stock.productType, // FINISHED | SEMI_FINISHED
+                available:       Number(stock.quantity) || 0, // manba ombordagi qoldiq (dona)
                 piecesPerPack:   ppp || null,
                 packs:           ppp > 0 ? 1 : 0,
                 pieces:          ppp > 0 ? 0 : 1,
@@ -290,28 +310,49 @@ export default function StockTransactionForm({ action }) {
 
     const handleWarehouseChange = (value) => {
         setWarehouseId(value);
+        if (value && value === toWarehouseId) setToWarehouseId('');
         setFilters(EMPTY_FILTERS);
         setItems([]);
+    };
+
+    const handleToWarehouseChange = (value) => {
+        setToWarehouseId(value);
+        // Maqsad xom ashyo ombori bo‘lsa, tayyor mahsulotlar ro‘yxatdan chiqariladi (backend 400 qaytaradi)
+        if (rawWarehouses.some((w) => w.id === value)) {
+            setItems((prev) => prev.filter((i) => i.productType === 'SEMI_FINISHED'));
+        }
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!warehouseId || items.length === 0) return;
+        if (isTransfer && (!toWarehouseId || toWarehouseId === warehouseId)) {
+            showToast('error', 'Qaysi omborga ko‘chirishni tanlang');
+            return;
+        }
         const invalid = items.find((i) => totalPieces(i) <= 0 || (i.packs > 0 && !(i.piecesPerPack > 0)));
         if (invalid) {
             showToast('error', `«${invalid.productName}» uchun pachka yoki dona miqdorini kiriting`);
             return;
         }
+        if (isTransfer) {
+            const short = items.find((i) => totalPieces(i) > (i.available || 0));
+            if (short) {
+                showToast('error', `«${short.productName}»: omborda ${short.available} dona bor, ${totalPieces(short)} dona so‘raldi`);
+                return;
+            }
+        }
         try {
-            await createTx({
-                warehouseId,
-                action,
-                items: items.map((i) => toStockItem(i.productId, i.packs, i.pieces, i.piecesPerPack)),
-            }).unwrap();
-            showToast('success', `${isIn ? 'Kirim' : 'Chiqim'} muvaffaqiyatli amalga oshirildi!`);
+            const payloadItems = items.map((i) => toStockItem(i.productId, i.packs, i.pieces, i.piecesPerPack));
+            if (isTransfer) {
+                await createTransfer({ fromWarehouseId: warehouseId, toWarehouseId, items: payloadItems }).unwrap();
+            } else {
+                await createTx({ warehouseId, action, items: payloadItems }).unwrap();
+            }
+            showToast('success', `${actionLabel} muvaffaqiyatli amalga oshirildi!`);
             setItems([]);
         } catch (err) {
-            showToast('error', err?.data?.message || `${isIn ? 'Kirim' : 'Chiqim'} amalga oshmadi.`);
+            showToast('error', err?.data?.message || `${actionLabel} amalga oshmadi.`);
         }
     };
 
@@ -344,14 +385,16 @@ export default function StockTransactionForm({ action }) {
                 <div className="relative flex flex-wrap items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
                         <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border ${badge}`}>
-                            <LuPackage size={20} />
+                            {isTransfer ? <LuArrowLeftRight size={20} /> : <LuPackage size={20} />}
                         </span>
                         <div>
                             <h1 className={`text-xl font-bold tracking-tight leading-tight ${head}`}>
-                                {isIn ? 'Mahsulot Kirimi' : 'Mahsulot Chiqimi'}
+                                {isTransfer ? 'Omborlar o‘rtasida ko‘chirish' : isIn ? 'Mahsulot Kirimi' : 'Mahsulot Chiqimi'}
                             </h1>
                             <p className={`text-sm mt-0.5 ${muted}`}>
-                                {isIn ? 'Omborga qabul qilingan mahsulotlarni kiriting' : 'Ombordan chiqarilgan mahsulotlarni kiriting'}
+                                {isTransfer
+                                    ? 'Qaysi ombordan, qaysi omborga va qancha mahsulot ko‘chirilishini tanlang'
+                                    : isIn ? 'Omborga qabul qilingan mahsulotlarni kiriting' : 'Ombordan chiqarilgan mahsulotlarni kiriting'}
                             </p>
                         </div>
                     </div>
@@ -362,12 +405,12 @@ export default function StockTransactionForm({ action }) {
                             </span>
                         )}
                         <button type="submit" form={formId}
-                            disabled={isSending || items.length === 0 || !warehouseId}
+                            disabled={isSending || items.length === 0 || !warehouseId || (isTransfer && !toWarehouseId)}
                             className={`flex h-12 items-center gap-2 rounded-xl px-7 text-sm font-bold shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-xl hover:-translate-y-px ${submitBtn}`}>
                             {isSending ? (
                                 <>{spinner} Saqlanmoqda...</>
                             ) : (
-                                <><LuSend size={15} />{isIn ? 'Kirimni tasdiqlash' : 'Chiqimni tasdiqlash'}</>
+                                <><LuSend size={15} />{isTransfer ? 'Ko‘chirishni tasdiqlash' : isIn ? 'Kirimni tasdiqlash' : 'Chiqimni tasdiqlash'}</>
                             )}
                         </button>
                     </div>
@@ -379,11 +422,11 @@ export default function StockTransactionForm({ action }) {
 
                     {/* ── Ombor + Mahsulot qo'shish (рядом) ── */}
                     <div className="p-5">
-                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-[220px_1fr]">
+                        <div className={`grid grid-cols-1 gap-4 ${isTransfer ? 'sm:grid-cols-2 xl:grid-cols-[220px_220px_1fr]' : 'sm:grid-cols-[220px_1fr]'}`}>
                             {/* Ombor — компактный */}
                             <div>
                                 <label className={`mb-1.5 flex items-center gap-2 text-xs font-semibold ${muted}`}>
-                                    <span className={stepCx}>1</span> <LuWarehouse size={12} /> Ombor
+                                    <span className={stepCx}>1</span> <LuWarehouse size={12} /> {isTransfer ? 'Qaysi ombordan' : 'Ombor'}
                                 </label>
                                 <select
                                     value={warehouseId}
@@ -418,10 +461,45 @@ export default function StockTransactionForm({ action }) {
                                 )}
                             </div>
 
+                            {/* Ko‘chirish: maqsad ombor */}
+                            {isTransfer && (
+                                <div>
+                                    <label className={`mb-1.5 flex items-center gap-2 text-xs font-semibold ${muted}`}>
+                                        <span className={stepCx}>2</span> <LuArrowLeftRight size={12} /> Qaysi omborga
+                                    </label>
+                                    <select
+                                        value={toWarehouseId}
+                                        onChange={(e) => handleToWarehouseChange(e.target.value)}
+                                        required
+                                        disabled={!warehouseId}
+                                        className={`${inputCx} px-3 disabled:opacity-50 disabled:cursor-not-allowed`}
+                                    >
+                                        <option value="">{warehouseId ? 'Tanlang' : 'Avval manba omborni tanlang'}</option>
+                                        <optgroup label="Tovar omborlari">
+                                            {targetWarehouses.filter((w) => w.category !== 'RAW_MATERIAL').map((w) => (
+                                                <option key={w.id} value={w.id}>{w.name}</option>
+                                            ))}
+                                        </optgroup>
+                                        {rawWarehouses.length > 0 && (
+                                            <optgroup label="Xom ashyo omborlari (faqat yarim tayyor)">
+                                                {targetWarehouses.filter((w) => w.category === 'RAW_MATERIAL').map((w) => (
+                                                    <option key={w.id} value={w.id}>{w.name}</option>
+                                                ))}
+                                            </optgroup>
+                                        )}
+                                    </select>
+                                    {isRawTarget && (
+                                        <p className={`mt-1.5 text-[11px] font-medium ${isDark ? 'text-orange-300' : 'text-orange-600'}`}>
+                                            Xom ashyo omboriga faqat yarim tayyor mahsulot ko‘chiriladi
+                                        </p>
+                                    )}
+                                </div>
+                            )}
+
                             {/* Mahsulot qo'shish — рядом */}
                             <div className="relative" ref={searchRef}>
                                 <label className={`mb-1.5 flex items-center gap-2 text-xs font-semibold ${muted}`}>
-                                    <span className={stepCx}>2</span> Mahsulot qo&apos;shish
+                                    <span className={stepCx}>{isTransfer ? 3 : 2}</span> Mahsulot qo&apos;shish
                                 </label>
 
                                 <button
@@ -830,5 +908,5 @@ export default function StockTransactionForm({ action }) {
 }
 
 StockTransactionForm.propTypes = {
-    action: PropTypes.oneOf(['IN', 'OUT']).isRequired,
+    action: PropTypes.oneOf(['IN', 'OUT', 'TRANSFER']).isRequired,
 };

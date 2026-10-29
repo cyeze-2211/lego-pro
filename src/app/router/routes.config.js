@@ -260,6 +260,12 @@ export const ROUTES = [
         component: lazy(() => import('../../Components/Staff/Outcome')),
         roles: WAREHOUSE_ROLES,
     },
+    // Omborlar o‘rtasida ko‘chirish (omborchi)
+    {
+        path: '/staff/transfer',
+        component: lazy(() => import('../../Components/Staff/Transfer')),
+        roles: WAREHOUSE_ROLES,
+    },
     {
         path: '/staff/warehouse',
         component: lazy(() => import('../../Components/Staff/StockWarehouse')),
@@ -359,6 +365,12 @@ export const ROUTES = [
         path: '/zayavkachi/warehouse',
         component: lazy(() => import('../../Components/Staff/StockWarehouse')),
         roles: [...ZAYAVKACHI_ROLES, ...BUXGALTER_ROLES],
+    },
+    // Omborlar o‘rtasida ko‘chirish (admin va hisobchi) — omborchidagi forma bilan bir xil
+    {
+        path: '/stock-transfer',
+        component: lazy(() => import('../../Components/Staff/Transfer')),
+        roles: [ROLES.MANAGER, ...BUXGALTER_ROLES],
     },
     {
         path: '/zayavkachi/raw-warehouse',

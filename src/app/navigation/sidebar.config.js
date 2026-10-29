@@ -3,7 +3,7 @@ import { ROLES, WAREHOUSE_ROLES, ZAYAVKACHI_ROLES, BUXGALTER_ROLES, KASSIR_ROLES
 import {
     Boxes, ClipboardList, Cog, History, LayoutDashboard, LogIn, LogOut,
     CalendarClock, Layers3, MonitorCog, Package, Palette, ReceiptText, ShieldCheck, UserRound, Users, Wallet, Warehouse, FileSpreadsheet, UserCheck, Truck,
-    ChartArea, FlaskConical, Settings,
+    ChartArea, FlaskConical, Settings, ArrowLeftRight,
 } from 'lucide-react';
 
 // ── Sozlamalar (barcha rollar) ─────────────────────────────────────────────
@@ -32,6 +32,7 @@ export const SIDEBAR_CONFIG = [
 
     // Ishlab chiqarish
     { label: 'Omborlar', path: '/warehouses', icon: Warehouse, roles: [ROLES.MANAGER] },
+    { label: 'Ombordan ko‘chirish', path: '/stock-transfer', icon: ArrowLeftRight, roles: [ROLES.MANAGER] },
     { label: 'Xom ashyo', path: '/raw', icon: Package, roles: [ROLES.MANAGER] },
     { label: 'Retseptlar', path: '/recipes', icon: FlaskConical, roles: [ROLES.MANAGER] },
     { label: 'Stanoklar', path: '/machines', icon: Cog, roles: [ROLES.MANAGER] },
@@ -56,7 +57,7 @@ export const SIDEBAR_GROUPS = [
     { label: 'Asosiy', items: pick(['/']) },
     { label: 'Savdo', items: pick(['/orders', '/customers', '/customer-agents', '/reconciliation', '/reminders']) },
     { label: 'Katalog', items: pick(['/products', '/product-categories', '/product-colors', '/brand']) },
-    { label: 'Ishlab chiqarish', items: pick(['/warehouses', '/raw', '/recipes', '/machines', '/machine-categories']) },
+    { label: 'Ishlab chiqarish', items: pick(['/warehouses', '/stock-transfer', '/raw', '/recipes', '/machines', '/machine-categories']) },
     { label: 'Moliya', items: pick(['/cashboxes', '/expenses', '/expense-categories', '/suppliers']) },
     { label: 'Tizim', items: pick(['/users', '/roles', '/devices', '/settings']) },
 ];
@@ -66,6 +67,7 @@ const PRODUCT_STOREKEEPER_ITEMS = [
     { label: 'Buyurtmalar', path: '/staff/orders', icon: ClipboardList, roles: WAREHOUSE_ROLES },
     { label: 'Kirim', path: '/staff/income', icon: LogIn, roles: WAREHOUSE_ROLES },
     // { label: 'Chiqim', path: '/staff/outcome', icon: LogOut, roles: WAREHOUSE_ROLES },
+    { label: 'Ko‘chirish', path: '/staff/transfer', icon: ArrowLeftRight, roles: WAREHOUSE_ROLES },
     { label: 'Ombor', path: '/staff/warehouse', icon: Warehouse, roles: WAREHOUSE_ROLES },
     { label: 'Tarix', path: '/staff/history', icon: History, roles: WAREHOUSE_ROLES },
 ];
@@ -124,13 +126,14 @@ export const BUXGALTER_SIDEBAR_CONFIG = [
     { label: 'Agentlar', path: '/customer-agents', icon: UserCheck, roles: BUXGALTER_ROLES },
     { label: 'Mahsulot katalogi', path: '/products', icon: Package, roles: BUXGALTER_ROLES },
     { label: 'Tovar ombori qoldiqlari', path: '/zayavkachi/warehouse', icon: Warehouse, roles: BUXGALTER_ROLES },
+    { label: 'Ombordan ko‘chirish', path: '/stock-transfer', icon: ArrowLeftRight, roles: BUXGALTER_ROLES },
     { label: 'Mijozlar sverkasi', path: '/reconciliation', icon: FileSpreadsheet, roles: BUXGALTER_ROLES },
 ];
 
 export const BUXGALTER_SIDEBAR_GROUPS = [
     { label: 'Asosiy', items: BUXGALTER_SIDEBAR_CONFIG.filter((i) => i.path === '/buxgalter') },
     { label: 'Savdo', items: BUXGALTER_SIDEBAR_CONFIG.filter((i) => ['/zayavkachi/orders', '/customers', '/customer-agents', '/reconciliation'].includes(i.path)) },
-    { label: 'Ombor va katalog', items: BUXGALTER_SIDEBAR_CONFIG.filter((i) => ['/products', '/zayavkachi/warehouse','/zayavkachi/chart'].includes(i.path)) },
+    { label: 'Ombor va katalog', items: BUXGALTER_SIDEBAR_CONFIG.filter((i) => ['/products', '/zayavkachi/warehouse', '/stock-transfer', '/zayavkachi/chart'].includes(i.path)) },
     settingsGroup(),
 ];
 
