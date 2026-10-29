@@ -29,7 +29,7 @@ import StartProductPicker from './StartProductPicker';
 import { MachineWarehousePicker, useMachineWarehouses } from '../productionWarehouse';
 import { shouldPrintLabel } from '../labelPolicy';
 import { useAppDispatch } from '../../../store/hooks';
-import { labelErrorMessage, printProductLabel } from '../../../services/labelPrinter';
+import { labelErrorMessage, printStockLabel } from '../../../services/labelPrinter';
 import LabelPrintDialog from '../../ui/LabelPrintDialog';
 
 /* Har «+1 pachka» da chop etiladigan yorliqlar soni — pachkaning ikki tomoniga */
@@ -309,7 +309,7 @@ export default function StanokchiMachineDetail() {
             return;
         }
         try {
-            await createStockTransaction({
+            const txResult = await createStockTransaction({
                 action: 'IN',
                 machineId: id,
                 warehouseId,
@@ -317,14 +317,19 @@ export default function StanokchiMachineDetail() {
             }).unwrap();
             // Yorliq: backend tayyor TSPL kodini beradi, QZ Tray printerga yuboradi (har pachkaga 2 nusxa).
             // Printer tanlanmagan bo‘lsa — tanlash oynasi; boshqa xato — toast.
-            // Yorliq faqat tayyor mahsulot (FINISHED) uchun; yarim tayyor — yorliqsiz
-            shouldPrintLabel(dispatch, machine.currentRun.productId).then((print) => {
-                if (!print) return;
-                printProductLabel(machine.currentRun.productId, LABEL_COPIES).catch((e) => {
-                    if (e?.code === 'NO_PRINTER') setLabelPick({ productId: machine.currentRun.productId, productName: machine.currentRun.productName });
-                    else showToast(labelErrorMessage(e), 'error');
+            // Yorliq kirim yozuviga bog‘langan: javobdagi data[0].id (brakda massiv bo‘sh — yorliq yo‘q).
+            // Faqat tayyor mahsulot (FINISHED) uchun; yarim tayyor — yorliqsiz.
+            const entries = Array.isArray(txResult) ? txResult : (txResult?.data ?? []);
+            const txId = entries[0]?.id;
+            if (txId) {
+                shouldPrintLabel(dispatch, machine.currentRun.productId).then((print) => {
+                    if (!print) return;
+                    printStockLabel(txId, LABEL_COPIES).catch((e) => {
+                        if (e?.code === 'NO_PRINTER') setLabelPick({ transactionId: txId, productId: machine.currentRun.productId, productName: machine.currentRun.productName });
+                        else showToast(labelErrorMessage(e), 'error');
+                    });
                 });
-            });
+            }
             showToast(`1 pachka qayd etildi — ${machine.currentRun.productName}`);
             refetchMachine();
             refetchHistory();
@@ -429,7 +434,7 @@ export default function StanokchiMachineDetail() {
     return (
         <div style={{ background: pageBg, color: textColor, minHeight: '100%' }}>
             {labelPick && (
-                <LabelPrintDialog open onClose={() => setLabelPick(null)} productId={labelPick.productId} productName={labelPick.productName} defaultCopies={LABEL_COPIES} />
+                <LabelPrintDialog open onClose={() => setLabelPick(null)} transactionId={labelPick.transactionId} productId={labelPick.productId} productName={labelPick.productName} defaultCopies={LABEL_COPIES} />
             )}
 
             {/* ── Toast ── */}

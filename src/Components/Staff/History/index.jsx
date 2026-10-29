@@ -11,6 +11,7 @@ import { useGetWarehousesQuery } from '../../../store/services/warehouse.api';
 import { useInfiniteList } from '../../ui/useInfiniteList';
 import InfiniteSentinel from '../../ui/InfiniteSentinel';
 import ProductImage from '../../ui/ProductImage';
+import LabelPrintButton from '../../ui/LabelPrintButton';
 import { formatNumber } from '../../ui/number-format';
 import { formatDate, formatTime, todayIso } from '../../ui/date-format';
 
@@ -261,6 +262,7 @@ export default function StaffHistory() {
                                         <th className="px-4 py-3 w-44">Ombor</th>
                                         <th className="px-4 py-3 text-right w-48">Miqdor</th>
                                         <th className="px-4 py-3 w-36">Manba</th>
+                                        <th className="px-4 py-3 w-16 text-center" title="Yorliq kirim yozuviga bog‘langan">Yorliq</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -268,7 +270,7 @@ export default function StaffHistory() {
                                         const startIdx = filtered.indexOf(rows[0]);
                                         return [
                                             <tr key={`day-${day}`}>
-                                                <td colSpan={7} className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border-y ${line} ${isDark ? 'bg-white/[0.02] text-amber-300' : 'bg-amber-50/60 text-amber-700'}`}>
+                                                <td colSpan={8} className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border-y ${line} ${isDark ? 'bg-white/[0.02] text-amber-300' : 'bg-amber-50/60 text-amber-700'}`}>
                                                     {dayLabel(day)} <span className={`ml-2 font-semibold normal-case tracking-normal ${muted}`}>· {rows.length} ta harakat</span>
                                                 </td>
                                             </tr>,
@@ -301,6 +303,10 @@ export default function StaffHistory() {
                                                                 ? <Link to={`/staff/orders/${t.salesOrderId}`} className="inline-flex items-center gap-1 font-semibold text-amber-500 hover:underline"><LuClipboardList size={12} /> Buyurtma</Link>
                                                                 : t.transferId ? 'Ko‘chirish' : t.action === 'PRODUCE' ? 'Stanok' : 'Qo‘lda'}
                                                         </td>
+                                                        <td className="px-4 py-3 text-center">
+                                                            {/* Yorliq — faqat kirim yozuvi uchun (GET /product-stock-transactions/{id}/label) */}
+                                                            {t.action === 'IN' && <LabelPrintButton transactionId={t.id} productId={t.productId} productName={t.productName} />}
+                                                        </td>
                                                     </tr>
                                                 );
                                             }),
@@ -329,6 +335,7 @@ export default function StaffHistory() {
                                                     <span className={`text-xs ${muted}`}>{t.action === 'PRODUCE' ? 'Omborga kirmagan' : (warehouseName[t.warehouseId] || '—')}</span>
                                                 </div>
                                             </div>
+                                            {t.action === 'IN' && <LabelPrintButton transactionId={t.id} productId={t.productId} productName={t.productName} />}
                                         </div>
                                     ))}
                                 </div>

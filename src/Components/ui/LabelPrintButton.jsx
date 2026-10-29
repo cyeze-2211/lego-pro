@@ -6,7 +6,7 @@ import { useAppTheme } from '../../theme/tokens';
 import LabelPrintDialog from './LabelPrintDialog';
 
 /** «Yorliq chop etish» tugmasi + oyna. `label` berilsa matnli, bo‘lmasa ikonka-tugma. */
-export default function LabelPrintButton({ productId, productName, label }) {
+export default function LabelPrintButton({ transactionId, productId, productName, label }) {
     const [open, setOpen] = useState(false);
     const { isDark, accentColor } = useAppTheme();
     const soft = isDark ? 'rgb(var(--accent-400) / .12)' : 'rgb(var(--accent-warm-100))';
@@ -21,13 +21,14 @@ export default function LabelPrintButton({ productId, productName, label }) {
                     <LuPrinter size={16} />
                 </Button>
             )}
-            <LabelPrintDialog open={open} onClose={() => setOpen(false)} productId={productId} productName={productName} />
+            <LabelPrintDialog open={open} onClose={() => setOpen(false)} transactionId={transactionId} productId={productId} productName={productName} />
         </>
     );
 }
 
 LabelPrintButton.propTypes = {
-    productId: PropTypes.string.isRequired,
+    transactionId: PropTypes.string,
+    productId: PropTypes.string,
     productName: PropTypes.string,
     label: PropTypes.string,
 };

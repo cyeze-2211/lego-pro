@@ -7,14 +7,15 @@ import { useAppTheme } from '../../theme/tokens';
 import { Alert } from '../Other/UI/Alert/Alert';
 import FormControl from './FormControl';
 import {
-    QZ_DOWNLOAD_URL, getSavedPrinter, labelErrorMessage, listPrinters, printProductLabel, setSavedPrinter,
+    QZ_DOWNLOAD_URL, getSavedPrinter, labelErrorMessage, listPrinters, printProductLabel, printStockLabel, setSavedPrinter,
 } from '../../services/labelPrinter';
 
 /**
  * «Yorliq chop etish» oynasi: nusxalar soni (1–1000), printer va «Chop etish».
  * Printer ro‘yxati QZ Tray dan; tanlov localStorage da (har kompyuter o‘zinikini eslaydi).
+ * transactionId (kirim yozuvi) berilsa — shu yozuv yorlig‘i; bo‘lmasa productId bo‘yicha so‘nggi kirim yozuvi.
  */
-export default function LabelPrintDialog({ open, onClose, productId, productName, defaultCopies = 1, onPrinted }) {
+export default function LabelPrintDialog({ open, onClose, transactionId, productId, productName, defaultCopies = 1, onPrinted }) {
     const { isDark, cardBg, cardBorder, textColor, subtitleColor, accentColor } = useAppTheme();
     const modalBorder = isDark ? cardBorder : '#94A3B8';
     const [copies, setCopies] = useState(String(defaultCopies));
@@ -60,7 +61,8 @@ export default function LabelPrintDialog({ open, onClose, productId, productName
         setPrinting(true);
         try {
             setSavedPrinter(printer);
-            await printProductLabel(productId, copiesNum, printer);
+            if (transactionId) await printStockLabel(transactionId, copiesNum, printer);
+            else await printProductLabel(productId, copiesNum, printer);
             Alert('Yorliq printerga yuborildi', 'success');
             onPrinted?.();
             onClose();
@@ -141,6 +143,7 @@ export default function LabelPrintDialog({ open, onClose, productId, productName
 LabelPrintDialog.propTypes = {
     open: PropTypes.bool.isRequired,
     onClose: PropTypes.func.isRequired,
+    transactionId: PropTypes.string,
     productId: PropTypes.string,
     productName: PropTypes.string,
     defaultCopies: PropTypes.number,
