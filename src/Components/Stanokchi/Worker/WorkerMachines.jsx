@@ -6,7 +6,8 @@ import { useCreateStockTransactionMutation } from '../../../store/services/produ
 import { useAppTheme } from '../../../theme/tokens';
 import ProductImage from '../../ui/ProductImage';
 import { useMachineWarehouses } from '../productionWarehouse';
-import { shouldPrintLabel } from '../labelPolicy';
+import { PRODUCE_WITH_DIALOG, shouldPrintLabel } from '../labelPolicy';
+import ProduceDialog from '../ProduceDialog';
 import { useAppDispatch } from '../../../store/hooks';
 import { labelErrorMessage, printStockLabel } from '../../../services/labelPrinter';
 import LabelPrintDialog from '../../ui/LabelPrintDialog';
@@ -38,6 +39,7 @@ export default function WorkerMachines() {
     const machineWarehouses = useMachineWarehouses();
     const dispatch = useAppDispatch();
     const [labelPick, setLabelPick] = useState(null); // printer tanlanmagan bo‘lsa — yorliq oynasi
+    const [produceFor, setProduceFor] = useState(null); // VAQTINCHALIK: qayd etish oynasi (nechta pachka / yorliq / printer)
 
     /* ── Toast ── */
     const [toast, setToast] = useState(null);
@@ -52,6 +54,10 @@ export default function WorkerMachines() {
         const warehouseId = machineWarehouses.getWarehouseId(machine.id);
         if (!warehouseId) {
             showToast(`«${machine.name}» uchun kirim ombori belgilanmagan — OTK (rahbar) rejimida belgilang`, 'error');
+            return;
+        }
+        if (PRODUCE_WITH_DIALOG) {
+            setProduceFor({ machineId: machine.id, machineName: machine.name, warehouseId, productId: machine.currentRun.productId, productName: machine.currentRun.productName });
             return;
         }
 
@@ -93,6 +99,9 @@ export default function WorkerMachines() {
         <div className="relative flex h-full min-h-0 flex-col" style={{ color: textColor }}>
             {labelPick && (
                 <LabelPrintDialog open onClose={() => setLabelPick(null)} transactionId={labelPick.transactionId} productId={labelPick.productId} productName={labelPick.productName} defaultCopies={LABEL_COPIES} />
+            )}
+            {produceFor && (
+                <ProduceDialog open onClose={() => setProduceFor(null)} {...produceFor} defaultCopies={LABEL_COPIES} onDone={() => refetch()} />
             )}
             {/* Toast */}
             {toast && (

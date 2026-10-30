@@ -27,7 +27,8 @@ import {
 } from '../../../store/services/machine.api';
 import StartProductPicker from './StartProductPicker';
 import { MachineWarehousePicker, useMachineWarehouses } from '../productionWarehouse';
-import { shouldPrintLabel } from '../labelPolicy';
+import { PRODUCE_WITH_DIALOG, shouldPrintLabel } from '../labelPolicy';
+import ProduceDialog from '../ProduceDialog';
 import { useAppDispatch } from '../../../store/hooks';
 import { labelErrorMessage, printStockLabel } from '../../../services/labelPrinter';
 import LabelPrintDialog from '../../ui/LabelPrintDialog';
@@ -253,6 +254,7 @@ export default function StanokchiMachineDetail() {
     const machineWarehouses = useMachineWarehouses();
     const dispatch = useAppDispatch();
     const [labelPick, setLabelPick] = useState(null); // printer tanlanmagan bo‘lsa — yorliq oynasi
+    const [produceOpen, setProduceOpen] = useState(false); // VAQTINCHALIK: qayd etish oynasi
 
     /* ── Toast ── */
     const [toast, setToast] = useState(null);
@@ -308,6 +310,7 @@ export default function StanokchiMachineDetail() {
             showToast('Avval bu stanok uchun kirim omborini belgilang', 'error');
             return;
         }
+        if (PRODUCE_WITH_DIALOG) { setProduceOpen(true); return; }
         try {
             const txResult = await createStockTransaction({
                 action: 'IN',
@@ -435,6 +438,9 @@ export default function StanokchiMachineDetail() {
         <div style={{ background: pageBg, color: textColor, minHeight: '100%' }}>
             {labelPick && (
                 <LabelPrintDialog open onClose={() => setLabelPick(null)} transactionId={labelPick.transactionId} productId={labelPick.productId} productName={labelPick.productName} defaultCopies={LABEL_COPIES} />
+            )}
+            {produceOpen && machine?.currentRun && (
+                <ProduceDialog open onClose={() => setProduceOpen(false)} machineId={id} machineName={machine.name} warehouseId={machineWarehouses.getWarehouseId(id)} productId={machine.currentRun.productId} productName={machine.currentRun.productName} defaultCopies={LABEL_COPIES} onDone={() => { refetchMachine(); refetchHistory(); refetchSummary(); }} />
             )}
 
             {/* ── Toast ── */}
