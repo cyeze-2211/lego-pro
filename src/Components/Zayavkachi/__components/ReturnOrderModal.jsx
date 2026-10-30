@@ -2,13 +2,14 @@ import { useEffect, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
 import { Badge, Box, Button, Dialog, Field, HStack, Portal, Spinner, Table, Text, VStack } from '@chakra-ui/react';
 import { X } from 'lucide-react';
-import { LuPackage, LuStickyNote, LuUndo2, LuWarehouse } from 'react-icons/lu';
+import { LuBarcode, LuCircleAlert, LuCircleCheck, LuPackage, LuStickyNote, LuUndo2, LuWarehouse, LuX } from 'react-icons/lu';
 import { useAppTheme } from '../../../theme/tokens';
 import { useReturnSalesOrderMutation } from '../../../store/services/salesOrder.api';
 import { Alert } from '../../Other/UI/Alert/Alert';
 import FormControl from '../../ui/FormControl';
 import { formatNumber } from '../../ui/number-format';
 import { formatPackPiece, splitOrderItem } from '../../ui/order-items';
+import usePackScanner, { beep } from '../../ui/usePackScanner';
 
 const ORANGE = '#EA580C';
 const toInt = (value) => { const n = parseInt(String(value ?? '').replace(/\D/g, ''), 10); return Number.isFinite(n) ? n : 0; };
@@ -25,14 +26,18 @@ const describePieces = (pieces, piecesPerPack) => {
 
 /**
  * Tugallangan (CONFIRMED) zayavkadan mahsulot qaytarish — qisman yoki to‘liq.
- * POST /sales-orders/{id}/return. Faqat admin va hisobchi uchun ko‘rsatiladi (chaqiruvchi tekshiradi).
+ * POST /sales-orders/{id}/return { reason?, items?: [{ itemId, packBarcodes?, pieceQuantity? }] }
+ * Butun pachka — yorlig‘idagi barcode skanerlanadi (shu qator bilan chiqib ketgan bo‘lishi shart, omborga yana
+ * pachka bo‘lib kiradi); yorlig‘i yo‘q mahsulot dona bilan yoziladi (donaviy qoldiqqa kiradi).
+ * items bo‘lmasa — mijozdagi hamma qolgan mahsulot qaytadi.
  */
 export default function ReturnOrderModal({ open, onClose, order }) {
     const { isDark, cardBg, cardBorder, textColor, subtitleColor, accentColor } = useAppTheme();
     const modalBorder = isDark ? cardBorder : '#94A3B8';
     const [mode, setMode] = useState('partial'); // partial | all
-    const [draft, setDraft] = useState({});       // { [itemId]: { packs: '', pieces: '' } }
+    const [draft, setDraft] = useState({});       // { [itemId]: { packs: [pack], pieces: '' } }
     const [reason, setReason] = useState('');
+    const [lastScan, setLastScan] = useState(null);
     const [returnOrder, { isLoading }] = useReturnSalesOrderMutation();
 
     /* Qatorlar: berilgan, qaytarilgan, qolgan (dona) */
@@ -44,40 +49,52 @@ export default function ReturnOrderModal({ open, onClose, order }) {
         const ppp = split.packs > 0 ? split.piecesPerPack : 0;
         return {
             id: item.id,
+            productId: item.productId,
             productName: item.productName,
             productBarcode: item.productBarcode,
             warehouseName: item.warehouseName,
             unitPrice: Number(item.unitPrice) || 0,
             split, total, returned, remaining, ppp,
-            maxPacks: ppp > 0 ? Math.floor(remaining / ppp) : 0,
         };
     }), [order]);
 
     useEffect(() => {
-        if (open) { setMode('partial'); setDraft({}); setReason(''); }
+        if (open) { setMode('partial'); setDraft({}); setReason(''); setLastScan(null); }
     }, [open]);
 
+    const rowPacks = (line) => draft[line.id]?.packs ?? [];
+    const rowPackPieces = (line) => rowPacks(line).reduce((s, p) => s + (Number(p.pieces) || 0), 0);
     const rowPieces = (line) => {
         if (mode === 'all') return line.remaining;
-        const d = draft[line.id] ?? {};
-        return toInt(d.packs) * line.ppp + toInt(d.pieces);
+        return rowPackPieces(line) + toInt(draft[line.id]?.pieces);
     };
     const rowError = (line) => {
         if (mode === 'all') return null;
-        const d = draft[line.id] ?? {};
-        if (line.ppp > 0 && toInt(d.packs) > line.maxPacks) return `Eng ko‘pi ${line.maxPacks} pachka`;
         if (rowPieces(line) > line.remaining) return `Qolganidan ko‘p — eng ko‘pi ${describePieces(line.remaining, line.ppp)}`;
         return null;
     };
 
-    const setRow = (id, key, value) => setDraft((prev) => ({ ...prev, [id]: { ...(prev[id] ?? {}), [key]: digitsOnly(value) } }));
-    const fillRow = (line) => setDraft((prev) => ({
-        ...prev,
-        [line.id]: line.ppp > 0
-            ? { packs: String(Math.floor(line.remaining / line.ppp) || ''), pieces: String(line.remaining % line.ppp || '') }
-            : { packs: '', pieces: String(line.remaining || '') },
-    }));
-    const clearRow = (id) => setDraft((prev) => ({ ...prev, [id]: { packs: '', pieces: '' } }));
+    const setRowPieces = (id, value) => setDraft((prev) => ({ ...prev, [id]: { ...(prev[id] ?? { packs: [] }), pieces: digitsOnly(value) } }));
+    const removePack = (id, barcode) => setDraft((prev) => ({ ...prev, [id]: { ...(prev[id] ?? {}), packs: (prev[id]?.packs ?? []).filter((p) => p.barcode !== barcode) } }));
+    const clearRow = (id) => setDraft((prev) => ({ ...prev, [id]: { packs: [], pieces: '' } }));
+    const fillRow = (line) => setDraft((prev) => ({ ...prev, [line.id]: { packs: [], pieces: String(line.remaining || '') } }));
+
+    /* Skaner: chiqib ketgan (SHIPPED) pachka → shu mahsulot qatoriga */
+    const handlePack = (pack) => {
+        const already = lines.some((l) => rowPacks(l).some((p) => p.barcode === pack.barcode));
+        if (already) { setLastScan({ ok: false, text: `Pachka ${pack.barcode} allaqachon qo‘shilgan` }); return; }
+        if (pack.status !== 'SHIPPED') {
+            setLastScan({ ok: false, text: pack.status === 'IN_STOCK' ? `Pachka ${pack.barcode} omborda turibdi — chiqib ketmagan` : `Pachka ${pack.barcode} ochilgan — dona bilan yozing` });
+            return;
+        }
+        const candidates = lines.filter((l) => l.productId === pack.productId && l.remaining > 0);
+        if (!candidates.length) { setLastScan({ ok: false, text: `«${pack.productName}» bu zayavkada yo‘q yoki hammasi qaytarilgan` }); return; }
+        const line = candidates.find((l) => rowPieces(l) + (Number(pack.pieces) || 0) <= l.remaining) ?? candidates[0];
+        setDraft((prev) => ({ ...prev, [line.id]: { ...(prev[line.id] ?? { pieces: '' }), packs: [...(prev[line.id]?.packs ?? []), pack] } }));
+        beep(true);
+        setLastScan({ ok: true, text: `${pack.productName} — pachka ${pack.barcode} (${pack.pieces} dona) qo‘shildi` });
+    };
+    const scanner = usePackScanner({ enabled: open && mode === 'partial' && !isLoading, onPack: handlePack, onError: (text) => setLastScan({ ok: false, text }) });
 
     const totalRemaining = lines.reduce((s, l) => s + l.remaining, 0);
     const totalPieces = lines.reduce((s, l) => s + rowPieces(l), 0);
@@ -89,7 +106,7 @@ export default function ReturnOrderModal({ open, onClose, order }) {
     const submit = async (event) => {
         event.preventDefault();
         if (!canSubmit) {
-            if (totalPieces === 0) Alert('Qaytariladigan miqdorni kiriting', 'error');
+            if (totalPieces === 0) Alert('Qaytariladigan pachkani skanerlang yoki dona kiriting', 'error');
             else if (hasErrors) Alert('Qaytariladigan miqdor qolganidan ko‘p', 'error');
             return;
         }
@@ -100,7 +117,11 @@ export default function ReturnOrderModal({ open, onClose, order }) {
         if (mode === 'partial') {
             data.items = lines
                 .filter((l) => rowPieces(l) > 0)
-                .map((l) => ({ itemId: l.id, packQuantity: toInt(draft[l.id]?.packs), pieceQuantity: toInt(draft[l.id]?.pieces) }));
+                .map((l) => {
+                    const packBarcodes = rowPacks(l).map((p) => p.barcode);
+                    const pieceQuantity = toInt(draft[l.id]?.pieces);
+                    return { itemId: l.id, ...(packBarcodes.length ? { packBarcodes } : {}), ...(pieceQuantity > 0 ? { pieceQuantity } : {}) };
+                });
         }
         try {
             const result = await returnOrder({ id: order.id, customerId: order.customerId, data }).unwrap();
@@ -126,13 +147,15 @@ export default function ReturnOrderModal({ open, onClose, order }) {
 
     const headerCell = { color: subtitleColor, fontSize: 'xs', textTransform: 'uppercase', letterSpacing: 'wider', fontWeight: 'bold', px: 3, py: 2.5, bg: isDark ? '#0f172a80' : '#F8FAFC' };
     const inputCx = { h: '40px', minH: '40px', py: 0, px: 3, textAlign: 'right', inputMode: 'numeric', fontWeight: 'bold' };
+    const chipCx = { display: 'inline-flex', alignItems: 'center', gap: 1, borderRadius: 'md', borderWidth: '1px', px: 2, py: 0.5, fontFamily: 'mono', fontSize: 'xs', fontWeight: 'bold',
+        borderColor: isDark ? 'rgba(249,115,22,.4)' : '#FDBA74', bg: isDark ? 'rgba(249,115,22,.12)' : '#FFF7ED', color: isDark ? '#fdba74' : '#9A3412' };
 
     return (
         <Dialog.Root open={open} onOpenChange={(event) => !event.open && !isLoading && onClose()} size="xl" placement="center">
             <Portal>
                 <Dialog.Backdrop backdropFilter="blur(6px)" bg={isDark ? 'blackAlpha.700' : 'blackAlpha.400'} />
                 <Dialog.Positioner>
-                    <Dialog.Content bg={cardBg} borderColor={modalBorder} borderWidth="1px" borderRadius="2xl" overflow="hidden" maxW="960px" w="calc(100% - 32px)">
+                    <Dialog.Content bg={cardBg} borderColor={modalBorder} borderWidth="1px" borderRadius="2xl" overflow="hidden" maxW="1000px" w="calc(100% - 32px)">
                         <Box position="absolute" top="0" left="0" right="0" h="4px" bg={`linear-gradient(90deg, ${ORANGE}, ${ORANGE}99)`} />
                         <Dialog.Header color={textColor} fontSize="2xl" fontWeight="bold" pt={7} pb={5} borderBottomWidth="1px" borderColor={modalBorder}>
                             <HStack gap={3}>
@@ -157,22 +180,37 @@ export default function ReturnOrderModal({ open, onClose, order }) {
                                         {segment('all', 'Hammasini qaytarish')}
                                     </HStack>
 
+                                    {mode === 'partial' && totalRemaining > 0 && (
+                                        <Box>
+                                            <Field.Label color={textColor} mb={1}>
+                                                <HStack gap={2}><LuBarcode size={16} /><span>Qaytayotgan pachka yorlig‘ini skanerlang</span></HStack>
+                                            </Field.Label>
+                                            <FormControl {...scanner.inputProps} placeholder="Pistolet bilan o‘qing yoki barcode‘ni terib Enter bosing" fontFamily="mono" fontSize="lg" letterSpacing="wider" minH="52px" disabled={isLoading} autoFocus />
+                                            <Text mt={1.5} fontSize="sm" fontWeight="semibold" color={lastScan ? (lastScan.ok ? (isDark ? 'green.300' : 'green.700') : (isDark ? 'red.300' : 'red.600')) : subtitleColor}>
+                                                {lastScan
+                                                    ? <HStack gap={1.5} as="span">{lastScan.ok ? <LuCircleCheck size={14} /> : <LuCircleAlert size={14} />}<span>{lastScan.text}</span></HStack>
+                                                    : 'Butun pachka — barcode bilan (omborga yana pachka bo‘lib kiradi). Yorlig‘i yo‘q mahsulot — «dona» maydonida.'}
+                                            </Text>
+                                        </Box>
+                                    )}
+
                                     {totalRemaining === 0 ? (
                                         <Text color={subtitleColor} textAlign="center" py={6}>Bu zayavkada mijozda qolgan mahsulot yo‘q — hammasi qaytarilgan.</Text>
                                     ) : (
                                         <Box overflowX="auto" borderWidth="1px" borderColor={isDark ? cardBorder : '#CBD5E1'} borderRadius="xl">
-                                            <Table.Root size="sm" minW="760px">
+                                            <Table.Root size="sm" minW="820px">
                                                 <Table.Header>
                                                     <Table.Row>
                                                         <Table.ColumnHeader {...headerCell}>Mahsulot</Table.ColumnHeader>
                                                         <Table.ColumnHeader {...headerCell} textAlign="right">Berilgan</Table.ColumnHeader>
                                                         <Table.ColumnHeader {...headerCell} textAlign="right">Mijozda qolgan</Table.ColumnHeader>
-                                                        <Table.ColumnHeader {...headerCell} textAlign="right" minW="260px">Qaytariladi</Table.ColumnHeader>
+                                                        <Table.ColumnHeader {...headerCell} textAlign="right" minW="320px">Qaytariladi</Table.ColumnHeader>
                                                     </Table.Row>
                                                 </Table.Header>
                                                 <Table.Body>
                                                     {lines.map((line) => {
                                                         const d = draft[line.id] ?? {};
+                                                        const packs = rowPacks(line);
                                                         const pieces = rowPieces(line);
                                                         const error = rowError(line);
                                                         const done = line.remaining === 0;
@@ -207,21 +245,26 @@ export default function ReturnOrderModal({ open, onClose, order }) {
                                                                     ) : mode === 'all' ? (
                                                                         <Text fontSize="sm" fontWeight="bold" color={ORANGE} textAlign="right">{describePieces(line.remaining, line.ppp)}</Text>
                                                                     ) : (
-                                                                        <VStack align="stretch" gap={1}>
+                                                                        <VStack align="stretch" gap={1.5}>
+                                                                            {packs.length > 0 && (
+                                                                                <HStack gap={1} flexWrap="wrap" justify="flex-end">
+                                                                                    {packs.map((p) => (
+                                                                                        <Box key={p.barcode} {...chipCx} title={`${p.pieces} dona`}>
+                                                                                            <LuPackage size={11} />{p.barcode}
+                                                                                            <Button type="button" variant="ghost" size="xs" h="16px" minW={0} w="16px" p={0} color="inherit" onClick={() => removePack(line.id, p.barcode)} disabled={isLoading} aria-label="Olib tashlash"><LuX size={10} /></Button>
+                                                                                        </Box>
+                                                                                    ))}
+                                                                                </HStack>
+                                                                            )}
                                                                             <HStack gap={2} justify="flex-end">
-                                                                                {line.ppp > 0 && (
-                                                                                    <HStack gap={1.5}>
-                                                                                        <FormControl value={d.packs ?? ''} onChange={(e) => setRow(line.id, 'packs', e.target.value)} placeholder="0" w="80px" {...inputCx} disabled={isLoading} aria-label="Pachka" />
-                                                                                        <Text fontSize="xs" color={subtitleColor}>pachka</Text>
-                                                                                    </HStack>
-                                                                                )}
+                                                                                <Text fontSize="xs" color={subtitleColor}>{packs.length > 0 ? `${packs.length} pachka +` : ''}</Text>
                                                                                 <HStack gap={1.5}>
-                                                                                    <FormControl value={d.pieces ?? ''} onChange={(e) => setRow(line.id, 'pieces', e.target.value)} placeholder="0" w="80px" {...inputCx} disabled={isLoading} aria-label="Dona" />
+                                                                                    <FormControl value={d.pieces ?? ''} onChange={(e) => setRowPieces(line.id, e.target.value)} placeholder="0" w="80px" {...inputCx} disabled={isLoading} aria-label="Dona" />
                                                                                     <Text fontSize="xs" color={subtitleColor}>dona</Text>
                                                                                 </HStack>
                                                                                 {pieces > 0
                                                                                     ? <Button type="button" size="xs" variant="ghost" h="32px" px={2} color={subtitleColor} onClick={() => clearRow(line.id)} disabled={isLoading}>Tozalash</Button>
-                                                                                    : <Button type="button" size="xs" variant="outline" h="32px" px={2} borderColor={isDark ? cardBorder : '#CBD5E1'} color={textColor} onClick={() => fillRow(line)} disabled={isLoading}>Hammasi</Button>}
+                                                                                    : <Button type="button" size="xs" variant="outline" h="32px" px={2} borderColor={isDark ? cardBorder : '#CBD5E1'} color={textColor} onClick={() => fillRow(line)} disabled={isLoading} title="Hammasini dona bilan (yorliqsiz)">Hammasi</Button>}
                                                                             </HStack>
                                                                             {error
                                                                                 ? <Text fontSize="xs" color={isDark ? 'red.300' : 'red.600'} textAlign="right">{error}</Text>

@@ -1,8 +1,10 @@
+import { forwardRef } from 'react';
 import PropTypes from 'prop-types';
 import { Box, Input, Textarea } from '@chakra-ui/react';
 import { useAppTheme } from '../../theme/tokens';
 
-export default function FormControl({ as = 'input', ...props }) {
+/* ref — maydonning o‘ziga (skaner fokusi uchun) */
+const FormControl = forwardRef(function FormControl({ as = 'input', ...props }, ref) {
     const { isDark, accentColor, inputBg, inputBorder, inputHoverBorder, textColor } = useAppTheme();
     const styles = {
         bg: isDark ? inputBg : '#F1F5F9',
@@ -26,8 +28,10 @@ export default function FormControl({ as = 'input', ...props }) {
     const Component = as === 'select' ? Box : as === 'textarea' ? Textarea : Input;
     const componentProps = as === 'select' ? { as: 'select', ...props } : props;
 
-    return <Component {...styles} {...componentProps} />;
-}
+    return <Component ref={ref} {...styles} {...componentProps} />;
+});
+
+export default FormControl;
 
 FormControl.propTypes = {
     as: PropTypes.oneOf(['input', 'select', 'textarea']),

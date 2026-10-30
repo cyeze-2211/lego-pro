@@ -9,14 +9,17 @@ import FormControl from '../ui/FormControl';
 import { useAppDispatch } from '../../store/hooks';
 import { useCreateStockTransactionMutation } from '../../store/services/productStock.api';
 import {
-    QZ_DOWNLOAD_URL, getSavedPrinter, labelErrorMessage, listPrinters, printStockLabel, setSavedPrinter,
+    LABEL_MAX_COPIES, QZ_DOWNLOAD_URL, getSavedPrinter, labelErrorMessage, listPrinters, looksLikeLabelPrinter, printStockLabel, setSavedPrinter,
 } from '../../services/labelPrinter';
+
+const MAX_PACKS = 500; // backend: bir qatorda ko‘pi bilan 500 pachka
 import { shouldPrintLabel } from './labelPolicy';
 
 /*
  * VAQTINCHALIK: stanokda «+1» bosilganda darhol 1 pachka yozish o‘rniga shu oyna ochiladi —
  * nechta pachka qayd etish, har pachkaga nechta yorliq va qaysi printer.
- * Bitta IN yozuvi (quantity = pachka soni) → yorliq shu yozuv id si bo‘yicha, nusxa = pachka × har pachkaga.
+ * Bitta IN yozuvi (quantity = pachka soni, unit PACK). Server har pachkaga uniq barcode beradi (javobda productPack[]),
+ * yorliq GET /product-stock-transactions/{id}/label?copies=N — N har pachkaga (1–10), har yorliqda o‘z barcode‘i.
  * Eski rejimga qaytish: labelPolicy.js dagi PRODUCE_WITH_DIALOG = false.
  */
 export default function ProduceDialog({ open, onClose, machineId, machineName, warehouseId, productId, productName, defaultCopies = 2, onDone }) {
@@ -39,7 +42,7 @@ export default function ProduceDialog({ open, onClose, machineId, machineName, w
             setPrinters(list);
             const saved = getSavedPrinter();
             if (saved && list.includes(saved)) setPrinter(saved);
-            else setPrinter(list.find((p) => /xprinter/i.test(p)) || '');
+            else setPrinter(list.find(looksLikeLabelPrinter) || '');
         } catch (error) {
             setPrinters([]);
             setQzError(labelErrorMessage(error));
@@ -57,15 +60,15 @@ export default function ProduceDialog({ open, onClose, machineId, machineName, w
 
     const qtyNum = Number(quantity);
     const copiesNum = Number(copies);
-    const qtyValid = Number.isInteger(qtyNum) && qtyNum >= 1 && qtyNum <= 1000;
-    const copiesValid = Number.isInteger(copiesNum) && copiesNum >= 0 && copiesNum <= 100;
-    const totalLabels = qtyValid && copiesValid ? Math.min(1000, qtyNum * copiesNum) : 0;
+    const qtyValid = Number.isInteger(qtyNum) && qtyNum >= 1 && qtyNum <= MAX_PACKS;
+    const copiesValid = Number.isInteger(copiesNum) && copiesNum >= 0 && copiesNum <= LABEL_MAX_COPIES;
+    const totalLabels = qtyValid && copiesValid ? qtyNum * copiesNum : 0;
 
     const submit = async (event) => {
         event.preventDefault();
         if (saving) return;
-        if (!qtyValid) return Alert('Pachka soni 1 dan 1000 gacha bo‘lsin', 'error');
-        if (!copiesValid) return Alert('Har pachkaga nusxa 0 dan 100 gacha bo‘lsin', 'error');
+        if (!qtyValid) return Alert(`Pachka soni 1 dan ${MAX_PACKS} gacha bo‘lsin`, 'error');
+        if (!copiesValid) return Alert(`Har pachkaga nusxa 0 dan ${LABEL_MAX_COPIES} gacha bo‘lsin`, 'error');
         if (totalLabels > 0 && !printer && !qzError) return Alert('Printerni tanlang', 'error');
         setSaving(true);
         try {
@@ -78,8 +81,9 @@ export default function ProduceDialog({ open, onClose, machineId, machineName, w
             }).unwrap();
             const entries = Array.isArray(txResult) ? txResult : (txResult?.data ?? []);
             const txId = entries[0]?.id;
+            const packs = entries[0]?.productPack ?? []; // [{ id, barcode }]
             Alert(`${qtyNum} pachka qayd etildi — ${productName}`, 'success');
-            onDone?.({ quantity: qtyNum, transactionId: txId || null });
+            onDone?.({ quantity: qtyNum, transactionId: txId || null, packs });
 
             // Yorliq: faqat tayyor mahsulot va kirim yozuvi bo‘lsa (brakda massiv bo‘sh)
             if (txId && totalLabels > 0) {
@@ -87,8 +91,9 @@ export default function ProduceDialog({ open, onClose, machineId, machineName, w
                 if (print) {
                     if (printer) setSavedPrinter(printer);
                     try {
-                        await printStockLabel(txId, totalLabels, printer || undefined);
-                        Alert(`${totalLabels} ta yorliq printerga yuborildi`, 'success');
+                        // copies — har pachkaga; server shu yozuvning har pachkasiga o‘z barcode‘i bilan yorliq tayyorlaydi
+                        await printStockLabel(txId, copiesNum, printer || undefined);
+                        Alert(`${totalLabels} ta yorliq printerga yuborildi (${qtyNum} pachka × ${copiesNum})`, 'success');
                     } catch (error) {
                         Alert(labelErrorMessage(error), 'error');
                     }
@@ -127,20 +132,20 @@ export default function ProduceDialog({ open, onClose, machineId, machineName, w
                                     <SimpleGrid columns={2} gap={4}>
                                         <Field.Root required>
                                             <Field.Label color={textColor}>Nechta pachka</Field.Label>
-                                            <FormControl type="number" min={1} max={1000} step={1} value={quantity} onChange={(e) => setQuantity(e.target.value)} disabled={saving} autoFocus fontSize="xl" fontWeight="bold" minH="52px" />
-                                            {!qtyValid && quantity !== '' && <Field.HelperText color={isDark ? 'red.300' : 'red.600'}>1 dan 1000 gacha</Field.HelperText>}
+                                            <FormControl type="number" min={1} max={MAX_PACKS} step={1} value={quantity} onChange={(e) => setQuantity(e.target.value)} disabled={saving} autoFocus fontSize="xl" fontWeight="bold" minH="52px" />
+                                            {!qtyValid && quantity !== '' && <Field.HelperText color={isDark ? 'red.300' : 'red.600'}>1 dan {MAX_PACKS} gacha</Field.HelperText>}
                                         </Field.Root>
                                         <Field.Root>
                                             <Field.Label color={textColor}>Har pachkaga yorliq</Field.Label>
-                                            <FormControl type="number" min={0} max={100} step={1} value={copies} onChange={(e) => setCopies(e.target.value)} disabled={saving} fontSize="xl" fontWeight="bold" minH="52px" />
-                                            <Field.HelperText color={subtitleColor}>0 — yorliqsiz</Field.HelperText>
+                                            <FormControl type="number" min={0} max={LABEL_MAX_COPIES} step={1} value={copies} onChange={(e) => setCopies(e.target.value)} disabled={saving} fontSize="xl" fontWeight="bold" minH="52px" />
+                                            <Field.HelperText color={subtitleColor}>0 — yorliqsiz, 2 — ikki tomoniga</Field.HelperText>
                                         </Field.Root>
                                     </SimpleGrid>
 
                                     <Box px={4} py={3} borderRadius="xl" borderWidth="1px" borderColor={isDark ? 'rgb(var(--accent-400) / .3)' : 'rgb(var(--accent-warm-200))'} bg={isDark ? 'rgb(var(--accent-400) / .08)' : 'rgb(var(--accent-warm-50))'}>
                                         <Text fontSize="sm" color={textColor}>
                                             Omborga kiradi: <strong>{qtyValid ? qtyNum : '—'} pachka</strong>
-                                            {' · '}Chop etiladi: <strong>{totalLabels} ta yorliq</strong>
+                                            {' · '}Chop etiladi: <strong>{totalLabels} ta yorliq</strong>{totalLabels > 0 && <span style={{ opacity: .7 }}> (har pachkaga o‘z barcode‘i)</span>}
                                         </Text>
                                     </Box>
 

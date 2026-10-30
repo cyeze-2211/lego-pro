@@ -54,13 +54,17 @@ export const productStockApi = createApi({
 
         // GET /api/v1/product-stock-transactions — kirim/chiqim tarixi
         getStockTransactions: builder.query({
-            query: ({ productId, warehouseId, action, page = 0, size = 20, sort } = {}) => ({
+            // barcode — pachka barcode‘i: shu pachkani harakatlantirgan yozuvlar (pachka tarixi)
+            query: ({ id, productId, warehouseId, action, transferId, barcode, page = 0, size = 20, sort } = {}) => ({
                 url: '/product-stock-transactions',
                 method: 'GET',
                 params: {
+                    ...(id ? { id } : {}),
                     ...(productId ? { productId } : {}),
                     ...(warehouseId ? { warehouseId } : {}),
                     ...(action ? { action } : {}),
+                    ...(transferId ? { transferId } : {}),
+                    ...(barcode ? { barcode } : {}),
                     page,
                     size,
                     ...(sort ? { sort } : {}),
@@ -70,6 +74,11 @@ export const productStockApi = createApi({
         }),
 
         // POST /api/v1/product-stock-transactions — kirim yoki chiqim yaratish
+        // items[]: { productId, quantity?, unit?, packBarcodes?, openPackBarcodes? }
+        //  - IN (qo‘lda): quantity + unit — donaviy qoldiqqa kiradi (pachka yaratilmaydi, barcode yo‘q)
+        //  - IN + machineId (stanok): unit faqat PACK, ≤ 500 pachka; har pachkaga barcode — javobda productPack[{id, barcode}]
+        //  - OUT: butun pachkalar packBarcodes da, donalar quantity+unit bilan donaviy qoldiqdan;
+        //    donaviy qoldiq yetmasa openPackBarcodes dagi pachkalar ochiladi (dona shu yerdan olinadi)
         createStockTransaction: builder.mutation({
             query: (data) => ({
                 url: '/product-stock-transactions',
@@ -93,7 +102,8 @@ export const productStockApi = createApi({
         }),
 
         // POST /api/v1/product-stock-transfers — mahsulotni bir ombordan boshqasiga ko‘chirish
-        // { fromWarehouseId, toWarehouseId, items[{ productId, quantity, unit }] }
+        // { fromWarehouseId, toWarehouseId, items[{ productId, packBarcodes?, openPackBarcodes?, quantity?, unit? }] }
+        // Butun pachkalar packBarcodes bilan, donalar quantity+unit bilan donaviy qoldiqdan; pachka ochish — openPackBarcodes.
         // Manbada TRANSFER_OUT, maqsadda TRANSFER_IN yozuvlari (bitta transferId). Huquq: STOCK:TRANSFER.
         // Tayyor mahsulot faqat PRODUCT omboriga, yarim tayyor RAW_MATERIAL omboriga ham ko‘chadi.
         createStockTransfer: builder.mutation({

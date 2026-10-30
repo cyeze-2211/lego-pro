@@ -20,7 +20,6 @@ import {
     useGetSalesOrdersQuery,
     useUpdateSalesOrderStatusMutation,
     useRejectSalesOrderMutation,
-    useLoadSalesOrderMutation,
     useConfirmSalesOrderMutation,
 } from '../../../store/services/salesOrder.api';
 import DeleteOrder from '../__components/DeleteOrder';
@@ -113,9 +112,9 @@ const formatDate = (value) => {
 function OrderListStatusControl({ order, isDark }) {
     const [action, setAction] = useState(null);
     const role = useAppSelector((state) => state.auth.role);
+    const navigate = useNavigate();
     const [updateStatus] = useUpdateSalesOrderStatusMutation();
     const [rejectOrder] = useRejectSalesOrderMutation();
-    const [loadOrder] = useLoadSalesOrderMutation();
     const [confirmOrder] = useConfirmSalesOrderMutation();
 
     const style = statusStyle(order.status, isDark);
@@ -143,11 +142,14 @@ function OrderListStatusControl({ order, isDark }) {
             Alert('Buyurtmani «Ortildi» holatiga faqat omborchi o‘tkaza oladi', 'error');
             return;
         }
+        if (nextStatus === 'LOADED') {
+            // Yuklash pachka barcode‘larini skanerlash bilan — omborchi sahifasida (POST /load tanasiz 400 qaytaradi)
+            navigate(`/staff/orders/${order.id}`);
+            return;
+        }
         setAction(nextStatus);
         try {
-            if (nextStatus === 'LOADED') {
-                await loadOrder(order.id).unwrap();
-            } else if (nextStatus === 'CONFIRMED') {
+            if (nextStatus === 'CONFIRMED') {
                 /* POST /sales-orders/{id}/confirm — yakuniy tasdiqlash */
                 await confirmOrder(order.id).unwrap();
             } else if (nextStatus === 'REJECTED') {

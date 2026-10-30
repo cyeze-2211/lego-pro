@@ -229,11 +229,20 @@ export const salesOrderApi = createApi({
       onQueryStarted: (arg, { dispatch, queryFulfilled }) => refreshCustomerAndPayments(queryFulfilled, dispatch),
     }),
 
+    /* ── Yuklash: POST /api/v1/sales-orders/{id}/load ──
+     * Argument: id (satr) yoki { id, data }. data = { items: [{ itemId, packBarcodes, openPackBarcodes? }] }
+     * Omborchi har qatorning butun pachkalarini skanerlaydi — packBarcodes soni qatordagi packQuantity ga teng bo‘lishi shart.
+     * Qatorning donalari (pieceQuantity) donaviy qoldiqdan olinadi; yetmasa openPackBarcodes dagi pachkalar ochiladi.
+     * Pachkasi bor zayavka tanasiz yuborilsa 400. Backend qoldiqni o‘zi chiqaradi (alohida OUT yo‘q). */
     loadSalesOrder: builder.mutation({
-      query: (id) => ({ url: `/sales-orders/${id}/load`, method: 'POST' }),
+      query: (arg) => {
+        const id = typeof arg === 'string' ? arg : arg?.id;
+        const data = typeof arg === 'object' && arg?.data ? arg.data : undefined;
+        return { url: `/sales-orders/${id}/load`, method: 'POST', ...(data ? { data } : {}) };
+      },
       transformResponse: (response) => normalizeSalesOrder(response.data),
-      invalidatesTags: (result, error, id) => [
-        { type: 'SalesOrder', id },
+      invalidatesTags: (result, error, arg) => [
+        { type: 'SalesOrder', id: typeof arg === 'string' ? arg : arg?.id },
         { type: 'SalesOrder', id: 'LIST' },
         { type: 'SalesOrderDashboard', id: 'LIST' },
         { type: 'ProductShortages', id: 'LIST' },
@@ -244,7 +253,9 @@ export const salesOrderApi = createApi({
 
     /* ── Qaytarish: POST /api/v1/sales-orders/{id}/return ──
      * CONFIRMED zayavkadan mahsulot qaytarish (qisman yoki to'liq).
-     * data = { reason?, items?: [{ itemId, packQuantity, pieceQuantity }] }
+     * data = { reason?, items?: [{ itemId, packBarcodes?: string[], pieceQuantity? }] }
+     * packBarcodes — qaytayotgan butun pachkalarning skanerlangan barcode'lari (shu qator bilan chiqib ketgan bo'lishi shart),
+     * pieceQuantity — pachkadan tashqari dona; kamida bittasi bo'lishi kerak.
      * items bo'sh/yo'q bo'lsa — mijozdagi hamma qolgan mahsulot qaytadi.
      * Natija: hammasi qaytsa RETURNED, aks holda CONFIRMED qoladi.
      * Mijoz balansi oshadi, ortiqcha to'lov avansga o'tadi, kassadan pul chiqmaydi. */

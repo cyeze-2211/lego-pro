@@ -41,7 +41,6 @@ const ACTION_FILTERS = [
     { value: '', label: 'Barchasi', Icon: LuHistory },
     { value: 'IN', label: 'Kirim', Icon: LuArrowDownLeft },
     { value: 'OUT', label: 'Chiqim', Icon: LuArrowUpRight },
-    { value: 'PRODUCE', label: 'Ishlab chiqarildi', Icon: LuFactory },
     { value: 'TRANSFER_IN', label: 'Ko‘chirib kelindi', Icon: LuArrowLeftRight },
     { value: 'TRANSFER_OUT', label: 'Ko‘chirib yuborildi', Icon: LuArrowLeftRight },
 ];
@@ -97,10 +96,13 @@ export default function StaffHistory() {
     const { data: warehouses = [] } = useGetWarehousesQuery('PRODUCT');
     const warehouseName = useMemo(() => Object.fromEntries(warehouses.map((w) => [w.id, w.name])), [warehouses]);
 
+    /* 13 xonali raqam — pachka barcode‘i: backend shu pachkaning butun tarixini qaytaradi (kirim → ko‘chirish → chiqim) */
+    const packBarcode = /^\d{13}$/.test(search.trim()) ? search.trim() : '';
     const { data, isLoading, isFetching, isError } = useGetStockTransactionsQuery({
         warehouseId: warehouseFilter || undefined,
         action:      actionFilter     || undefined,
         productId:   productFilter?.id || undefined,
+        barcode:     packBarcode || undefined,
         page,
         size: PAGE_SIZE,
     });
@@ -111,10 +113,10 @@ export default function StaffHistory() {
         page,
         setPage,
         isFetching,
-        resetKey: `${warehouseFilter}|${actionFilter}|${productFilter?.id || ''}`,
+        resetKey: `${warehouseFilter}|${actionFilter}|${productFilter?.id || ''}|${packBarcode}`,
     });
 
-    const q = search.trim().toLowerCase();
+    const q = packBarcode ? '' : search.trim().toLowerCase();
     const filtered = useMemo(() => (q
         ? transactions.filter((t) => t.productName?.toLowerCase().includes(q) || t.productBarcode?.includes(q))
         : transactions), [transactions, q]);
@@ -212,10 +214,10 @@ export default function StaffHistory() {
                         </select>
                     </div>
                     <div className="min-w-0">
-                        <label className={`mb-1.5 flex items-center gap-1.5 text-xs font-semibold ${muted}`}><LuSearch size={11} /> Mahsulot yoki shtrix-kod</label>
+                        <label className={`mb-1.5 flex items-center gap-1.5 text-xs font-semibold ${muted}`}><LuSearch size={11} /> Mahsulot nomi yoki pachka barcode‘i (skaner)</label>
                         <div className="relative">
                             <LuSearch size={15} className={`pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 ${muted}`} />
-                            <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Nomi yoki shtrix-kodini yozing..." className={`${inputCx} pl-10 pr-10`} />
+                            <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Nomini yozing yoki pachka yorlig‘ini skanerlang — pachka tarixi chiqadi" className={`${inputCx} pl-10 pr-10`} />
                             {search && <button type="button" onClick={() => setSearch('')} className={`absolute right-3 top-1/2 -translate-y-1/2 ${muted} hover:text-amber-500`} aria-label="Tozalash"><LuX size={14} /></button>}
                         </div>
                     </div>
@@ -232,7 +234,7 @@ export default function StaffHistory() {
                         {actionFilter && <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 font-semibold ${isDark ? TONES[actionMeta(actionFilter).tone].dark : TONES[actionMeta(actionFilter).tone].chip}`}>{actionMeta(actionFilter).label}<button type="button" onClick={() => setActionFilter('')} aria-label="Olib tashlash"><LuX size={11} /></button></span>}
                         {warehouseFilter && <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 font-semibold ${isDark ? 'border-white/10 text-slate-200' : 'border-slate-200 text-slate-700'}`}><LuWarehouse size={11} />{warehouseName[warehouseFilter] || 'Ombor'}<button type="button" onClick={() => setWarehouseFilter('')} aria-label="Olib tashlash"><LuX size={11} /></button></span>}
                         {productFilter && <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 font-semibold ${isDark ? 'border-amber-400/30 bg-amber-400/10 text-amber-200' : 'border-amber-300 bg-amber-50 text-amber-800'}`}><LuBarcode size={11} />{productFilter.name}<button type="button" onClick={() => setProductFilter(null)} aria-label="Olib tashlash"><LuX size={11} /></button></span>}
-                        {search && <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 font-semibold ${isDark ? 'border-white/10 text-slate-200' : 'border-slate-200 text-slate-700'}`}><LuSearch size={11} />«{search}»<button type="button" onClick={() => setSearch('')} aria-label="Olib tashlash"><LuX size={11} /></button></span>}
+                        {search && <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 font-semibold ${packBarcode ? (isDark ? 'border-violet-400/30 bg-violet-500/10 text-violet-200' : 'border-violet-300 bg-violet-50 text-violet-800') : (isDark ? 'border-white/10 text-slate-200' : 'border-slate-200 text-slate-700')}`}>{packBarcode ? <LuBarcode size={11} /> : <LuSearch size={11} />}{packBarcode ? `Pachka ${packBarcode} tarixi` : `«${search}»`}<button type="button" onClick={() => setSearch('')} aria-label="Olib tashlash"><LuX size={11} /></button></span>}
                         <span className="ml-auto">{formatNumber(filtered.length)} ta ko‘rsatilmoqda{search ? ' (yuklanganlar ichidan)' : ''}</span>
                     </div>
                 )}
@@ -262,7 +264,7 @@ export default function StaffHistory() {
                                         <th className="px-4 py-3 w-44">Ombor</th>
                                         <th className="px-4 py-3 text-right w-48">Miqdor</th>
                                         <th className="px-4 py-3 w-36">Manba</th>
-                                        <th className="px-4 py-3 w-16 text-center" title="Yorliq kirim yozuviga bog‘langan">Yorliq</th>
+                                        <th className="px-4 py-3 w-16 text-center" title="Pachka yorliqlari — kirim yozuvi bilan kirgan va omborda turgan pachkalarga">Yorliq</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -304,8 +306,8 @@ export default function StaffHistory() {
                                                                 : t.transferId ? 'Ko‘chirish' : t.action === 'PRODUCE' ? 'Stanok' : 'Qo‘lda'}
                                                         </td>
                                                         <td className="px-4 py-3 text-center">
-                                                            {/* Yorliq — faqat kirim yozuvi uchun (GET /product-stock-transactions/{id}/label) */}
-                                                            {t.action === 'IN' && <LabelPrintButton transactionId={t.id} productId={t.productId} productName={t.productName} />}
+                                                            {/* Yorliq — pachka bilan kirgan yozuv uchun (stanokdan kirim, qaytarish). Qo‘lda kirim donaviy — pachkasi yo‘q */}
+                                                            {t.action === 'IN' && t.enteredUnit === 'PACK' && <LabelPrintButton transactionId={t.id} productId={t.productId} productName={t.productName} />}
                                                         </td>
                                                     </tr>
                                                 );
@@ -335,7 +337,7 @@ export default function StaffHistory() {
                                                     <span className={`text-xs ${muted}`}>{t.action === 'PRODUCE' ? 'Omborga kirmagan' : (warehouseName[t.warehouseId] || '—')}</span>
                                                 </div>
                                             </div>
-                                            {t.action === 'IN' && <LabelPrintButton transactionId={t.id} productId={t.productId} productName={t.productName} />}
+                                            {t.action === 'IN' && t.enteredUnit === 'PACK' && <LabelPrintButton transactionId={t.id} productId={t.productId} productName={t.productName} />}
                                         </div>
                                     ))}
                                 </div>

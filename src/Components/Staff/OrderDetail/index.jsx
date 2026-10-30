@@ -1,178 +1,198 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
     LuArrowLeft, LuUser, LuStickyNote, LuClock3,
-    LuCircleAlert, LuBoxes, LuPackage, LuBarcode,
+    LuCircleAlert, LuBoxes, LuPackage, LuBarcode, LuScanLine,
     LuArrowDownToLine, LuPrinter, LuPencil, LuPhone, LuMapPin, LuUserCheck,
+    LuCircleCheck, LuPackageOpen, LuX, LuFactory, LuRefreshCw,
 } from 'react-icons/lu';
 import { useAppTheme } from '../../../theme/tokens';
 import { formatNumber } from '../../ui/number-format';
+import { formatDateTime } from '../../ui/date-format';
 import {
     useGetSalesOrderByIdQuery,
     useLoadSalesOrderMutation,
 } from '../../../store/services/salesOrder.api';
 import { useGetCustomerByIdQuery } from '../../../store/services/customer.api';
-import { useGetProductStocksQuery } from '../../../store/services/productStock.api';
 import { useGetWarehousesQuery } from '../../../store/services/warehouse.api';
+import { PACK_STATUS_LABEL } from '../../../store/services/productPack.api';
 import Loading from '../../Other/UI/Loadings/Loading';
 import { STATUS_LABEL, statusCx } from '../../Zayavkachi/__components/statusBadge';
 import { Alert } from '../../Other/UI/Alert/Alert';
 import { splitOrderItem } from '../../ui/order-items';
+import usePackScanner, { beep } from '../../ui/usePackScanner';
 import { RECEIPT_FORMATS, RECEIPT_FORMAT_KEY, buildOrderReceiptHtml, printHtml } from '../__components/orderReceipt';
 import $api from '../../../store/api';
 
-/* ──────────────────────────────────────────────────────────────── */
-/*  Группировка одинаковых товаров (PACK + PIECE) в одну строку      */
-/* ──────────────────────────────────────────────────────────────── */
-function groupOrderItems(items) {
-    if (!items?.length) return [];
+/*
+ * Zayavkani yuklash (Ortildi) — pachka barcode‘lari bilan.
+ * Backend: POST /sales-orders/{id}/load { items: [{ itemId, packBarcodes, openPackBarcodes? }] } bitta tranzaksiyada
+ * har qatorni o‘z omboridan chiqaradi (OUT yozuvlari + qoldiq) va zayavkani LOADED qiladi — frontend alohida OUT yubormaydi.
+ *  - packBarcodes — mijozga butunligicha ketadigan pachkalar; soni qatordagi packQuantity ga teng bo‘lishi SHART;
+ *  - qatorning donalari (pieceQuantity) omborning donaviy qoldig‘idan olinadi; yetmasa omborchi yana pachka skanerlaydi —
+ *    u openPackBarcodes ga tushadi: pachka ochiladi, donalari donaviy qoldiqqa o‘tadi, ortgani omborda qoladi.
+ * Skanerlangan kod GET /product-packs/by-barcode/{barcode} bilan tekshiriladi: mahsulot, ombor, holat (IN_STOCK).
+ */
 
-    const groups = new Map();
+/* Har (mahsulot, ombor) juftligi uchun joriy qoldiq: pachkalar soni va donaviy qoldiq */
+function useItemStocks(rows) {
+    const [stocks, setStocks] = useState({});
+    const [loading, setLoading] = useState(false);
+    const keys = useMemo(() => [...new Set(rows.map((r) => `${r.productId}|${r.warehouseId}`))], [rows]);
+    const keyStr = keys.join(',');
 
-    for (const item of items) {
-        const key = `${item.productId}|${item.warehouseId || ''}`;
+    const refresh = useCallback(async () => {
+        if (!keys.length) return;
+        setLoading(true);
+        const next = {};
+        await Promise.all(keys.map(async (key) => {
+            const [productId, warehouseId] = key.split('|');
+            try {
+                const { data } = await $api.get('/product-stocks', { params: { productId, warehouseId, page: 0, size: 1 } });
+                const s = data?.data?.[0];
+                next[key] = s
+                    ? { quantity: Number(s.quantity) || 0, packQuantity: Number(s.packQuantity) || 0, pieceQuantity: Number(s.pieceQuantity) || 0, piecesPerPack: Number(s.productPiecesPerPack) || 0 }
+                    : { quantity: 0, packQuantity: 0, pieceQuantity: 0, piecesPerPack: 0 };
+            } catch {
+                next[key] = null; // olinmadi
+            }
+        }));
+        setStocks(next);
+        setLoading(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [keyStr]);
 
-        if (!groups.has(key)) {
-            groups.set(key, {
-                key,
-                productId: item.productId,
-                productName: item.productName,
-                productBarcode: item.productBarcode,
-                productArticle: item.productArticle,
-                warehouseId: item.warehouseId,
-                warehouseName: item.warehouseName,
-                unitPrice: item.unitPrice,
-                /* Заказ */
-                orderedPacks: 0,       // только из PACK строк
-                orderedPiecesOnly: 0,  // только из PIECE строк
-                orderedPiecesTotal: 0, // packs × ppp + piecesOnly
-                piecesPerPack: 0,
-                /* Строки заказа (для лимитов и payload) */
-                rawItems: [],
-            });
-        }
-
-        const g = groups.get(key);
-        g.rawItems.push(item);
-
-        const split = splitOrderItem(item);
-        g.orderedPacks += split.packs;
-        g.orderedPiecesOnly += split.pieces;
-        g.orderedPiecesTotal += split.total;
-        if (split.piecesPerPack > 0) g.piecesPerPack = split.piecesPerPack;
-    }
-
-    return Array.from(groups.values()).map((g) => ({ ...g, piecesPerPack: g.piecesPerPack || 1 }));
+    useEffect(() => { refresh(); }, [refresh]);
+    return { stocks, loading, refresh };
 }
+
+const EMPTY_SCAN = { packs: [], open: [] };
 
 export default function StaffOrderDetail() {
     const { id } = useParams();
     const navigate = useNavigate();
     const { isDark } = useAppTheme();
 
-    /* ── State ── */
-    const [selectedWarehouseId, setSelectedWarehouseId] = useState('');
-    const [scannedPacks, setScannedPacks]     = useState({});
-    const [scannedPieces, setScannedPieces]   = useState({});
-    // Buyurtmada yo‘q birlikni (masalan, faqat pachka bo‘lsa — dona) qo‘lda ochish: { [key]: { packs?: true, pieces?: true } }
-    const [extraUnits, setExtraUnits]         = useState({});
-    const [isLimitedScanMode, setIsLimitedScanMode] = useState(true);
-    const [barcodeInput, setBarcodeInput]     = useState('');
-    /* Backend: POST /sales-orders/{id}/load bitta tranzaksiyada har bir qatorni o‘z omboridan chiqaradi (OUT yozuvi + qoldiq)
-     * va zayavkani LOADED qiladi. Shuning uchun frontend alohida OUT yubormaydi — aks holda qoldiq ikki marta kamayardi
-     * («mavjud 2, so‘ralgan 8» xatosi shundan edi). Bu ekrandagi «Yuklangan» maydonlari — omborchi uchun tekshiruv ro‘yxati. */
-    const barcodeInputRef = useRef(null);
-
     const { data: order, isLoading, isError } = useGetSalesOrderByIdQuery(id, { skip: !id });
-    const { data: customer } = useGetCustomerByIdQuery(order?.customerId, {
-        skip: !order?.customerId,
-    });
+    const { data: customer } = useGetCustomerByIdQuery(order?.customerId, { skip: !order?.customerId });
     const { data: warehouses = [] } = useGetWarehousesQuery('PRODUCT');
+    const warehouseName = (wid) => warehouses.find((w) => w.id === wid)?.name ?? '—';
 
-    const orderWarehouseIds = useMemo(() => {
-        if (!order?.items) return [];
-        return [...new Set(order.items.map((i) => i.warehouseId).filter(Boolean))];
-    }, [order]);
-
-    const activeWarehouseId = useMemo(() => {
-        if (orderWarehouseIds.length === 1) return orderWarehouseIds[0];
-        return selectedWarehouseId || orderWarehouseIds[0] || '';
-    }, [orderWarehouseIds, selectedWarehouseId]);
-
-    const activeWarehouseName = warehouses.find((w) => w.id === activeWarehouseId)?.name ?? '—';
-
-    const { data: stockData, isFetching: stockFetching } = useGetProductStocksQuery(
-        { warehouseId: activeWarehouseId || undefined, page: 0, size: 100 },
-        { skip: !activeWarehouseId || !order }
-    );
-    const stockItems = useMemo(() => stockData?.items ?? [], [stockData]);
-
-    /* ── Группируем заказ ── */
-    const groupedItems = useMemo(
-        () => groupOrderItems(order?.items ?? []),
-        [order]
-    );
-
-    /* ── Comparison с qoldiq ── */
-    const comparison = useMemo(() => {
-        if (!groupedItems.length) return [];
-        return groupedItems.map((g) => {
-            const stock = stockItems.find(
-                (s) =>
-                    s.productId === g.productId &&
-                    (activeWarehouseId ? s.warehouseId === activeWarehouseId : true)
-            );
-            const stockQty = stock?.quantity ?? 0;
-            const orderedPieces = g.orderedPiecesTotal;
-            const enough = stockQty >= orderedPieces;
-            const diff = stockQty - orderedPieces;
-
-            /* Уточняем piecesPerPack из stock если у нас не было */
-            const ppp =
-                g.piecesPerPack && g.piecesPerPack > 1
-                    ? g.piecesPerPack
-                    : Number(stock?.productPiecesPerPack) || 1;
-
-            return {
-                ...g,
-                stockQty,
-                enough,
-                diff,
-                piecesPerPack: ppp,
-                orderedPieces: orderedPieces,
-            };
-        });
-    }, [groupedItems, stockItems, activeWarehouseId]);
-
-    const allEnough = comparison.length > 0 && comparison.every((c) => c.enough);
-    const someShort = comparison.some((c) => !c.enough);
     const orderStatus = String(order?.status ?? '').toUpperCase();
     const isLoadingOrder = orderStatus === 'CREATED';
 
-    /* ── Итоги ── */
-    const totals = useMemo(() => {
-        let requiredPacks = 0;
-        let requiredPiecesOnly = 0;
-        let requiredPieces = 0;
-        let scannedPacksTotal = 0;
-        let scannedPiecesTotal = 0;
-
-        comparison.forEach((item) => {
-            requiredPacks += item.orderedPacks;
-            requiredPiecesOnly += item.orderedPiecesOnly;
-            requiredPieces += item.orderedPiecesTotal;
-            scannedPacksTotal += scannedPacks[item.key] ?? 0;
-            scannedPiecesTotal += scannedPieces[item.key] ?? 0;
-        });
-
+    /* ── Qatorlar: har zayavka qatori — pachka + dona ── */
+    const rows = useMemo(() => (order?.items ?? []).map((item) => {
+        const split = splitOrderItem(item);
         return {
-            requiredPacks,
-            requiredPiecesOnly,
-            requiredPieces,
-            scannedPacksTotal,
-            scannedPiecesTotal,
+            id: item.id,
+            productId: item.productId,
+            productName: item.productName,
+            productBarcode: item.productBarcode,
+            warehouseId: item.warehouseId,
+            warehouseName: item.warehouseName,
+            unitPrice: item.unitPrice,
+            packQuantity: split.packs,
+            pieceQuantity: split.pieces,
+            total: split.total,
+            piecesPerPack: split.piecesPerPack,
         };
-    }, [comparison, scannedPacks, scannedPieces]);
+    }), [order]);
+
+    const { stocks, loading: stockLoading, refresh: refreshStocks } = useItemStocks(rows);
+
+    /* ── Skanerlangan pachkalar: { [itemId]: { packs: [pack], open: [pack] } } ── */
+    const [scans, setScans] = useState({});
+    const [lastScan, setLastScan] = useState(null); // { ok, text }
+    const [flashId, setFlashId] = useState(null);
+
+    /* ── Har qator holati ── */
+    const lines = useMemo(() => rows.map((r) => {
+        const stock = stocks[`${r.productId}|${r.warehouseId}`];
+        const sc = scans[r.id] ?? EMPTY_SCAN;
+        const ppp = r.piecesPerPack || stock?.piecesPerPack || 0;
+        const openPieces = sc.open.reduce((s, p) => s + (Number(p.pieces) || 0), 0);
+        const stockPieces = stock?.pieceQuantity ?? 0;
+        const piecesAvail = stockPieces + openPieces;
+        const packsOk = sc.packs.length === r.packQuantity;
+        const piecesOk = r.pieceQuantity === 0 || piecesAvail >= r.pieceQuantity;
+        const piecesShort = Math.max(0, r.pieceQuantity - piecesAvail);
+        const packsToOpen = piecesShort > 0 && ppp > 0 ? Math.ceil(piecesShort / ppp) : 0;
+        const stockPacksEnough = stock ? stock.packQuantity >= r.packQuantity : true;
+        return {
+            ...r, stock, scan: sc, ppp, openPieces, stockPieces, piecesAvail,
+            packsOk, piecesOk, ok: packsOk && piecesOk, piecesShort, packsToOpen, stockPacksEnough,
+            needsScan: r.packQuantity > 0 || !piecesOk,
+        };
+    }), [rows, stocks, scans]);
+
+    const allOk = lines.length > 0 && lines.every((l) => l.ok);
+    const pendingLines = lines.filter((l) => !l.ok);
+    const totals = useMemo(() => lines.reduce((acc, l) => {
+        acc.packs += l.packQuantity; acc.pieces += l.pieceQuantity;
+        acc.scanned += l.scan.packs.length; acc.opened += l.scan.open.length;
+        return acc;
+    }, { packs: 0, pieces: 0, scanned: 0, opened: 0 }), [lines]);
+
+    const flash = (itemId) => { setFlashId(itemId); setTimeout(() => setFlashId((cur) => (cur === itemId ? null : cur)), 1200); };
+    const allScanned = () => Object.values(scans).flatMap((s) => [...s.packs, ...s.open]);
+
+    /* ── Skanerlangan pachkani qatorga biriktirish ── */
+    const handlePack = useCallback((pack) => {
+        if (pack.status !== 'IN_STOCK') {
+            setLastScan({ ok: false, text: `Pachka ${pack.barcode} omborda emas — ${PACK_STATUS_LABEL[pack.status] || pack.status}` });
+            return;
+        }
+        if (allScanned().some((p) => p.barcode === pack.barcode)) {
+            setLastScan({ ok: false, text: `Pachka ${pack.barcode} allaqachon skanerlangan` });
+            return;
+        }
+        const sameProduct = lines.filter((l) => l.productId === pack.productId);
+        if (!sameProduct.length) {
+            setLastScan({ ok: false, text: `«${pack.productName}» bu zayavkada yo‘q` });
+            return;
+        }
+        const sameWh = sameProduct.filter((l) => l.warehouseId === pack.warehouseId);
+        if (!sameWh.length) {
+            setLastScan({ ok: false, text: `Pachka boshqa omborda turibdi (${warehouseName(pack.warehouseId)}), zayavka qatori: ${sameProduct.map((l) => l.warehouseName).join(', ')}` });
+            return;
+        }
+        // 1) butun pachka kerak bo‘lgan qator
+        let line = sameWh.find((l) => l.scan.packs.length < l.packQuantity);
+        if (line) {
+            setScans((prev) => ({ ...prev, [line.id]: { packs: [...(prev[line.id]?.packs ?? []), pack], open: prev[line.id]?.open ?? [] } }));
+            beep(true); flash(line.id);
+            setLastScan({ ok: true, text: `${pack.productName} — pachka ${line.scan.packs.length + 1} / ${line.packQuantity}` });
+            return;
+        }
+        // 2) donaviy qoldiq yetmagan qator — pachka ochiladi
+        line = sameWh.find((l) => l.pieceQuantity > 0 && l.piecesShort > 0);
+        if (line) {
+            setScans((prev) => ({ ...prev, [line.id]: { packs: prev[line.id]?.packs ?? [], open: [...(prev[line.id]?.open ?? []), pack] } }));
+            beep(true); flash(line.id);
+            const left = Math.max(0, line.piecesShort - (Number(pack.pieces) || 0));
+            setLastScan({ ok: true, text: `${pack.productName} — pachka ochiladi (${pack.pieces} dona)${left > 0 ? `, yana ${left} dona kerak` : ', dona yetarli'}` });
+            return;
+        }
+        setLastScan({ ok: false, text: `«${pack.productName}» uchun hamma pachka skanerlangan${sameWh.some((l) => l.pieceQuantity > 0) ? ' va dona yetarli' : ''}` });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [lines, scans, warehouses]);
+
+    const scanner = usePackScanner({
+        enabled: isLoadingOrder,
+        onPack: handlePack,
+        onError: (text) => setLastScan({ ok: false, text }),
+    });
+
+    const removeScan = (itemId, kind, barcode) => {
+        setScans((prev) => ({ ...prev, [itemId]: { ...(prev[itemId] ?? EMPTY_SCAN), [kind]: (prev[itemId]?.[kind] ?? []).filter((p) => p.barcode !== barcode) } }));
+    };
+    const clearScans = () => { setScans({}); setLastScan(null); };
+
+    useEffect(() => {
+        if (isLoadingOrder && scanner.inputRef.current) scanner.inputRef.current.focus();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isLoadingOrder]);
 
     /* ── Chek: alohida hujjat, qog‘ozga moslashadi (A4 / 80 mm / avto) ── */
     const [receiptFormat, setReceiptFormat] = useState(() => {
@@ -187,13 +207,13 @@ export default function StaffOrderDetail() {
     const [isPreparingPrint, setIsPreparingPrint] = useState(false);
     const loadCategories = async (productIds) => {
         const cache = categoryCacheRef.current;
-        const missing = productIds.filter((id) => id && !(id in cache));
-        await Promise.all(missing.map(async (id) => {
+        const missing = productIds.filter((pid) => pid && !(pid in cache));
+        await Promise.all(missing.map(async (pid) => {
             try {
-                const { data } = await $api.get(`/products/${id}`);
-                cache[id] = data?.data?.category?.name || '';
+                const { data } = await $api.get(`/products/${pid}`);
+                cache[pid] = data?.data?.category?.name || '';
             } catch {
-                cache[id] = ''; // kategoriya olinmasa ham chek chiqaveradi
+                cache[pid] = ''; // kategoriya olinmasa ham chek chiqaveradi
             }
         }));
         return cache;
@@ -204,182 +224,62 @@ export default function StaffOrderDetail() {
         setIsPreparingPrint(true);
         let categories = {};
         try {
-            categories = await loadCategories([...new Set(comparison.map((c) => c.productId))]);
+            categories = await loadCategories([...new Set(lines.map((l) => l.productId))]);
         } finally {
             setIsPreparingPrint(false);
         }
-        const anyLoaded = comparison.some((c) => (scannedPacks[c.key] ?? 0) > 0 || (scannedPieces[c.key] ?? 0) > 0);
+        const loaded = orderStatus !== 'CREATED';
         const html = buildOrderReceiptHtml({
             order,
             customerPhone: order.customerPhone ?? order.customer?.phone ?? customer?.phone,
-            warehouseName: activeWarehouseName,
+            warehouseName: [...new Set(lines.map((l) => l.warehouseName).filter(Boolean))].join(', ') || '—',
             statusLabel: STATUS_LABEL[order.status] ?? order.status,
             format: receiptFormat,
-            showLoaded: anyLoaded,
-            rows: comparison.map((c) => ({
-                productName: c.productName,
-                productBarcode: c.productBarcode,
-                categoryName: categories[c.productId] || '',
-                warehouseName: c.warehouseName,
-                orderedPacks: c.orderedPacks,
-                orderedPiecesOnly: c.orderedPiecesOnly,
-                orderedPieces: c.orderedPieces,
-                piecesPerPack: c.piecesPerPack,
-                loadedPacks: scannedPacks[c.key] ?? 0,
-                loadedPieces: scannedPieces[c.key] ?? 0,
+            showLoaded: loaded,
+            rows: lines.map((l) => ({
+                productName: l.productName,
+                productBarcode: l.productBarcode,
+                categoryName: categories[l.productId] || '',
+                warehouseName: l.warehouseName,
+                orderedPacks: l.packQuantity,
+                orderedPiecesOnly: l.pieceQuantity,
+                orderedPieces: l.total,
+                piecesPerPack: l.ppp,
+                loadedPacks: loaded ? l.packQuantity : l.scan.packs.length,
+                loadedPieces: loaded ? l.pieceQuantity : (l.piecesOk ? l.pieceQuantity : 0),
             })),
         });
         printHtml(html, { onError: (message) => Alert(message, 'error') });
     };
 
-    /* ── Обработчики для pachka ── */
-    const updateScannedPacks = (item, change) => {
-        const current = scannedPacks[item.key] ?? 0;
-        const next = Math.max(0, current + change);
-
-        /* Лимит: total pieces (packs*ppp + loadedPieces) не должен превышать orderedPieces */
-        if (isLimitedScanMode) {
-            const totalLoaded = next * item.piecesPerPack + (scannedPieces[item.key] ?? 0);
-            if (totalLoaded > item.orderedPieces) {
-                Alert(
-                    `${item.productName} uchun buyurtmadagi dona miqdoridan ortiq yuklab bo'lmaydi`,
-                    'error'
-                );
-                return;
-            }
-        }
-        setScannedPacks((prev) => ({ ...prev, [item.key]: next }));
-    };
-
-    const setScannedPacksValue = (item, value) => {
-        if (value === '') {
-            setScannedPacks((prev) => ({ ...prev, [item.key]: 0 }));
-            return;
-        }
-        const next = Number(value);
-        if (!Number.isFinite(next) || next < 0) return;
-        if (isLimitedScanMode) {
-            const totalLoaded = next * item.piecesPerPack + (scannedPieces[item.key] ?? 0);
-            if (totalLoaded > item.orderedPieces) {
-                Alert(
-                    `${item.productName} uchun buyurtmadagi dona miqdoridan ortiq yuklab bo'lmaydi`,
-                    'error'
-                );
-                return;
-            }
-        }
-        setScannedPacks((prev) => ({ ...prev, [item.key]: next }));
-    };
-
-    /* ── Обработчики для dona ── */
-    const updateScannedPieces = (item, change) => {
-        const current = scannedPieces[item.key] ?? 0;
-        const next = Math.max(0, current + change);
-
-        if (isLimitedScanMode) {
-            const totalLoaded = (scannedPacks[item.key] ?? 0) * item.piecesPerPack + next;
-            if (totalLoaded > item.orderedPieces) {
-                Alert(
-                    `${item.productName} uchun buyurtmadagi dona miqdoridan ortiq yuklab bo'lmaydi`,
-                    'error'
-                );
-                return;
-            }
-        }
-        setScannedPieces((prev) => ({ ...prev, [item.key]: next }));
-    };
-
-    const setScannedPiecesValue = (item, value) => {
-        if (value === '') {
-            setScannedPieces((prev) => ({ ...prev, [item.key]: 0 }));
-            return;
-        }
-        const next = Number(value);
-        if (!Number.isFinite(next) || next < 0) return;
-        if (isLimitedScanMode) {
-            const totalLoaded = (scannedPacks[item.key] ?? 0) * item.piecesPerPack + next;
-            if (totalLoaded > item.orderedPieces) {
-                Alert(
-                    `${item.productName} uchun buyurtmadagi dona miqdoridan ortiq yuklab bo'lmaydi`,
-                    'error'
-                );
-                return;
-            }
-        }
-        setScannedPieces((prev) => ({ ...prev, [item.key]: next }));
-    };
-
-    /* ── Сканирование штрих-кода — packs приоритетно, иначе pieces ── */
-    const handleBarcodeSubmit = (event) => {
-        event.preventDefault();
-        const barcode = barcodeInput.trim();
-        if (!barcode) return;
-
-        const item = comparison.find((c) => c.productBarcode?.trim() === barcode);
-        if (!item) {
-            Alert('Bu shtrix-kod buyurtmada topilmadi', 'error');
-            setBarcodeInput('');
-            barcodeInputRef.current?.focus();
-            return;
-        }
-
-        if (item.orderedPacks > 0) {
-            updateScannedPacks(item, 1);
-        } else {
-            updateScannedPieces(item, 1);
-        }
-        setBarcodeInput('');
-        barcodeInputRef.current?.focus();
-    };
-
-    const handleScanModeChange = (isLimited) => {
-        if (isLimited && comparison.some((item) => {
-            const packs = scannedPacks[item.key] ?? 0;
-            const pieces = scannedPieces[item.key] ?? 0;
-            return packs * item.piecesPerPack + pieces > item.orderedPieces;
-        })) {
-            Alert(
-                'Yuklangan miqdor buyurtmadan ko‘p. Limit rejimini yoqishdan oldin kamaytiring',
-                'error'
-            );
-            return;
-        }
-        setIsLimitedScanMode(isLimited);
-    };
-
-    const [loadSalesOrder, { isLoading: isUpdatingStatus }] = useLoadSalesOrderMutation();
-
-    /* Tekshiruv ro‘yxati: har bir qator buyurtmadagi miqdorda belgilanganmi (backend hamma qatorni to‘liq chiqaradi) */
-    const scannedTotal = (item) => (scannedPacks[item.key] ?? 0) * item.piecesPerPack + (scannedPieces[item.key] ?? 0);
-    const incompleteLines = comparison.filter((item) => scannedTotal(item) < item.orderedPieces);
-    const isFullyScanned = comparison.length > 0 && incompleteLines.length === 0;
-
-    /* Hammasini buyurtmadagi miqdorda belgilash — bir bosishda */
-    const markAllLoaded = () => {
-        setScannedPacks(Object.fromEntries(comparison.map((item) => [item.key, item.orderedPacks])));
-        setScannedPieces(Object.fromEntries(comparison.map((item) => [item.key, item.orderedPiecesOnly])));
-    };
-
     /* ── Ortildi: backend qoldiqni chiqaradi va holatni LOADED qiladi (bitta so‘rov) ── */
+    const [loadSalesOrder, { isLoading: isUpdatingStatus }] = useLoadSalesOrderMutation();
     const loadBusyRef = useRef(false);
     const handleLoad = async () => {
         if (loadBusyRef.current) return;
-        if (!allEnough) {
-            Alert('Omborda yetarli qoldiq yo‘q — avval qoldiqni to‘ldiring', 'error');
-            return;
-        }
-        if (!isFullyScanned) {
-            Alert(`${incompleteLines.length} ta mahsulot to‘liq yuklanganini belgilang (yoki «Hammasini belgilash» ni bosing)`, 'error');
+        if (!allOk) {
+            const l = pendingLines[0];
+            Alert(l && !l.packsOk
+                ? `«${l.productName}»: ${l.scan.packs.length} / ${l.packQuantity} pachka skanerlandi`
+                : `«${l?.productName}»: donaviy qoldiq yetmaydi — yana ${l?.packsToOpen || 1} pachka skanerlang (ochiladi)`, 'error');
             return;
         }
         loadBusyRef.current = true;
         try {
-            await loadSalesOrder(order.id).unwrap();
+            const items = lines
+                .filter((l) => l.scan.packs.length > 0 || l.scan.open.length > 0)
+                .map((l) => ({
+                    itemId: l.id,
+                    packBarcodes: l.scan.packs.map((p) => p.barcode),
+                    ...(l.scan.open.length ? { openPackBarcodes: l.scan.open.map((p) => p.barcode) } : {}),
+                }));
+            await loadSalesOrder(items.length ? { id: order.id, data: { items } } : order.id).unwrap();
             Alert('Buyurtma Ortildi holatiga o‘tkazildi, mahsulotlar ombordan chiqarildi', 'success');
             navigate('/staff/orders');
         } catch (error) {
             console.error('[Omborchi] Ortildi xatosi', error);
             Alert(`Ortildi ga o‘tkazib bo‘lmadi${error?.data?.message ? `: ${error.data.message}` : ''}`, 'error');
+            refreshStocks();
         } finally {
             loadBusyRef.current = false;
         }
@@ -394,6 +294,11 @@ export default function StaffOrderDetail() {
     const ghostBtn = isDark
         ? 'border-[#334155] text-[#94a3b8] hover:bg-[#1e293b]'
         : 'border-[#e2e8f0] text-[#64748b] hover:bg-[#f1f5f9]';
+    const chipPack = isDark ? 'border-violet-400/30 bg-violet-500/10 text-violet-200' : 'border-violet-300 bg-violet-50 text-violet-800';
+    const chipOpen = isDark ? 'border-orange-400/30 bg-orange-500/10 text-orange-200' : 'border-orange-300 bg-orange-50 text-orange-800';
+    const okText = isDark ? 'text-emerald-400' : 'text-emerald-600';
+    const badText = isDark ? 'text-red-400' : 'text-red-600';
+    const warnText = isDark ? 'text-amber-400' : 'text-amber-600';
 
     const backToList = () => navigate('/staff/orders');
 
@@ -420,6 +325,14 @@ export default function StaffOrderDetail() {
             </div>
         );
     }
+
+    const renderChip = (pack, tone, onRemove, opened = false) => (
+        <span key={pack.barcode} className={`inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 font-mono text-[11px] font-bold ${tone}`} title={`${pack.pieces} dona${pack.machineName ? ` · ${pack.machineName}` : ''}${pack.producedAt ? ` · ${formatDateTime(pack.producedAt)}` : ''}`}>
+            {opened ? <LuPackageOpen size={11} /> : <LuPackage size={11} />}
+            {pack.barcode}
+            <button type="button" onClick={onRemove} aria-label="Olib tashlash" className="ml-0.5 rounded hover:text-[#f43f5e]"><LuX size={11} /></button>
+        </span>
+    );
 
     return (
         <div className="flex w-full flex-col gap-4 py-2">
@@ -448,7 +361,7 @@ export default function StaffOrderDetail() {
                         </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                        {String(order.status ?? '').toUpperCase() === 'CREATED' && (
+                        {orderStatus === 'CREATED' && (
                             <button
                                 type="button"
                                 onClick={() => navigate(`/staff/orders/${order.id}/edit`)}
@@ -457,7 +370,7 @@ export default function StaffOrderDetail() {
                                 <LuPencil size={17} /> Tahrirlash
                             </button>
                         )}
-                        {String(order.status ?? '').toUpperCase() === 'LOADED' && (
+                        {orderStatus === 'LOADED' && (
                             <div className="flex h-12 items-stretch overflow-hidden rounded-xl bg-amber-400 text-[#0f172a]">
                                 <button
                                     type="button"
@@ -538,7 +451,7 @@ export default function StaffOrderDetail() {
                 )}
             </div>
 
-            {/* ── Mahsulotlar va qoldiq taqqoslash ── */}
+            {/* ── Mahsulotlar: skaner va qoldiq ── */}
             <div className={`rounded-2xl border shadow-md ${panel}`}>
                 <div className={`flex flex-wrap items-center justify-between gap-3 border-b px-5 py-3.5 ${line}`}>
                     <div className="flex items-center gap-2.5">
@@ -547,28 +460,12 @@ export default function StaffOrderDetail() {
                         </span>
                         <div>
                             <p className={`text-sm font-bold ${head}`}>Buyurtma mahsulotlari</p>
-                            <p className={`text-xs ${muted}`}>Ombor qoldig&apos;i bilan taqqoslash</p>
+                            <p className={`text-xs ${muted}`}>{isLoadingOrder ? 'Har qatorning pachkalarini skanerlang — ombor qoldig‘i bilan taqqoslanadi' : 'Ombor qoldig‘i bilan taqqoslash'}</p>
                         </div>
                     </div>
-                    {orderWarehouseIds.length > 1 && (
-                        <select
-                            value={activeWarehouseId}
-                            onChange={(e) => setSelectedWarehouseId(e.target.value)}
-                            className={`rounded-xl border px-3 py-2 text-xs font-semibold outline-none ${
-                                isDark
-                                    ? 'border-[#334155] bg-[#1e293b]/80 text-white'
-                                    : 'border-[#e2e8f0] bg-white text-[#0f172a]'
-                            }`}
-                        >
-                            {warehouses
-                                .filter((w) => orderWarehouseIds.includes(w.id))
-                                .map((w) => (
-                                    <option key={w.id} value={w.id}>
-                                        {w.name}
-                                    </option>
-                                ))}
-                        </select>
-                    )}
+                    <button type="button" onClick={refreshStocks} disabled={stockLoading} className={`flex h-9 items-center gap-1.5 rounded-xl border px-3 text-xs font-bold transition-colors ${ghostBtn} disabled:opacity-50`} title="Qoldiqni qayta yuklash">
+                        <LuRefreshCw size={13} className={stockLoading ? 'animate-spin' : ''} /> Qoldiq
+                    </button>
                 </div>
 
                 {isLoadingOrder && (
@@ -578,364 +475,229 @@ export default function StaffOrderDetail() {
                         <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-4">
                             <div className="flex items-center gap-3">
                                 <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-400/15 text-amber-500">
-                                    <LuBarcode size={24} />
+                                    <LuScanLine size={24} />
                                 </span>
                                 <div>
-                                    <p className={`text-base font-bold ${head}`}>Yuklash nazorati</p>
+                                    <p className={`text-base font-bold ${head}`}>Pachkalarni skanerlash</p>
+                                    <p className={`text-xs ${muted}`}>Pachka yorlig‘idagi barcode — har pachka bir marta. Dona yetmasa yana pachka skanerlang: u ochiladi.</p>
                                 </div>
                             </div>
                             <div className={`rounded-xl border px-4 py-2.5 text-right ${
                                 isDark ? 'border-[#334155] bg-[#0f172a]/70' : 'border-[#e2e8f0] bg-white'
                             }`}>
-                                <p className={`text-[11px] font-bold uppercase tracking-wide ${muted}`}>Jami yuklandi</p>
+                                <p className={`text-[11px] font-bold uppercase tracking-wide ${muted}`}>Skanerlandi</p>
                                 <p className={`text-lg font-extrabold tabular-nums ${head}`}>
-                                    <span className="text-amber-500">{formatNumber(totals.scannedPacksTotal)}</span>
-                                    <span className={`text-sm font-semibold ${muted}`}> / {formatNumber(totals.requiredPacks)} pachka</span>
+                                    <span className="text-amber-500">{formatNumber(totals.scanned)}</span>
+                                    <span className={`text-sm font-semibold ${muted}`}> / {formatNumber(totals.packs)} pachka</span>
                                 </p>
-                                <p className={`text-xs font-bold tabular-nums ${head}`}>
-                                    <span className="text-amber-500">{formatNumber(totals.scannedPiecesTotal)}</span>
-                                    <span className={`text-xs font-semibold ${muted}`}> / {formatNumber(totals.requiredPiecesOnly)} dona</span>
-                                </p>
+                                {totals.opened > 0 && (
+                                    <p className={`text-xs font-bold tabular-nums ${warnText}`}>
+                                        <LuPackageOpen size={11} className="inline -mt-0.5" /> {totals.opened} pachka ochiladi (dona uchun)
+                                    </p>
+                                )}
                             </div>
                         </div>
 
-                        <div className={`grid gap-4 border-t p-5 lg:grid-cols-[minmax(0,1fr)_auto] ${line}`}>
-                            <div>
-                                <label className={`mb-2 block text-xs font-bold uppercase tracking-wide ${muted}`} htmlFor="order-barcode">
-                                    Mahsulot shtrix-kodi
-                                </label>
-                                <form onSubmit={handleBarcodeSubmit} className="flex items-center gap-3">
+                        <div className={`border-t p-5 ${line}`}>
+                            <label className={`mb-2 block text-xs font-bold uppercase tracking-wide ${muted}`} htmlFor="order-pack-barcode">
+                                Pachka barcode‘i (skaner)
+                            </label>
+                            <div className="flex items-center gap-3">
+                                <div className="relative min-w-0 flex-1">
+                                    <LuBarcode className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-amber-400" />
                                     <input
-                                        id="order-barcode"
-                                        ref={barcodeInputRef}
+                                        id="order-pack-barcode"
+                                        {...scanner.inputProps}
                                         autoFocus
-                                        value={barcodeInput}
-                                        onChange={(event) => setBarcodeInput(event.target.value)}
-                                        placeholder="Skaner bilan kodni o'qing..."
-                                        aria-label="Mahsulot shtrix-kodi"
-                                        className={`h-14 min-w-0 flex-1 rounded-xl border px-4 text-base outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 ${
+                                        placeholder="Pistolet bilan o‘qing yoki barcode‘ni terib Enter bosing"
+                                        aria-label="Pachka barcode‘i"
+                                        className={`h-14 w-full rounded-xl border pl-12 pr-4 font-mono text-lg tracking-wider outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 ${
                                             isDark
                                                 ? 'border-[#334155] bg-[#0f172a] text-white placeholder:text-[#64748b]'
                                                 : 'border-[#e2e8f0] bg-white text-[#0f172a] placeholder:text-[#94a3b8]'
                                         }`}
                                     />
-                                </form>
-                            </div>
-                            <div className="lg:min-w-[320px]">
-                                <p className={`mb-2 text-xs font-bold uppercase tracking-wide ${muted}`}>Yuklash rejimi</p>
-                                <div className={`grid h-14 grid-cols-2 rounded-xl border p-1 ${
-                                    isDark ? 'border-[#334155] bg-[#0f172a]' : 'border-[#e2e8f0] bg-white'
-                                }`}>
-                                    {[
-                                        { limited: true, label: 'Limitli', hint: 'Buyurtmagacha' },
-                                        { limited: false, label: 'Limitsiz', hint: 'Ortiq yuklash mumkin' },
-                                    ].map(({ limited, label, hint }) => (
-                                        <button
-                                            key={label}
-                                            type="button"
-                                            onClick={() => handleScanModeChange(limited)}
-                                            aria-pressed={isLimitedScanMode === limited}
-                                            className={`rounded-lg px-3 text-left transition-colors ${
-                                                isLimitedScanMode === limited
-                                                    ? 'bg-amber-400 text-[#0f172a]'
-                                                    : `${muted} hover:bg-amber-400/10`
-                                            }`}
-                                        >
-                                            <span className="block text-sm font-bold">{label}</span>
-                                            <span className="block text-[10px] leading-tight opacity-75">{hint}</span>
-                                        </button>
-                                    ))}
                                 </div>
+                                {(totals.scanned > 0 || totals.opened > 0) && (
+                                    <button type="button" onClick={clearScans} className={`h-14 rounded-xl border px-4 text-xs font-bold ${ghostBtn}`}>Tozalash</button>
+                                )}
                             </div>
+                            {lastScan ? (
+                                <p className={`mt-2 flex items-center gap-1.5 text-sm font-semibold ${lastScan.ok ? okText : badText}`}>
+                                    {lastScan.ok ? <LuCircleCheck size={15} /> : <LuCircleAlert size={15} />}
+                                    {lastScan.text}
+                                </p>
+                            ) : (
+                                <p className={`mt-2 text-xs ${muted}`}>{scanner.busy ? 'Tekshirilmoqda...' : 'Pistolet fokus boshqa joyda bo‘lganda ham ishlaydi.'}</p>
+                            )}
                         </div>
                     </div>
                 )}
 
-                {stockFetching ? (
-                    <div className={`flex items-center justify-center gap-2 py-12 text-sm ${muted}`}>
-                        <svg className="h-4 w-4 animate-spin text-amber-400" viewBox="0 0 24 24" fill="none">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                        </svg>
-                        Yuklanmoqda...
-                    </div>
-                ) : (
-                    <>
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
-                                <thead>
-                                    <tr
-                                        className={`text-left text-xs font-semibold uppercase tracking-wide ${muted} ${
-                                            isDark ? 'bg-[#0f172a]/30' : 'bg-[#f8fafc]/80'
-                                        }`}
-                                    >
-                                        <th className="px-5 py-3 w-14">№</th>
-                                        <th className="px-5 py-3">Mahsulot</th>
-                                        <th className="px-5 py-3 w-32">Ombor</th>
-                                        <th className="px-5 py-3 w-40 text-center">Buyurtma</th>
-                                        {isLoadingOrder && <th className="px-5 py-3 w-72 text-center">Yuklangan</th>}
-                                        <th className="px-5 py-3 w-32 text-center">Qoldiq</th>
-                                        <th className="px-5 py-3 w-32 text-center">Farq</th>
-                                    </tr>
-                                </thead>
-                                <tbody className={`divide-y ${divider}`}>
-                                    {comparison.map((item, idx) => {
-                                        const loadedPacks = scannedPacks[item.key] ?? 0;
-                                        const loadedPieces = scannedPieces[item.key] ?? 0;
-                                        const packsLimitReached = isLimitedScanMode && (loadedPacks * item.piecesPerPack + loadedPieces) >= item.orderedPieces;
-                                        const piecesLimitReached = isLimitedScanMode && (loadedPacks * item.piecesPerPack + loadedPieces) >= item.orderedPieces;
-                                        // Dona — buyurtmada dona bo‘lsa yoki qo‘lda ochilgan/yuklangan bo‘lsa; pachka — xuddi shunday (pachka hajmi > 1 bo‘lsa)
-                                        const canUsePacks = item.piecesPerPack > 1;
-                                        const showPacks = canUsePacks && (item.orderedPacks > 0 || loadedPacks > 0 || Boolean(extraUnits[item.key]?.packs));
-                                        const showPieces = item.orderedPiecesOnly > 0 || loadedPieces > 0 || Boolean(extraUnits[item.key]?.pieces) || !showPacks;
-                                        const openUnit = (unit) => setExtraUnits((prev) => ({ ...prev, [item.key]: { ...(prev[item.key] ?? {}), [unit]: true } }));
-                                        const closeUnit = (unit) => setExtraUnits((prev) => ({ ...prev, [item.key]: { ...(prev[item.key] ?? {}), [unit]: false } }));
-                                        const addLinkCx = `inline-flex items-center justify-center gap-1 self-center rounded-lg border border-dashed px-3 py-1 text-[11px] font-bold transition-colors ${
-                                            isDark ? 'border-[#334155] text-slate-400 hover:border-amber-400/50 hover:text-amber-300' : 'border-[#cbd5e1] text-slate-500 hover:border-amber-400 hover:text-amber-600'
-                                        }`;
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                        <thead>
+                            <tr
+                                className={`text-left text-xs font-semibold uppercase tracking-wide ${muted} ${
+                                    isDark ? 'bg-[#0f172a]/30' : 'bg-[#f8fafc]/80'
+                                }`}
+                            >
+                                <th className="px-5 py-3 w-14">№</th>
+                                <th className="px-5 py-3">Mahsulot</th>
+                                <th className="px-5 py-3 w-32">Ombor</th>
+                                <th className="px-5 py-3 w-40 text-center">Buyurtma</th>
+                                {isLoadingOrder && <th className="px-5 py-3 min-w-[260px]">Skanerlangan pachkalar</th>}
+                                <th className="px-5 py-3 w-44 text-center">Qoldiq</th>
+                                {isLoadingOrder && <th className="px-5 py-3 w-56">Holat</th>}
+                            </tr>
+                        </thead>
+                        <tbody className={`divide-y ${divider}`}>
+                            {lines.map((l, idx) => (
+                                <tr key={l.id} className={`transition-colors ${flashId === l.id ? (isDark ? 'bg-amber-400/15' : 'bg-amber-100') : ''}`}>
+                                    <td className={`px-5 py-3 text-xs ${muted}`}>{idx + 1}</td>
+                                    <td className="px-5 py-3">
+                                        <p className={`font-semibold ${head}`}>{l.productName}</p>
+                                        <p className={`text-xs ${muted}`}>{l.productBarcode}{l.ppp > 0 ? ` · 1 pachka = ${l.ppp} dona` : ''}</p>
+                                    </td>
+                                    <td className={`px-5 py-3 text-xs ${muted}`}>{l.warehouseName}</td>
 
-                                        return (
-                                        <tr key={item.key} className="transition-colors">
-                                            <td className={`px-5 py-3 text-xs ${muted}`}>{idx + 1}</td>
-                                            <td className="px-5 py-3">
-                                                <p className={`font-semibold ${head}`}>{item.productName}</p>
-                                                <p className={`text-xs ${muted}`}>{item.productBarcode}</p>
-                                            </td>
-                                            <td className={`px-5 py-3 text-xs ${muted}`}>
-                                                {item.warehouseName}
-                                            </td>
+                                    {/* Buyurtma: pachka + dona */}
+                                    <td className="px-5 py-3">
+                                        <div className="flex flex-col items-center gap-1">
+                                            {l.packQuantity > 0 && (
+                                                <span className={`inline-flex min-w-16 justify-center rounded-xl border px-3 py-1.5 text-sm font-extrabold tabular-nums ${chipPack}`}>
+                                                    {formatNumber(l.packQuantity)} pachka
+                                                </span>
+                                            )}
+                                            {l.pieceQuantity > 0 && (
+                                                <span className={`inline-flex min-w-16 justify-center rounded-xl border px-3 py-1.5 text-sm font-extrabold tabular-nums ${
+                                                    isDark ? 'border-amber-400/30 bg-amber-500/10 text-amber-200' : 'border-amber-300 bg-amber-50 text-amber-700'
+                                                }`}>
+                                                    {formatNumber(l.pieceQuantity)} dona
+                                                </span>
+                                            )}
+                                            <span className={`text-[11px] ${muted}`}>= {formatNumber(l.total)} dona</span>
+                                        </div>
+                                    </td>
 
-                                            {/* Buyurtma: pachka + dona отдельно */}
-                                            <td className="px-5 py-3">
-                                                <div className="flex flex-col items-center gap-1">
-                                                    {item.orderedPacks > 0 && (
-                                                        <span className={`inline-flex min-w-16 justify-center rounded-xl border px-3 py-1.5 text-sm font-extrabold tabular-nums ${
-                                                            isDark
-                                                                ? 'border-violet-400/30 bg-violet-500/10 text-violet-300'
-                                                                : 'border-violet-300 bg-violet-50 text-violet-700'
-                                                        }`}>
-                                                            {formatNumber(item.orderedPacks)} pachka
-                                                        </span>
+                                    {/* Skanerlangan pachkalar */}
+                                    {isLoadingOrder && (
+                                        <td className="px-5 py-3">
+                                            {l.scan.packs.length === 0 && l.scan.open.length === 0 ? (
+                                                <span className={`text-xs ${l.packQuantity > 0 ? warnText : muted}`}>
+                                                    {l.packQuantity > 0 ? `${l.packQuantity} ta pachka skanerlang` : l.piecesOk ? 'Faqat dona — skaner shart emas' : 'Dona yetmaydi — pachka skanerlang'}
+                                                </span>
+                                            ) : (
+                                                <div className="flex flex-col gap-1.5">
+                                                    {l.scan.packs.length > 0 && (
+                                                        <div className="flex flex-wrap items-center gap-1">
+                                                            <span className={`text-[10px] font-bold uppercase ${muted}`}>Butun:</span>
+                                                            {l.scan.packs.map((p) => renderChip(p, chipPack, () => removeScan(l.id, 'packs', p.barcode)))}
+                                                        </div>
                                                     )}
-                                                    {item.orderedPiecesOnly > 0 && (
-                                                        <span className={`inline-flex min-w-16 justify-center rounded-xl border px-3 py-1.5 text-sm font-extrabold tabular-nums ${
-                                                            isDark
-                                                                ? 'border-amber-400/30 bg-amber-500/10 text-amber-200'
-                                                                : 'border-amber-300 bg-amber-50 text-amber-700'
-                                                        }`}>
-                                                            {formatNumber(item.orderedPiecesOnly)} dona
-                                                        </span>
+                                                    {l.scan.open.length > 0 && (
+                                                        <div className="flex flex-wrap items-center gap-1">
+                                                            <span className={`text-[10px] font-bold uppercase ${muted}`}>Ochiladi:</span>
+                                                            {l.scan.open.map((p) => renderChip(p, chipOpen, () => removeScan(l.id, 'open', p.barcode), true))}
+                                                        </div>
                                                     )}
                                                 </div>
-                                            </td>
-
-                                            {/* Yuklangan: 2 input */}
-                                            {isLoadingOrder && (
-                                                <td className="px-5 py-3">
-                                                    <div className="flex flex-col gap-2">
-
-                                                        {/* PACHKA input */}
-                                                        {showPacks && (
-                                                            <div className="flex items-center justify-center gap-2">
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => updateScannedPacks(item, -1)}
-                                                                    disabled={loadedPacks === 0}
-                                                                    aria-label="Pachkani kamaytirish"
-                                                                    className={`flex h-9 w-9 items-center justify-center rounded-lg border text-base font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-35 ${
-                                                                        isDark
-                                                                            ? 'border-[#334155] bg-[#1e293b] text-white hover:bg-[#334155]'
-                                                                            : 'border-[#e2e8f0] bg-white text-[#0f172a] hover:bg-[#f1f5f9]'
-                                                                    }`}
-                                                                >
-                                                                    −
-                                                                </button>
-                                                                <input
-                                                                    type="number"
-                                                                    min="0"
-                                                                    step="1"
-                                                                    value={loadedPacks || ''}
-                                                                    placeholder="0"
-                                                                    onChange={(e) => setScannedPacksValue(item, e.target.value)}
-                                                                    aria-label={`${item.productName} pachka soni`}
-                                                                    className={`h-9 w-16 rounded-lg border text-center text-sm font-extrabold tabular-nums outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 ${
-                                                                        isDark
-                                                                            ? 'border-[#334155] bg-[#1e293b] text-white'
-                                                                            : 'border-[#e2e8f0] bg-white text-[#0f172a]'
-                                                                    }`}
-                                                                />
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => updateScannedPacks(item, 1)}
-                                                                    disabled={packsLimitReached}
-                                                                    aria-label="Pachkani ko'paytirish"
-                                                                    className={`flex h-9 w-9 items-center justify-center rounded-lg border text-base font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-35 ${
-                                                                        isDark
-                                                                            ? 'border-[#334155] bg-[#1e293b] text-white hover:bg-[#334155]'
-                                                                            : 'border-[#e2e8f0] bg-white text-[#0f172a] hover:bg-[#f1f5f9]'
-                                                                    }`}
-                                                                >
-                                                                    +
-                                                                </button>
-                                                                <span className={`text-[11px] font-bold ${muted}`}>pachka</span>
-                                                            </div>
-                                                        )}
-
-                                                        {/* DONA input */}
-                                                        {showPieces && (
-                                                            <div className="flex items-center justify-center gap-2">
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => updateScannedPieces(item, -1)}
-                                                                    disabled={loadedPieces === 0}
-                                                                    aria-label="Donani kamaytirish"
-                                                                    className={`flex h-9 w-9 items-center justify-center rounded-lg border text-base font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-35 ${
-                                                                        isDark
-                                                                            ? 'border-[#334155] bg-[#1e293b] text-white hover:bg-[#334155]'
-                                                                            : 'border-[#e2e8f0] bg-white text-[#0f172a] hover:bg-[#f1f5f9]'
-                                                                    }`}
-                                                                >
-                                                                    −
-                                                                </button>
-                                                                <input
-                                                                    type="number"
-                                                                    min="0"
-                                                                    step="1"
-                                                                    value={loadedPieces || ''}
-                                                                    placeholder="0"
-                                                                    onChange={(e) => setScannedPiecesValue(item, e.target.value)}
-                                                                    aria-label={`${item.productName} dona soni`}
-                                                                    className={`h-9 w-16 rounded-lg border text-center text-sm font-extrabold tabular-nums outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 ${
-                                                                        isDark
-                                                                            ? 'border-[#334155] bg-[#1e293b] text-white'
-                                                                            : 'border-[#e2e8f0] bg-white text-[#0f172a]'
-                                                                    }`}
-                                                                />
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => updateScannedPieces(item, 1)}
-                                                                    disabled={piecesLimitReached}
-                                                                    aria-label="Donani ko'paytirish"
-                                                                    className={`flex h-9 w-9 items-center justify-center rounded-lg border text-base font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-35 ${
-                                                                        isDark
-                                                                            ? 'border-[#334155] bg-[#1e293b] text-white hover:bg-[#334155]'
-                                                                            : 'border-[#e2e8f0] bg-white text-[#0f172a] hover:bg-[#f1f5f9]'
-                                                                    }`}
-                                                                >
-                                                                    +
-                                                                </button>
-                                                                <span className={`text-[11px] font-bold ${muted}`}>dona</span>
-                                                                {item.orderedPiecesOnly === 0 && loadedPieces === 0 && extraUnits[item.key]?.pieces && (
-                                                                    <button type="button" onClick={() => closeUnit('pieces')} aria-label="Dona maydonini yopish" title="Yopish"
-                                                                        className={`flex h-6 w-6 items-center justify-center rounded-md text-xs ${muted} hover:text-[#f43f5e]`}>
-                                                                        ✕
-                                                                    </button>
-                                                                )}
-                                                            </div>
-                                                        )}
-
-                                                        {/* Buyurtmada yo‘q birlikni qo‘shish */}
-                                                        {!showPieces && (
-                                                            <button type="button" onClick={() => openUnit('pieces')} className={addLinkCx}
-                                                                title="Masalan, ochilgan pachkadan alohida dona yuklash uchun">
-                                                                + dona ham yuklash
-                                                            </button>
-                                                        )}
-                                                        {canUsePacks && !showPacks && (
-                                                            <button type="button" onClick={() => openUnit('packs')} className={addLinkCx}
-                                                                title={`1 pachka = ${item.piecesPerPack} dona`}>
-                                                                + pachka bilan yuklash
-                                                            </button>
-                                                        )}
-
-                                                    </div>
-                                                </td>
                                             )}
-
-                                            <td className={`px-5 py-3 text-center font-bold ${head}`}>
-                                                {item.stockQty}
-                                            </td>
-                                            <td
-                                                className={`px-5 py-3 text-center font-bold ${
-                                                    item.enough
-                                                        ? isDark ? 'text-green-400' : 'text-green-600'
-                                                        : isDark ? 'text-red-400' : 'text-red-600'
-                                                }`}
-                                            >
-                                                {item.diff >= 0 ? '+' : ''}
-                                                {item.diff}
-                                            </td>
-                                        </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
-                        </div>
-
-                        {someShort && (
-                            <div className="mx-5 mb-5 rounded-xl border border-red-400/30 bg-red-400/10 px-4 py-3">
-                                <p className="text-sm font-semibold text-red-500">
-                                    ⚠️ Ba&apos;zi mahsulotlardan omborga yetarli miqdorda yo&apos;q
-                                </p>
-                            </div>
-                        )}
-                        {allEnough && isLoadingOrder && (
-                            <div className="mx-5 mb-5 rounded-xl border border-green-400/30 bg-green-400/10 px-4 py-3">
-                                <p className="text-sm font-semibold text-green-500">
-                                    ✓ Barcha mahsulotlar omborga mavjud. Chiqim qilishingiz mumkin.
-                                </p>
-                            </div>
-                        )}
-                        {isLoadingOrder && comparison.length > 0 && (
-                            <div className={`mx-5 mb-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border p-4 ${
-                                isDark ? 'border-[#334155] bg-[#0f172a]/50' : 'border-[#e2e8f0] bg-slate-50'
-                            }`}>
-                                <div>
-                                    <p className={`text-sm font-bold ${head}`}>Buyurtma bo&apos;yicha umumiy chiqim</p>
-                                    <p className={`mt-1 text-xs ${muted}`}>
-                                        {activeWarehouseName} · {comparison.length} ta mahsulot · {formatNumber(totals.requiredPacks)} pachka · {formatNumber(totals.requiredPiecesOnly)} dona
-                                    </p>
-                                    <p className={`mt-1 text-xs font-semibold ${isFullyScanned ? (isDark ? 'text-emerald-400' : 'text-emerald-600') : (isDark ? 'text-amber-400' : 'text-amber-600')}`}>
-                                        {isFullyScanned
-                                            ? 'Barcha mahsulotlar belgilandi — Ortildi ga o‘tkazish mumkin'
-                                            : `${incompleteLines.length} ta mahsulot hali to‘liq belgilanmagan`}
-                                    </p>
-                                </div>
-                                {!isFullyScanned && (
-                                    <button
-                                        type="button"
-                                        onClick={markAllLoaded}
-                                        disabled={isUpdatingStatus}
-                                        className={`inline-flex h-14 items-center justify-center gap-2 rounded-xl border px-5 text-sm font-bold transition ${
-                                            isDark ? 'border-[#334155] text-slate-200 hover:bg-[#1e293b]' : 'border-[#e2e8f0] text-[#0f172a] hover:bg-white'
-                                        }`}
-                                    >
-                                        Hammasini belgilash
-                                    </button>
-                                )}
-                                <button
-                                    type="button"
-                                    onClick={handleLoad}
-                                    disabled={!allEnough || !isFullyScanned || isUpdatingStatus}
-                                    title={!allEnough ? 'Omborda yetarli qoldiq yo‘q' : !isFullyScanned ? 'Avval barcha mahsulotlarni belgilang' : 'Ombordan chiqarib, holatni Ortildi qiladi'}
-                                    className="inline-flex h-14 min-w-56 items-center justify-center gap-3 rounded-xl bg-emerald-500 px-7 text-base font-extrabold text-white shadow-lg shadow-emerald-500/20 transition hover:-translate-y-0.5 hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-none"
-                                >
-                                    {isUpdatingStatus ? (
-                                        <svg className="h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none">
-                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                                        </svg>
-                                    ) : (
-                                        <LuArrowDownToLine size={21} />
+                                        </td>
                                     )}
-                                    {isUpdatingStatus ? 'Ortilmoqda…' : 'Ortildi — ombordan chiqarish'}
-                                </button>
-                            </div>
-                        )}
-                    </>
+
+                                    {/* Qoldiq: pachka + donaviy */}
+                                    <td className="px-5 py-3 text-center">
+                                        {l.stock === undefined && stockLoading ? (
+                                            <span className={`text-xs ${muted}`}>…</span>
+                                        ) : l.stock === null ? (
+                                            <span className={`text-xs ${badText}`}>olinmadi</span>
+                                        ) : (
+                                            <div className="flex flex-col items-center">
+                                                <span className={`font-bold tabular-nums ${l.stockPacksEnough ? head : badText}`}>{formatNumber(l.stock?.packQuantity ?? 0)} pachka</span>
+                                                <span className={`text-xs tabular-nums ${l.stock?.pieceQuantity >= l.pieceQuantity ? muted : warnText}`}>{formatNumber(l.stock?.pieceQuantity ?? 0)} dona</span>
+                                                <span className={`text-[10px] ${muted}`}>jami {formatNumber(l.stock?.quantity ?? 0)}</span>
+                                            </div>
+                                        )}
+                                    </td>
+
+                                    {/* Holat */}
+                                    {isLoadingOrder && (
+                                        <td className="px-5 py-3">
+                                            <div className="flex flex-col gap-0.5 text-xs font-semibold">
+                                                {l.packQuantity > 0 && (
+                                                    <span className={`inline-flex items-center gap-1 ${l.packsOk ? okText : warnText}`}>
+                                                        {l.packsOk ? <LuCircleCheck size={13} /> : <LuPackage size={13} />} Pachka {l.scan.packs.length} / {l.packQuantity}
+                                                    </span>
+                                                )}
+                                                {l.pieceQuantity > 0 && (
+                                                    <span className={`inline-flex items-center gap-1 ${l.piecesOk ? okText : badText}`}>
+                                                        {l.piecesOk ? <LuCircleCheck size={13} /> : <LuCircleAlert size={13} />}
+                                                        {l.piecesOk
+                                                            ? `Dona yetarli (${formatNumber(l.piecesAvail)})`
+                                                            : `Dona yetmaydi: ${formatNumber(l.piecesShort)} — ${l.packsToOpen || 1} pachka skanerlang`}
+                                                    </span>
+                                                )}
+                                                {!l.stockPacksEnough && (
+                                                    <span className={`inline-flex items-center gap-1 ${badText}`}><LuCircleAlert size={13} /> Omborda pachka kam</span>
+                                                )}
+                                                {l.ok && <span className={`inline-flex items-center gap-1 ${okText}`}><LuCircleCheck size={13} /> Tayyor</span>}
+                                            </div>
+                                        </td>
+                                    )}
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+
+                {isLoadingOrder && lines.some((l) => !l.stockPacksEnough || (l.pieceQuantity > 0 && !l.piecesOk && l.stock && l.stock.packQuantity - l.packQuantity < l.packsToOpen)) && (
+                    <div className="mx-5 mb-5 rounded-xl border border-red-400/30 bg-red-400/10 px-4 py-3">
+                        <p className="text-sm font-semibold text-red-500">
+                            ⚠️ Ba&apos;zi mahsulotlardan omborda yetarli pachka yo&apos;q — avval kirim yoki ko&apos;chirish qiling
+                        </p>
+                    </div>
+                )}
+                {isLoadingOrder && lines.length > 0 && (
+                    <div className={`mx-5 mb-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border p-4 ${
+                        isDark ? 'border-[#334155] bg-[#0f172a]/50' : 'border-[#e2e8f0] bg-slate-50'
+                    }`}>
+                        <div>
+                            <p className={`text-sm font-bold ${head}`}>Buyurtma bo&apos;yicha umumiy chiqim</p>
+                            <p className={`mt-1 text-xs ${muted}`}>
+                                {lines.length} ta qator · {formatNumber(totals.packs)} pachka · {formatNumber(totals.pieces)} dona
+                            </p>
+                            <p className={`mt-1 text-xs font-semibold ${allOk ? okText : warnText}`}>
+                                {allOk
+                                    ? 'Barcha pachkalar skanerlandi — Ortildi ga o‘tkazish mumkin'
+                                    : `${pendingLines.length} ta qator hali tayyor emas`}
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={handleLoad}
+                            disabled={!allOk || isUpdatingStatus}
+                            title={!allOk ? 'Avval barcha pachkalarni skanerlang' : 'Ombordan chiqarib, holatni Ortildi qiladi'}
+                            className="inline-flex h-14 min-w-56 items-center justify-center gap-3 rounded-xl bg-emerald-500 px-7 text-base font-extrabold text-white shadow-lg shadow-emerald-500/20 transition hover:-translate-y-0.5 hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-none"
+                        >
+                            {isUpdatingStatus ? (
+                                <svg className="h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                                </svg>
+                            ) : (
+                                <LuArrowDownToLine size={21} />
+                            )}
+                            {isUpdatingStatus ? 'Ortilmoqda…' : 'Ortildi — ombordan chiqarish'}
+                        </button>
+                    </div>
+                )}
+                {!isLoadingOrder && lines.length > 0 && (
+                    <p className={`px-5 pb-4 text-xs ${muted}`}>
+                        <LuFactory size={11} className="inline -mt-0.5" /> Chiqib ketgan pachkalar tarixi: «Tarix» sahifasida pachka barcode‘ini skanerlang.
+                    </p>
                 )}
             </div>
-
         </div>
     );
 }

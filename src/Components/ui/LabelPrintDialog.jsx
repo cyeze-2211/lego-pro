@@ -7,15 +7,17 @@ import { useAppTheme } from '../../theme/tokens';
 import { Alert } from '../Other/UI/Alert/Alert';
 import FormControl from './FormControl';
 import {
-    QZ_DOWNLOAD_URL, getSavedPrinter, labelErrorMessage, listPrinters, printProductLabel, printStockLabel, setSavedPrinter,
+    LABEL_MAX_COPIES, QZ_DOWNLOAD_URL, getSavedPrinter, labelErrorMessage, listPrinters, looksLikeLabelPrinter, printProductLabel, printStockLabel, setSavedPrinter,
 } from '../../services/labelPrinter';
 
 /**
- * «Yorliq chop etish» oynasi: nusxalar soni (1–1000), printer va «Chop etish».
+ * «Yorliq chop etish» oynasi: har pachkaga nusxa (1–10), printer va «Chop etish».
  * Printer ro‘yxati QZ Tray dan; tanlov localStorage da (har kompyuter o‘zinikini eslaydi).
- * transactionId (kirim yozuvi) berilsa — shu yozuv yorlig‘i; bo‘lmasa productId bo‘yicha so‘nggi kirim yozuvi.
+ * transactionId (kirim yozuvi) berilsa — shu yozuv bilan kirgan va omborda turgan HAR BIR pachkaga yorliq;
+ * bo‘lmasa productId bo‘yicha omborda turgan pachkalarga (warehouseId berilsa — shu omborda).
+ * Yorliqda pachkaning o‘z barcode‘i chiqadi; nusxa — umumiy emas, har pachkaga.
  */
-export default function LabelPrintDialog({ open, onClose, transactionId, productId, productName, defaultCopies = 1, onPrinted }) {
+export default function LabelPrintDialog({ open, onClose, transactionId, productId, warehouseId, productName, defaultCopies = 2, onPrinted }) {
     const { isDark, cardBg, cardBorder, textColor, subtitleColor, accentColor } = useAppTheme();
     const modalBorder = isDark ? cardBorder : '#94A3B8';
     const [copies, setCopies] = useState(String(defaultCopies));
@@ -32,10 +34,7 @@ export default function LabelPrintDialog({ open, onClose, transactionId, product
             setPrinters(list);
             const saved = getSavedPrinter();
             if (saved && list.includes(saved)) setPrinter(saved);
-            else {
-                const x = list.find((p) => /xprinter/i.test(p));
-                setPrinter(x || '');
-            }
+            else setPrinter(list.find(looksLikeLabelPrinter) || '');
         } catch (error) {
             setPrinters([]);
             setQzError(labelErrorMessage(error));
@@ -51,18 +50,18 @@ export default function LabelPrintDialog({ open, onClose, transactionId, product
     }, [open, defaultCopies]);
 
     const copiesNum = Number(copies);
-    const copiesValid = Number.isInteger(copiesNum) && copiesNum >= 1 && copiesNum <= 1000;
+    const copiesValid = Number.isInteger(copiesNum) && copiesNum >= 1 && copiesNum <= LABEL_MAX_COPIES;
 
     const print = async (event) => {
         event.preventDefault();
         if (printing) return;
-        if (!copiesValid) return Alert('Nusxalar soni 1 dan 1000 gacha bo‘lsin', 'error');
+        if (!copiesValid) return Alert(`Nusxa 1 dan ${LABEL_MAX_COPIES} gacha bo‘lsin`, 'error');
         if (!printer) return Alert('Printerni tanlang', 'error');
         setPrinting(true);
         try {
             setSavedPrinter(printer);
             if (transactionId) await printStockLabel(transactionId, copiesNum, printer);
-            else await printProductLabel(productId, copiesNum, printer);
+            else await printProductLabel(productId, copiesNum, printer, warehouseId);
             Alert('Yorliq printerga yuborildi', 'success');
             onPrinted?.();
             onClose();
@@ -96,9 +95,11 @@ export default function LabelPrintDialog({ open, onClose, transactionId, product
                             <form id="label-print-form" onSubmit={print}>
                                 <VStack gap={4} align="stretch">
                                     <Field.Root required>
-                                        <Field.Label color={textColor}>Nusxalar soni</Field.Label>
-                                        <FormControl type="number" min={1} max={1000} step={1} value={copies} onChange={(e) => setCopies(e.target.value)} disabled={printing} autoFocus />
-                                        {!copiesValid && copies !== '' && <Field.HelperText color={isDark ? 'red.300' : 'red.600'}>1 dan 1000 gacha</Field.HelperText>}
+                                        <Field.Label color={textColor}>Har pachkaga nusxa</Field.Label>
+                                        <FormControl type="number" min={1} max={LABEL_MAX_COPIES} step={1} value={copies} onChange={(e) => setCopies(e.target.value)} disabled={printing} autoFocus />
+                                        <Field.HelperText color={copiesValid || copies === '' ? subtitleColor : (isDark ? 'red.300' : 'red.600')}>
+                                            {copiesValid || copies === '' ? 'Pachkaning ikki tomoniga yopishtirish uchun 2. Har yorliqda pachkaning o‘z barcode‘i.' : `1 dan ${LABEL_MAX_COPIES} gacha`}
+                                        </Field.HelperText>
                                     </Field.Root>
                                     <Field.Root required>
                                         <HStack justify="space-between" mb={1}>
@@ -145,6 +146,7 @@ LabelPrintDialog.propTypes = {
     onClose: PropTypes.func.isRequired,
     transactionId: PropTypes.string,
     productId: PropTypes.string,
+    warehouseId: PropTypes.string,
     productName: PropTypes.string,
     defaultCopies: PropTypes.number,
     onPrinted: PropTypes.func,

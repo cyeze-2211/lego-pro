@@ -4,16 +4,22 @@ import {
     LuPlus, LuSearch, LuTrash2, LuPackage, LuSend, LuCheck,
     LuX, LuBarcode, LuCircleAlert, LuCircleCheck, LuWarehouse, LuMinus,
     LuChevronDown, LuSlidersHorizontal, LuRotateCcw, LuBoxes,
-    LuArrowDownWideNarrow, LuArrowLeftRight,
+    LuArrowDownWideNarrow, LuArrowLeftRight, LuPackageOpen, LuPrinter,
 } from 'react-icons/lu';
 import { useAppTheme } from '../../../theme/tokens';
 import { toStockItem } from '../../ui/order-items';
 import { useGetWarehousesQuery } from '../../../store/services/warehouse.api';
 import { useGetProductStocksQuery } from '../../../store/services/productStock.api';
 import { useCreateStockTransactionMutation, useCreateStockTransferMutation } from '../../../store/services/productStock.api';
+import { PACK_STATUS_LABEL, useCreateProductPacksMutation } from '../../../store/services/productPack.api';
 import { useGetBrandsQuery } from '../../../store/services/brand.api';
 import { useLazyGetProductByBarcodeQuery } from '../../../store/services/product.api';
 import { formatNumber } from '../../ui/number-format';
+import usePackScanner, { beep } from '../../ui/usePackScanner';
+import PackLabelDialog from '../../ui/PackLabelDialog';
+import $api from '../../../store/api';
+
+const MAX_PACKS_PER_REQUEST = 500; // POST /product-packs: bir so‘rovda ko‘pi bilan 500 pachka
 
 const STOCK_PAGE_SIZE = 20;
 
@@ -41,6 +47,12 @@ function useDebouncedValue(value, delay = 350) {
 /**
  * action: 'IN' — kirim, 'OUT' — chiqim, 'TRANSFER' — bir ombordan boshqasiga ko‘chirish
  * (POST /product-stock-transfers: fromWarehouseId = tanlangan ombor, toWarehouseId = maqsad ombor).
+ *
+ * Pachka logikasi (backend):
+ *  - Qo‘lda KIRIM donaviy qoldiqqa kiradi (pachka barcode‘i yo‘q). Pachka deb kiritilsa ham donaga o‘giriladi.
+ *    Kirimdan keyin «Pachka yaratish» (POST /product-packs) — donaviy qoldiqdan barcode‘li pachkalar, yorliq chop etiladi.
+ *  - CHIQIM va KO‘CHIRISHda butun pachkalar yorlig‘idagi barcode bilan skanerlanadi (packBarcodes), donalar
+ *    quantity+unit bilan donaviy qoldiqdan olinadi; donaviy qoldiq yetmasa skanerlangan pachka ochiladi (openPackBarcodes).
  */
 export default function StockTransactionForm({ action }) {
     const { isDark } = useAppTheme();
@@ -57,13 +69,19 @@ export default function StockTransactionForm({ action }) {
     const [hasMore, setHasMore]         = useState(true);
     const [items, setItems]             = useState([]);
     const [toast, setToast]             = useState(null);
-    /* Skaner (pistolet): kirimda alohida maydon — har o‘qish = +1 pachka (yoki dona) */
+    /* Skaner (pistolet): kirimda mahsulot shtrix-kodi — har o‘qish = +1 pachka (yoki dona);
+     * chiqim/ko‘chirishda PACHKA barcode‘i — butun pachka yoki ochish uchun */
     const [scanValue, setScanValue]     = useState('');
-    const [scanUnit, setScanUnit]       = useState('PACK'); // PACK | PIECE
+    const [scanUnit, setScanUnit]       = useState('PACK'); // IN: PACK | PIECE; OUT/TRANSFER: PACK (butun) | OPEN (ochish)
     const [lastScan, setLastScan]       = useState(null);   // { ok, text }
     const [flashId, setFlashId]         = useState(null);   // yangi skanerlangan qator yonib ko‘rinadi
     const scanInputRef                  = useRef(null);
     const scanBufferRef                 = useRef({ text: '', at: 0 });
+    /* Kirimdan keyin pachka yaratish va yorliq */
+    const [makePacks, setMakePacks]     = useState(true);
+    const [creatingPacks, setCreatingPacks] = useState(false);
+    const [labelPacks, setLabelPacks]   = useState(null);   // yaratilgan pachkalar → yorliq oynasi
+    const [createPacks] = useCreateProductPacksMutation();
 
     const searchRef         = useRef(null);
     const searchInputRef    = useRef(null);
@@ -296,12 +314,16 @@ export default function StockTransactionForm({ action }) {
                 productBarcode:  stock.productBarcode,
                 productType:     stock.productType, // FINISHED | SEMI_FINISHED
                 available:       Number(stock.quantity) || 0, // manba ombordagi qoldiq (dona)
+                availablePacks:  Number(stock.packQuantity) || 0,  // barcode‘li pachkalar
+                availablePieces: Number(stock.pieceQuantity) || 0, // donaviy qoldiq
                 piecesPerPack:   ppp || null,
-                packs:           ppp > 0 ? 1 : 0,
-                pieces:          ppp > 0 ? 0 : 1,
+                packs:           isIn && ppp > 0 ? 1 : 0,
+                pieces:          isIn && !(ppp > 0) ? 1 : 0,
+                packBarcodes:    [], // OUT/TRANSFER: skanerlangan butun pachkalar [{ id, barcode, pieces }]
+                openPacks:       [], // OUT/TRANSFER: ochiladigan pachkalar
             }];
         });
-    }, []);
+    }, [isIn]);
 
     const removeItem = (id) => setItems((p) => p.filter((i) => i.productId !== id));
 
@@ -315,7 +337,14 @@ export default function StockTransactionForm({ action }) {
     const stepField = (id, field, delta) => {
         setItems((p) => p.map((i) => (i.productId === id ? { ...i, [field]: Math.max(0, (i[field] || 0) + delta) } : i)));
     };
-    const totalPieces = (i) => (i.packs || 0) * (i.piecesPerPack || 0) + (i.pieces || 0);
+    const packPieces = (list) => (list || []).reduce((s, p) => s + (Number(p.pieces) || 0), 0);
+    const totalPieces = (i) => (isIn
+        ? (i.packs || 0) * (i.piecesPerPack || 0) + (i.pieces || 0)
+        : packPieces(i.packBarcodes) + (i.pieces || 0));
+    const openPieces = (i) => packPieces(i.openPacks);
+    // Chiqim/ko‘chirishda dona donaviy qoldiqdan + ochilgan pachkalardan olinadi
+    const piecesAvail = (i) => (i.availablePieces || 0) + openPieces(i);
+    const removePack = (productId, kind, barcode) => setItems((p) => p.map((i) => (i.productId === productId ? { ...i, [kind]: (i[kind] || []).filter((x) => x.barcode !== barcode) } : i)));
 
     const handleWarehouseChange = (value) => {
         setWarehouseId(value);
@@ -418,9 +447,62 @@ export default function StockTransactionForm({ action }) {
         return () => window.removeEventListener('keydown', onKey);
     }, [isIn, handleScan]);
 
+    /* ── Chiqim/ko‘chirish: PACHKA barcode‘i → butun pachka yoki ochish ── */
+    const flash = (productId) => { setFlashId(productId); setTimeout(() => setFlashId((cur) => (cur === productId ? null : cur)), 1200); };
+    const handlePack = useCallback(async (pack) => {
+        if (!warehouseId) { setLastScan({ ok: false, text: 'Avval omborni tanlang' }); return; }
+        if (pack.status !== 'IN_STOCK') { setLastScan({ ok: false, text: `Pachka ${pack.barcode} omborda emas — ${PACK_STATUS_LABEL[pack.status] || pack.status}` }); return; }
+        if (pack.warehouseId !== warehouseId) {
+            const wh = warehouses.find((w) => w.id === pack.warehouseId)?.name || 'boshqa ombor';
+            setLastScan({ ok: false, text: `Pachka ${pack.barcode} ${wh}da turibdi — tanlangan omborda emas` });
+            return;
+        }
+        const dup = items.some((i) => [...(i.packBarcodes || []), ...(i.openPacks || [])].some((p) => p.barcode === pack.barcode));
+        if (dup) { setLastScan({ ok: false, text: `Pachka ${pack.barcode} allaqachon ro‘yxatda` }); return; }
+        const kind = scanUnit === 'OPEN' ? 'openPacks' : 'packBarcodes';
+        let existing = items.find((i) => i.productId === pack.productId);
+        if (!existing) {
+            // Ro‘yxatda yo‘q mahsulot — qoldig‘ini olib qo‘shamiz
+            let stock = allStocks.find((st) => st.productId === pack.productId);
+            if (!stock) {
+                try {
+                    const { data } = await $api.get('/product-stocks', { params: { productId: pack.productId, warehouseId, page: 0, size: 1 } });
+                    stock = data?.data?.[0];
+                } catch { /* qoldiqsiz ham qo‘shamiz */ }
+            }
+            if (onlySemiFinished && stock && stock.productType !== 'SEMI_FINISHED') {
+                setLastScan({ ok: false, text: `«${pack.productName}» tayyor mahsulot — xom ashyo omboriga o‘tmaydi` });
+                return;
+            }
+            existing = {
+                productId: pack.productId, productName: pack.productName, productBarcode: stock?.productBarcode || '',
+                productType: stock?.productType, available: Number(stock?.quantity) || 0,
+                availablePacks: Number(stock?.packQuantity) || 0, availablePieces: Number(stock?.pieceQuantity) || 0,
+                piecesPerPack: Number(stock?.productPiecesPerPack) || Number(pack.pieces) || null,
+                packs: 0, pieces: 0, packBarcodes: [], openPacks: [],
+            };
+            setItems((prev) => (prev.some((i) => i.productId === pack.productId) ? prev : [...prev, existing]));
+        }
+        setItems((prev) => prev.map((i) => (i.productId === pack.productId ? { ...i, [kind]: [...(i[kind] || []), { id: pack.id, barcode: pack.barcode, pieces: Number(pack.pieces) || 0, machineName: pack.machineName }] } : i)));
+        beep(true); flash(pack.productId);
+        const count = (existing[kind]?.length || 0) + 1;
+        setLastScan({ ok: true, text: kind === 'openPacks'
+            ? `${pack.productName} — pachka ochiladi (${pack.pieces} dona donaviy qoldiqqa)`
+            : `${pack.productName} — ${count} pachka (${pack.pieces} dona)` });
+    }, [warehouseId, warehouses, items, scanUnit, allStocks, onlySemiFinished]);
+
+    const packScanner = usePackScanner({
+        enabled: !isIn && Boolean(warehouseId),
+        onPack: handlePack,
+        onError: (text) => setLastScan({ ok: false, text }),
+    });
+
     // Ombor tanlangach skaner maydoniga fokus — pistolet darhol ishlaydi
     useEffect(() => {
-        if (isIn && warehouseId && !open && scanInputRef.current) scanInputRef.current.focus();
+        if (!warehouseId || open) return;
+        if (isIn && scanInputRef.current) scanInputRef.current.focus();
+        if (!isIn && packScanner.inputRef.current) packScanner.inputRef.current.focus();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isIn, warehouseId, open]);
 
     const handleSubmit = async (e) => {
@@ -430,33 +512,79 @@ export default function StockTransactionForm({ action }) {
             showToast('error', 'Qaysi omborga ko‘chirishni tanlang');
             return;
         }
-        const invalid = items.find((i) => totalPieces(i) <= 0 || (i.packs > 0 && !(i.piecesPerPack > 0)));
-        if (invalid) {
-            showToast('error', `«${invalid.productName}» uchun pachka yoki dona miqdorini kiriting`);
-            return;
-        }
-        if (isTransfer) {
-            const short = items.find((i) => totalPieces(i) > (i.available || 0));
+        if (isIn) {
+            const invalid = items.find((i) => totalPieces(i) <= 0 || (i.packs > 0 && !(i.piecesPerPack > 0)));
+            if (invalid) {
+                showToast('error', `«${invalid.productName}» uchun pachka yoki dona miqdorini kiriting`);
+                return;
+            }
+        } else {
+            const empty = items.find((i) => (i.packBarcodes || []).length === 0 && (i.pieces || 0) <= 0);
+            if (empty) {
+                showToast('error', `«${empty.productName}»: pachka skanerlang yoki dona kiriting`);
+                return;
+            }
+            const useless = items.find((i) => (i.openPacks || []).length > 0 && (i.pieces || 0) <= 0);
+            if (useless) {
+                showToast('error', `«${useless.productName}»: pachka ochish uchun dona miqdorini kiriting`);
+                return;
+            }
+            const short = items.find((i) => (i.pieces || 0) > piecesAvail(i));
             if (short) {
-                showToast('error', `«${short.productName}»: omborda ${short.available} dona bor, ${totalPieces(short)} dona so‘raldi`);
+                const need = Math.ceil(((short.pieces || 0) - piecesAvail(short)) / (short.piecesPerPack || 1));
+                showToast('error', `«${short.productName}»: donaviy qoldiq ${piecesAvail(short)} dona — ${short.pieces} dona uchun yana ${need} pachka skanerlab oching («Pachkani ochish» rejimi)`);
                 return;
             }
         }
         try {
-            const payloadItems = items.map((i) => toStockItem(i.productId, i.packs, i.pieces, i.piecesPerPack));
+            const payloadItems = items.map((i) => (isIn
+                ? toStockItem(i.productId, i.packs, i.pieces, i.piecesPerPack)
+                : {
+                    productId: i.productId,
+                    ...((i.packBarcodes || []).length ? { packBarcodes: i.packBarcodes.map((p) => p.barcode) } : {}),
+                    ...((i.openPacks || []).length ? { openPackBarcodes: i.openPacks.map((p) => p.barcode) } : {}),
+                    ...((i.pieces || 0) > 0 ? { quantity: i.pieces, unit: 'PIECE' } : {}),
+                }));
             if (isTransfer) {
                 await createTransfer({ fromWarehouseId: warehouseId, toWarehouseId, items: payloadItems }).unwrap();
             } else {
                 await createTx({ warehouseId, action, items: payloadItems }).unwrap();
             }
             showToast('success', `${actionLabel} muvaffaqiyatli amalga oshirildi!`);
+            const packLines = isIn && makePacks ? items.filter((i) => (i.packs || 0) > 0 && i.piecesPerPack > 0) : [];
             setItems([]);
+            setLastScan(null);
+            if (packLines.length) await createPacksFor(packLines);
         } catch (err) {
             showToast('error', err?.data?.message || `${actionLabel} amalga oshmadi.`);
         }
     };
 
-    const totalPacks = items.reduce((sum, i) => sum + (i.packs || 0), 0);
+    /* Kirimdan keyin: pachka deb kiritilgan mahsulotga barcode‘li pachkalar yaratiladi (POST /product-packs) va yorliq oynasi ochiladi */
+    const createPacksFor = async (lines) => {
+        setCreatingPacks(true);
+        const created = [];
+        const errors = [];
+        for (const line of lines) {
+            let left = line.packs;
+            while (left > 0) {
+                const packQuantity = Math.min(MAX_PACKS_PER_REQUEST, left);
+                try {
+                    const packs = await createPacks({ productId: line.productId, warehouseId, packQuantity }).unwrap();
+                    created.push(...(packs || []).map((p) => ({ ...p, productName: p.productName || line.productName })));
+                } catch (err) {
+                    errors.push(`${line.productName}: ${err?.data?.message || 'pachka yaratilmadi'}`);
+                    break;
+                }
+                left -= packQuantity;
+            }
+        }
+        setCreatingPacks(false);
+        if (errors.length) showToast('error', errors.join('; '));
+        if (created.length) setLabelPacks(created);
+    };
+
+    const totalPacks = items.reduce((sum, i) => sum + (isIn ? (i.packs || 0) : (i.packBarcodes || []).length), 0);
     const totalLoose = items.reduce((sum, i) => sum + (i.pieces || 0), 0);
     const totalAll = items.reduce((sum, i) => sum + totalPieces(i), 0);
     const formId = `stock-tx-${action}`;
@@ -494,7 +622,7 @@ export default function StockTransactionForm({ action }) {
                             <p className={`text-sm mt-0.5 ${muted}`}>
                                 {isTransfer
                                     ? 'Qaysi ombordan, qaysi omborga va qancha mahsulot ko‘chirilishini tanlang'
-                                    : isIn ? 'Omborga qabul qilingan mahsulotlarni kiriting' : 'Ombordan chiqarilgan mahsulotlarni kiriting'}
+                                    : isIn ? 'Omborga qabul qilingan mahsulotlarni kiriting — pachkalarga barcode va yorliq beriladi' : 'Butun pachkalarni skanerlang, donani donaviy qoldiqdan kiriting'}
                             </p>
                         </div>
                     </div>
@@ -505,10 +633,10 @@ export default function StockTransactionForm({ action }) {
                             </span>
                         )}
                         <button type="submit" form={formId}
-                            disabled={isSending || items.length === 0 || !warehouseId || (isTransfer && !toWarehouseId)}
+                            disabled={isSending || creatingPacks || items.length === 0 || !warehouseId || (isTransfer && !toWarehouseId)}
                             className={`flex h-12 items-center gap-2 rounded-xl px-7 text-sm font-bold shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-xl hover:-translate-y-px ${submitBtn}`}>
-                            {isSending ? (
-                                <>{spinner} Saqlanmoqda...</>
+                            {isSending || creatingPacks ? (
+                                <>{spinner} {creatingPacks ? 'Pachkalar yaratilmoqda...' : 'Saqlanmoqda...'}</>
                             ) : (
                                 <><LuSend size={15} />{isTransfer ? 'Ko‘chirishni tasdiqlash' : isIn ? 'Kirimni tasdiqlash' : 'Chiqimni tasdiqlash'}</>
                             )}
@@ -875,28 +1003,37 @@ export default function StockTransactionForm({ action }) {
                         </div>
                     </div>
 
-                    {/* ── Skaner (pistolet) — faqat kirimda ── */}
-                    {isIn && (
+                    {/* ── Skaner (pistolet): kirimda mahsulot shtrix-kodi, chiqim/ko‘chirishda pachka barcode‘i ── */}
+                    {(
                         <div className={`border-t px-5 py-4 ${line} ${isDark ? 'bg-[#0f172a]/40' : 'bg-[#F8FAFC]'}`}>
-                            <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_170px]">
+                            <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_220px]">
                                 <div>
                                     <label className={`mb-1.5 flex items-center gap-2 text-xs font-semibold ${muted}`}>
-                                        <span className={stepCx}><LuBarcode size={11} /></span> Skaner (pistolet) — shtrix-kodni o‘qing
+                                        <span className={stepCx}><LuBarcode size={11} /></span> {isIn ? 'Skaner (pistolet) — mahsulot shtrix-kodini o‘qing' : 'Skaner (pistolet) — pachka yorlig‘idagi barcode‘ni o‘qing'}
                                     </label>
                                     <div className="relative">
                                         <LuBarcode className={`pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 ${warehouseId ? 'text-amber-400' : muted}`} />
-                                        <input
-                                            ref={scanInputRef}
-                                            type="text"
-                                            inputMode="numeric"
-                                            autoComplete="off"
-                                            value={scanValue}
-                                            disabled={!warehouseId}
-                                            onChange={(e) => setScanValue(e.target.value)}
-                                            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleScan(scanValue); } }}
-                                            placeholder={warehouseId ? 'Pistolet bilan o‘qing yoki shtrix-kodni terib Enter bosing' : 'Avval ombor tanlang'}
-                                            className={`${inputCx} h-14 pl-12 pr-4 text-lg font-mono tracking-wider disabled:opacity-50`}
-                                        />
+                                        {isIn ? (
+                                            <input
+                                                ref={scanInputRef}
+                                                type="text"
+                                                inputMode="numeric"
+                                                autoComplete="off"
+                                                value={scanValue}
+                                                disabled={!warehouseId}
+                                                onChange={(e) => setScanValue(e.target.value)}
+                                                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleScan(scanValue); } }}
+                                                placeholder={warehouseId ? 'Pistolet bilan o‘qing yoki shtrix-kodni terib Enter bosing' : 'Avval ombor tanlang'}
+                                                className={`${inputCx} h-14 pl-12 pr-4 text-lg font-mono tracking-wider disabled:opacity-50`}
+                                            />
+                                        ) : (
+                                            <input
+                                                {...packScanner.inputProps}
+                                                disabled={!warehouseId || packScanner.busy}
+                                                placeholder={warehouseId ? 'Pachka barcode‘ini o‘qing yoki terib Enter bosing' : 'Avval ombor tanlang'}
+                                                className={`${inputCx} h-14 pl-12 pr-4 text-lg font-mono tracking-wider disabled:opacity-50`}
+                                            />
+                                        )}
                                     </div>
                                     {lastScan && (
                                         <p className={`mt-1.5 flex items-center gap-1.5 text-sm font-semibold ${lastScan.ok ? (isDark ? 'text-green-400' : 'text-green-700') : (isDark ? 'text-red-400' : 'text-red-600')}`}>
@@ -905,7 +1042,11 @@ export default function StockTransactionForm({ action }) {
                                         </p>
                                     )}
                                     {!lastScan && (
-                                        <p className={`mt-1.5 text-xs ${muted}`}>Har bir o‘qish ro‘yxatga +1 qo‘shadi. Pistolet fokus boshqa joyda bo‘lganda ham ishlaydi.</p>
+                                        <p className={`mt-1.5 text-xs ${muted}`}>
+                                            {isIn
+                                                ? 'Har bir o‘qish ro‘yxatga +1 qo‘shadi. Pistolet fokus boshqa joyda bo‘lganda ham ishlaydi.'
+                                                : 'Har pachka bir marta. Dona donaviy qoldiqdan olinadi — yetmasa «Pachkani ochish» rejimida pachka skanerlang.'}
+                                        </p>
                                     )}
                                 </div>
                                 <div>
@@ -913,11 +1054,29 @@ export default function StockTransactionForm({ action }) {
                                         <LuBoxes size={12} /> 1 o‘qish =
                                     </label>
                                     <select value={scanUnit} onChange={(e) => setScanUnit(e.target.value)} className={`${inputCx} h-14 px-3`}>
-                                        <option value="PACK">1 pachka</option>
-                                        <option value="PIECE">1 dona</option>
+                                        {isIn ? (
+                                            <>
+                                                <option value="PACK">1 pachka</option>
+                                                <option value="PIECE">1 dona</option>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <option value="PACK">Butun pachka</option>
+                                                <option value="OPEN">Pachkani ochish (dona uchun)</option>
+                                            </>
+                                        )}
                                     </select>
                                 </div>
                             </div>
+                            {isIn && (
+                                <label className={`mt-3 flex cursor-pointer items-start gap-2.5 text-xs ${muted}`}>
+                                    <input type="checkbox" checked={makePacks} onChange={(e) => setMakePacks(e.target.checked)} className="mt-0.5 h-4 w-4 accent-amber-400" />
+                                    <span>
+                                        <span className={`inline-flex items-center gap-1 font-semibold ${head}`}><LuPrinter size={12} /> Kirimdan keyin pachkalarga barcode berish va yorliq chop etish.</span>{' '}
+                                        Qo‘lda kirim donaviy qoldiqqa kiradi; pachka deb kiritilgan miqdor uchun barcode‘li pachkalar yaratiladi (POST /product-packs) — ular skaner bilan chiqariladi.
+                                    </span>
+                                </label>
+                            )}
                         </div>
                     )}
 
@@ -950,8 +1109,8 @@ export default function StockTransactionForm({ action }) {
                                 <thead>
                                     <tr className={`text-left text-xs font-semibold uppercase tracking-wide ${muted} ${isDark ? 'bg-[#0f172a]/30' : 'bg-[#f8fafc]/80'}`}>
                                         <th className="px-5 py-3">Mahsulot</th>
-                                        <th className="px-5 py-3 w-48">Barcode</th>
-                                        <th className="px-5 py-3 w-56">Pachka</th>
+                                        <th className="px-5 py-3 w-48">{isIn ? 'Barcode' : 'Qoldiq'}</th>
+                                        <th className={`px-5 py-3 ${isIn ? 'w-56' : 'min-w-[260px]'}`}>{isIn ? 'Pachka' : 'Pachkalar (skanerlangan)'}</th>
                                         <th className="px-5 py-3 w-56">Dona</th>
                                         <th className="px-5 py-3 w-36 text-right">Jami</th>
                                         <th className="px-5 py-3 w-16"></th>
@@ -971,12 +1130,49 @@ export default function StockTransactionForm({ action }) {
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td className={`px-5 py-3 font-mono text-xs ${muted}`}>
-                                                <span className="flex items-center gap-1.5"><LuBarcode size={13} />{item.productBarcode}</span>
+                                            <td className={`px-5 py-3 text-xs ${muted}`}>
+                                                {isIn ? (
+                                                    <span className="flex items-center gap-1.5 font-mono"><LuBarcode size={13} />{item.productBarcode}</span>
+                                                ) : (
+                                                    <div className="flex flex-col">
+                                                        <span className={`font-bold ${head}`}>{formatNumber(item.availablePacks || 0)} pachka</span>
+                                                        <span className={(item.pieces || 0) > piecesAvail(item) ? 'font-semibold text-red-500' : ''}>{formatNumber(item.availablePieces || 0)} dona (donaviy)</span>
+                                                        {openPieces(item) > 0 && <span className="text-orange-500">+ {openPieces(item)} dona ochiladi</span>}
+                                                    </div>
+                                                )}
                                             </td>
 
                                             {/* Pachka */}
                                             <td className="px-5 py-3" title={!item.piecesPerPack ? 'Bu mahsulotda pachka ma\'lumoti yo\'q' : `1 pachka = ${item.piecesPerPack} dona`}>
+                                                {!isIn ? (
+                                                    <div className="flex flex-col gap-1.5">
+                                                        {(item.packBarcodes || []).length === 0 && (item.openPacks || []).length === 0 && (
+                                                            <span className={`text-xs ${muted}`}>Pachka skanerlanmagan</span>
+                                                        )}
+                                                        {(item.packBarcodes || []).length > 0 && (
+                                                            <div className="flex flex-wrap items-center gap-1">
+                                                                <span className={`text-[10px] font-bold uppercase ${muted}`}>Butun ({item.packBarcodes.length}):</span>
+                                                                {item.packBarcodes.map((p) => (
+                                                                    <span key={p.barcode} title={`${p.pieces} dona${p.machineName ? ` · ${p.machineName}` : ''}`} className={`inline-flex items-center gap-1 rounded-lg border px-2 py-0.5 font-mono text-[11px] font-bold ${isDark ? 'border-violet-400/30 bg-violet-500/10 text-violet-200' : 'border-violet-300 bg-violet-50 text-violet-800'}`}>
+                                                                        <LuPackage size={11} />{p.barcode}
+                                                                        <button type="button" onClick={() => removePack(item.productId, 'packBarcodes', p.barcode)} aria-label="Olib tashlash" className="rounded hover:text-[#f43f5e]"><LuX size={11} /></button>
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                        {(item.openPacks || []).length > 0 && (
+                                                            <div className="flex flex-wrap items-center gap-1">
+                                                                <span className={`text-[10px] font-bold uppercase ${muted}`}>Ochiladi:</span>
+                                                                {item.openPacks.map((p) => (
+                                                                    <span key={p.barcode} title={`${p.pieces} dona donaviy qoldiqqa o‘tadi`} className={`inline-flex items-center gap-1 rounded-lg border px-2 py-0.5 font-mono text-[11px] font-bold ${isDark ? 'border-orange-400/30 bg-orange-500/10 text-orange-200' : 'border-orange-300 bg-orange-50 text-orange-800'}`}>
+                                                                        <LuPackageOpen size={11} />{p.barcode}
+                                                                        <button type="button" onClick={() => removePack(item.productId, 'openPacks', p.barcode)} aria-label="Olib tashlash" className="rounded hover:text-[#f43f5e]"><LuX size={11} /></button>
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ) : (
                                                 <div className={`inline-flex items-center rounded-xl border overflow-hidden ${isDark ? 'border-[#334155]' : 'border-[#e2e8f0]'} ${!item.piecesPerPack ? 'opacity-40' : ''}`}>
                                                     <button type="button" onClick={() => stepField(item.productId, 'packs', -1)} disabled={!item.piecesPerPack} aria-label="Kamaytirish"
                                                         className={`flex h-11 w-11 items-center justify-center transition-colors disabled:cursor-not-allowed ${isDark ? 'bg-[#1e293b] hover:bg-[#334155] text-[#cbd5e1]' : 'bg-[#f8fafc] hover:bg-[#f1f5f9] text-[#475569]'}`}>
@@ -991,7 +1187,7 @@ export default function StockTransactionForm({ action }) {
                                                         <LuPlus size={15} />
                                                     </button>
                                                 </div>
-                                          
+                                                )}
                                             </td>
 
                                             {/* Dona */}
@@ -1015,8 +1211,10 @@ export default function StockTransactionForm({ action }) {
                                             {/* Jami */}
                                             <td className="px-5 py-3 text-right">
                                                 <p className={`text-base font-extrabold tabular-nums ${totalPieces(item) > 0 ? head : 'text-[#f43f5e]'}`}>{totalPieces(item)} <span className={`text-xs font-medium ${muted}`}>dona</span></p>
-                                                {(item.packs > 0 || item.pieces > 0) && (
+                                                {isIn ? (item.packs > 0 || item.pieces > 0) && (
                                                     <p className={`text-[11px] ${muted}`}>{item.packs > 0 ? `${item.packs} pachka` : ''}{item.packs > 0 && item.pieces > 0 ? ' + ' : ''}{item.pieces > 0 ? `${item.pieces} dona` : ''}</p>
+                                                ) : ((item.packBarcodes || []).length > 0 || item.pieces > 0) && (
+                                                    <p className={`text-[11px] ${muted}`}>{item.packBarcodes.length > 0 ? `${item.packBarcodes.length} pachka` : ''}{item.packBarcodes.length > 0 && item.pieces > 0 ? ' + ' : ''}{item.pieces > 0 ? `${item.pieces} dona` : ''}</p>
                                                 )}
                                             </td>
 
@@ -1034,6 +1232,11 @@ export default function StockTransactionForm({ action }) {
                     )}
                 </div>
             </form>
+
+            {/* Yaratilgan pachkalarga yorliq */}
+            {labelPacks && (
+                <PackLabelDialog open onClose={() => setLabelPacks(null)} packs={labelPacks} productName={[...new Set(labelPacks.map((p) => p.productName).filter(Boolean))].join(', ')} defaultCopies={2} />
+            )}
 
             {/* Toast */}
             {toast && (

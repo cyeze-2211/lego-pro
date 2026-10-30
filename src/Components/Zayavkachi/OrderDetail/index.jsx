@@ -14,7 +14,6 @@ import {
     useGetSalesOrderByIdQuery,
     useUpdateSalesOrderStatusMutation,
     useRejectSalesOrderMutation,
-    useLoadSalesOrderMutation,
     useUpdateSalesOrderPricesMutation,
 } from '../../../store/services/salesOrder.api';
 import { useGetProductStocksQuery } from '../../../store/services/productStock.api';
@@ -41,8 +40,8 @@ function OrderStatusControl({ order, isDark }) {
     const [action, setAction] = useState(null);
     const role = useAppSelector((state) => state.auth.role);
     const [updateStatus] = useUpdateSalesOrderStatusMutation();
+    const navigate = useNavigate();
     const [rejectOrder] = useRejectSalesOrderMutation();
-    const [loadOrder] = useLoadSalesOrderMutation();
     const [updatePrices] = useUpdateSalesOrderPricesMutation();
 
     const style = statusStyle(order.status, isDark);
@@ -65,6 +64,11 @@ function OrderStatusControl({ order, isDark }) {
             Alert('Buyurtmani «Ortildi» holatiga faqat omborchi o‘tkaza oladi', 'error');
             return false;
         }
+        if (nextStatus === 'LOADED') {
+            // Yuklash pachka barcode‘larini skanerlash bilan — omborchi sahifasida (POST /load tanasiz 400 qaytaradi)
+            navigate(`/staff/orders/${order.id}`);
+            return false;
+        }
         setAction(nextStatus);
         try {
             if (nextStatus === 'CONFIRMED') {
@@ -74,9 +78,7 @@ function OrderStatusControl({ order, isDark }) {
                 }));
                 await updatePrices({ id: order.id, data: { items: priceItems } }).unwrap();
             }
-            if (nextStatus === 'LOADED') {
-                await loadOrder(order.id).unwrap();
-            } else if (nextStatus === 'REJECTED') {
+            if (nextStatus === 'REJECTED') {
                 await rejectOrder({ id: order.id }).unwrap();
             } else {
                 await updateStatus({ id: order.id, status: nextStatus }).unwrap();

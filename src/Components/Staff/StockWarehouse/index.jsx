@@ -5,11 +5,14 @@ import {
     LuFilter, LuTag, LuRuler, LuTriangleAlert,
     LuCircleX, LuCircleCheck, LuRotateCcw, LuLayers,
     LuChevronDown, LuChevronUp, LuHash,
-    LuArrowUp, LuArrowDown, LuArrowUpDown,
+    LuArrowUp, LuArrowDown, LuArrowUpDown, LuPrinter,
 } from 'react-icons/lu';
+import PropTypes from 'prop-types';
 import { useAppTheme } from '../../../theme/tokens';
 import { useGetProductStocksQuery } from '../../../store/services/productStock.api';
 import { useGetWarehousesQuery } from '../../../store/services/warehouse.api';
+import LabelPrintButton from '../../ui/LabelPrintButton';
+import CreatePacksDialog from '../__components/CreatePacksDialog';
 
 const PAGE_SIZE = 20;
 
@@ -27,6 +30,7 @@ export default function StaffStockWarehouse() {
     const [filtersOpen, setFiltersOpen]         = useState(true);
     const [sortKey, setSortKey]                 = useState('productName');
     const [sortDir, setSortDir]                 = useState('asc');
+    const [packTarget, setPackTarget]           = useState(null); // donaviy qoldiqdan pachka yaratish oynasi
 
     const isFetchingNextRef = useRef(false);
     const lastPageRef = useRef(-1); // qaysi sahifa oxirgi marta kelgani — o‘sha sahifa qayta kelsa (kesh yangilandi) ro‘yxat boshidan
@@ -168,7 +172,7 @@ export default function StaffStockWarehouse() {
                 case 'brand':
                     return (item.brand?.name || '').toLowerCase();
                 case 'piecesPerPack':
-                    return Number(item.productPiecesPerPack) || 0;
+                    return Number(item.packQuantity) || 0;
                 case 'quantity':
                     return Number(item.quantity) || 0;
                 default:
@@ -308,7 +312,7 @@ export default function StaffStockWarehouse() {
                         <div>
                             <h1 className={`text-xl font-bold tracking-tight ${head}`}>Joriy qoldiqlar</h1>
                             <p className={`text-xs mt-0.5 ${muted}`}>
-                                Omborlardagi mahsulot qoldiqlarini kuzatish
+                                Barcode‘li pachkalar va donaviy qoldiq — donaviy qoldiqdan «Pachka yaratish» bilan yorliqli pachka qilinadi
                             </p>
                         </div>
                     </div>
@@ -607,15 +611,16 @@ export default function StaffStockWarehouse() {
                     <>
                         {/* Desktop */}
                         <div className="hidden md:block overflow-x-auto">
-                            <table className="w-full text-sm border-collapse" style={{ minWidth: 1020 }}>
+                            <table className="w-full text-sm border-collapse" style={{ minWidth: 1180 }}>
                                 <thead>
                                     <tr className={isDark ? 'bg-[#0f172a]/40' : 'bg-[#f8fafc]/90'}>
                                         <th className={`px-5 py-3 w-14 text-center text-xs font-semibold uppercase tracking-wide ${muted} border-b ${cellBorder}`}>#</th>
                                         <SortableHeader label="Mahsulot" sortField="productName"    className={`min-w-[320px] ${cellBorder}`} />
                                         <SortableHeader label="Artikul"  sortField="productArticle" className={`min-w-[170px] ${cellBorder}`} />
                                         <SortableHeader label="Brend"    sortField="brand"          className={`min-w-[150px] ${cellBorder}`} />
-                                        <SortableHeader label="Pachka"   sortField="piecesPerPack"  className={`text-center w-[180px] ${cellBorder}`} align="center" />
-                                        <SortableHeader label="Qoldiq"   sortField="quantity"       className="text-right w-[200px]" align="right" />
+                                        <SortableHeader label="Pachka / dona" sortField="piecesPerPack" className={`text-center w-[220px] ${cellBorder}`} align="center" />
+                                        <SortableHeader label="Qoldiq"   sortField="quantity"       className={`text-right w-[180px] ${cellBorder}`} align="right" />
+                                        <th className={`px-5 py-3 border-b w-[150px] text-center text-xs font-semibold uppercase tracking-wide ${muted}`}>Amallar</th>
                                     </tr>
                                 </thead>
                                 <tbody className={`divide-y ${divider}`}>
@@ -699,21 +704,21 @@ export default function StaffStockWarehouse() {
                                                     )}
                                                 </td>
 
-                                                {/* Pachka: faqat nechta pachka bor */}
+                                                {/* Pachka (barcode‘li) + donaviy qoldiq */}
                                                 <td className={`px-5 py-3.5 text-center ${cellBorder}`}>
-                                                    <QadoqCell
-                                                        qty={qty}
-                                                        piecesPerPack={s.productPiecesPerPack}
-                                                        isDark={isDark}
-                                                    />
+                                                    <QadoqCell stock={s} isDark={isDark} />
                                                 </td>
 
-                                                <td className="px-5 py-3.5 text-right">
+                                                <td className={`px-5 py-3.5 text-right ${cellBorder}`}>
                                                     <QtyBadge
                                                         qty={qty}
                                                         minimumLine={min}
                                                         isDark={isDark}
                                                     />
+                                                </td>
+
+                                                <td className="px-5 py-3.5">
+                                                    <RowActions stock={s} isDark={isDark} onCreatePacks={() => setPackTarget(s)} />
                                                 </td>
                                             </tr>
                                         );
@@ -809,19 +814,8 @@ export default function StaffStockWarehouse() {
                                                     )}
                                                 </div>
                                                 {/* Pachka info */}
-                                                {s.productPiecesPerPack > 0 && (
-                                                    <p className={`text-xs mt-1 font-semibold ${
-                                                        qty > 0
-                                                            ? (isDark ? 'text-emerald-300' : 'text-emerald-700')
-                                                            : (isDark ? 'text-rose-300' : 'text-rose-600')
-                                                    }`}>
-                                                        {qty > 0
-                                                            ? `${Math.floor(qty / s.productPiecesPerPack)} pachka${
-                                                                  qty % s.productPiecesPerPack > 0 ? ` + ${qty % s.productPiecesPerPack} dona` : ''
-                                                              }`
-                                                            : '0 pachka'}
-                                                    </p>
-                                                )}
+                                                <div className="mt-1"><QadoqCell stock={s} isDark={isDark} align="left" /></div>
+                                                <div className="mt-2"><RowActions stock={s} isDark={isDark} onCreatePacks={() => setPackTarget(s)} /></div>
                                                 {min > 0 && (
                                                     <p className={`text-xs mt-0.5 font-semibold ${
                                                         isLow ? (isDark ? 'text-amber-300' : 'text-amber-700') : muted
@@ -875,9 +869,41 @@ export default function StaffStockWarehouse() {
                     )
                 )}
             </div>
+
+            {packTarget && (
+                <CreatePacksDialog open onClose={() => setPackTarget(null)} stock={packTarget} />
+            )}
         </div>
     );
 }
+
+/* ── Qator amallari: pachka yaratish (donaviy qoldiqdan) va yorliqlar ── */
+function RowActions({ stock, isDark, onCreatePacks }) {
+    const ppp = Number(stock.productPiecesPerPack) || 0;
+    const canMake = ppp > 0 && (Number(stock.pieceQuantity) || 0) >= ppp;
+    const hasPacks = (Number(stock.packQuantity) || 0) > 0;
+    return (
+        <div className="flex items-center justify-center gap-1.5">
+            <button
+                type="button"
+                onClick={onCreatePacks}
+                disabled={!canMake}
+                title={canMake ? `Donaviy qoldiqdan pachka yaratish (ko‘pi bilan ${Math.floor((Number(stock.pieceQuantity) || 0) / ppp)})` : ppp > 0 ? 'Donaviy qoldiq bitta pachkaga yetmaydi' : 'Pachka hajmi belgilanmagan'}
+                className={`inline-flex h-8 items-center gap-1 rounded-lg border px-2.5 text-[11px] font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-35 ${
+                    isDark ? 'border-amber-400/30 bg-amber-400/10 text-amber-200 hover:bg-amber-400/20' : 'border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100'
+                }`}
+            >
+                <LuBoxes size={12} /> Pachka
+            </button>
+            {hasPacks ? (
+                <LabelPrintButton productId={stock.productId} warehouseId={stock.warehouseId} productName={stock.productName} />
+            ) : (
+                <span className={`flex h-8 w-8 items-center justify-center opacity-30 ${isDark ? 'text-slate-400' : 'text-slate-500'}`} title="Yorliqli pachka yo‘q"><LuPrinter size={15} /></span>
+            )}
+        </div>
+    );
+}
+RowActions.propTypes = { stock: PropTypes.object.isRequired, isDark: PropTypes.bool, onCreatePacks: PropTypes.func.isRequired };
 
 /* ── Filter chip ── */
 function FilterChip({ label, onRemove, isDark }) {
@@ -904,39 +930,29 @@ function FilterChip({ label, onRemove, isDark }) {
     );
 }
 
-/* ── Pachka cell: faqat nechta pachka bor ── */
-function QadoqCell({ qty, piecesPerPack, isDark }) {
-    const pcs = Number(piecesPerPack) || 0;
-
-    // Pachka haqida ma'lumot yo'q
-    if (!pcs) {
-        return <span className={`text-xs ${isDark ? 'text-[#64748b]' : 'text-[#94a3b8]'}`}>—</span>;
-    }
-
-    const fullPacks = Math.floor(qty / pcs);
-    const remainder = qty % pcs;
+/* ── Pachka cell: barcode‘li pachkalar soni (packQuantity) + donaviy qoldiq (pieceQuantity) ── */
+function QadoqCell({ stock, isDark, align = 'center' }) {
+    const packs = Number(stock.packQuantity) || 0;
+    const pieces = Number(stock.pieceQuantity) || 0;
+    const ppp = Number(stock.productPiecesPerPack) || 0;
+    const qty = Number(stock.quantity) || 0;
+    const couldPack = ppp > 0 ? Math.floor(pieces / ppp) : 0;
 
     if (qty <= 0) {
-        return (
-            <span className={`text-sm font-bold ${isDark ? 'text-rose-300' : 'text-rose-600'}`}>
-                0 pachka
-            </span>
-        );
+        return <span className={`text-sm font-bold ${isDark ? 'text-rose-300' : 'text-rose-600'}`}>0 pachka</span>;
     }
-
     return (
-        <span className={`inline-flex items-baseline gap-1.5 text-sm font-bold whitespace-nowrap ${
-            isDark ? 'text-emerald-300' : 'text-emerald-700'
-        }`}>
-            <span>{fullPacks} pachka</span>
-            {remainder > 0 && (
-                <span className={`text-xs font-semibold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                    + {remainder} dona
-                </span>
-            )}
-        </span>
+        <div className={`flex flex-col ${align === 'center' ? 'items-center' : 'items-start'} gap-0.5 whitespace-nowrap`}>
+            <span className={`text-sm font-bold ${packs > 0 ? (isDark ? 'text-emerald-300' : 'text-emerald-700') : (isDark ? 'text-slate-400' : 'text-slate-500')}`}>
+                {packs} pachka{ppp > 0 ? <span className={`ml-1 text-[10px] font-semibold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>× {ppp}</span> : null}
+            </span>
+            <span className={`text-xs font-semibold ${pieces > 0 ? (isDark ? 'text-amber-300' : 'text-amber-700') : (isDark ? 'text-slate-500' : 'text-slate-400')}`}>
+                {pieces} dona donaviy{couldPack > 0 ? ` (≈ ${couldPack} pachka)` : ''}
+            </span>
+        </div>
     );
 }
+QadoqCell.propTypes = { stock: PropTypes.object.isRequired, isDark: PropTypes.bool, align: PropTypes.string };
 
 /* ── Qty badge: только штуки + warning при low-stock ── */
 function QtyBadge({ qty, minimumLine, isDark }) {
