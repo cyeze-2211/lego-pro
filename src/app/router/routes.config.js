@@ -108,6 +108,12 @@ export const ROUTES = [
         component: lazy(() => import('../../Components/Common/MachineDetail')),
         roles: [ROLES.MANAGER, ...XIMIK_ROLES],
     },
+    // Pachkalar (barcode‘li): skaner, ro‘yxat, yorliq, o‘chirish — admin
+    {
+        path: '/packs',
+        component: lazy(() => import('../../Components/Common/ProductPack')),
+        roles: ROLES.MANAGER,
+    },
     {
         path: '/customers',
         component: lazy(() => import('../../Components/Common/Customer')),

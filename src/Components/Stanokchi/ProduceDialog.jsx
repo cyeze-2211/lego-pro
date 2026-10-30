@@ -8,21 +8,26 @@ import { Alert } from '../Other/UI/Alert/Alert';
 import FormControl from '../ui/FormControl';
 import { useAppDispatch } from '../../store/hooks';
 import { useCreateStockTransactionMutation } from '../../store/services/productStock.api';
+import { useGetWarehousesQuery } from '../../store/services/warehouse.api';
 import {
     LABEL_MAX_COPIES, QZ_DOWNLOAD_URL, getSavedPrinter, labelErrorMessage, listPrinters, looksLikeLabelPrinter, printStockLabel, setSavedPrinter,
 } from '../../services/labelPrinter';
+import { shouldPrintLabel } from './labelPolicy';
+import { getMachineWarehouseId } from './productionWarehouse';
+import StartProductPicker from './MachineDetail/StartProductPicker';
 
 const MAX_PACKS = 500; // backend: bir qatorda ko‘pi bilan 500 pachka
-import { shouldPrintLabel } from './labelPolicy';
 
 /*
- * VAQTINCHALIK: stanokda «+1» bosilganda darhol 1 pachka yozish o‘rniga shu oyna ochiladi —
- * nechta pachka qayd etish, har pachkaga nechta yorliq va qaysi printer.
- * Bitta IN yozuvi (quantity = pachka soni, unit PACK). Server har pachkaga uniq barcode beradi (javobda productPack[]),
- * yorliq GET /product-stock-transactions/{id}/label?copies=N — N har pachkaga (1–10), har yorliqda o‘z barcode‘i.
- * Eski rejimga qaytish: labelPolicy.js dagi PRODUCE_WITH_DIALOG = false.
+ * Seriyali ishlab chiqarish: bitta IN yozuvi (quantity = pachka soni, unit PACK, machineId). Server har pachkaga
+ * uniq barcode beradi (javobda productPack[]), yorliq GET /product-stock-transactions/{id}/label?copies=N —
+ * N har pachkaga (0–10), har yorliqda o‘z barcode‘i.
+ *
+ * Ikki rejim:
+ *  - productId berilgan — stanokdagi joriy mahsulot uchun (stanokchi, PRODUCE_WITH_DIALOG = true bo‘lsa);
+ *  - pickProduct — admin: mahsulot qidiruv/filtr bilan tanlanadi, kirim ombori ham shu yerda tanlanadi.
  */
-export default function ProduceDialog({ open, onClose, machineId, machineName, warehouseId, productId, productName, defaultCopies = 2, onDone }) {
+export default function ProduceDialog({ open, onClose, machineId, machineName, warehouseId, productId, productName, pickProduct = false, defaultCopies = 2, onDone }) {
     const { isDark, cardBg, cardBorder, textColor, subtitleColor, accentColor } = useAppTheme();
     const dispatch = useAppDispatch();
     const modalBorder = isDark ? cardBorder : '#94A3B8';
@@ -33,7 +38,14 @@ export default function ProduceDialog({ open, onClose, machineId, machineName, w
     const [loadingPrinters, setLoadingPrinters] = useState(false);
     const [qzError, setQzError] = useState('');
     const [saving, setSaving] = useState(false);
+    const [selProduct, setSelProduct] = useState(null); // pickProduct rejimida tanlangan mahsulot { id, name }
+    const [selWarehouseId, setSelWarehouseId] = useState('');
     const [createStockTransaction] = useCreateStockTransactionMutation();
+    const { data: warehouses = [] } = useGetWarehousesQuery('PRODUCT', { skip: !pickProduct || !open });
+
+    const effProductId = pickProduct ? selProduct?.id : productId;
+    const effProductName = pickProduct ? selProduct?.name : productName;
+    const effWarehouseId = pickProduct ? selWarehouseId : warehouseId;
 
     const loadPrinters = async () => {
         setLoadingPrinters(true); setQzError('');
@@ -55,18 +67,29 @@ export default function ProduceDialog({ open, onClose, machineId, machineName, w
         if (!open) return;
         setQuantity('1');
         setCopies(String(defaultCopies));
+        setSelProduct(null);
+        setSelWarehouseId(warehouseId || getMachineWarehouseId(machineId) || '');
         loadPrinters();
-    }, [open, defaultCopies]);
+    }, [open, defaultCopies, warehouseId, machineId]);
+
+    // Admin: ombor bitta bo‘lsa o‘zi tanlanadi
+    useEffect(() => {
+        if (!pickProduct || !open || !warehouses.length) return;
+        setSelWarehouseId((cur) => (cur && warehouses.some((w) => w.id === cur) ? cur : (warehouses.length === 1 ? warehouses[0].id : '')));
+    }, [pickProduct, open, warehouses]);
 
     const qtyNum = Number(quantity);
     const copiesNum = Number(copies);
     const qtyValid = Number.isInteger(qtyNum) && qtyNum >= 1 && qtyNum <= MAX_PACKS;
     const copiesValid = Number.isInteger(copiesNum) && copiesNum >= 0 && copiesNum <= LABEL_MAX_COPIES;
     const totalLabels = qtyValid && copiesValid ? qtyNum * copiesNum : 0;
+    const ready = Boolean(effProductId && effWarehouseId);
 
     const submit = async (event) => {
         event.preventDefault();
         if (saving) return;
+        if (!effProductId) return Alert('Mahsulotni tanlang', 'error');
+        if (!effWarehouseId) return Alert('Kirim omborini tanlang', 'error');
         if (!qtyValid) return Alert(`Pachka soni 1 dan ${MAX_PACKS} gacha bo‘lsin`, 'error');
         if (!copiesValid) return Alert(`Har pachkaga nusxa 0 dan ${LABEL_MAX_COPIES} gacha bo‘lsin`, 'error');
         if (totalLabels > 0 && !printer && !qzError) return Alert('Printerni tanlang', 'error');
@@ -76,18 +99,18 @@ export default function ProduceDialog({ open, onClose, machineId, machineName, w
             const txResult = await createStockTransaction({
                 action: 'IN',
                 machineId,
-                warehouseId,
-                items: [{ productId, quantity: qtyNum, unit: 'PACK' }],
+                warehouseId: effWarehouseId,
+                items: [{ productId: effProductId, quantity: qtyNum, unit: 'PACK' }],
             }).unwrap();
             const entries = Array.isArray(txResult) ? txResult : (txResult?.data ?? []);
             const txId = entries[0]?.id;
             const packs = entries[0]?.productPack ?? []; // [{ id, barcode }]
-            Alert(`${qtyNum} pachka qayd etildi — ${productName}`, 'success');
-            onDone?.({ quantity: qtyNum, transactionId: txId || null, packs });
+            Alert(`${qtyNum} pachka qayd etildi — ${effProductName || 'mahsulot'}`, 'success');
+            onDone?.({ quantity: qtyNum, transactionId: txId || null, packs, productId: effProductId, warehouseId: effWarehouseId });
 
             // Yorliq: faqat tayyor mahsulot va kirim yozuvi bo‘lsa (brakda massiv bo‘sh)
             if (txId && totalLabels > 0) {
-                const print = await shouldPrintLabel(dispatch, productId);
+                const print = await shouldPrintLabel(dispatch, effProductId);
                 if (print) {
                     if (printer) setSavedPrinter(printer);
                     try {
@@ -108,31 +131,50 @@ export default function ProduceDialog({ open, onClose, machineId, machineName, w
     };
 
     return (
-        <Dialog.Root open={open} onOpenChange={(e) => !e.open && !saving && onClose()} size="sm" placement="center">
+        <Dialog.Root open={open} onOpenChange={(e) => !e.open && !saving && onClose()} size={pickProduct ? 'lg' : 'sm'} placement="center">
             <Portal>
                 <Dialog.Backdrop backdropFilter="blur(6px)" bg={isDark ? 'blackAlpha.700' : 'blackAlpha.400'} />
                 <Dialog.Positioner>
-                    <Dialog.Content bg={cardBg} borderColor={modalBorder} borderWidth="1px" borderRadius="2xl" overflow="hidden" maxW="480px" w="calc(100% - 32px)">
+                    <Dialog.Content bg={cardBg} borderColor={modalBorder} borderWidth="1px" borderRadius="2xl" overflow="hidden" maxW={pickProduct ? '760px' : '480px'} w="calc(100% - 32px)">
                         <Box position="absolute" top="0" left="0" right="0" h="4px" bg={`linear-gradient(90deg, ${accentColor}, #FDE047)`} />
                         <Dialog.Header color={textColor} fontSize="xl" fontWeight="bold" pt={7} pb={4} borderBottomWidth="1px" borderColor={modalBorder}>
                             <HStack gap={3}>
                                 <Box p={2.5} borderRadius="xl" bg={isDark ? 'rgba(250,204,21,.1)' : '#FEFCE8'} color={accentColor}><LuPackage size={22} /></Box>
                                 <VStack align="start" gap={0}>
-                                    <span>Mahsulotni qayd etish</span>
-                                    <Text color={subtitleColor} fontSize="sm" fontWeight="normal" noOfLines={1}>{machineName ? `${machineName} · ` : ''}{productName}</Text>
+                                    <span>{pickProduct ? 'Seriyali ishlab chiqarish' : 'Mahsulotni qayd etish'}</span>
+                                    <Text color={subtitleColor} fontSize="sm" fontWeight="normal" noOfLines={1}>
+                                        {machineName ? `${machineName}${effProductName ? ' · ' : ''}` : ''}{effProductName || (pickProduct ? 'Mahsulot tanlang — har pachkaga barcode va yorliq' : '')}
+                                    </Text>
                                 </VStack>
                             </HStack>
                         </Dialog.Header>
                         <Dialog.CloseTrigger asChild>
                             <Button variant="ghost" color={subtitleColor} size="sm" w="32px" h="32px" p={0} minW={0} position="absolute" top="3" right="3" aria-label="Yopish" disabled={saving}><X /></Button>
                         </Dialog.CloseTrigger>
-                        <Dialog.Body py={5}>
+                        <Dialog.Body py={5} maxH="calc(100vh - 220px)" overflowY="auto">
                             <form id="produce-form" onSubmit={submit}>
                                 <VStack gap={4} align="stretch">
+                                    {pickProduct && (
+                                        <>
+                                            <Field.Root required>
+                                                <Field.Label color={textColor}>Kirim ombori</Field.Label>
+                                                <FormControl as="select" value={selWarehouseId} onChange={(e) => setSelWarehouseId(e.target.value)} disabled={saving}>
+                                                    <option value="">{warehouses.length ? 'Omborni tanlang' : 'Omborlar yuklanmoqda...'}</option>
+                                                    {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+                                                </FormControl>
+                                            </Field.Root>
+                                            <StartProductPicker
+                                                selectedId={selProduct?.id}
+                                                onSelect={(id, product) => setSelProduct({ id, name: product?.name || '' })}
+                                                isDark={isDark} cardBorder={cardBorder} textColor={textColor} subtitleColor={subtitleColor} accentColor={accentColor}
+                                            />
+                                        </>
+                                    )}
+
                                     <SimpleGrid columns={2} gap={4}>
                                         <Field.Root required>
                                             <Field.Label color={textColor}>Nechta pachka</Field.Label>
-                                            <FormControl type="number" min={1} max={MAX_PACKS} step={1} value={quantity} onChange={(e) => setQuantity(e.target.value)} disabled={saving} autoFocus fontSize="xl" fontWeight="bold" minH="52px" />
+                                            <FormControl type="number" min={1} max={MAX_PACKS} step={1} value={quantity} onChange={(e) => setQuantity(e.target.value)} disabled={saving} autoFocus={!pickProduct} fontSize="xl" fontWeight="bold" minH="52px" />
                                             {!qtyValid && quantity !== '' && <Field.HelperText color={isDark ? 'red.300' : 'red.600'}>1 dan {MAX_PACKS} gacha</Field.HelperText>}
                                         </Field.Root>
                                         <Field.Root>
@@ -177,7 +219,7 @@ export default function ProduceDialog({ open, onClose, machineId, machineName, w
                         </Dialog.Body>
                         <Dialog.Footer gap={3} pt={4} pb={6} borderTopWidth="1px" borderColor={modalBorder}>
                             <Button variant="ghost" onClick={onClose} color={subtitleColor} borderRadius="xl" h="44px" px={5} disabled={saving}>Bekor qilish</Button>
-                            <Button type="submit" form="produce-form" disabled={saving || loadingPrinters || !qtyValid || !copiesValid} bg={accentColor} color="black" borderRadius="xl" h="44px" px={7} fontWeight="semibold">
+                            <Button type="submit" form="produce-form" disabled={saving || loadingPrinters || !qtyValid || !copiesValid || !ready} bg={accentColor} color="black" borderRadius="xl" h="44px" px={7} fontWeight="semibold">
                                 {saving ? <HStack gap={2}><Spinner size="sm" /><span>Saqlanmoqda...</span></HStack> : <HStack gap={2}><LuPrinter size={18} /><span>Qayd etish{totalLabels > 0 ? ' va chop etish' : ''}</span></HStack>}
                             </Button>
                         </Dialog.Footer>
@@ -196,6 +238,7 @@ ProduceDialog.propTypes = {
     warehouseId: PropTypes.string,
     productId: PropTypes.string,
     productName: PropTypes.string,
+    pickProduct: PropTypes.bool,
     defaultCopies: PropTypes.number,
     onDone: PropTypes.func,
 };

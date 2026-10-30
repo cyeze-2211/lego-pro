@@ -9,7 +9,7 @@ import {
     Table,
     Text,
 } from '@chakra-ui/react';
-import { LuClock3, LuCog, LuLayers3, LuSearch, LuX } from 'react-icons/lu';
+import { LuBarcode, LuClock3, LuCog, LuLayers3, LuSearch, LuX } from 'react-icons/lu';
 import { useGetMachinesQuery } from '../../../store/services/machine.api';
 import { useGetMachineCategoriesQuery } from '../../../store/services/machineCategory.api';
 import { ROLES } from '../../../app/permissions/roles';
@@ -24,6 +24,7 @@ import EmptyData from '../../Other/UI/NoData/EmptyData';
 import FormControl from '../../ui/FormControl';
 import { useInfiniteList } from '../../ui/useInfiniteList';
 import InfiniteSentinel from '../../ui/InfiniteSentinel';
+import ProduceDialog from '../../Stanokchi/ProduceDialog';
 
 const PAGE_SIZE = 12;
 
@@ -54,6 +55,7 @@ export default function Machine() {
     const [query, setQuery]   = useState('');
     const [page, setPage]     = useState(0);
     const [categoryId, setCategoryId] = useState('');
+    const [produceFor, setProduceFor] = useState(null); // Seriyali ishlab chiqarish — qaysi stanok uchun
 
     const { data: categoryResult } = useGetMachineCategoriesQuery({ page: 0, size: 200, sort: ['name,ASC', 'id,ASC'] });
     const categories = categoryResult?.items ?? [];
@@ -333,7 +335,19 @@ export default function Machine() {
 
                                         <Table.Cell borderWidth="0.5px" borderColor={tableBorder}>
                                             <HStack justify="center" gap={1}>
-                                                {canManage ? <><Edit machine={machine} /><Delete machine={machine} /></> : <Text fontSize="xs" color={subtitleColor}>Faqat ko‘rish</Text>}
+                                                {canManage ? (
+                                                    <>
+                                                        <Button
+                                                            onClick={() => setProduceFor(machine)}
+                                                            variant="ghost" size="sm" color={accentColor} borderRadius="xl" px={3}
+                                                            aria-label="Seriyali ishlab chiqarish" title="Seriyali ishlab chiqarish — mahsulot tanlab pachkalarga barcode va yorliq"
+                                                            _hover={{ bg: isDark ? 'rgb(var(--accent-400) / 0.12)' : 'rgb(var(--accent-warm-100))' }}
+                                                        >
+                                                            <LuBarcode size={16} />
+                                                        </Button>
+                                                        <Edit machine={machine} /><Delete machine={machine} />
+                                                    </>
+                                                ) : <Text fontSize="xs" color={subtitleColor}>Faqat ko‘rish</Text>}
                                             </HStack>
                                         </Table.Cell>
                                     </Table.Row>
@@ -344,6 +358,10 @@ export default function Machine() {
 
                     <InfiniteSentinel sentinelRef={sentinelRef} hasMore={hasMore} loadingMore={loadingMore} loaded={machines.length} total={machineResult?.pagination?.totalElements ?? machines.length} unit="ta stanok" onLoadMore={loadMore} />
                 </>
+            )}
+
+            {produceFor && (
+                <ProduceDialog open pickProduct onClose={() => setProduceFor(null)} machineId={produceFor.id} machineName={produceFor.name} defaultCopies={2} />
             )}
         </Box>
     );

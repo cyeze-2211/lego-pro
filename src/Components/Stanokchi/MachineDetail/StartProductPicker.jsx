@@ -149,7 +149,7 @@ export default function StartProductPicker({ selectedId, onSelect, error, isDark
                         const meta = [product.article, product.size].filter(Boolean).join(' · ');
                         return (
                             <button key={product.id} type="button"
-                                onClick={() => onSelect(product.id)}
+                                onClick={() => onSelect(product.id, product)}
                                 className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-left transition-all"
                                 style={{
                                     background: isSelected ? (isDark ? 'rgb(var(--accent-400) / 0.15)' : 'rgb(var(--accent-warm-100))') : (isDark ? 'rgba(255,255,255,0.03)' : '#fff'),

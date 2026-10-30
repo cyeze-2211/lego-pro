@@ -1,10 +1,11 @@
 import { productApi } from '../../store/services/product.api';
 
 /*
- * VAQTINCHALIK: true — stanokda «+1» bosilganda oyna ochiladi (nechta pachka, nechta yorliq, qaysi printer).
- * false — eski rejim: bosish = darhol 1 pachka + 2 yorliq. Qaytarish uchun shu qiymatni o‘zgartiring.
+ * Stanokchi «+1»: false — bosish = darhol 1 pachka + har pachkaga 2 yorliq (oyna yo‘q).
+ * true — bosilganda oyna ochiladi (nechta pachka, nechta yorliq, qaysi printer).
+ * Seriyali ishlab chiqarish (ko‘p pachka, mahsulot tanlab) admin panelda: Stanoklar → «Seriyali chiqarish».
  */
-export const PRODUCE_WITH_DIALOG = true;
+export const PRODUCE_WITH_DIALOG = false;
 
 /*
  * Yorliq (shtrix-kod) faqat tayyor mahsulot (type = FINISHED) uchun chop etiladi.

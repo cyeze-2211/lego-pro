@@ -3,6 +3,9 @@ import { useParams } from 'react-router-dom';
 import { Badge, Box, HStack, Table, Text } from '@chakra-ui/react';
 import { LuActivity, LuCalendar, LuCog, LuHistory, LuLayers3, LuPackage } from 'react-icons/lu';
 import { useGetMachineByIdQuery, useGetMachineRunsQuery } from '../../../store/services/machine.api';
+import { ROLES } from '../../../app/permissions/roles';
+import { useAppSelector } from '../../../store/hooks';
+import ProduceDialog from '../../Stanokchi/ProduceDialog';
 import EntityDetail, { DetailRow, DetailSection, formatDetailDate } from '../EntityDetail';
 import { formatNumber } from '../../ui/number-format';
 import { useInfiniteList } from '../../ui/useInfiniteList';
@@ -34,6 +37,9 @@ export default function MachineDetail() {
     const { id } = useParams();
     const [page, setPage] = useState(0);
     const [now, setNow]   = useState(() => Date.now());
+    const role = useAppSelector((state) => state.auth.role);
+    const canProduce = role === ROLES.MANAGER;
+    const [produceOpen, setProduceOpen] = useState(false); // Seriyali ishlab chiqarish (mahsulot tanlab, ≤500 pachka, yorliq)
 
     const { data: machine, isLoading, isError } = useGetMachineByIdQuery(id, { skip: !id });
     const { data: runResult, isFetching: runsFetching } = useGetMachineRunsQuery(
@@ -99,9 +105,14 @@ export default function MachineDetail() {
             backLabel="Stanoklar"
             loading={isLoading}
             error={isError || !machine}
+            payment={canProduce ? 'Seriyali chiqarish' : undefined}
+            onPayment={() => setProduceOpen(true)}
         >
             {({ isDark, textColor, subtitleColor, cardBorder, cardBg }) => (
                 <>
+                    {produceOpen && (
+                        <ProduceDialog open pickProduct onClose={() => setProduceOpen(false)} machineId={id} machineName={machine.name} defaultCopies={2} />
+                    )}
                     <DetailSection title="Stanok ma'lumotlari" icon={LuCog}>
                         <DetailRow label="Nomi"          value={machine.name} emphasize />
                         <DetailRow label="Kategoriya"    value={machine.category?.name ? <HStack gap={2}><LuLayers3 size={16} /><span>{machine.category.name}</span></HStack> : '—'} />

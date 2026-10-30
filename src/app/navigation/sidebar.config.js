@@ -3,7 +3,7 @@ import { ROLES, WAREHOUSE_ROLES, ZAYAVKACHI_ROLES, BUXGALTER_ROLES, KASSIR_ROLES
 import {
     Boxes, ClipboardList, Cog, History, LayoutDashboard, LogIn, LogOut,
     CalendarClock, Layers3, MonitorCog, Package, Palette, ReceiptText, ShieldCheck, UserRound, Users, Wallet, Warehouse, FileSpreadsheet, UserCheck, Truck,
-    ChartArea, FlaskConical, Settings, ArrowLeftRight,
+    ChartArea, FlaskConical, Settings, ArrowLeftRight, Barcode,
 } from 'lucide-react';
 
 // ── Sozlamalar (barcha rollar) ─────────────────────────────────────────────
@@ -37,6 +37,7 @@ export const SIDEBAR_CONFIG = [
     { label: 'Retseptlar', path: '/recipes', icon: FlaskConical, roles: [ROLES.MANAGER] },
     { label: 'Stanoklar', path: '/machines', icon: Cog, roles: [ROLES.MANAGER] },
     { label: 'Stanok kategoriyalari', path: '/machine-categories', icon: Layers3, roles: [ROLES.MANAGER] },
+    { label: 'Pachkalar', path: '/packs', icon: Barcode, roles: [ROLES.MANAGER] },
 
     // Moliya
     { label: 'Kassalar', path: '/cashboxes', icon: Wallet, roles: [ROLES.MANAGER] },
@@ -57,7 +58,7 @@ export const SIDEBAR_GROUPS = [
     { label: 'Asosiy', items: pick(['/']) },
     { label: 'Savdo', items: pick(['/orders', '/customers', '/customer-agents', '/reconciliation', '/reminders']) },
     { label: 'Katalog', items: pick(['/products', '/product-categories', '/product-colors', '/brand']) },
-    { label: 'Ishlab chiqarish', items: pick(['/warehouses', '/stock-transfer', '/raw', '/recipes', '/machines', '/machine-categories']) },
+    { label: 'Ishlab chiqarish', items: pick(['/warehouses', '/stock-transfer', '/raw', '/recipes', '/machines', '/machine-categories', '/packs']) },
     { label: 'Moliya', items: pick(['/cashboxes', '/expenses', '/expense-categories', '/suppliers']) },
     { label: 'Tizim', items: pick(['/users', '/roles', '/devices', '/settings']) },
 ];

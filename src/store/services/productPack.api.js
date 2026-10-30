@@ -8,6 +8,8 @@ import { productStockApi } from './productStock.api';
  * - GET /product-packs?productId&warehouseId&status — ro‘yxat (IN_STOCK | SHIPPED | OPENED)
  * - GET /product-packs/by-barcode/{barcode} — skanerlangan kod qaysi pachka (mahsulot, dona, ombor, stanok, vaqt)
  * - POST /product-packs { productId, warehouseId, packQuantity } — donaviy qoldiqdan pachka yaratish (yorliq uchun)
+ * - DELETE /product-packs/{id} — pachkani o‘chirish (admin: Pachkalar sahifasi). Backendda hali bo‘lmasa 404/405 —
+ *   sahifa buni «Backendda o‘chirish endpointi yo‘q» deb ko‘rsatadi.
  * Yorliq: GET /product-packs/label?ids=…&copies=N yoki /product-packs/{id}/label — labelPrinter.js da.
  */
 export const PACK_STATUS_LABEL = {
@@ -60,6 +62,18 @@ export const productPackApi = createApi({
                 } catch { /* xatolik chaqiruvchi tomonda ko‘rsatiladi */ }
             },
         }),
+
+        deleteProductPack: builder.mutation({
+            query: (id) => ({ url: `/product-packs/${id}`, method: 'DELETE' }),
+            invalidatesTags: [{ type: 'ProductPack', id: 'LIST' }],
+            // Pachka o‘chsa qoldiq (packQuantity) ham o‘zgaradi
+            onQueryStarted: async (arg, { dispatch, queryFulfilled }) => {
+                try {
+                    await queryFulfilled;
+                    dispatch(productStockApi.util.invalidateTags([{ type: 'ProductStock', id: 'LIST' }]));
+                } catch { /* xatolik chaqiruvchi tomonda ko‘rsatiladi */ }
+            },
+        }),
     }),
 });
 
@@ -68,4 +82,5 @@ export const {
     useLazyGetProductPacksQuery,
     useLazyGetPackByBarcodeQuery,
     useCreateProductPacksMutation,
+    useDeleteProductPackMutation,
 } = productPackApi;
